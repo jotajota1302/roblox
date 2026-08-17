@@ -210,6 +210,54 @@ Señales concretas que se miran en esa partida:
 
 ---
 
+## 6-bis. Los refugios
+
+Seis sitios repartidos por el mapa —dos por ruta, desviados del trayecto— donde **no se roba
+y no se persigue**. La regla no admite excepciones: si te pillaran en el último paso, entrar
+dejaría de ser una decisión para ser una apuesta, y nadie vuelve a fiarse de un refugio que
+le ha fallado una vez.
+
+Resuelven dos cosas a la vez:
+
+- **Huir deja de ser esperar.** Hasta ahora la única zona segura era el almacén, un punto en
+  una esquina, así que al perseguido sólo le quedaba correr y aguantar. Correr *hacia* algo
+  es una decisión.
+- **La ruta elegida cambia el camino**, que es lo que pedía el veredicto de la primera
+  partida. Aparecen trayectos que encadenan refugios —más largos, más seguros— frente a
+  atajos expuestos que pagan igual pero sin red.
+
+**El precio** es lo que lo separa de un botón de anular: el almacén apaga el calor de golpe;
+un refugio lo baja a 5 s por nivel en vez de 20. Tres estrellas son quince segundos ahí
+metido sin cobrar, y el tiempo es lo único que escasea en una sesión de diez minutos.
+
+Y **las patrullas no se van**: se quedan rondando fuera. Verlas esperando convierte estar a
+salvo en otra decisión —salir ahora y correr, o aguantar— en vez de en un final.
+
+## 6-ter. El tema, todavía abierto (idea de JJ, 17/08)
+
+`DISENO.md` dejó la ambientación sin decidir **a propósito**, y sigue sin decidirse. Sobre la
+mesa hay una alternativa que conviene no perder:
+
+> **Repartidor en vez de contrabandista.** Lo que te persigue son **ladrones** (PNJ y otros
+> jugadores), y la policía pasa a ser justo lo contrario: los refugios.
+
+Tres argumentos a favor, en orden de peso:
+
+1. **Arregla una incoherencia de diseño.** Hoy hay dos amenazas que compiten —policía (PNJ) y
+   jugadores (ladrones)— mecánicamente idénticas pero narrativamente opuestas. Unificarlas
+   hace que **el PNJ sea el tutorial del jugador humano**: aprendes a esquivar ladrones de
+   mentira y eso te prepara para los de verdad.
+2. **El público.** Roblox es mayoritariamente 8-16 años y su moderación es estricta con temas
+   de crimen. El descubrimiento es el cuello de botella real del proyecto (`MERCADO.md`), y un
+   repartidor que esquiva ladrones no arrastra fricción en ninguna parte.
+3. Encaja con los refugios, que ya están construidos y funcionan con cualquiera de los dos
+   temas.
+
+**Por qué no se ha hecho todavía:** cambiar el tema antes de jugar una sola partida con el
+viaje lleno sería pintar la fachada de una casa que quizá no se sostiene. El renombrado es
+una hora de trabajo mecánico; hacerlo *después* de saber que el bucle engancha cuesta lo
+mismo y se hace con certeza.
+
 ## 7. Lo que NO entra
 
 "Mini GTA" arrastra expectativas enormes, y el proyecto tiene una regla de oro escrita —*el
