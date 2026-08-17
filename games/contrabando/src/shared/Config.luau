@@ -53,9 +53,9 @@ Config.INTERCEPT_HZ = 5
 -- El tipo explícito no es adorno: sin él, indexar con una clave variable
 -- (Config.SONIDOS[clave]) es un error de tipo en --!strict.
 Config.SONIDOS = {
-	cobro = "",
-	robo = "",
-	alerta = "",
+	cobro = "rbxassetid://1319346243", -- "Money,Coins,Drop In Cash Register" (codes4breakfast)
+	robo = "rbxassetid://98330897555423", -- "punch2" (GRISAlLLE)
+	alerta = "rbxassetid://9119159511", -- "Siren Blat 2 (SFX)" (ProSoundEffects)
 } :: { [string]: string }
 
 -- Anticheat: nadie corre más que esto ni en el mejor de los casos.

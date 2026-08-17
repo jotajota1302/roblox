@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 Hud.build()
 
@@ -27,6 +28,14 @@ Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	else
 		RoutePicker.ocultar()
 	end
+end)
+
+Remotes.event(Remotes.AVISO).OnClientEvent:Connect(function(texto, color)
+	Hud.aviso(texto, color)
+end)
+
+Remotes.event(Remotes.SONIDO).OnClientEvent:Connect(function(clave)
+	Sfx.reproducir(clave)
 end)
 
 ContextActionService:BindAction("Entregar", function(_, inputState)

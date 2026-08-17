@@ -159,6 +159,7 @@ function CargoService.entregar(player: Player)
 			estado.dinero += Economy.valorEntrega(cajas, multiplicador)
 			RouteService.limpiar(player)
 			PlayerState.sync(player)
+			Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 			return
 		end
 	end
