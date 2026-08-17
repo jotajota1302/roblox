@@ -153,9 +153,18 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		-- Y desviados de la línea recta, si no serían una hilera de postes que se
 		-- esquiva andando en paralelo. La desviación crece con la densidad: en la
 		-- roja hay que cubrir el barrio, no una calle.
+		--
+		-- EL PRIMERO NO: va sobre el trayecto, sin desviar. Medido recorriendo la
+		-- ruta verde entera andando -- calor máximo 0, cero patrullas: sus tres
+		-- detectores estaban lo bastante dispersos como para no dispararse NUNCA. La
+		-- verde es la ruta donde se aprende qué es un detector y qué cuesta, y una
+		-- ruta de aprendizaje que no llega a enseñar nada deja al jugador
+		-- descubriendo el sistema en la ámbar, donde ya duele. Uno garantizado, el
+		-- resto a esquivar: eso es enseñar sin castigar.
 		local ancho = 60 + ruta.detectores * 8
-		local x = centro.X + rng:NextNumber(-ancho, ancho)
-		local z = centro.Z + rng:NextNumber(-ancho, ancho)
+		local desvio = if i == 1 then 0 else ancho
+		local x = centro.X + rng:NextNumber(-desvio, desvio)
+		local z = centro.Z + rng:NextNumber(-desvio, desvio)
 
 		local y = sueloDeLaCiudad(ciudad, x, z)
 		if y == nil then

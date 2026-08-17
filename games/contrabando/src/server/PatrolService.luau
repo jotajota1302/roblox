@@ -61,6 +61,13 @@ type Patrulla = {
 local escoltas: { [Player]: { Patrulla } } = {}
 local carpeta: Folder? = nil
 
+-- ARRIBA DEL TODO, con las demás. Estaba declarada más abajo, junto a ajustar(),
+-- y en cuanto perseguir() pasó a necesitarla para reubicar a una patrulla
+-- encallada se convirtió en un global nil: reventaría exactamente en el caso raro
+-- que viene a arreglar, y en ningún otro. Este proyecto ya ha pagado ese mismo
+-- error tres veces (tieneLegendaria, suelo del decorado, perseguidos).
+local rng = Random.new(os.clock() * 1000)
+
 local function contenedor(): Folder
 	if carpeta and carpeta.Parent then
 		return carpeta
@@ -92,8 +99,10 @@ local function crearAgente(donde: Vector3, velocidad: number): Patrulla?
 		-- Que no se pueda matar ni empujar: es un obstáculo del mundo, no un rival.
 		-- Un agente al que se le puede tirar por un barranco convierte el sistema en
 		-- un puzle de física en vez de en una persecución.
-		humanoid.MaxHealth = math.huge
-		humanoid.Health = math.huge
+		-- Un número grande, no math.huge: el infinito viaja mal por la replicación
+		-- y deja la barra de vida en un estado indefinido en el cliente.
+		humanoid.MaxHealth = 1e6
+		humanoid.Health = 1e6
 
 		-- Azul policía en todo el cuerpo, para que se reconozca de un vistazo desde
 		-- lejos. En una ciudad llena de gente de bloques, un perseguidor que parece
@@ -201,6 +210,10 @@ end
 -- segundos y recorre los puntos calculados mientras tanto.
 local function perseguir(patrulla: Patrulla, player: Player)
 	task.spawn(function()
+		-- Tramos seguidos sin avanzar. Vive fuera del bucle de waypoints a
+		-- propósito: encallarse es un patrón que sólo se ve mirando VARIOS tramos
+		-- seguidos -- uno suelto puede ser un roce con una farola.
+		local atascos = 0
 		local camino = PathfindingService:CreatePath({
 			AgentRadius = 3,
 			AgentHeight = 6,
@@ -225,9 +238,17 @@ local function perseguir(patrulla: Patrulla, player: Player)
 				break
 			end
 
-			-- Te ve: mientras esté encima, el calor no baja.
-			HeatService.marcarPerseguido(player, separacion < 120)
-
+			-- Aquí NO se toca "te están viendo". Lo decide ajustar(), mirando todas
+			-- las patrullas a la vez, y el motivo es un fallo real que tenía este
+			-- código: con tres perseguidores escribiendo el MISMO booleano, la
+			-- última en pasar por aquí ganaba. Bastaba con que una se quedara atrás
+			-- (a más de 120) para que apagara la señal que las otras dos, encima del
+			-- jugador, acababan de encender -- y el calor se ponía a enfriar en plena
+			-- persecución. Peor aún: al salir de este bucle por cualquier vía que no
+			-- fuera alejarse (el jugador muere, se desconecta, reaparece), el
+			-- booleano se quedaba en `true` PARA SIEMPRE y el calor no volvía a bajar
+			-- nunca. Ninguna de las dos cosas revienta ni deja rastro: el juego
+			-- simplemente se vuelve más fácil o imposible sin que nadie sepa por qué.
 			local ok = pcall(function()
 				camino:ComputeAsync(patrulla.raiz.Position, objetivo.Position)
 			end)
@@ -242,8 +263,39 @@ local function perseguir(patrulla: Patrulla, player: Player)
 					if puntos[i].Action == Enum.PathWaypointAction.Jump then
 						patrulla.humanoid.Jump = true
 					end
+					local antes = patrulla.raiz.Position
 					patrulla.humanoid:MoveTo(puntos[i].Position)
 					patrulla.humanoid.MoveToFinished:Wait()
+
+					-- ¿SE HA QUEDADO ENCALLADA? Medido recorriendo el mapa: hay 116
+					-- vallas repartidas por la ciudad, y el pathfinding manda contra
+					-- ellas -- una sonda acabó empujando una durante minutos, en
+					-- estado Running, a 11,8 de velocidad y avanzando cero.
+					--
+					-- A un jugador esto no le pasa: ve la valla y la rodea. A un PNJ
+					-- sí, y ahí es donde duele: una patrulla clavada detrás de una
+					-- valla deja de perseguir para siempre y el jugador NO SE ENTERA
+					-- de nada -- sigue corriendo con tres estrellas creyendo que le
+					-- pisan los talones. El sistema se apaga solo y en silencio, que
+					-- es la peor forma de fallar que tiene este juego.
+					if (patrulla.raiz.Position - antes).Magnitude < 2 then
+						atascos += 1
+						if atascos >= 3 then
+							-- Tres tramos seguidos sin moverse: no es un roce, está
+							-- encajada. Se la reubica cerca del jugador en vez de
+							-- destruirla, para que la persecución siga existiendo.
+							-- Reaparecer a 90-140 studs no regala nada: es la misma
+							-- distancia a la que habría salido de nuevas.
+							local sitio = puntoDeAparicion(objetivo.Position, rng)
+							if sitio then
+								patrulla.modelo:PivotTo(CFrame.new(sitio))
+							end
+							atascos = 0
+						end
+						break -- y en cualquier caso, replantear el camino
+					else
+						atascos = 0
+					end
 					-- Se abandona el camino calculado en cuanto caduca: perseguir
 					-- hasta el final una ruta hacia donde el jugador ESTABA es la
 					-- diferencia entre un perseguidor y un sonámbulo.
@@ -266,8 +318,6 @@ local function perseguir(patrulla: Patrulla, player: Player)
 	end)
 end
 
-local rng = Random.new(os.clock() * 1000)
-
 -- Ajusta cuántas patrullas hay encima de un jugador a lo que pide su calor.
 local function ajustar(player: Player)
 	local nivel = HeatService.nivel(player)
@@ -278,6 +328,12 @@ local function ajustar(player: Player)
 			Remotes.event(Remotes.AVISO):FireClient(player, "Los has despistado", Palette.AVISO_BUENO)
 			retirar(player)
 		end
+		-- Y la señal se apaga SIEMPRE, no sólo cuando había escoltas que retirar.
+		-- Sin patrullas no hay nadie mirando, por definición; dejarlo a medias
+		-- permitiría que un `true` colgado de una persecución anterior impidiera
+		-- enfriar para siempre, con el jugador solo en mitad de la calle sin
+		-- entender por qué no le baja el calor.
+		HeatService.marcarPerseguido(player, false)
 		return
 	end
 
@@ -305,6 +361,21 @@ local function ajustar(player: Player)
 	if not objetivo then
 		return
 	end
+
+	-- "¿Te está viendo alguna?", decidido AQUÍ y en un solo sitio: un único
+	-- escritor, una vez por segundo, mirando a todas. Es lo que impide que tres
+	-- perseguidores se pisen el mismo booleano y que quede encendido para siempre
+	-- cuando una muere lejos. Basta con que UNA esté encima para que el calor no
+	-- enfríe -- que es lo que el jugador percibe: si los tienes detrás, no los has
+	-- perdido.
+	local alguienTeVe = false
+	for _, p in lista do
+		if p.viva and p.modelo.Parent and (objetivo.Position - p.raiz.Position).Magnitude < 120 then
+			alguienTeVe = true
+			break
+		end
+	end
+	HeatService.marcarPerseguido(player, alguienTeVe)
 
 	while #lista < quieren do
 		local donde = puntoDeAparicion(objetivo.Position, rng)

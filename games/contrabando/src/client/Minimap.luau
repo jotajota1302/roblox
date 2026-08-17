@@ -112,7 +112,18 @@ function Minimap.build()
 	yo.Position = UDim2.fromScale(0.5, 0.5)
 	yo.Visible = true
 
-	RunService.Heartbeat:Connect(function()
+	-- A 12 Hz, no en cada fotograma. Refrescar el mapa 60 veces por segundo significa
+	-- recorrer todos los jugadores y todas las patrullas 60 veces por segundo para
+	-- mover unos puntos que se desplazan menos de un píxel entre fotogramas: no se
+	-- ve, y este juego tiene que ir en un móvil de gama baja. A 12 el movimiento
+	-- sigue leyéndose fluido y el trabajo se divide por cinco.
+	local reloj = 0
+	RunService.Heartbeat:Connect(function(dt)
+		reloj += dt
+		if reloj < 1 / 12 then
+			return
+		end
+		reloj = 0
 		pcall(Minimap.refrescar)
 	end)
 end
