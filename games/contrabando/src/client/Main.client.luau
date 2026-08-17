@@ -2,21 +2,20 @@
 --[[
 	Main.client.luau — arranque del cliente.
 
-	El cliente NO tiene lógica de juego: pide su estado, lo guarda para dibujarlo y
-	manda intenciones. La tecla E (o el botón táctil de la Tarea 4) dice "quiero
-	entregar"; es el servidor quien comprueba si de verdad está en el destino.
+	El cliente NO tiene lógica de juego: pide su estado, lo dibuja y manda
+	intenciones. Es el servidor quien decide si esas intenciones valen.
 ]]
 
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
+local Hud = require(script.Parent:WaitForChild("Hud"))
 
-local estado = { dinero = 0, cajas = {}, ruta = nil, marcadoHasta = 0 }
+Hud.build()
 
-Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(nuevo)
-	estado = nuevo
-	print(string.format("[Contrabando] dinero %d, cajas %d", estado.dinero, #estado.cajas))
+Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
+	Hud.update(estado)
 end)
 
 ContextActionService:BindAction("Entregar", function(_, inputState)
@@ -26,4 +25,6 @@ ContextActionService:BindAction("Entregar", function(_, inputState)
 	return Enum.ContextActionResult.Pass
 end, false, Enum.KeyCode.E)
 
+-- Se pide el estado DESPUÉS de construir la interfaz: al revés llegaría a un
+-- cliente que todavía no sabe dibujarlo.
 Remotes.event(Remotes.PEDIR_ESTADO):FireServer()
