@@ -20,6 +20,10 @@
 	midiendo.
 ]]
 
+local AssetService = game:GetService("AssetService")
+
+local RideCatalog = require(game.ReplicatedStorage.Shared.RideCatalog)
+
 local Ride = {}
 
 -- Tonos compartidos. Un vehículo se reconoce por su SILUETA, no por su color, así
@@ -248,6 +252,46 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "VehiculoVisible"
 	carpeta.Parent = character
+
+	-- PRIMERO EL MODELO 3D, si hay uno para este vehículo y la sesión puede
+	-- descargarlo. Las piezas de abajo son el respaldo, no la primera opción: una
+	-- moto de verdad se lee mejor que seis bloques por muy bien colocados que
+	-- estén.
+	--
+	-- Y si falla, no pasa nada y no se avisa a nadie: se montan las piezas y el
+	-- juego sigue siendo el mismo. Sin el place publicado NINGUNA malla se
+	-- descarga, así que este camino se cae entero de forma rutinaria -- por eso el
+	-- respaldo no es una red de seguridad teórica sino el modo normal en Studio.
+	local modelo = RideCatalog.get(vehiculoId)
+	if modelo then
+		local ok, malla = pcall(function()
+			local m = AssetService:CreateMeshPartAsync(modelo.mesh)
+			m.Name = "Modelo"
+			if modelo.textura then
+				m.TextureID = modelo.textura
+			end
+			if modelo.color then
+				m.Color = modelo.color
+			end
+			m.Size = modelo.tamano
+			m.Anchored = false
+			m.CanCollide = false
+			m.Massless = true
+			m.CFrame = root.CFrame
+				* CFrame.new(modelo.offset.X, modelo.offset.Y, -modelo.offset.Z)
+				* CFrame.Angles(0, math.rad(modelo.giroY), 0)
+			m.Parent = carpeta
+
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = root
+			weld.Part1 = m
+			weld.Parent = m
+			return m
+		end)
+		if ok and malla then
+			return -- con el modelo puesto, las piezas sobran
+		end
+	end
 
 	for i, pieza in forma do
 		local p = Instance.new("Part")
