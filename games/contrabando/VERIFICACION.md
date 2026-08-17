@@ -167,9 +167,9 @@ guardar ni cargar revientan. El store se resuelve perezosamente y dentro de `pca
 
 | Dispositivo | Resolución | Problemas |
 |---|---|---|
-| Samsung Galaxy A06 | 705 × 338 | ninguno |
-| iPad Pro M5 13" | 1375 × 1032 | ninguno |
-| Portátil promedio | 1365 × 768 | ninguno |
+| Samsung Galaxy A06 | 705 × 338 | ninguno tras los tres arreglos de abajo |
+| iPad Pro M5 13" | 1375 × 1032 | ninguno — cero solapes con los controles táctiles |
+| Portátil promedio | 1365 × 768 | el selector salía a tamaño de cartel; con tope ya no |
 
 Dos detalles que hacen que la medición valga:
 
@@ -181,6 +181,33 @@ Dos detalles que hacen que la medición valga:
   costó una investigación entera durante el desarrollo.
 
 Los únicos avisos son del chat y el joystick de Roblox, que no son parte del juego.
+
+**Al añadir el botón de compra, esa medición encontró dos defectos reales** — los dos en el
+Galaxy A06, que es el peor caso:
+
+- **El selector de ruta se superponía a los tres botones**, que asomaban por detrás
+  ilegibles y seguían siendo pulsables. Elegir ruta es ahora modal de verdad: velo oscuro a
+  pantalla completa y botones ocultos (ocultos, no tapados).
+- **Los botones de ruta salían en orden alfabético** —AMBAR, ROJA, VERDE— porque
+  `UIListLayout` ordena por nombre cuando todos comparten `LayoutOrder`. El gradiente de
+  riesgo es lo único que esa pantalla comunica, y quedaba con el ×10 en el centro.
+- **El botón de comprar pisaba el de salto de Roblox por 6 px.** Su borde inferior caía en
+  y=196 y el salto empieza en y=190. En la captura no se ve: sólo aparece **comparando
+  posiciones**, y comparando en coordenadas **absolutas de pantalla** — el HUD tiene origen
+  `(0, −58)` por `DeviceSafeInsets` y los controles táctiles de Roblox lo tienen en `(0,0)`,
+  así que medir cada uno en su propio espacio esconde el solape. La regla del proyecto
+  —*nada en las esquinas inferiores*— no se cumple sola.
+
+Medido después del arreglo, en 705×338 y en coordenadas absolutas:
+
+```
+hud.Panel        14, -48 -> 226,  30      roblox.JumpButton   610, 190 -> 680, 260
+hud.Recoger     557,   6 -> 684,  54      solapes: ninguno
+hud.Entregar    557,  60 -> 684, 108
+hud.Comprar     529, 114 -> 684, 162      (28 px de margen sobre el salto)
+```
+
+Nada fuera del área, ningún botón por debajo de 48 px, ningún texto cortado.
 
 ---
 

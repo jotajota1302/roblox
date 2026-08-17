@@ -79,11 +79,17 @@ function Hud.build()
 	cargaLabel = linea("Carga", 2)
 	almacenLabel = linea("Almacen", 3)
 
-	-- Botón de entregar: centro-derecha, lejos del joystick y del salto.
+	-- La columna de acciones: derecha, y con los tres repartidos entre 0,26 y 0,58
+	-- de la altura. No son cifras estéticas. MEDIDO en un Galaxy A06 (705x338): con
+	-- el de comprar en 0,68 su borde inferior caía en y=196 y el botón de SALTO de
+	-- Roblox empieza en y=190 -- seis píxeles de solape con un control del sistema
+	-- que no podemos mover y que el jugador va a pulsar sin mirar. La regla del
+	-- proyecto ("nada en las esquinas inferiores: son del joystick y del salto") no
+	-- se cumple sola: hay que comprobarla con las posiciones reales.
 	local entregar = Instance.new("TextButton")
 	entregar.Name = "Entregar"
 	entregar.AnchorPoint = Vector2.new(1, 0.5)
-	entregar.Position = UDim2.fromScale(0.97, 0.5)
+	entregar.Position = UDim2.fromScale(0.97, 0.42)
 	entregar.Size = UDim2.fromScale(0.18, 0.12)
 	entregar.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
 	entregar.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -104,7 +110,7 @@ function Hud.build()
 	local recoger = Instance.new("TextButton")
 	recoger.Name = "Recoger"
 	recoger.AnchorPoint = Vector2.new(1, 0.5)
-	recoger.Position = UDim2.fromScale(0.97, 0.32)
+	recoger.Position = UDim2.fromScale(0.97, 0.26)
 	recoger.Size = UDim2.fromScale(0.18, 0.12)
 	recoger.BackgroundColor3 = Color3.fromRGB(120, 100, 60)
 	recoger.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -128,7 +134,7 @@ function Hud.build()
 	comprarBoton = Instance.new("TextButton")
 	comprarBoton.Name = "Comprar"
 	comprarBoton.AnchorPoint = Vector2.new(1, 0.5)
-	comprarBoton.Position = UDim2.fromScale(0.97, 0.68)
+	comprarBoton.Position = UDim2.fromScale(0.97, 0.58)
 	comprarBoton.Size = UDim2.fromScale(0.22, 0.12)
 	comprarBoton.BackgroundColor3 = Color3.fromRGB(70, 90, 130)
 	comprarBoton.TextColor3 = Color3.fromRGB(255, 255, 255)

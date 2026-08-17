@@ -51,6 +51,10 @@ function RoutePicker.build(alElegir: (string) -> ())
 	titulo.ZIndex = 2
 	titulo.Parent = pantalla
 
+	local tituloSize = Instance.new("UISizeConstraint")
+	tituloSize.MaxSize = Vector2.new(560, 52)
+	tituloSize.Parent = titulo
+
 	local fila = Instance.new("Frame")
 	fila.AnchorPoint = Vector2.new(0.5, 0.5)
 	fila.Position = UDim2.fromScale(0.5, 0.52)
@@ -86,6 +90,11 @@ function RoutePicker.build(alElegir: (string) -> ())
 
 		local size = Instance.new("UISizeConstraint")
 		size.MinSize = Vector2.new(90, 96)
+		-- Y un techo: sin él, en un portátil de 1365x768 cada botón salía de
+		-- 368x261 px, con el texto a un tamaño de cartel. No es sólo feo — un
+		-- elemento que ocupa un tercio de la pantalla tapa el mundo justo cuando
+		-- el jugador quiere mirar hacia dónde va a salir.
+		size.MaxSize = Vector2.new(260, 190)
 		size.Parent = boton
 
 		boton.Activated:Connect(function()
