@@ -128,13 +128,16 @@ local function decorado(
 		m.Size = modelo.tamano
 		m.CFrame = CFrame.new(posicion) * CFrame.Angles(0, math.rad(giroY), 0)
 		m.Anchored = true
-		-- Sin colisión: la geometría jugable son las losas. Un edificio sólido
-		-- puede empujar al jugador fuera de la zona en la que el servidor mide
-		-- distancias, y entonces el botón de recoger dejaría de funcionar sin que
-		-- nada lo explique.
-		m.CanCollide = false
-		m.CanQuery = false
-		m.CanTouch = false
+		-- Sólido, igual que el decorado de piezas: un edificio que se atraviesa se
+		-- lee como un juego roto. Los modelos están fuera de las zonas que el
+		-- servidor mide, así que no pueden dejar a nadie sin poder recoger.
+		--
+		-- Fidelidad de caja: la malla de un edificio generado tiene miles de
+		-- triángulos y calcular su colisión exacta cuesta, además de dejar huecos
+		-- por los que colarse. Una caja es lo que se quiere aquí -- una pared que
+		-- para -- y no lo que se quiere nunca: una pared con agujeros.
+		m.CollisionFidelity = Enum.CollisionFidelity.Box
+		m.CanCollide = true
 		m.Parent = padre
 		return m
 	end)
@@ -213,14 +216,25 @@ local function respaldo(adorno: Instance)
 	local function bloque(nombre: string, tamano: Vector3, pos: Vector3, color: Color3, material: Enum.Material)
 		local p = part(nombre, tamano, pos, color, adorno)
 		p.Material = material
-		-- Sin colisión, igual que los meshes: la geometría jugable son las losas, y
-		-- un edificio sólido puede empujar al jugador fuera del radio en el que el
-		-- servidor mide las distancias.
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
+		-- SÓLIDO. Al principio no lo era, por miedo a que un edificio empujase al
+		-- jugador fuera del radio en el que el servidor mide las distancias. Con
+		-- cubos de colores daba igual; en cuanto hubo paredes de verdad, atravesarlas
+		-- se lee como que el juego está roto -- y lo dijo JJ a la primera partida.
+		--
+		-- El miedo era infundado, además: los edificios están FUERA de las zonas que
+		-- se miden. La nave arranca en z = -35 y el muelle acaba en -30; el cobertizo
+		-- del taller deja libre toda la mitad de la losa que da a la carretera. Hay
+		-- sitio de sobra para estar dentro del radio sin tocar una pared.
+		p.CanCollide = true
 		return p
 	end
+
+	-- El asfalto, que es sobre lo que se levantan la nave y el cobertizo. Vive
+	-- AQUÍ y no dentro de una sección: al trocear el respaldo en piezas montables
+	-- por separado, una `local suelo` declarada dentro de la sección de la nave
+	-- dejaba a taller y furgoneta leyendo un global nil -- el mismo error que ya
+	-- costó una ronda con tieneLegendaria en CargoService.
+	local suelo = SUELO_CARRETERA
 
 	-- APOYADO sobre el suelo, no centrado en una altura a ojo. `suelo` es la cota de
 	-- la superficie y la pieza se sienta encima: es la diferencia entre una
@@ -237,205 +251,247 @@ local function respaldo(adorno: Instance)
 		return bloque(nombre, tamano, Vector3.new(x, suelo + tamano.Y / 2, z), color, material)
 	end
 
-	-- ALMACÉN: nave detrás del muelle, sobre la carretera (el muelle sólo llega a
-	-- z = -30, y la nave empieza más allá).
-	local zNave, ancho, largo, alto = -52, 54, 34, 26
-	local suelo = SUELO_CARRETERA
-	local function pared(nombre: string, tamano: Vector3, x: number, z: number)
-		apoyado(nombre, tamano, x, z, suelo, CHAPA, Enum.Material.Metal)
-		-- Zócalo: una franja oscura abajo. Cuesta una pieza y es lo que hace que una
-		-- caja gris parezca un edificio en vez de un cubo.
-		apoyado(
-			nombre .. "Zocalo",
-			Vector3.new(tamano.X + 0.4, 3, tamano.Z + 0.4),
-			x,
-			z,
-			suelo,
-			ZOCALO,
-			Enum.Material.Concrete
-		)
-	end
+	return {
+		nave = function()
+			-- ALMACÉN: nave detrás del muelle, sobre la carretera (el muelle sólo llega a
+			-- z = -30, y la nave empieza más allá).
+			local zNave, ancho, largo, alto = -52, 54, 34, 26
+			local function pared(nombre: string, tamano: Vector3, x: number, z: number)
+				apoyado(nombre, tamano, x, z, suelo, CHAPA, Enum.Material.Metal)
+				-- Zócalo: una franja oscura abajo. Cuesta una pieza y es lo que hace que una
+				-- caja gris parezca un edificio en vez de un cubo.
+				apoyado(
+					nombre .. "Zocalo",
+					Vector3.new(tamano.X + 0.4, 3, tamano.Z + 0.4),
+					x,
+					z,
+					suelo,
+					ZOCALO,
+					Enum.Material.Concrete
+				)
+			end
 
-	pared("NaveIzq", Vector3.new(1.5, alto, largo), -ancho / 2, zNave)
-	pared("NaveDer", Vector3.new(1.5, alto, largo), ancho / 2, zNave)
-	pared("NaveFondo", Vector3.new(ancho, alto, 1.5), 0, zNave - largo / 2)
-	pared("NaveFrente", Vector3.new(ancho, alto, 1.5), 0, zNave + largo / 2)
-	apoyado(
-		"NaveTejado",
-		Vector3.new(ancho + 5, 1.5, largo + 5),
-		0,
-		zNave,
-		suelo + alto,
-		CHAPA_OSCURA,
-		Enum.Material.Metal
-	)
-	-- Alero: la sombra que proyecta es la mitad de lo que da volumen al edificio.
-	apoyado(
-		"NaveAlero",
-		Vector3.new(ancho + 7, 1, 3),
-		0,
-		zNave + largo / 2 + 2,
-		suelo + alto - 1.5,
-		CHAPA_OSCURA,
-		Enum.Material.Metal
-	)
+			pared("NaveIzq", Vector3.new(1.5, alto, largo), -ancho / 2, zNave)
+			pared("NaveDer", Vector3.new(1.5, alto, largo), ancho / 2, zNave)
+			pared("NaveFondo", Vector3.new(ancho, alto, 1.5), 0, zNave - largo / 2)
+			pared("NaveFrente", Vector3.new(ancho, alto, 1.5), 0, zNave + largo / 2)
+			apoyado(
+				"NaveTejado",
+				Vector3.new(ancho + 5, 1.5, largo + 5),
+				0,
+				zNave,
+				suelo + alto,
+				CHAPA_OSCURA,
+				Enum.Material.Metal
+			)
+			-- Alero: la sombra que proyecta es la mitad de lo que da volumen al edificio.
+			apoyado(
+				"NaveAlero",
+				Vector3.new(ancho + 7, 1, 3),
+				0,
+				zNave + largo / 2 + 2,
+				suelo + alto - 1.5,
+				CHAPA_OSCURA,
+				Enum.Material.Metal
+			)
 
-	local frenteZ = zNave + largo / 2 + 1
-	apoyado("NavePorton", Vector3.new(22, 16, 0.6), 0, frenteZ, suelo, PUERTA, Enum.Material.Metal)
-	apoyado("NavePortonMarco", Vector3.new(24, 17.5, 0.4), 0, frenteZ + 0.3, suelo, CHAPA_OSCURA, Enum.Material.Metal)
-	for i, x in { -19, 19 } do
-		apoyado("NaveVentana" .. i, Vector3.new(9, 5, 0.6), x, frenteZ, suelo + 14, CRISTAL, Enum.Material.Glass)
-		apoyado(
-			"NaveVentanaMarco" .. i,
-			Vector3.new(10, 6, 0.4),
-			x,
-			frenteZ + 0.3,
-			suelo + 13.5,
-			CHAPA_OSCURA,
-			Enum.Material.Metal
-		)
-	end
-
-	-- Cajas apiladas en el muelle. Sobre la LOSA, que es donde se anda, no sobre la
-	-- carretera: media caja enterrada se ve al instante.
-	local pila = {
-		{ x = -20, z = -18, lado = 5 },
-		{ x = -13.5, z = -20, lado = 5 },
-		{ x = -22, z = -12, lado = 4 },
+			local frenteZ = zNave + largo / 2 + 1
+			apoyado("NavePorton", Vector3.new(22, 16, 0.6), 0, frenteZ, suelo, PUERTA, Enum.Material.Metal)
+			apoyado(
+				"NavePortonMarco",
+				Vector3.new(24, 17.5, 0.4),
+				0,
+				frenteZ + 0.3,
+				suelo,
+				CHAPA_OSCURA,
+				Enum.Material.Metal
+			)
+			for i, x in { -19, 19 } do
+				apoyado(
+					"NaveVentana" .. i,
+					Vector3.new(9, 5, 0.6),
+					x,
+					frenteZ,
+					suelo + 14,
+					CRISTAL,
+					Enum.Material.Glass
+				)
+				apoyado(
+					"NaveVentanaMarco" .. i,
+					Vector3.new(10, 6, 0.4),
+					x,
+					frenteZ + 0.3,
+					suelo + 13.5,
+					CHAPA_OSCURA,
+					Enum.Material.Metal
+				)
+			end
+		end,
+		cajas = function()
+			-- Cajas apiladas en el muelle. Sobre la LOSA, que es donde se anda, no sobre la
+			-- carretera: media caja enterrada se ve al instante.
+			local pila = {
+				{ x = -20, z = -18, lado = 5 },
+				{ x = -13.5, z = -20, lado = 5 },
+				{ x = -22, z = -12, lado = 4 },
+			}
+			for i, c in pila do
+				local caja = apoyado(
+					"CajaMuelle" .. i,
+					Vector3.new(c.lado, c.lado, c.lado),
+					c.x,
+					c.z,
+					SUELO_LOSA,
+					MADERA,
+					Enum.Material.WoodPlanks
+				)
+				caja.CFrame = caja.CFrame * CFrame.Angles(0, math.rad(i * 23), 0)
+				-- Flejes cruzados: dos piezas finas y la caja deja de ser un cubo marrón.
+				local fleje = bloque(
+					"CajaFleje" .. i,
+					Vector3.new(c.lado + 0.3, 0.6, c.lado + 0.3),
+					caja.Position,
+					MADERA_OSCURA,
+					Enum.Material.Wood
+				)
+				fleje.CFrame = caja.CFrame
+			end
+			-- Una encima, para que la pila tenga altura.
+			local cima = apoyado(
+				"CajaMuelle4",
+				Vector3.new(4.5, 4.5, 4.5),
+				-17,
+				-16.5,
+				SUELO_LOSA + 5,
+				MADERA,
+				Enum.Material.WoodPlanks
+			)
+			cima.CFrame = cima.CFrame * CFrame.Angles(0, math.rad(37), 0)
+		end,
+		taller = function()
+			-- TALLER: cobertizo abierto por delante, para que se vea la furgoneta dentro.
+			-- Va sobre la carretera; la losa azul del taller sólo llega a z = -20.
+			local zTaller, anchoT, largoT, altoT = -36, 36, 30, 18
+			local xT = -50
+			apoyado(
+				"TallerIzq",
+				Vector3.new(1.5, altoT, largoT),
+				xT - anchoT / 2,
+				zTaller,
+				suelo,
+				CHAPA_OSCURA,
+				Enum.Material.Metal
+			)
+			apoyado(
+				"TallerDer",
+				Vector3.new(1.5, altoT, largoT),
+				xT + anchoT / 2,
+				zTaller,
+				suelo,
+				CHAPA_OSCURA,
+				Enum.Material.Metal
+			)
+			apoyado(
+				"TallerFondo",
+				Vector3.new(anchoT, altoT, 1.5),
+				xT,
+				zTaller - largoT / 2,
+				suelo,
+				CHAPA_OSCURA,
+				Enum.Material.Metal
+			)
+			apoyado(
+				"TallerTejado",
+				Vector3.new(anchoT + 5, 1.5, largoT + 5),
+				xT,
+				zTaller,
+				suelo + altoT,
+				Palette.TALLER,
+				Enum.Material.Metal
+			)
+			-- Dintel sobre la boca abierta: sin él, el cobertizo son dos paredes sueltas.
+			apoyado(
+				"TallerDintel",
+				Vector3.new(anchoT + 5, 3, 2),
+				xT,
+				zTaller + largoT / 2,
+				suelo + altoT - 4.5,
+				Palette.TALLER,
+				Enum.Material.Metal
+			)
+		end,
+		furgoneta = function()
+			-- La furgoneta aparcada ES el escaparate: enseña lo que compras antes de que
+			-- puedas pagarlo, y eso es la mitad del motivo para hacer otro viaje. DENTRO
+			-- del cobertizo y APOYADA en el suelo: colocada a ojo salía enterrada.
+			-- DELANTE del cobertizo, sobre la losa del taller, no dentro. El cobertizo
+			-- de piezas está abierto y dejaría verla, pero el taller puede venir como
+			-- modelo 3D con colisión de caja -- un bloque macizo -- y entonces la
+			-- furgoneta desaparecería dentro. Delante funciona en los dos casos, y de
+			-- paso se ve desde el muelle al pasar.
+			local fx, fz = xT, -12
+			apoyado(
+				"FurgoChasis",
+				Vector3.new(9, 1.6, 17),
+				fx,
+				fz,
+				SUELO_LOSA + 1.6,
+				Color3.fromRGB(52, 56, 66),
+				Enum.Material.Metal
+			)
+			apoyado(
+				"FurgoCaja",
+				Vector3.new(9.4, 7.5, 11),
+				fx,
+				fz - 3,
+				SUELO_LOSA + 3.2,
+				Palette.TALLER,
+				Enum.Material.SmoothPlastic
+			)
+			apoyado(
+				"FurgoCabina",
+				Vector3.new(9, 5.4, 6),
+				fx,
+				fz + 5.5,
+				SUELO_LOSA + 3.2,
+				Color3.fromRGB(96, 116, 156),
+				Enum.Material.SmoothPlastic
+			)
+			apoyado(
+				"FurgoParabrisas",
+				Vector3.new(8, 3, 0.6),
+				fx,
+				fz + 8.4,
+				SUELO_LOSA + 4.6,
+				CRISTAL,
+				Enum.Material.Glass
+			)
+			apoyado(
+				"FurgoMorro",
+				Vector3.new(9, 2.6, 2.5),
+				fx,
+				fz + 9.4,
+				SUELO_LOSA + 1.6,
+				Color3.fromRGB(96, 116, 156),
+				Enum.Material.SmoothPlastic
+			)
+			for i, r in { { x = -4.6, z = 5 }, { x = 4.6, z = 5 }, { x = -4.6, z = -6 }, { x = 4.6, z = -6 } } do
+				local rueda = apoyado(
+					"FurgoRueda" .. i,
+					Vector3.new(1.4, 3.4, 3.4),
+					fx + r.x,
+					fz + r.z,
+					SUELO_LOSA,
+					Color3.fromRGB(30, 30, 34),
+					Enum.Material.SmoothPlastic
+				)
+				-- SIN rotarla: el eje de un Part cilíndrico ya va a lo largo de su X local,
+				-- que es justo el eje sobre el que gira una rueda en una furgoneta que
+				-- mira hacia +Z. Girarla 90° la dejaría tumbada como un plato.
+				rueda.Shape = Enum.PartType.Cylinder
+			end
+		end,
 	}
-	for i, c in pila do
-		local caja = apoyado(
-			"CajaMuelle" .. i,
-			Vector3.new(c.lado, c.lado, c.lado),
-			c.x,
-			c.z,
-			SUELO_LOSA,
-			MADERA,
-			Enum.Material.WoodPlanks
-		)
-		caja.CFrame = caja.CFrame * CFrame.Angles(0, math.rad(i * 23), 0)
-		-- Flejes cruzados: dos piezas finas y la caja deja de ser un cubo marrón.
-		local fleje = bloque(
-			"CajaFleje" .. i,
-			Vector3.new(c.lado + 0.3, 0.6, c.lado + 0.3),
-			caja.Position,
-			MADERA_OSCURA,
-			Enum.Material.Wood
-		)
-		fleje.CFrame = caja.CFrame
-	end
-	-- Una encima, para que la pila tenga altura.
-	local cima =
-		apoyado("CajaMuelle4", Vector3.new(4.5, 4.5, 4.5), -17, -16.5, SUELO_LOSA + 5, MADERA, Enum.Material.WoodPlanks)
-	cima.CFrame = cima.CFrame * CFrame.Angles(0, math.rad(37), 0)
-
-	-- TALLER: cobertizo abierto por delante, para que se vea la furgoneta dentro.
-	-- Va sobre la carretera; la losa azul del taller sólo llega a z = -20.
-	local zTaller, anchoT, largoT, altoT = -36, 36, 30, 18
-	local xT = -50
-	apoyado(
-		"TallerIzq",
-		Vector3.new(1.5, altoT, largoT),
-		xT - anchoT / 2,
-		zTaller,
-		suelo,
-		CHAPA_OSCURA,
-		Enum.Material.Metal
-	)
-	apoyado(
-		"TallerDer",
-		Vector3.new(1.5, altoT, largoT),
-		xT + anchoT / 2,
-		zTaller,
-		suelo,
-		CHAPA_OSCURA,
-		Enum.Material.Metal
-	)
-	apoyado(
-		"TallerFondo",
-		Vector3.new(anchoT, altoT, 1.5),
-		xT,
-		zTaller - largoT / 2,
-		suelo,
-		CHAPA_OSCURA,
-		Enum.Material.Metal
-	)
-	apoyado(
-		"TallerTejado",
-		Vector3.new(anchoT + 5, 1.5, largoT + 5),
-		xT,
-		zTaller,
-		suelo + altoT,
-		Palette.TALLER,
-		Enum.Material.Metal
-	)
-	-- Dintel sobre la boca abierta: sin él, el cobertizo son dos paredes sueltas.
-	apoyado(
-		"TallerDintel",
-		Vector3.new(anchoT + 5, 3, 2),
-		xT,
-		zTaller + largoT / 2,
-		suelo + altoT - 4.5,
-		Palette.TALLER,
-		Enum.Material.Metal
-	)
-
-	-- La furgoneta aparcada ES el escaparate: enseña lo que compras antes de que
-	-- puedas pagarlo, y eso es la mitad del motivo para hacer otro viaje. DENTRO
-	-- del cobertizo y APOYADA en el suelo: colocada a ojo salía enterrada.
-	local fx, fz = xT, zTaller - 2
-	apoyado(
-		"FurgoChasis",
-		Vector3.new(9, 1.6, 17),
-		fx,
-		fz,
-		suelo + 1.6,
-		Color3.fromRGB(52, 56, 66),
-		Enum.Material.Metal
-	)
-	apoyado(
-		"FurgoCaja",
-		Vector3.new(9.4, 7.5, 11),
-		fx,
-		fz - 3,
-		suelo + 3.2,
-		Palette.TALLER,
-		Enum.Material.SmoothPlastic
-	)
-	apoyado(
-		"FurgoCabina",
-		Vector3.new(9, 5.4, 6),
-		fx,
-		fz + 5.5,
-		suelo + 3.2,
-		Color3.fromRGB(96, 116, 156),
-		Enum.Material.SmoothPlastic
-	)
-	apoyado("FurgoParabrisas", Vector3.new(8, 3, 0.6), fx, fz + 8.4, suelo + 4.6, CRISTAL, Enum.Material.Glass)
-	apoyado(
-		"FurgoMorro",
-		Vector3.new(9, 2.6, 2.5),
-		fx,
-		fz + 9.4,
-		suelo + 1.6,
-		Color3.fromRGB(96, 116, 156),
-		Enum.Material.SmoothPlastic
-	)
-	for i, r in { { x = -4.6, z = 5 }, { x = 4.6, z = 5 }, { x = -4.6, z = -6 }, { x = 4.6, z = -6 } } do
-		local rueda = apoyado(
-			"FurgoRueda" .. i,
-			Vector3.new(1.4, 3.4, 3.4),
-			fx + r.x,
-			fz + r.z,
-			suelo,
-			Color3.fromRGB(30, 30, 34),
-			Enum.Material.SmoothPlastic
-		)
-		-- SIN rotarla: el eje de un Part cilíndrico ya va a lo largo de su X local,
-		-- que es justo el eje sobre el que gira una rueda en una furgoneta que
-		-- mira hacia +Z. Girarla 90° la dejaría tumbada como un plato.
-		rueda.Shape = Enum.PartType.Cylinder
-	end
 end
 
 function WorldBuilder.build(): {
@@ -567,30 +623,52 @@ function WorldBuilder.build(): {
 	adorno.Parent = mundo
 
 	task.spawn(function()
-		-- Se prueba con UNO antes de intentar los cuatro. Si los meshes no cargan
-		-- fallan todos por el mismo motivo (place sin publicar), y encadenar cuatro
-		-- esperas al servidor de assets para recibir cuatro veces el mismo error es
-		-- tiempo de arranque tirado. El edificio DETRÁS de la losa, no encima: la
-		-- losa es el muelle de carga por el que se anda y donde aparece el jugador.
+		-- CADA elemento intenta su modelo y, si no carga, monta su propia versión de
+		-- piezas. Antes era todo o nada -- se probaba uno y, si fallaba, se montaba
+		-- el respaldo entero -- y eso no aguanta el caso real: al publicar el place,
+		-- el almacén y el taller cargaron y la caja y la furgoneta no, porque sus
+		-- assets se habían quedado sin subir (403 en la cuenta). Con el todo o nada,
+		-- dos modelos buenos se habrían tirado a la basura, o peor: se habrían
+		-- montado ENCIMA de sus equivalentes de piezas.
+		local piezas = respaldo(adorno)
+
+		-- El edificio DETRÁS de la losa, no encima: la losa es el muelle de carga
+		-- por el que se anda y donde aparece el jugador.
 		if decorado("EdificioAlmacen", MeshCatalog.ALMACEN, Vector3.new(0, 18, -52), 0, adorno) == nil then
-			warn("[Contrabando] sin meshes (place sin publicar?): se monta el decorado de piezas")
-			respaldo(adorno)
-			return
+			piezas.nave()
 		end
 
 		-- Cajas apiladas en el muelle. Fijas: el contador real del almacén es de
 		-- cada jugador y no cabe en una pila compartida, pero ver mercancía donde
 		-- el juego dice que hay mercancía es lo que hace que "Recoger" signifique
-		-- algo.
+		-- algo. Van todas o ninguna: media pila de modelos y media de cubos se
+		-- notaría más que la pila entera de cubos.
+		local cajasOk = true
 		for i, sitio in { Vector3.new(-20, 4, -18), Vector3.new(-14, 4, -20), Vector3.new(-17, 8, -19) } do
-			decorado("CajaMuelle" .. i, MeshCatalog.CAJA, sitio, i * 24, adorno)
+			if decorado("CajaMuelle" .. i, MeshCatalog.CAJA, sitio, i * 24, adorno) == nil then
+				cajasOk = false
+				break
+			end
+		end
+		if not cajasOk then
+			for _, p in adorno:GetChildren() do
+				if string.sub(p.Name, 1, 10) == "CajaMuelle" then
+					p:Destroy()
+				end
+			end
+			piezas.cajas()
 		end
 
-		decorado("EdificioTaller", MeshCatalog.TALLER, Vector3.new(-50, 12, -38), 0, adorno)
+		if decorado("EdificioTaller", MeshCatalog.TALLER, Vector3.new(-50, 12, -38), 0, adorno) == nil then
+			piezas.taller()
+		end
+
 		-- La furgoneta aparcada en el taller ES el escaparate: enseña lo que
 		-- compras antes de que puedas pagarlo, que es la mitad del motivo para
 		-- hacer otro viaje.
-		decorado("FurgonetaEscaparate", MeshCatalog.FURGONETA, Vector3.new(-50, 5.5, -14), 90, adorno)
+		if decorado("FurgonetaEscaparate", MeshCatalog.FURGONETA, Vector3.new(-50, 5.5, -12), 90, adorno) == nil then
+			piezas.furgoneta()
+		end
 	end)
 
 	-- `aparicion` se devuelve porque Avatar.luau construye los personajes a mano

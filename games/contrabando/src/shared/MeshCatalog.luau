@@ -37,9 +37,13 @@ MeshCatalog.TALLER = {
 	tamano = Vector3.new(34, 22, 34),
 } :: Modelo
 
+-- Regenerada: el primer intento se subió mal y su id devolvía siempre "Failed to
+-- load mesh asset" mientras los otros tres del mismo lote cargaban. Que un asset
+-- del catálogo pueda estar roto sin previo aviso es justo el motivo de que cada
+-- elemento del decorado tenga su respaldo de piezas por separado.
 MeshCatalog.FURGONETA = {
-	mesh = "rbxassetid://85055487487148",
-	textura = "rbxassetid://71208068029418",
+	mesh = "rbxassetid://137254300257491",
+	textura = "rbxassetid://85512227994280",
 	tamano = Vector3.new(9, 7, 16),
 } :: Modelo
 

@@ -26,6 +26,8 @@
 
 local Players = game:GetService("Players")
 
+local MeshCatalog = require(game.ReplicatedStorage.Shared.MeshCatalog)
+
 local RESPAWN_SEGUNDOS = 4
 
 local Avatar = {}
@@ -35,9 +37,27 @@ function Avatar.registrarAparicion(part: BasePart)
 	aparicion = part
 end
 
--- Sin publicar, los meshes del avatar del jugador no se pueden descargar.
+-- ¿Puede esta sesión descargar mallas? Se PRUEBA, no se deduce.
+--
+-- La primera versión miraba `game.PlaceId ~= 0`, dando por hecho que sin publicar
+-- nunca se descarga nada. Falso: medido, un place local acabó bajando tres de los
+-- cuatro modelos del catálogo sin estar publicado. Deducir la capacidad de una
+-- condición indirecta dejaba al jugador con avatar de bloques en una sesión que
+-- podía darle el suyo.
+--
+-- Se prueba una vez y se recuerda: la respuesta no cambia dentro de una misma
+-- sesión de servidor, y es una llamada que espera al servidor de assets.
+local puedeDescargar: boolean? = nil
+
 local function sePuedeDescargarElAvatar(): boolean
-	return game.PlaceId ~= 0
+	if puedeDescargar == nil then
+		local ok = pcall(function()
+			return game:GetService("AssetService"):CreateMeshPartAsync(MeshCatalog.ALMACEN.mesh)
+		end)
+		puedeDescargar = ok
+		print("[Contrabando] descarga de mallas: " .. (ok and "disponible" or "no disponible, avatar de bloques"))
+	end
+	return puedeDescargar :: boolean
 end
 
 local function colocar(modelo: Model)
