@@ -38,7 +38,7 @@ Cada tarea las hereda implícitamente. Salen de `roblox/CLAUDE.md` y de la secci
 - **Móvil primero:** tamaños en `Scale` con `UISizeConstraint`, botones de 48 px mínimo,
   nada en las esquinas inferiores (joystick y salto), sin emojis en `TextLabel`.
 - **Verificación mecánica mínima** antes de cada commit: `..\..\tools\stylua.exe --check src`
-  (salida 0) y `..\..\tools\rojo.exe build` (compila).
+  (salida 0) y `..\..\tools\rojo.exe build --output contrabando.rbxl` (compila).
 - **Verificación real dentro de Studio por MCP** en toda tarea que toque el mundo. Que
   compile no significa que funcione.
 - **`get_console_output` del MCP se cuelga.** Diagnosticar siempre con `execute_luau`.
@@ -111,10 +111,39 @@ llamar es un módulo al que un día no se llama.
 Luau no corre fuera de Roblox, así que el ciclo rojo/verde vive **dentro de Studio** y se
 dispara por MCP:
 
-1. Rojo sirviendo (`..\..\tools\rojo.exe serve`) y Studio conectado desde el plugin. Al guardar
-   un fichero, el módulo aparece ya actualizado en `ReplicatedStorage.Shared`.
+1. Que el código esté dentro de Studio. Dos vías:
+   - **Con alguien delante:** `..\..\tools\rojo.exe serve` y Connect desde el plugin. Al
+     guardar un fichero, el módulo aparece actualizado en `ReplicatedStorage.Shared`.
+   - **Sin nadie delante (la vía de este proyecto):** `..\..\tools\rojo.exe build --output
+     contrabando.rbxl` genera el place ya montado y se abre en Studio. Tras cambiar código,
+     escribir el `.Source` del módulo por `execute_luau` — o reconstruir y reabrir.
 2. `mcp__Roblox_Studio__list_roblox_studios` para el `studio_id` (una vez por sesión).
-3. `mcp__Roblox_Studio__execute_luau` con `command: "return require(game.ReplicatedStorage.Shared.TestRunner).run()"`.
+3. `mcp__Roblox_Studio__execute_luau` (datamodel `Edit`) con **el lanzador de abajo**.
+
+**El lanzador — úsalo siempre, no llames a `require` directamente:**
+
+```lua
+-- require() cachea por instancia: la segunda tanda devolvería el resultado de la primera
+-- aunque el .Source haya cambiado, y verías verde sobre código que ya no existe. Clonar
+-- Shared da instancias nuevas, sin caché, y aísla cada tanda de la anterior.
+local clon = game.ReplicatedStorage.Shared:Clone()
+clon.Name = "SharedTestRun"
+clon.Parent = game.ReplicatedStorage
+
+local ok, resultado = pcall(function()
+	return require(clon.TestRunner).run()
+end)
+
+clon:Destroy()
+
+if not ok then
+	return "LA TANDA REVENTO: " .. tostring(resultado)
+end
+return resultado
+```
+
+Verificado en la Tarea 0: sin el clon, la corrección del paso 7 seguía dando el informe
+rojo del paso 6.
 
 **Por qué aquí sí vale `require` dentro de `execute_luau`:** el aviso de `CLAUDE.md` es que
 ese `require` corre en un sandbox aparte y no comparte estado con el servidor real. Para
@@ -428,7 +457,7 @@ Mismo `execute_luau` del paso 6. Esperado: última línea `OK (5 pruebas)`.
 ```markdown
 # Contrabando — prototipo
 
-Implementación de [`../DISENO.md`](../DISENO.md). Mide una sola
+Implementación de [`DISENO.md`](DISENO.md). Mide una sola
 cosa: si transportar carga entretiene, y si la intercepción da tensión en vez de rabia.
 
 ## Arrancar
@@ -450,7 +479,7 @@ print(require(game.ReplicatedStorage.Shared.TestRunner).run())
 
 ```powershell
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 
 Ninguna de las dos garantiza que el juego funcione: el peor fallo del piloto compilaba
@@ -462,7 +491,7 @@ perfectamente. Probar siempre dentro de Studio.
 ```powershell
 cd C:\Users\Nitropc\Desktop\IDEAS\roblox\contrabando
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 Esperado: ambas con salida 0.
 
@@ -1250,7 +1279,7 @@ Remotes.event(Remotes.PEDIR_ESTADO):FireServer()
 
 ```powershell
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 Esperado: ambas con salida 0.
 
@@ -2037,7 +2066,7 @@ end
 
 ```powershell
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 
 - [ ] **Paso 9: intentar romperlo**
@@ -2736,7 +2765,7 @@ Y en `Hud.update`:
 
 ```powershell
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 
 - [ ] **Paso 7: verificar producción, tope y distancia**
@@ -3363,7 +3392,7 @@ En `src/server/CargoService.luau`, dentro de `CargoService.entregar`, junto al c
 
 ```powershell
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 
 - [ ] **Paso 9: verificar el robo con dos jugadores simulados**
@@ -3696,7 +3725,7 @@ safeStart("Persistence", Persistence)
 
 ```powershell
 ..\..\tools\stylua.exe --check src
-..\..\tools\rojo.exe build
+..\..\tools\rojo.exe build --output contrabando.rbxl
 ```
 
 - [ ] **Paso 6: verificar que sin place publicado el juego arranca igual**
