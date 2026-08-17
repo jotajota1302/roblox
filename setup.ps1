@@ -32,6 +32,20 @@ Write-Host "  OK  Rojo.rbxm (plugin de Studio)" -ForegroundColor Green
 # StyLua: formateador de Luau
 Get-GhAsset "JohnnyMorganz/StyLua" "windows-x86_64" "stylua.exe"
 
+# Documentacion oficial de Roblox como referencia local (solo texto, ~19 MB).
+# Permite buscar en TODA la documentacion de golpe, que es justo lo que no se
+# puede hacer consultando la web pagina a pagina.
+$docs = Join-Path $PSScriptRoot "creator-docs"
+if (Test-Path $docs) {
+    Write-Host "Documentacion ya presente, actualizando..." -ForegroundColor Cyan
+    git -C $docs pull --depth 1 2>&1 | Out-Null
+} else {
+    Write-Host "Descargando documentacion oficial (markdown + referencia de API)..." -ForegroundColor Cyan
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/Roblox/creator-docs.git $docs 2>&1 | Out-Null
+    git -C $docs sparse-checkout set --no-cone "/content/en-us/**" "!/content/en-us/assets/**" "!/**/*.png" "!/**/*.jpg" "!/**/*.gif" "!/**/*.mp4" "!/**/*.webp" 2>&1 | Out-Null
+}
+Write-Host "  OK  creator-docs/" -ForegroundColor Green
+
 Write-Host ""
 Write-Host "Listo. Herramientas en: $dir" -ForegroundColor Yellow
 Write-Host "Siguiente paso: instalar el plugin de Studio (ver README, paso 3)." -ForegroundColor Yellow

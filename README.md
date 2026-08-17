@@ -27,6 +27,23 @@ a paso desde instalar Studio hasta publicar y activar los pases de pago.
 
 ---
 
+## 📚 `creator-docs/` — documentación oficial en local (no versionada)
+
+Clon en modo *sparse* del repo oficial [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs):
+1005 ficheros markdown + 1232 YAML de referencia de la API, sin imágenes ni historial (19 MB).
+
+Sirve para lo que la web no permite: **buscar en toda la documentación de golpe**. Un
+`grep` de `ProcessReceipt` o `FilterStringAsync` encuentra en un segundo las advertencias
+que no sabías que tenías que buscar — así apareció la causa del primer fallo grave del
+piloto, que estaba documentada y no se veía navegando página a página.
+
+No sustituye al **MCP de Roblox Studio**, que es otra cosa: el MCP da acceso al estado
+real del juego (ejecutar Luau, inspeccionar el árbol, jugar y capturar). Documentación y
+MCP son complementarios: uno dice cómo funciona la plataforma, el otro qué está pasando
+en tu partida.
+
+Se recupera con `setup.ps1`.
+
 ## Puesta en marcha rápida
 
 ```powershell

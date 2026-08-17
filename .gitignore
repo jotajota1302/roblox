@@ -1,6 +1,10 @@
 # Binarios de herramientas: se descargan con setup.ps1, no se versionan (14 MB)
 tools/
 
+# Documentación oficial de Roblox clonada como referencia local (19 MB).
+# Se recupera con setup.ps1; ver README.
+creator-docs/
+
 # Artefactos generados
 sourcemap.json
 *.rbxl
