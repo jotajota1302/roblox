@@ -12,6 +12,7 @@ local Players = game:GetService("Players")
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
+local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerState = require(script.Parent.PlayerState)
 
@@ -29,6 +30,18 @@ local function aplicarVelocidad(player: Player)
 	end
 end
 
+-- Declarada aquí (antes de recoger/vaciar, que la usan) en vez de junto a
+-- marcarLegendaria más abajo: en Lua un nombre usado antes de declararse como
+-- local se resuelve como global nil, y reventaría al recoger la primera caja.
+local function tieneLegendaria(cajas: { Economy.Caja }): boolean
+	for _, caja in cajas do
+		if caja.rareza == "legendaria" then
+			return true
+		end
+	end
+	return false
+end
+
 function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	local estado = PlayerState.get(player)
 	if not Cargo.cabe(estado.cajas, caja, Config.CAPACIDAD_A_PIE) then
@@ -37,6 +50,7 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	table.insert(estado.cajas, caja)
 	aplicarVelocidad(player)
 	PlayerState.sync(player)
+	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
 	return true
 end
 
@@ -46,11 +60,72 @@ function CargoService.vaciar(player: Player): { Economy.Caja }
 	estado.cajas = {}
 	aplicarVelocidad(player)
 	PlayerState.sync(player)
+	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
 	return cajas
 end
 
 function CargoService.aplicarVelocidad(player: Player)
 	aplicarVelocidad(player)
+end
+
+-- El haz de luz no es decoración: es la mitad de la mecánica. Llevar una legendaria
+-- vale 13.500 por la roja Y hace que todo el servidor sepa dónde estás y qué llevas.
+-- Sin el haz, la decisión difícil desaparece y sólo queda dinero gratis.
+function CargoService.marcarLegendaria(player: Player, activa: boolean)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+
+	local haz = root:FindFirstChild("HazLegendaria") :: Beam?
+	if not activa then
+		if haz then
+			haz:Destroy()
+		end
+		local a0 = root:FindFirstChild("HazA0")
+		local a1 = root:FindFirstChild("HazA1")
+		if a0 then
+			a0:Destroy()
+		end
+		if a1 then
+			a1:Destroy()
+		end
+		return
+	end
+
+	if haz then
+		return
+	end
+
+	local a0 = Instance.new("Attachment")
+	a0.Name = "HazA0"
+	a0.Position = Vector3.new(0, 0, 0)
+	a0.Parent = root
+
+	local a1 = Instance.new("Attachment")
+	a1.Name = "HazA1"
+	a1.Position = Vector3.new(0, 300, 0)
+	a1.Parent = root
+
+	local beam = Instance.new("Beam")
+	beam.Name = "HazLegendaria"
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Width0 = 4
+	beam.Width1 = 10
+	beam.Color = ColorSequence.new(Rarity.color("legendaria"))
+	beam.LightEmission = 1
+	beam.FaceCamera = true
+	beam.Parent = root
+end
+
+-- Genera una caja con rareza aleatoria. La Tarea 9 la llamará desde el almacén;
+-- de momento sirve para probar la mecánica de punta a punta.
+local rng = Random.new(os.clock() * 1000)
+
+function CargoService.nuevaCaja(): Economy.Caja
+	return { rareza = Rarity.tirada(rng) }
 end
 
 -- Punto de entrega. En esta tarea el multiplicador es siempre el de la verde;
