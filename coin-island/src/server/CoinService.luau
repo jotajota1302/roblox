@@ -154,7 +154,11 @@ function CoinService.start()
 	RunService.Heartbeat:Connect(function(deltaTime: number)
 		for _, coin in coins do
 			if coin:GetAttribute("Active") == true then
-				coin.CFrame = coin.CFrame * CFrame.Angles(deltaTime * 2, 0, 0)
+				-- Sobre el eje Y (vertical). El cilindro tiene su eje de simetría en X,
+				-- así que girarlo sobre Y la hace alternar cara y canto: el efecto
+				-- clásico de moneda. Girarla sobre X no se vería, porque rotaría sobre
+				-- sí misma.
+				coin.CFrame = coin.CFrame * CFrame.Angles(0, deltaTime * 2, 0)
 			end
 		end
 	end)

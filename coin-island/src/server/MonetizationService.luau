@@ -24,7 +24,25 @@ local PlayerData = require(script.Parent:WaitForChild("PlayerData"))
 local MonetizationService = {}
 
 -- Historial de compras ya procesadas. Ver la explicación en ProcessReceipt.
-local purchaseHistory = DataStoreService:GetDataStore("CoinIsland_Purchases_v1")
+-- Perezoso y dentro de pcall por el mismo motivo que en PlayerData: GetDataStore
+-- lanza si el place no está publicado, y tumbaría el servidor entero al requerir.
+local purchaseHistory: DataStore? = nil
+local historyResolved = false
+
+local function getHistory(): DataStore?
+	if historyResolved then
+		return purchaseHistory
+	end
+	historyResolved = true
+
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore("CoinIsland_Purchases_v1")
+	end)
+	if ok then
+		purchaseHistory = result
+	end
+	return purchaseHistory
+end
 
 local function refreshGamePass(player: Player)
 	if Config.GAME_PASS_ID <= 0 then
@@ -81,13 +99,20 @@ function MonetizationService.start()
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 
+		local history = getHistory()
+		if not history then
+			-- Sin DataStore no podemos garantizar que no entreguemos dos veces lo
+			-- mismo. Ante la duda con dinero real, no se entrega: Roblox reintentará.
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+
 		local key = "receipt_" .. receiptInfo.PurchaseId
 
 		-- UpdateAsync lee y escribe de forma atómica: dos servidores no pueden
 		-- colarse a la vez con el mismo recibo.
 		local alreadyProcessed = false
 		local ok = pcall(function()
-			purchaseHistory:UpdateAsync(key, function(seen)
+			history:UpdateAsync(key, function(seen)
 				if seen then
 					alreadyProcessed = true
 					return nil -- devolver nil cancela la escritura: no tocamos nada

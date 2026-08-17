@@ -30,10 +30,45 @@ export type Session = {
 
 local PlayerData = {}
 
-local store = DataStoreService:GetDataStore(Config.DATASTORE_NAME)
 local sessions: { [Player]: Session } = {}
 local listeners: { (Player) -> () } = {}
-local dataStoreWorks = true
+
+--[[
+	CUIDADO CON ESTO — nos costó un rato encontrarlo.
+
+	DataStoreService:GetDataStore() no devuelve un error: LANZA una excepción si el
+	place no está publicado ("You must publish this place to the web to access
+	DataStore"). Si se llama al cargar el módulo, el require() de este fichero
+	revienta... y se lleva por delante el script que lo requiere, o sea, TODO el
+	servidor. Se traduce en un juego sin mapa, sin monedas y sin personaje, sin
+	ninguna pista evidente de por qué.
+
+	Solución: resolverlo de forma perezosa (la primera vez que hace falta) y dentro
+	de pcall. Sin guardado el juego sigue siendo perfectamente jugable.
+]]
+local store: DataStore? = nil
+local storeResolved = false
+
+local function getStore(): DataStore?
+	if storeResolved then
+		return store
+	end
+	storeResolved = true
+
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Config.DATASTORE_NAME)
+	end)
+
+	if ok then
+		store = result
+	else
+		warn("[PlayerData] Se juega sin guardar en la nube: " .. tostring(result))
+		warn(
+			"[PlayerData] Para activarlo: publica el place y marca Game Settings > Security > Enable Studio Access to API Services."
+		)
+	end
+	return store
+end
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Notificación de cambios
@@ -165,17 +200,22 @@ local function load(player: Player)
 	local session = newSession()
 	sessions[player] = session
 
+	local dataStore = getStore()
+	if not dataStore then
+		-- Sin nube: partida nueva y a jugar. loaded queda en true para que el resto
+		-- del juego funcione con normalidad.
+		session.loaded = true
+		syncLeaderstats(player)
+		fireChanged(player)
+		return
+	end
+
 	local ok, saved = pcall(function()
-		return store:GetAsync(keyFor(player))
+		return dataStore:GetAsync(keyFor(player))
 	end)
 
 	if not ok then
-		if dataStoreWorks then
-			dataStoreWorks = false
-			warn(
-				"[PlayerData] DataStore no disponible. ¿Has activado 'Enable Studio Access to API Services'? Se juega sin guardar."
-			)
-		end
+		warn("[PlayerData] No se pudo leer la partida de " .. player.Name .. ": " .. tostring(saved))
 	elseif type(saved) == "table" then
 		session.coins = tonumber(saved.coins) or 0
 		session.totalCollected = tonumber(saved.totalCollected) or 0
@@ -200,6 +240,11 @@ function PlayerData.save(player: Player)
 		return
 	end
 
+	local dataStore = getStore()
+	if not dataStore then
+		return -- sin nube configurada: no hay nada que guardar
+	end
+
 	local payload = {
 		coins = session.coins,
 		totalCollected = session.totalCollected,
@@ -209,7 +254,7 @@ function PlayerData.save(player: Player)
 	local ok, err = pcall(function()
 		-- SetAsync es lo más simple. En un juego real con varios servidores por
 		-- jugador se usa UpdateAsync, que lee y escribe de forma atómica.
-		store:SetAsync(keyFor(player), payload)
+		dataStore:SetAsync(keyFor(player), payload)
 	end)
 
 	if not ok then
