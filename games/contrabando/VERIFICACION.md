@@ -257,6 +257,15 @@ Lo que falta es el caso positivo completo: dos personas, una alcanza a la otra, 
 cambia de manos, ambas reciben su aviso. **Es lo primero que hay que probar**, y coincide
 con lo que el diseño ya exigía: *"con 3 o 4 personas: ¿tensión o frustración?"*.
 
+### Si el bucle entretiene — YA RESPONDIDO, Y LA RESPUESTA ES NO
+
+JJ lo jugó el 17/08 y el veredicto está en [`PRIMERA-PARTIDA.md`](PRIMERA-PARTIDA.md):
+*"ahora es correr en línea recta sin obstáculos ni nada, es bastante triste"*.
+
+El bucle está construido y el minuto y medio del medio está **vacío**. Eso dispara el criterio
+de kill número 1 del diseño: **rehacer el viaje antes de añadir nada**. Todo lo que sigue en
+esta sección se escribió antes de esa partida y se mantiene por lo que enseña del método.
+
 ### Si el bucle entretiene
 
 Ninguna prueba puede responderlo. El diseño fija el criterio: **si no aguantas diez minutos
