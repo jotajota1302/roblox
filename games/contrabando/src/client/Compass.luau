@@ -24,6 +24,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Bearing = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Bearing"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 
 local Compass = {}
@@ -150,20 +151,16 @@ function Compass.refrescar()
 		return
 	end
 
-	-- Ángulo del objetivo respecto a hacia dónde mira la cámara. atan2 del producto
-	-- cruzado y el escalar en el plano: da el giro con signo, que es lo que
-	-- distingue "gira a la izquierda" de "gira a la derecha".
-	local mirada = camara.CFrame.LookVector
-	local miradaPlana = Vector3.new(mirada.X, 0, mirada.Z)
-	if miradaPlana.Magnitude < 0.001 then
+	-- El rumbo lo calcula Bearing, que es puro y está probado con los cuatro casos
+	-- de cabeza. NO se hace aquí a mano: la primera versión tenía el signo
+	-- invertido y la brújula apuntaba al lado contrario sin dar el menor error --
+	-- la flecha se movía con suavidad y parecía correcta hasta que la seguías.
+	local giro = Bearing.grados(camara.CFrame.LookVector, plano)
+	if giro == nil then
+		-- Sin rumbo que dar (cámara en vertical): se deja la aguja como está en vez
+		-- de mandarla a cero, que significaría "sigue recto".
 		return
 	end
-	miradaPlana = miradaPlana.Unit
-	local objetivoPlano = plano.Unit
-
-	local coseno = miradaPlana:Dot(objetivoPlano)
-	local seno = miradaPlana:Cross(objetivoPlano).Y
-	local giro = math.deg(math.atan2(seno, coseno))
 
 	if aguja then
 		aguja.Rotation = giro
