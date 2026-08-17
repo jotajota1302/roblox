@@ -19,11 +19,12 @@ Estudio de mercado: qué géneros dominan, cuáles están saturados, qué busca 
 Roblox, y los benchmarks de retención que deciden si un juego funciona (D1: 20% bien,
 30% muy bien, 40% excelente).
 
-**Dos conclusiones:** el hueco está en el público adulto (27% de los usuarios diarios,
-creciendo >50% interanual) y ahí encaja el material que ya existe de CRIME y del RPG
-narrativo. Y una trampa importante: **la IA generativa en tiempo real pierde entre 10 y 60
-veces lo que ingresa por jugador** — sirve para producir contenido, no para ejecutarlo en
-la partida.
+**Conclusión:** el formato a construir es un bucle de progresión jugable en solitario con
+una capa social de fricción encima — el único que funciona desde el primer jugador. Los
+formatos con mejor diseño (deducción social, PvP) necesitan 6-10 personas simultáneas y no
+arrancan sin audiencia previa. Y una trampa: **la IA generativa en tiempo real pierde entre
+10 y 60 veces lo que ingresa por jugador** — sirve para producir contenido, no para
+ejecutarlo en la partida.
 
 ## 🎮 [`coin-island/`](coin-island/) — el piloto
 

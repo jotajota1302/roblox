@@ -7,14 +7,19 @@
 
 ## 1. Conclusión primero
 
-**El hueco está en el público adulto, y ahí tu material previo encaja mejor de lo que yo
-mismo dije.** Roblox busca activamente RPG, estrategia, shooters y puzzles porque están
-infrarrepresentados, mientras el 18+ ya es el 27% de los usuarios diarios y el tramo 18-34
-crece más del 50% interanual. Simuladores y obbies, en cambio, están saturados.
+**El formato a construir es un bucle de progresión jugable en solitario con una capa social
+de fricción encima** — la estructura de los dos mayores éxitos actuales de la plataforma.
+No porque el género sea original, sino porque es el único que funciona **desde el primer
+jugador**: los formatos con mejor diseño (deducción social, PvP) necesitan 6-10 personas a
+la vez y nunca arrancan sin audiencia previa. Ese criterio, el del arranque en frío, decide
+más que la calidad del concepto.
 
-**Pero hay una trampa que debes conocer antes de ilusionarte: la IA generativa en tiempo
-real no es económicamente viable en Roblox.** Los números están en la sección 6 y son
-demoledores. Es lo primero que pensarías hacer, y te habría costado meses descubrirlo.
+**Dos avisos antes de seguir:**
+
+1. **La IA generativa en tiempo real no es económicamente viable en Roblox** (sección 6).
+   Pierde entre 10 y 60 veces lo que ingresa por jugador, y empeora con el éxito.
+2. **La narrativa retiene mal por construcción**: una historia se juega una vez. Es la
+   trampa que espera a quien oiga que el público adulto está creciendo (sección 5).
 
 ---
 
@@ -76,29 +81,26 @@ significa pivotar**.
 
 ---
 
-## 5. El giro: el público adulto
-
-Aquí debo corregir algo que te dije al principio. Cuando avisé de que tu registro noir y
-gótico "no encaja" con Roblox, estaba pensando en el Roblox de hace unos años.
-
-Los datos actuales dicen otra cosa:
+## 5. El público adulto está creciendo
 
 - **27% de los usuarios activos diarios tienen más de 18 años.**
 - **El tramo 18-34 crece más de un 50% interanual.**
 - Roblox declara explícitamente que quiere juegos para ese público y que le faltan RPG,
   estrategia y shooters.
 
-Eso significa que **CRIME** (whodunit años 30) y el **RPG narrativo** no son material
-descartable: son material alineado con el hueco declarado de la plataforma. Tienes ambientación,
-casos escritos, sistema de deducción probado e ilustraciones. Eso es meses de trabajo ya hechos.
+Es el cambio demográfico más relevante de la plataforma: durante años el consejo era
+"diseña para niños de 10 años" y hoy hay un segmento adulto grande, creciendo deprisa y
+mal servido. Abre temáticas y tonos que antes no tenían sitio.
 
-**Con una objeción seria**, que es de diseño y no de tono:
+**Ojo con una trampa de diseño asociada.** El instinto al oír "público adulto" es pensar en
+juegos narrativos, y la narrativa tiene un problema estructural en esta plataforma:
 
-> Un misterio narrativo es de **una sola sesión**. Resuelves el caso y te vas. Eso es
-> catastrófico para D1/D7, que es exactamente lo que decide si el algoritmo te muestra.
+> Una historia se juega **una vez**. Llegas al final y te vas. Eso hunde D1/D7, que es
+> justo lo que decide si el algoritmo te enseña a alguien.
 
-CRIME tal cual, portado a Roblox, mediría D1 ~5%. No por malo, sino porque no hay razón
-para volver mañana. Cualquier adaptación tiene que resolver eso primero.
+Un juego de historia bien hecho puede medir D1 ~5%. No por malo: porque no hay motivo para
+volver mañana. Si se toca ese terreno, hay que resolver la repetición **antes** que la
+historia.
 
 ---
 
@@ -161,54 +163,75 @@ de botella que identificamos en el research, y esto ataca precisamente eso. Se s
 
 ---
 
-## 9. Tres conceptos candidatos
+## 9. Cómo elegir género, objetivamente
 
-Aplicando todo lo anterior a lo que ya sabes hacer:
+Cinco criterios, sin mirar qué se ha hecho antes ni qué material existe:
 
-### A. Misterio social multijugador ⭐ recomendado
+1. **¿La retención está en el diseño, o depende de producir contenido sin parar?**
+2. **¿Cuánto arte 3D y animación necesita?** Es el cuello de botella real de un dev solo,
+   no la programación.
+3. **¿Está saturado?**
+4. **¿Puede una persona tener algo jugable en 2-4 semanas?**
+5. **¿Funciona con un jugador?** — el criterio que más se olvida y el más letal. Un juego
+   que necesita 8 personas simultáneas **nunca arranca** si nadie te conoce. Es el problema
+   del arranque en frío, y mata más juegos que cualquier bug.
 
-Deducción entre jugadores en un escenario cerrado años 30. Reutiliza la ambientación, el
-arte y el sistema de pistas de CRIME, pero **el misterio lo generan los jugadores**, no un
-guion.
+| Género | Retención por diseño | Coste de arte | Saturación | Arranca solo | Veredicto |
+|---|---|---|---|---|---|
+| Deducción social | ✅ Alta | 🟢 Bajo | 🟢 Libre | ❌ **Necesita 6-10** | Arranque en frío letal |
+| Horror cooperativo | 🟠 Media | 🔴 **Alto** (el arte *es* el juego) | 🟢 Libre | 🟠 Necesita 3-4 | Depende de lo que peor hacemos |
+| Narrativo / RPG | ❌ Necesita contenido continuo | 🔴 Alto | 🟢 Libre | ✅ Sí | Insostenible en solitario |
+| Estrategia / PvP | ✅ Alta | 🟢 Bajo | 🟢 Libre | ❌ Necesita rival | Arranque en frío |
+| Puzzle | 🟠 Media | 🟢 Bajo | 🟢 **Hueco declarado** | ✅ Sí | Viable, retención floja |
+| **Progresión + capa social** | ✅ **Alta** | 🟢 Bajo | 🟠 Saturado de clones | ✅ **Sí** | **Único que aprueba los cinco** |
 
-- **Resuelve el problema de la sesión única**: cada partida es distinta porque las personas
-  son distintas. Rejugabilidad infinita sin coste de contenido.
-- **Multijugador social** = el motor de retención más potente que existe: tus amigos te traen.
-- Género de deducción social, con demanda probada y encaje con el público adulto.
-- **Riesgo**: necesita masa crítica de jugadores para llenar partidas. Un juego social vacío
-  está muerto.
+### Lo que el propio mercado está diciendo
 
-### B. Horror cooperativo
+Los dos fenómenos recientes de la plataforma tienen **exactamente la misma estructura**:
 
-Escapar de un sitio entre 3-4 jugadores. Es el género que las fuentes señalan como **más
-accesible para equipos pequeños** (depende de ritmo, sonido y nivel, no de sistemas) y el
-que más tirón tiene entre creadores de contenido en YouTube y TikTok — que es el canal de
-adquisición de mayor ROI según el research.
+- **Grow a Garden**: plantas, esperas, recolectas. Se juega solo. Visitar y comparar
+  jardines es la capa social. 35.500 M de visitas.
+- **Steal a Brainrot**: acumulas cosas en tu base. Se juega solo. **Robar a otros** es la
+  capa social. Récord histórico de concurrencia con 25,8 M simultáneos.
 
-- **Riesgo**: el arte y el sonido *son* el juego. Es justo nuestro punto débil.
+Ninguno de los dos necesita que haya gente para ser jugable, y los dos se vuelven mucho
+mejores cuando la hay. Eso resuelve el arranque en frío **sin renunciar** al motor de
+retención social. No es casualidad que sean los dos mayores éxitos del momento.
 
-### C. RPG narrativo por capítulos
-
-Lo más cercano a lo que ya tienes construido.
-
-- **Riesgo alto**: contenido pre-generado se agota, y el jugador se va cuando lo termina. La
-  retención a 30 días es estructuralmente mala salvo que haya producción continua.
-- Solo tiene sentido con contenido episódico constante, que es un compromiso serio.
+Y sobre la "saturación" de este formato, un matiz importante: está saturado de **clones
+malos**, no de buenas ejecuciones. La diferenciación en Roblox no viene del género, viene
+del tema y del giro concreto. Grow a Garden es un idle más; lo que lo separó fue la
+ejecución y el momento.
 
 ---
 
-## 10. Mi recomendación
+## 10. Recomendación
 
-**Concepto A**, y por una razón concreta: es el único de los tres donde **la retención está
-integrada en el diseño** en lugar de depender de que sigamos produciendo contenido. Todo lo
-demás — el research, los benchmarks, el algoritmo — apunta a que ese es el factor decisivo.
+**Un bucle de progresión jugable en solitario, con una capa social de fricción encima.**
 
-Además aprovecha lo que ya tienes (ambientación, arte, mecánica de deducción) y evita lo que
-no tenemos (capacidad de producción de arte 3D y de contenido continuo).
+Es el único formato que aprueba los cinco criterios: retiene por diseño, no exige arte
+caro, se puede prototipar en semanas, y —lo decisivo— **funciona desde el primer jugador**
+pero mejora cuando hay más. Es la estructura de los dos mayores éxitos actuales de la
+plataforma, y la única que no depende de tener audiencia previa.
 
-Antes de escribir una línea de código, el siguiente paso es **diseñar el bucle**: qué pasa
-en los primeros 60 segundos, por qué alguien vuelve mañana, y cómo funciona una partida con
-8 desconocidos. Eso es una conversación de diseño, no de programación.
+La "capa de fricción" es la pieza clave y donde está el diseño de verdad: robar, competir,
+sabotear, comparar. Algo que haga que la presencia de otro jugador **te cambie la partida**,
+para bien o para mal. Sin eso es un idle solitario y la retención se desploma.
+
+Lo que **no** recomiendo, y por qué:
+
+- **Deducción social y estrategia PvP**: excelentes de diseño, pero necesitan 6-10 personas
+  a la vez. Sin audiencia previa no arrancan nunca. Son juegos para hacer *después* de
+  tener jugadores, no para conseguirlos.
+- **Horror**: las fuentes lo señalan como accesible para equipos pequeños, y es cierto en
+  cuanto a sistemas. Pero el arte y el sonido *son* el producto, y es justo la capacidad
+  que no tenemos.
+- **Narrativo**: insostenible en solitario. El contenido se consume más rápido de lo que
+  una persona puede producirlo, y ninguna cantidad de IA arregla eso (sección 6).
+
+El siguiente paso no es elegir temática, es **diseñar el bucle**: qué haces en los primeros
+60 segundos, qué te hace volver mañana, y qué cambia cuando entra otro jugador. La temática
+se decide después, y se elige por diferenciación, no por gusto.
 
 ---
 
