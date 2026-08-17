@@ -37,7 +37,17 @@ Y tres conceptos concretos evaluados con esos criterios: excavación, contraband
 restauración. **Recomendado: contrabando**, con su plan de las primeras semanas y los
 criterios para matarlo rápido si no engancha.
 
-## 🎮 [`coin-island/`](coin-island/) — el piloto
+## 🚚 [`games/contrabando/`](games/contrabando/) — el juego en desarrollo
+
+El target elegido: tienes un almacén que produce mercancía mientras no estás, y decides qué
+llevar, a dónde y por qué ruta — en las que más pagan, cualquiera puede alcanzarte y
+quitarte parte de la carga. Jugable en solitario desde el primer jugador, mejor con gente.
+
+- [`DISENO.md`](games/contrabando/DISENO.md) — el spec: bucle, economía con números,
+  arquitectura, alcance del prototipo y criterios para matarlo.
+- [`docs/plans/`](games/contrabando/docs/plans/) — el plan de implementación, tarea a tarea.
+
+## 🎮 [`games/coin-island/`](games/coin-island/) — el piloto
 
 Juego pequeño y completo para entender cómo funciona Roblox por dentro: mundo 3D
 multijugador, economía, tienda, guardado en la nube y dos productos de pago.
@@ -46,7 +56,7 @@ multijugador, economía, tienda, guardado en la nube y dos productos de pago.
 Todo se genera **por código** (el mapa y la interfaz incluidos), así que el juego entero
 vive en git en vez de dentro de un binario de Studio.
 
-👉 **Empieza por [`coin-island/README.md`](coin-island/README.md)**, que lleva la guía paso
+👉 **Empieza por [`games/coin-island/README.md`](games/coin-island/README.md)**, que lleva la guía paso
 a paso desde instalar Studio hasta publicar y activar los pases de pago.
 
 ---
@@ -72,8 +82,8 @@ Se recupera con `setup.ps1`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1   # descarga rojo + stylua en ./tools
-cd coin-island
-..\tools\rojo.exe serve                              # y conecta desde Studio
+cd games\coin-island
+..\..\tools\rojo.exe serve                              # y conecta desde Studio
 ```
 
 Requisitos: Windows, VS Code y Roblox Studio (<https://create.roblox.com/>).

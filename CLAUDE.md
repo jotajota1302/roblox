@@ -5,6 +5,25 @@ intención comercial. **Tiene repo git propio** (https://github.com/jotajota1302
 el resto de carpetas de `IDEAS/` no. Nunca hagas `git init` en la raíz de `IDEAS/`: hay
 `.env` con credenciales de otros proyectos.
 
+## Estructura del repo
+
+Un repo, varios juegos. En la raíz sólo vive lo que sirve a todos:
+
+```
+RESEARCH.md MERCADO.md TARGETS.md    Análisis transversal, no de un juego concreto
+setup.ps1                            Descarga rojo + stylua + docs oficiales
+tools/ creator-docs/                 Compartidos, no versionados
+games/
+├── coin-island/                     Piloto de aprendizaje (terminado)
+└── contrabando/                     Juego con intención comercial
+    ├── DISENO.md                    Spec: la autoridad de ese juego
+    ├── docs/plans/                  Planes de implementación
+    └── src/                         Código
+```
+
+**Un juego nuevo es una carpeta nueva en `games/`**, con su propio spec dentro. Lo de la
+raíz no se duplica por juego.
+
 ## Documentos clave (léelos antes de proponer nada)
 
 Se leen en este orden, cada uno responde a una pregunta:
@@ -12,7 +31,8 @@ Se leen en este orden, cada uno responde a una pregunta:
 1. `RESEARCH.md` — **¿se gana dinero?** Economía real, distribución de ingresos, herramientas.
 2. `MERCADO.md` — **¿qué formato?** Géneros, saturación, benchmarks de retención.
 3. `TARGETS.md` — **¿qué juego?** Anatomía de los éxitos y los 3 conceptos candidatos.
-4. `coin-island/README.md` — el piloto de aprendizaje y cómo funciona Roblox por dentro.
+4. `games/contrabando/DISENO.md` — el spec del juego en desarrollo.
+5. `games/coin-island/README.md` — el piloto y cómo funciona Roblox por dentro.
 
 ## Decisiones tomadas (no reabrir sin preguntar)
 
@@ -60,15 +80,15 @@ responder a la única pregunta que importa.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1   # rojo + stylua + docs (todo en ./tools)
-cd <proyecto>
-..\tools\rojo.exe serve                              # y Connect desde el plugin de Studio
+cd games\<juego>
+..\..\tools\rojo.exe serve                           # y Connect desde el plugin de Studio
 ```
 
 **Verificación obligatoria antes de dar algo por hecho:**
 
 ```powershell
-..\tools\stylua.exe --check src    # 0 = sintaxis y formato limpios
-..\tools\rojo.exe build            # que compile
+..\..\tools\stylua.exe --check src    # 0 = sintaxis y formato limpios
+..\..\tools\rojo.exe build            # que compile
 ```
 
 Y **probarlo dentro de Studio** con el MCP. Que compile no significa que funcione: el peor

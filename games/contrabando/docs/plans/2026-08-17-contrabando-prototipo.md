@@ -18,14 +18,14 @@ lógica de juego: dibuja y avisa.
 **Stack:** Luau (`--!strict`), Rojo 7.7.0 para sincronizar disco ↔ Studio, StyLua 2.5.2
 para formato y sintaxis, MCP de Roblox Studio para ejecutar y verificar.
 
-**Spec:** [`roblox/DISENO-CONTRABANDO.md`](../../../DISENO-CONTRABANDO.md) — el plan
+**Spec:** [`games/contrabando/DISENO.md`](../../DISENO.md) — el plan
 argumenta desde ese documento; léelo antes de la primera tarea.
 
 ## Restricciones globales
 
 Cada tarea las hereda implícitamente. Salen de `roblox/CLAUDE.md` y de la sección 4 del spec.
 
-- **Proyecto nuevo:** todo el código va en `roblox/contrabando/`. No se toca `coin-island/`.
+- **Proyecto nuevo:** todo el código va en `roblox/games/contrabando/`. No se toca `games/coin-island/`.
 - **Comentarios en español, identificadores en inglés.** El código es material de aprendizaje.
 - **El mundo y la interfaz se generan por código.** Nada a mano en Studio: el `.rbxl` es un
   artefacto desechable y todo debe ser revisable en un diff.
@@ -37,8 +37,8 @@ Cada tarea las hereda implícitamente. Salen de `roblox/CLAUDE.md` y de la secci
   cuando el mundo ya existe.
 - **Móvil primero:** tamaños en `Scale` con `UISizeConstraint`, botones de 48 px mínimo,
   nada en las esquinas inferiores (joystick y salto), sin emojis en `TextLabel`.
-- **Verificación mecánica mínima** antes de cada commit: `..\tools\stylua.exe --check src`
-  (salida 0) y `..\tools\rojo.exe build` (compila).
+- **Verificación mecánica mínima** antes de cada commit: `..\..\tools\stylua.exe --check src`
+  (salida 0) y `..\..\tools\rojo.exe build` (compila).
 - **Verificación real dentro de Studio por MCP** en toda tarea que toque el mundo. Que
   compile no significa que funcione.
 - **`get_console_output` del MCP se cuelga.** Diagnosticar siempre con `execute_luau`.
@@ -60,7 +60,7 @@ comentario `PROTOTIPO:` en el código para revertirlas antes de publicar.
 ## Estructura de ficheros
 
 ```
-roblox/contrabando/
+roblox/games/contrabando/
 ├── default.project.json          Mapeo Rojo → datamodel
 ├── README.md                     Qué es y cómo arrancarlo
 └── src/
@@ -111,7 +111,7 @@ llamar es un módulo al que un día no se llama.
 Luau no corre fuera de Roblox, así que el ciclo rojo/verde vive **dentro de Studio** y se
 dispara por MCP:
 
-1. Rojo sirviendo (`..\tools\rojo.exe serve`) y Studio conectado desde el plugin. Al guardar
+1. Rojo sirviendo (`..\..\tools\rojo.exe serve`) y Studio conectado desde el plugin. Al guardar
    un fichero, el módulo aparece ya actualizado en `ReplicatedStorage.Shared`.
 2. `mcp__Roblox_Studio__list_roblox_studios` para el `studio_id` (una vez por sesión).
 3. `mcp__Roblox_Studio__execute_luau` con `command: "return require(game.ReplicatedStorage.Shared.TestRunner).run()"`.
@@ -130,11 +130,11 @@ Sin esto no hay TDD, así que va primero y termina con una prueba que falla a pr
 luego pasa — para demostrar que el ciclo funciona de verdad.
 
 **Ficheros:**
-- Crear: `roblox/contrabando/default.project.json`
-- Crear: `roblox/contrabando/src/shared/TestKit.luau`
-- Crear: `roblox/contrabando/src/shared/TestRunner.luau`
-- Crear: `roblox/contrabando/src/shared/tests/Sanity.spec.luau`
-- Crear: `roblox/contrabando/README.md`
+- Crear: `roblox/games/contrabando/default.project.json`
+- Crear: `roblox/games/contrabando/src/shared/TestKit.luau`
+- Crear: `roblox/games/contrabando/src/shared/TestRunner.luau`
+- Crear: `roblox/games/contrabando/src/shared/tests/Sanity.spec.luau`
+- Crear: `roblox/games/contrabando/README.md`
 
 **Interfaces:**
 - Consume: nada.
@@ -150,7 +150,7 @@ luego pasa — para demostrar que el ciclo funciona de verdad.
 
 - [ ] **Paso 1: crear el mapeo de Rojo**
 
-`roblox/contrabando/default.project.json`:
+`roblox/games/contrabando/default.project.json`:
 
 ```json
 {
@@ -377,7 +377,7 @@ end
 
 ```powershell
 cd C:\Users\Nitropc\Desktop\IDEAS\roblox\contrabando
-..\tools\rojo.exe serve
+..\..\tools\rojo.exe serve
 ```
 
 En Studio: pestaña Plugins → Rojo → Connect. Comprobar por MCP que los módulos llegaron:
@@ -423,18 +423,18 @@ Mismo `execute_luau` del paso 6. Esperado: última línea `OK (5 pruebas)`.
 
 - [ ] **Paso 9: escribir el README**
 
-`roblox/contrabando/README.md`:
+`roblox/games/contrabando/README.md`:
 
 ```markdown
 # Contrabando — prototipo
 
-Implementación de [`../DISENO-CONTRABANDO.md`](../DISENO-CONTRABANDO.md). Mide una sola
+Implementación de [`../DISENO.md`](../DISENO.md). Mide una sola
 cosa: si transportar carga entretiene, y si la intercepción da tensión en vez de rabia.
 
 ## Arrancar
 
 ```powershell
-..\tools\rojo.exe serve      # y Connect desde el plugin de Rojo en Studio
+..\..\tools\rojo.exe serve      # y Connect desde el plugin de Rojo en Studio
 ```
 
 ## Probar
@@ -449,8 +449,8 @@ print(require(game.ReplicatedStorage.Shared.TestRunner).run())
 ## Verificación mecánica
 
 ```powershell
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 
 Ninguna de las dos garantiza que el juego funcione: el peor fallo del piloto compilaba
@@ -461,13 +461,13 @@ perfectamente. Probar siempre dentro de Studio.
 
 ```powershell
 cd C:\Users\Nitropc\Desktop\IDEAS\roblox\contrabando
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 Esperado: ambas con salida 0.
 
 ```bash
-git add contrabando docs
+git add games/contrabando
 git commit -m "test: andamiaje del prototipo de contrabando y ciclo de pruebas"
 ```
 
@@ -537,7 +537,7 @@ Esperado: `[X] Economy.spec :: la suite reventó: ...Economy is not a valid memb
 --[[
 	Config.luau — todas las constantes del juego en un único sitio. Sin lógica.
 
-	Las marcadas con PROTOTIPO: difieren a propósito de DISENO-CONTRABANDO.md para
+	Las marcadas con PROTOTIPO: difieren a propósito de DISENO.md para
 	poder medir en una sesión lo que en producción tardaría horas. Revertirlas antes
 	de publicar.
 ]]
@@ -654,11 +654,11 @@ Esperado: última línea `OK`, sin ningún `[X]`.
 - [ ] **Paso 6: verificación mecánica y commit**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: constantes y calculo de valor de entrega"
 ```
 
@@ -775,11 +775,11 @@ Esperado: última línea `OK`, sin ningún `[X]`.
 - [ ] **Paso 5: verificación mecánica y commit**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: peso de la carga y penalizacion de velocidad"
 ```
 
@@ -1249,8 +1249,8 @@ Remotes.event(Remotes.PEDIR_ESTADO):FireServer()
 - [ ] **Paso 7: verificación mecánica**
 
 ```powershell
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 Esperado: ambas con salida 0.
 
@@ -1330,7 +1330,7 @@ dice que si el paso 1 falla no hay proyecto.
 - [ ] **Paso 11: commit**
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: el viaje - mundo, recogida de carga y entrega"
 ```
 
@@ -1531,7 +1531,7 @@ Remotes.event(Remotes.PEDIR_ESTADO):FireServer()
 - [ ] **Paso 3: verificación mecánica**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 - [ ] **Paso 4: comprobar que el HUD cabe en un móvil pequeño**
@@ -1568,7 +1568,7 @@ salen cinco errores que no existen.
 - [ ] **Paso 5: commit**
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: hud de carga y dinero, movil primero"
 ```
 
@@ -1698,11 +1698,11 @@ Esperado: última línea `OK`, sin ningún `[X]`.
 - [ ] **Paso 5: verificación mecánica y commit**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: definicion de rutas y validacion de entrega"
 ```
 
@@ -2036,8 +2036,8 @@ end
 - [ ] **Paso 8: verificación mecánica**
 
 ```powershell
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 
 - [ ] **Paso 9: intentar romperlo**
@@ -2115,7 +2115,7 @@ Tarea 7 (cajas raras) existe precisamente para llenarlo.
 - [ ] **Paso 11: commit**
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: eleccion de ruta con validacion de destino"
 ```
 
@@ -2377,11 +2377,11 @@ desde lejos. Si no se ve, no cumple su función.
 - [ ] **Paso 8: verificación mecánica y commit**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: rarezas de caja y haz de luz de la legendaria"
 ```
 
@@ -2501,11 +2501,11 @@ Esperado: última línea `OK`, sin ningún `[X]`.
 - [ ] **Paso 5: verificación mecánica y commit**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: produccion offline del almacen con tope"
 ```
 
@@ -2735,8 +2735,8 @@ Y en `Hud.update`:
 - [ ] **Paso 6: verificación mecánica**
 
 ```powershell
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 
 - [ ] **Paso 7: verificar producción, tope y distancia**
@@ -2789,7 +2789,7 @@ una legendaria ocupa las tres unidades ella sola), `cajasEncima` ≥ 1,
 - [ ] **Paso 8: commit**
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: almacen con produccion offline y reclamo de carga"
 ```
 
@@ -3044,11 +3044,11 @@ Esperado: última línea `OK`, sin ningún `[X]`.
 - [ ] **Paso 5: verificación mecánica y commit**
 
 ```powershell
-..\tools\stylua.exe --check src
+..\..\tools\stylua.exe --check src
 ```
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: reglas de interceptacion y reparto del botin"
 ```
 
@@ -3362,8 +3362,8 @@ En `src/server/CargoService.luau`, dentro de `CargoService.entregar`, junto al c
 - [ ] **Paso 8: verificación mecánica**
 
 ```powershell
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 
 - [ ] **Paso 9: verificar el robo con dos jugadores simulados**
@@ -3454,7 +3454,7 @@ alerta que sólo anuncia lo inevitable es peor que ninguna.
 - [ ] **Paso 12: commit**
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: interceptacion detectada por el servidor a 5 hz"
 ```
 
@@ -3695,8 +3695,8 @@ safeStart("Persistence", Persistence)
 - [ ] **Paso 5: verificación mecánica**
 
 ```powershell
-..\tools\stylua.exe --check src
-..\tools\rojo.exe build
+..\..\tools\stylua.exe --check src
+..\..\tools\rojo.exe build
 ```
 
 - [ ] **Paso 6: verificar que sin place publicado el juego arranca igual**
@@ -3726,7 +3726,7 @@ Esperado: los cuatro en `true`. Si `mundo` o `personaje` salen `false`, el `requ
 - [ ] **Paso 7: commit**
 
 ```bash
-git add contrabando/src
+git add games/contrabando/src
 git commit -m "feat: persistencia perezosa y telemetria propia"
 ```
 
@@ -3739,7 +3739,7 @@ fuera del laboratorio.
 
 **Ficheros:**
 - Modificar: los que hagan falta según lo que aparezca
-- Crear: `roblox/contrabando/VERIFICACION.md` con los resultados
+- Crear: `roblox/games/contrabando/VERIFICACION.md` con los resultados
 
 **Interfaces:**
 - Consume: todo lo anterior.
@@ -3835,14 +3835,14 @@ que rehacer el viaje antes que añadir nada**.
 
 - [ ] **Paso 5: escribir VERIFICACION.md**
 
-Crear `roblox/contrabando/VERIFICACION.md` con: fecha, resultado de la batería de pruebas,
+Crear `roblox/games/contrabando/VERIFICACION.md` con: fecha, resultado de la batería de pruebas,
 tabla de los tres dispositivos, resultado del intento de exploits, y las notas de la sesión
 de diez minutos con la conclusión — seguir, ajustar el viaje o pivotar al target A.
 
 - [ ] **Paso 6: commit**
 
 ```bash
-git add contrabando
+git add games/contrabando
 git commit -m "test: verificacion en movil, exploits y sesion real"
 ```
 
