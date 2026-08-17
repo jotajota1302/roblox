@@ -53,7 +53,17 @@ Se leen en este orden, cada uno responde a una pregunta:
 
 | Necesidad | Herramienta | Por qué |
 |---|---|---|
-| **Modelos 3D** (objetos, vehículos, decorado) | **Cube 3D de Studio** (`generate_mesh` vía MCP) | Devuelve MeshParts ya usables y texturizados, y pasa la moderación de Roblox automáticamente. Probado: un baúl con correas y herrajes en ~1 min con 3.000 triángulos |
+| **Modelos 3D** (objetos, vehículos, decorado) | **Cube 3D de Studio** (`generate_mesh` vía MCP) | Devuelve MeshParts ya usables y texturizados, y pasa la moderación de Roblox automáticamente. Probado: un baúl con correas y herrajes en ~1 min con 3.000 triángulos. **Ojo al requisito de publicación, abajo** |
+
+**⚠️ Los meshes NO se ven hasta publicar el place.** Con `game.PlaceId == 0` (place sin
+publicar), `AssetService:CreateMeshPartAsync` falla con *"Failed to load mesh asset"* para
+**cualquier** id — los generados con Cube 3D y también los públicos de la biblioteca de
+Roblox. Los recién generados sólo se ven en la misma sesión de Studio en la que se crearon;
+al reabrir, desaparecen. Es la misma trampa que el DataStore.
+
+Consecuencia práctica: **todo lo que dependa de un mesh necesita un respaldo construido con
+`Part`**, y el juego tiene que quedar reconocible sin ellos. El decorado de `contrabando`
+lo hace: intenta un mesh, y si falla monta el edificio con piezas.
 | **Materiales / texturas de superficie** | `generate_material` (MCP) | Genera MaterialVariant nativos |
 | **Modelos paramétricos ajustables** | `generate_procedural_model` (MCP) | Primitivas con atributos editables sin regenerar |
 | **Miniatura e icono del juego** | **MiniMax** (`image-01`) | Es 2D y es **marketing**: decide el CTR en el Discover, que es el cuello de botella real del proyecto. Estilo saturado y llamativo, no arte de portada |
@@ -87,12 +97,26 @@ cd games\<juego>
 **Verificación obligatoria antes de dar algo por hecho:**
 
 ```powershell
-..\..\tools\stylua.exe --check src    # 0 = sintaxis y formato limpios
-..\..\tools\rojo.exe build            # que compile
+..\..\tools\stylua.exe --check src                    # 0 = sintaxis y formato limpios
+..\..\tools\rojo.exe build --output <juego>.rbxl      # que compile
 ```
 
 Y **probarlo dentro de Studio** con el MCP. Que compile no significa que funcione: el peor
 fallo de este proyecto compilaba perfectamente.
+
+### El place se compila SIEMPRE en la carpeta del juego, nunca en un temporal
+
+`games/<juego>/<juego>.rbxl` es **el sitio, y sólo ese**. Está en `.gitignore` (es un
+artefacto), pero es el fichero que JJ abre con doble clic para jugar.
+
+Compilar a una carpeta temporal para verificar y dejar el del proyecto sin tocar produce
+exactamente el peor resultado posible: **yo verifico una versión y él juega otra**. Ya pasó
+— se dio a Play y no aparecía nada de una función terminada y probada hacía una hora,
+porque su archivo era hora y media más antiguo. Se pierde la sesión discutiendo un fallo
+que no existe.
+
+Corolario: si hay que reabrir Studio para recargar el código (`Stop-Process` + volver a
+abrir), se reabre **ese** fichero.
 
 ## MCP de Roblox Studio
 

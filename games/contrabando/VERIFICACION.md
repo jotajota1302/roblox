@@ -293,6 +293,21 @@ ni el compilador: sólo aparece jugando. Se corrigió antes de escribir el códi
 
 ---
 
+### Los modelos 3D no se ven hasta publicar
+
+Encontrado dando a Play en el place del proyecto: **`game.PlaceId == 0`** —sin publicar— y
+entonces `AssetService:CreateMeshPartAsync` falla con *"Failed to load mesh asset"* para
+**cualquier** id, los nuestros y los públicos de Roblox por igual. Los meshes generados con
+Cube 3D sólo existen en la sesión de Studio donde se crearon; al reabrir, se pierden.
+
+Por eso el decorado tiene **respaldo construido con piezas**: 22 `Part` que arman la nave
+(paredes, tejado, portón y ventanas), el cobertizo del taller, la furgoneta aparcada y las
+cajas del muelle. No es bonito, pero el sitio **se reconoce**, que es lo que hace falta para
+saber dónde estás de pie. Al publicar el place entran los meshes solos, sin tocar código.
+
+El mundo jugable nunca dependió de esto: las losas, las distancias y las reglas son las
+mismas con meshes y sin ellos.
+
 ## 4. Antes de publicar
 
 - [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de

@@ -180,6 +180,173 @@ local function iluminar()
 	end
 end
 
+-- Decorado construido con piezas, para cuando los meshes no cargan.
+--
+-- HACE FALTA DE VERDAD, no es una red de seguridad teórica: con el place SIN
+-- PUBLICAR (PlaceId = 0) Studio no resuelve NINGÚN mesh de la nube -- ni los
+-- nuestros ni uno público de Roblox -- y todas las llamadas fallan con "Failed to
+-- load mesh asset". Los meshes generados con Cube 3D sólo se ven en la misma
+-- sesión de Studio en la que se crearon; en cualquier otra, hasta publicar el
+-- place, esto es lo único que hay. Es la misma trampa que el DataStore, que
+-- también revienta sin publicar.
+--
+-- No pretende ser bonito: pretende que el sitio se reconozca. Un almacén con
+-- paredes, tejado y una puerta se lee como un almacén; una losa plana no se lee
+-- como nada, y el jugador no sabe dónde está de pie.
+local function respaldo(adorno: Instance)
+	local CHAPA = Color3.fromRGB(150, 148, 140)
+	local CHAPA_OSCURA = Color3.fromRGB(112, 110, 104)
+	local MADERA = Color3.fromRGB(126, 96, 60)
+	local PUERTA = Color3.fromRGB(72, 104, 78)
+
+	local function bloque(nombre: string, tamano: Vector3, pos: Vector3, color: Color3, material: Enum.Material)
+		local p = part(nombre, tamano, pos, color, adorno)
+		p.Material = material
+		-- Sin colisión, igual que los meshes: la geometría jugable son las losas, y
+		-- un edificio sólido puede empujar al jugador fuera del radio en el que el
+		-- servidor mide las distancias.
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		return p
+	end
+
+	-- Almacén: nave detrás del muelle. Paredes, tejado y un portón que mira al
+	-- muelle, que es por donde se entra a recoger.
+	local zNave, anchoNave, largoNave, altoNave = -52, 52, 34, 26
+	bloque(
+		"NaveIzq",
+		Vector3.new(2, altoNave, largoNave),
+		Vector3.new(-anchoNave / 2, altoNave / 2, zNave),
+		CHAPA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"NaveDer",
+		Vector3.new(2, altoNave, largoNave),
+		Vector3.new(anchoNave / 2, altoNave / 2, zNave),
+		CHAPA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"NaveFondo",
+		Vector3.new(anchoNave, altoNave, 2),
+		Vector3.new(0, altoNave / 2, zNave - largoNave / 2),
+		CHAPA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"NaveFrente",
+		Vector3.new(anchoNave, altoNave, 2),
+		Vector3.new(0, altoNave / 2, zNave + largoNave / 2),
+		CHAPA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"NaveTejado",
+		Vector3.new(anchoNave + 4, 2, largoNave + 4),
+		Vector3.new(0, altoNave, zNave),
+		CHAPA_OSCURA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"NavePorton",
+		Vector3.new(22, 16, 1),
+		Vector3.new(0, 8, zNave + largoNave / 2 + 0.6),
+		PUERTA,
+		Enum.Material.Metal
+	)
+	for i, x in { -18, 18 } do
+		bloque(
+			"NaveVentana" .. i,
+			Vector3.new(8, 5, 1),
+			Vector3.new(x, 18, zNave + largoNave / 2 + 0.6),
+			Color3.fromRGB(40, 46, 52),
+			Enum.Material.Glass
+		)
+	end
+
+	-- Cajas apiladas en el muelle: mercancía visible donde el juego dice que hay
+	-- mercancía, que es lo que hace que el botón de recoger signifique algo.
+	for i, sitio in { Vector3.new(-20, 4, -18), Vector3.new(-14, 4, -20), Vector3.new(-17, 8, -19) } do
+		local caja = bloque("CajaMuelle" .. i, Vector3.new(5, 5, 5), sitio, MADERA, Enum.Material.WoodPlanks)
+		caja.CFrame = CFrame.new(sitio) * CFrame.Angles(0, math.rad(i * 22), 0)
+	end
+
+	-- Taller: cobertizo abierto por delante, para que se vea la furgoneta dentro.
+	local zTaller, anchoTaller, largoTaller, altoTaller = -34, 34, 28, 18
+	bloque(
+		"TallerIzq",
+		Vector3.new(2, altoTaller, largoTaller),
+		Vector3.new(-50 - anchoTaller / 2, altoTaller / 2, zTaller),
+		CHAPA_OSCURA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"TallerDer",
+		Vector3.new(2, altoTaller, largoTaller),
+		Vector3.new(-50 + anchoTaller / 2, altoTaller / 2, zTaller),
+		CHAPA_OSCURA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"TallerFondo",
+		Vector3.new(anchoTaller, altoTaller, 2),
+		Vector3.new(-50, altoTaller / 2, zTaller - largoTaller / 2),
+		CHAPA_OSCURA,
+		Enum.Material.Metal
+	)
+	bloque(
+		"TallerTejado",
+		Vector3.new(anchoTaller + 4, 2, largoTaller + 4),
+		Vector3.new(-50, altoTaller, zTaller),
+		Palette.TALLER,
+		Enum.Material.Metal
+	)
+
+	-- La furgoneta aparcada ES el escaparate: enseña lo que compras antes de que
+	-- puedas pagarlo, y eso es la mitad del motivo para hacer otro viaje.
+	local base = Vector3.new(-50, 0, -18)
+	bloque(
+		"FurgoCaja",
+		Vector3.new(8, 7, 11),
+		base + Vector3.new(0, 5.5, -2),
+		Palette.TALLER,
+		Enum.Material.SmoothPlastic
+	)
+	bloque(
+		"FurgoCabina",
+		Vector3.new(7.4, 5, 5),
+		base + Vector3.new(0, 4.5, 5),
+		Color3.fromRGB(96, 116, 156),
+		Enum.Material.SmoothPlastic
+	)
+	bloque(
+		"FurgoParabrisas",
+		Vector3.new(6.6, 2.6, 0.6),
+		base + Vector3.new(0, 5.6, 7.4),
+		Color3.fromRGB(40, 46, 52),
+		Enum.Material.Glass
+	)
+	for i, sitio in
+		{
+			Vector3.new(-4, 1.6, 4.5),
+			Vector3.new(4, 1.6, 4.5),
+			Vector3.new(-4, 1.6, -5),
+			Vector3.new(4, 1.6, -5),
+		}
+	do
+		local rueda = bloque(
+			"FurgoRueda" .. i,
+			Vector3.new(1.2, 3.2, 3.2),
+			base + sitio,
+			Color3.fromRGB(32, 32, 36),
+			Enum.Material.SmoothPlastic
+		)
+		rueda.Shape = Enum.PartType.Cylinder
+	end
+end
+
 function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, taller: BasePart, destinos: { BasePart } }
 	iluminar()
 
@@ -303,9 +470,17 @@ function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, taller: Ba
 	adorno.Parent = mundo
 
 	task.spawn(function()
-		-- El edificio DETRÁS de la losa, no encima: la losa es el muelle de carga
-		-- por el que se anda y donde aparece el jugador.
-		decorado("EdificioAlmacen", MeshCatalog.ALMACEN, Vector3.new(0, 18, -52), 0, adorno)
+		-- Se prueba con UNO antes de intentar los cuatro. Si los meshes no cargan
+		-- fallan todos por el mismo motivo (place sin publicar), y encadenar cuatro
+		-- esperas al servidor de assets para recibir cuatro veces el mismo error es
+		-- tiempo de arranque tirado. El edificio DETRÁS de la losa, no encima: la
+		-- losa es el muelle de carga por el que se anda y donde aparece el jugador.
+		if decorado("EdificioAlmacen", MeshCatalog.ALMACEN, Vector3.new(0, 18, -52), 0, adorno) == nil then
+			warn("[Contrabando] sin meshes (place sin publicar?): se monta el decorado de piezas")
+			respaldo(adorno)
+			return
+		end
+
 		-- Cajas apiladas en el muelle. Fijas: el contador real del almacén es de
 		-- cada jugador y no cabe en una pila compartida, pero ver mercancía donde
 		-- el juego dice que hay mercancía es lo que hace que "Recoger" signifique
