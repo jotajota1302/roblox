@@ -622,10 +622,12 @@ function CityBuilder.build(): Mundo
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
-		-- El aviso de entrega vive AQUÍ, en el destino, no en una esquina de la
-		-- pantalla: aparecer justo al pisar la losa es lo que enseña dónde se cobra
-		-- sin tener que explicarlo. El servidor valida la distancia igual.
-		prompt(destino, "Entregar carga", "Destino " .. string.upper(ruta.id), 26).Name = "PromptEntregar"
+		-- SIN aviso de entrega: llegar al destino con la carga correcta YA cobra
+		-- solo (ver CargoService.arrancarEntregaAutomatica). No existe ninguna razón
+		-- para llegar y no querer entregar, así que pedir confirmación era un paso
+		-- muerto -- y caía justo en el único momento del bucle en que el juego te da
+		-- algo. La tecla E se queda como red de seguridad y como la única vía que
+		-- EXPLICA por qué no puedes cobrar cuando no puedes.
 
 		-- La baliza, visible desde el otro extremo del mapa. En la ciudad importa
 		-- MÁS que en la recta, no menos: allí bastaba con mirar al frente, y aquí

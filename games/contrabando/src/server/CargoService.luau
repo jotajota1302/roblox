@@ -292,24 +292,21 @@ end
 --
 -- Va como función pública (no local) para poder probarla desde el servidor sin
 -- pasar por el remote.
-function CargoService.entregar(player: Player)
-	local estado = PlayerState.get(player)
+-- ¿Puede cobrar aquí y ahora? Devuelve el destino bueno, o nil y el motivo.
+--
+-- Separado del cobro para que la entrega AUTOMÁTICA y la manual compartan
+-- exactamente las mismas reglas. Con la lógica duplicada acabarían divergiendo, y
+-- el día que divergieran habría un sitio donde el juego cobra solo y otro donde
+-- hay que insistir a mano, sin que nada lo explicara.
+local function destinoParaCobrar(estado, root: BasePart): (BasePart?, string)
 	if #estado.cajas == 0 then
-		avisar(player, "No llevas nada que entregar", Palette.AVISO_MALO)
-		return
-	end
-
-	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not root then
-		return
+		return nil, "sin_carga"
 	end
 
 	-- Primero se busca el destino que tiene delante, y sólo después se juzga si le
-	-- vale. Al revés (la versión anterior, que exigía las dos cosas en la misma
-	-- condición) es imposible distinguir "aún no has llegado" de "has llegado al
-	-- sitio equivocado", que son dos consejos opuestos: uno dice sigue andando y el
-	-- otro dice date la vuelta.
+	-- vale. Al revés es imposible distinguir "aún no has llegado" de "has llegado
+	-- al sitio equivocado", que son dos consejos opuestos: uno dice sigue andando y
+	-- el otro dice date la vuelta.
 	local cerca: BasePart? = nil
 	for _, destino in destinos do
 		if (root.Position - destino.Position).Magnitude <= DISTANCIA_ENTREGA then
@@ -317,30 +314,21 @@ function CargoService.entregar(player: Player)
 			break
 		end
 	end
-
 	if not cerca then
-		if estado.ruta == nil then
-			avisar(player, "Saliste sin elegir ruta: vuelve a la salida del almacén", Palette.AVISO_MALO)
-		else
-			avisar(player, "Todavía no has llegado: sigue la baliza " .. estado.ruta, Palette.AVISO_MALO)
-		end
-		return
+		return nil, if estado.ruta == nil then "sin_ruta_lejos" else "no_has_llegado"
 	end
 
 	local rutaDelDestino = cerca:GetAttribute("ruta") :: string
 	if not Routes.entregaValida(estado.ruta, rutaDelDestino) then
-		if estado.ruta == nil then
-			avisar(player, "Saliste sin elegir ruta, así que esta carga no vale aquí", Palette.AVISO_MALO)
-		else
-			avisar(
-				player,
-				string.format("Este es el destino %s y tu ruta es la %s", rutaDelDestino, estado.ruta),
-				Palette.AVISO_MALO
-			)
-		end
-		return
+		return nil, if estado.ruta == nil then "sin_ruta" else "destino_equivocado"
 	end
+	return cerca, "ok"
+end
 
+-- El cobro en sí. No comprueba nada: quien llama ya lo ha hecho.
+local function cobrar(player: Player, destino: BasePart)
+	local estado = PlayerState.get(player)
+	local rutaDelDestino = destino:GetAttribute("ruta") :: string
 	local multiplicador = Routes.get(rutaDelDestino).multiplicador
 	-- Un solo sync al final, con el estado ya completo: zurrón vacío, dinero
 	-- cobrado y ruta liberada llegan juntos.
@@ -357,9 +345,93 @@ function CargoService.entregar(player: Player)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 	-- El cobro también se dice con palabras, no sólo cambiando una cifra en una
 	-- esquina. Es el único momento en que el juego te da algo, y una cifra que
-	-- salta de 0 a 300 sin más se pierde entre lo demás: aquí es donde se nota si
-	-- la ruta que elegiste valió la pena.
-	avisar(player, string.format("+%d por %d cajas en la %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
+	-- salta de 0 a 300 sin más se pierde entre lo demás.
+	avisar(player, string.format("+%d por %d cosas en la %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
+end
+
+-- ENTREGA AUTOMÁTICA: llegas y cobras.
+--
+-- Lo pidió JJ y no le veo contra: NO EXISTE ninguna razón para llegar al destino
+-- correcto, con la carga correcta, y no querer entregar. Cuando una acción sólo
+-- tiene una respuesta posible, pedirla es un paso muerto -- y este paso muerto
+-- caía justo en el único momento del bucle en que el juego te da algo.
+--
+-- Sólo dispara cuando de verdad va a cobrar. Los motivos por los que NO se puede
+-- entregar se los guarda: aquí no se avisa de nada, porque el jugador no ha
+-- pedido nada. Explicar los fallos sigue siendo trabajo de la entrega manual.
+function CargoService.arrancarEntregaAutomatica()
+	task.spawn(function()
+		while true do
+			task.wait(0.4)
+			PlayerState.forEach(function(player)
+				local ok, err = pcall(function()
+					local estado = PlayerState.get(player)
+					-- Se corta pronto en el caso normal (sin carga o sin ruta) para
+					-- no medir distancias a tres destinos por cada jugador dos veces
+					-- por segundo cuando la mayoría van de vuelta y de vacío.
+					if #estado.cajas == 0 or estado.ruta == nil then
+						return
+					end
+					local character = player.Character
+					local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+					if not root then
+						return
+					end
+					local destino = destinoParaCobrar(estado, root)
+					if destino then
+						cobrar(player, destino)
+					end
+				end)
+				if not ok then
+					warn("[Contrabando] fallo en la entrega automatica: " .. tostring(err))
+				end
+			end)
+		end
+	end)
+end
+
+-- La entrega MANUAL (tecla E). Se queda como red de seguridad y, sobre todo,
+-- como la única que EXPLICA por qué no puedes cobrar: hay cuatro motivos
+-- distintos y desde dentro se ven igual. Cuando el jugador pulsa, ha preguntado
+-- algo y merece respuesta.
+--
+-- Va como función pública para poder probarla desde el servidor sin pasar por el
+-- remote.
+function CargoService.entregar(player: Player)
+	local estado = PlayerState.get(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+
+	local destino, motivo = destinoParaCobrar(estado, root)
+	if destino then
+		cobrar(player, destino)
+		return
+	end
+
+	if motivo == "sin_carga" then
+		avisar(player, "No llevas nada que entregar", Palette.AVISO_MALO)
+	elseif motivo == "sin_ruta_lejos" then
+		avisar(player, "Saliste sin destino elegido: vuelve a la salida del almacén", Palette.AVISO_MALO)
+	elseif motivo == "no_has_llegado" then
+		avisar(player, "Todavía no has llegado: sigue la baliza " .. tostring(estado.ruta), Palette.AVISO_MALO)
+	elseif motivo == "sin_ruta" then
+		avisar(player, "Saliste sin destino elegido, así que esta carga no vale aquí", Palette.AVISO_MALO)
+	elseif motivo == "destino_equivocado" then
+		local rutaDelDestino = "?"
+		for _, d in destinos do
+			if (root.Position - d.Position).Magnitude <= DISTANCIA_ENTREGA then
+				rutaDelDestino = tostring(d:GetAttribute("ruta"))
+			end
+		end
+		avisar(
+			player,
+			string.format("Este es el destino %s y tu destino es la %s", rutaDelDestino, tostring(estado.ruta)),
+			Palette.AVISO_MALO
+		)
+	end
 end
 
 function CargoService.registrarDestino(destino: BasePart)
@@ -376,6 +448,8 @@ function CargoService.start()
 	Remotes.event(Remotes.ENTREGAR).OnServerEvent:Connect(function(player)
 		CargoService.entregar(player)
 	end)
+
+	CargoService.arrancarEntregaAutomatica()
 
 	-- Al reaparecer, la velocidad vuelve al valor por defecto de Roblox:
 	-- hay que reimponer la que corresponde a lo que lleva encima.

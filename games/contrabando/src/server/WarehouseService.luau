@@ -50,12 +50,18 @@ local function actualizar(player: Player): number
 	if estado.almacen == nil then
 		estado.almacen = {}
 	end
-	-- Lo que se produce depende de lo que el jugador PUEDE mover, mas un peldaño
-	-- por encima. Ese peldaño extra es la promesa: ver de vez en cuando algo que no
-	-- te cabe es lo que le da destino al dinero. Sin tope, un jugador a pie
-	-- acabaria con el almacen lleno de sofas intocables y sin juego.
-	local nivel = math.min(4, (Vehicles.deEstado(estado.vehiculo).tamanoMaximo or 1) + 1)
+	-- Lo que se produce depende de lo que el jugador PUEDE mover. El peldaño de más
+	-- --la promesa, eso que ves y no te cabe todavía-- sale UNA DE CADA CUATRO
+	-- veces, no siempre.
+	--
+	-- El motivo es de proporción: una promesa constante deja de ser una promesa y
+	-- pasa a ser un almacén lleno de cosas intocables. Medido en la primera prueba
+	-- de la entrega automática, con el peldaño siempre activo salieron 2 medianas
+	-- de 5 piezas para un jugador a pie -- casi la mitad del almacén inservible en
+	-- el primer minuto de juego, que es justo cuando hay que enganchar.
+	local propio = Vehicles.deEstado(estado.vehiculo).tamanoMaximo or 1
 	while #estado.almacen < estado.almacenCajas do
+		local nivel = if math.random(1, 4) == 1 then math.min(4, propio + 1) else propio
 		table.insert(estado.almacen, CargoService.nuevaCaja(nivel))
 	end
 	-- Y si el contador bajó por cualquier vía, la lista le sigue: dos fuentes de
@@ -115,16 +121,26 @@ function WarehouseService.reclamar(player: Player, indice: number?): number
 		return 1
 	end
 
+	-- Se SALTA lo que no se puede mover y se sigue con el resto, en vez de parar en
+	-- el primer estorbo.
+	--
+	-- Antes hacía `break`, y eso convertía una pieza grande en un TAPÓN: con una
+	-- maceta mediana en la posición 1 y tres sobres detrás, un jugador a pie
+	-- recogía CERO y no tenía forma de saber por qué -- el almacén se veía lleno y
+	-- el botón no hacía nada. Pasó en la primera prueba de la entrega automática y
+	-- costó el viaje entero.
+	--
+	-- Se recorre al revés porque el bucle borra elementos: hacia delante, cada
+	-- table.remove desplaza los que faltan por mirar y se saltaría uno de cada dos.
 	local cogidas = 0
-	while estado.almacenCajas > 0 and #estado.almacen > 0 do
-		local caja = estado.almacen[1]
-		if not Cargo.cabe(estado.cajas, caja, capacidad, estado.vehiculo) then
-			break
+	for i = #estado.almacen, 1, -1 do
+		local caja = estado.almacen[i]
+		if Cargo.cabe(estado.cajas, caja, capacidad, estado.vehiculo) then
+			table.remove(estado.almacen, i)
+			estado.almacenCajas -= 1
+			CargoService.recoger(player, caja)
+			cogidas += 1
 		end
-		table.remove(estado.almacen, 1)
-		estado.almacenCajas -= 1
-		CargoService.recoger(player, caja)
-		cogidas += 1
 	end
 
 	PlayerState.sync(player)
