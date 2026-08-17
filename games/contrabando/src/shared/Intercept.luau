@@ -12,6 +12,7 @@
 	  · roja   -> cualquiera, incluso alguien que salga del almacén vacío sólo a por ti
 ]]
 
+local Cargo = require(script.Parent.Cargo)
 local Config = require(script.Parent.Config)
 local Economy = require(script.Parent.Economy)
 local Routes = require(script.Parent.Routes)
@@ -67,6 +68,41 @@ function Intercept.reparto(cajas: { Economy.Caja }, fraccion: number): ({ Econom
 		if i <= cuantas then
 			table.insert(robadas, caja)
 		else
+			table.insert(restantes, caja)
+		end
+	end
+
+	return robadas, restantes
+end
+
+-- Igual que Intercept.reparto, pero limitado por lo que le cabe al ladrón. Las
+-- candidatas de reparto() son siempre un PREFIJO de `cajas`; aquí se prueban en
+-- ese mismo orden y se para en la primera que no cabe, así que lo robado sigue
+-- siendo un prefijo y "quitarle a la víctima justo lo robado" es una simple resta
+-- de longitud. Lo que no cabe se queda con la víctima: robar transfiere carga,
+-- nunca la destruye — y un ladrón que sale cargado se lleva menos, lo que hace de
+-- ir vacío una decisión real.
+function Intercept.repartoConCapacidad(
+	cajas: { Economy.Caja },
+	fraccion: number,
+	cajasAtacante: { Economy.Caja },
+	capacidad: number
+): ({ Economy.Caja }, { Economy.Caja })
+	local candidatas = Intercept.reparto(cajas, fraccion)
+	local simuladas = table.clone(cajasAtacante)
+	local robadas: { Economy.Caja } = {}
+
+	for _, caja in candidatas do
+		if not Cargo.cabe(simuladas, caja, capacidad) then
+			break
+		end
+		table.insert(simuladas, caja)
+		table.insert(robadas, caja)
+	end
+
+	local restantes: { Economy.Caja } = {}
+	for i, caja in cajas do
+		if i > #robadas then
 			table.insert(restantes, caja)
 		end
 	end

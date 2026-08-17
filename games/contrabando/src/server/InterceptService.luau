@@ -19,7 +19,6 @@
 local RunService = game:GetService("RunService")
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
-local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Intercept = require(game.ReplicatedStorage.Shared.Intercept)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
@@ -107,16 +106,25 @@ function InterceptService.tick(ahora: number)
 			local estadoVictima = PlayerState.get(victima)
 			local estadoAtacante = PlayerState.get(atacante)
 
-			local robadas, restantes = Intercept.reparto(estadoVictima.cajas, Config.ROBO_FRACCION)
-			estadoVictima.cajas = restantes
+			-- Solo se roba lo que quepa en el ladrón: lo que no cabe se queda con
+			-- la víctima. Robar transfiere carga, nunca la destruye.
+			local robadas, restantes = Intercept.repartoConCapacidad(
+				estadoVictima.cajas,
+				Config.ROBO_FRACCION,
+				estadoAtacante.cajas,
+				Config.CAPACIDAD_A_PIE
+			)
 
-			-- Sólo entra lo que le quepa: robar no puede saltarse la capacidad.
-			local metidas = 0
+			-- Un ladrón que ya va lleno no roba nada: no hay suceso que marcar,
+			-- avisar ni sonar, y sigue disponible para probar con otra víctima
+			-- este mismo ciclo.
+			if #robadas == 0 then
+				continue
+			end
+
+			estadoVictima.cajas = restantes
 			for _, caja in robadas do
-				if Cargo.cabe(estadoAtacante.cajas, caja, Config.CAPACIDAD_A_PIE) then
-					table.insert(estadoAtacante.cajas, caja)
-					metidas += 1
-				end
+				table.insert(estadoAtacante.cajas, caja)
 			end
 
 			estadoAtacante.marcadoHasta = ahora + Config.MARCADO_SEGUNDOS
@@ -127,9 +135,10 @@ function InterceptService.tick(ahora: number)
 			PlayerState.sync(victima)
 
 			-- La víctima sabe quién fue: sin eso el robo es una desaparición
-			-- inexplicable, y eso es rabia, no tensión.
+			-- inexplicable, y eso es rabia, no tensión. Los dos avisos usan el
+			-- MISMO número: el de cajas realmente transferidas.
 			avisar(victima, string.format("%s te ha robado %d cajas", atacante.DisplayName, #robadas), ROJO)
-			avisar(atacante, string.format("Has robado %d cajas. Estas marcado 60 s", metidas), AMBAR)
+			avisar(atacante, string.format("Has robado %d cajas. Estas marcado 60 s", #robadas), AMBAR)
 			sonar(victima, "robo")
 			sonar(atacante, "robo")
 			Telemetry.evento(atacante, "robo", { robadas = #robadas, ruta = perfilVictima.ruta })

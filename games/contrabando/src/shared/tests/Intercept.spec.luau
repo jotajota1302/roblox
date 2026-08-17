@@ -83,6 +83,22 @@ return function(kit)
 	local ningunaRobada = Intercept.reparto({}, 0.30)
 	kit.eq("de nada no se lleva nada", #ningunaRobada, 0)
 
+	-- Reparto limitado por capacidad: lo que no cabe en el ladrón se queda con la
+	-- víctima, nunca desaparece.
+	local legendaria = { rareza = "legendaria" } -- peso 3: llena por sí sola la capacidad a pie (3)
+
+	local roboVacio, quedaVacio = Intercept.repartoConCapacidad({ comun, comun, comun }, 0.30, {}, 3)
+	kit.eq("ladron vacio se lleva lo que calcula el reparto", #roboVacio, 1)
+	kit.eq("y la victima pierde justo eso", #quedaVacio, 2)
+
+	local roboMedio, quedaMedio = Intercept.repartoConCapacidad({ comun, comun, comun, comun }, 0.30, { comun }, 3)
+	kit.eq("ladron medio lleno se lleva lo que le cabe", #roboMedio, 2)
+	kit.eq("y la victima pierde justo eso", #quedaMedio, 2)
+
+	local roboLleno, quedaLleno = Intercept.repartoConCapacidad({ comun, comun, comun }, 0.30, { legendaria }, 3)
+	kit.eq("ladron lleno del todo no se lleva nada", #roboLleno, 0)
+	kit.eq("y la victima no pierde nada", #quedaLleno, 3)
+
 	-- Alerta de proximidad. Usa EXACTAMENTE las mismas reglas que el robo: si alguien
 	-- no puede robarte, avisar de que se acerca sería asustar por nada.
 	kit.truthy(
