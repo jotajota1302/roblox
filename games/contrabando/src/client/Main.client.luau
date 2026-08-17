@@ -12,7 +12,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
+local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
+local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
+local Compass = require(script.Parent:WaitForChild("Compass"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
+local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Stock = require(script.Parent:WaitForChild("Stock"))
@@ -49,6 +53,8 @@ local ultimoEstado: any = nil
 local cerradoAMano = false
 
 construir("Hud", Hud.build)
+construir("Compass", Compass.build)
+construir("Minimap", Minimap.build)
 
 construir("RoutePicker", function()
 	RoutePicker.build(function(rutaId)
@@ -128,14 +134,45 @@ local function refrescarSelector()
 	end
 end
 
+-- A qué apunta la brújula, que cambia con lo que estés haciendo:
+--
+--   · con ruta elegida, al destino de esa ruta -- es el viaje;
+--   · con carga y sin ruta, a la salida -- porque salir sin elegir es perder el
+--     viaje entero, y es el error más caro que puede cometer un jugador nuevo;
+--   · de vacío, al almacén, porque volver a por más es la otra mitad del bucle y
+--     también hay que saber por dónde se vuelve.
+--
+-- Sin este último caso la brújula se apagaría justo después de cobrar, que es el
+-- momento en que estás más lejos de casa y menos sabes dónde estás.
+local function apuntarBrujula(estado: any)
+	if estado == nil then
+		return
+	end
+	if estado.ruta ~= nil then
+		local ok, ruta = pcall(Routes.get, estado.ruta)
+		if ok and ruta then
+			Compass.apuntar(ruta.destino, "Destino " .. string.upper(ruta.id), Palette.ruta(ruta.id))
+			return
+		end
+	end
+	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
+	if #estado.cajas > 0 and salida then
+		Compass.apuntar(salida.Position, "Elige ruta en la salida", Palette.SALIDA)
+		return
+	end
+	Compass.apuntar(Config.ALMACEN_POS, "Tu almacén", Palette.ALMACEN)
+end
+
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	ultimoEstado = estado
 	refrescarSelector()
+	pcall(apuntarBrujula, estado)
+	pcall(Minimap.actualizar, estado)
 	-- La pila del muelle, que ES el contador del almacén. Protegida por su cuenta:
 	-- un fallo dibujando cajas no puede costar el HUD ni el selector de ruta.
 	pcall(function()
 		local almacen = mundo and mundo:FindFirstChild("Almacen") :: BasePart?
-		Stock.actualizar(almacen, estado.almacenCajas or 0)
+		Stock.actualizar(almacen, estado.almacen)
 	end)
 end)
 
@@ -172,12 +209,23 @@ local function recogerSiEstasEncima()
 		return
 	end
 
+	-- LA MÁS CERCANA, no la primera que se encuentre. Es lo que convierte el
+	-- almacén en una decisión: te plantas delante de la urna y te llevas la urna,
+	-- no lo que el bucle mirase antes. Con diez piezas juntas, "la primera del
+	-- montón" habría hecho imposible elegir.
+	local elegida, masCerca = nil, math.huge
 	for _, caja in pila:GetChildren() do
-		if caja:IsA("BasePart") and (root.Position - caja.Position).Magnitude <= 7 then
-			ultimaRecogida = ahora
-			Remotes.event(Remotes.RECLAMAR):FireServer()
-			return
+		if caja:IsA("BasePart") then
+			local d = (root.Position - caja.Position).Magnitude
+			if d <= 7 and d < masCerca then
+				elegida, masCerca = caja, d
+			end
 		end
+	end
+
+	if elegida then
+		ultimaRecogida = ahora
+		Remotes.event(Remotes.RECLAMAR):FireServer(elegida:GetAttribute("indice"))
 	end
 end
 

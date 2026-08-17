@@ -37,4 +37,32 @@ return function(kit)
 	kit.errors("una rareza inventada revienta", function()
 		Rarity.def("diamante")
 	end)
+
+	-- QUÉ es cada cosa, no sólo de qué color. Antes todo era la misma caja marrón y
+	-- una legendaria de x135 se veía igual que una común de x1: llevar algo dejaba
+	-- de significar nada, que es de donde vive la tensión de la ruta roja.
+	local vistas: { [string]: boolean } = {}
+	for _, id in { "comun", "marcada", "sellada", "legendaria" } do
+		local a = Rarity.aspecto(id)
+		kit.truthy("la rareza " .. id .. " tiene nombre", a.nombre ~= nil and a.nombre ~= "")
+		kit.falsy("y no se repite con otra", vistas[a.forma] == true)
+		vistas[a.forma] = true
+	end
+
+	-- Y no todas miden igual: la silueta es lo que las distingue de lejos, antes de
+	-- que se pueda leer la etiqueta.
+	kit.truthy(
+		"la urna es mas alta que ancha",
+		Rarity.aspecto("legendaria").escala.Y > Rarity.aspecto("legendaria").escala.X
+	)
+	kit.truthy("y el maletin al reves", Rarity.aspecto("marcada").escala.Y < Rarity.aspecto("marcada").escala.X)
+
+	-- La etiqueta lleva el multiplicador, que es el número con el que se decide si
+	-- compensa cargar con ello.
+	kit.truthy("la etiqueta dice cuanto multiplica", string.find(Rarity.etiqueta("legendaria"), "x135") ~= nil)
+
+	-- Y NO revienta con un id desconocido, aunque Rarity.def sí lo haga: esto lo
+	-- llama el dibujado de una pieza, y una etiqueta mal formada no puede llevarse
+	-- por delante el bucle que dibuja las demás.
+	kit.truthy("una rareza inventada no tumba la etiqueta", type(Rarity.etiqueta("diamante")) == "string")
 end

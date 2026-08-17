@@ -123,14 +123,18 @@ function CargoService.mostrarCarga(player: Player)
 		local caja = estado.cajas[i]
 		local fila = math.floor((i - 1) / 2)
 		local columna = (i - 1) % 2
+		local aspecto = Rarity.aspecto(caja.rareza)
 
 		local p = Instance.new("Part")
 		p.Name = "Caja" .. i
-		p.Size = Vector3.new(1.1, 1.1, 1.1)
+		-- Cada rareza con su forma y su material: un cajón, un maletín, un estuche
+		-- blindado, una urna. Antes eran seis cubos de madera idénticos y una
+		-- legendaria de x135 no se distinguía de una común salvo por el tono.
+		p.Size = Vector3.new(1.1, 1.1, 1.1) * aspecto.escala
 		-- Del color de su rareza: una legendaria a la espalda se ve de lejos, que es
 		-- justo lo que el diseño quiere -- llevarla vale una fortuna Y te señala.
 		p.Color = Rarity.color(caja.rareza)
-		p.Material = Enum.Material.WoodPlanks
+		p.Material = aspecto.material
 		p.Anchored = false
 		p.CanCollide = false
 		-- Sin masa: seis cajas con peso real cambian la física del personaje y lo
@@ -146,6 +150,41 @@ function CargoService.mostrarCarga(player: Player)
 		weld.Part1 = p
 		weld.Parent = p
 	end
+
+	-- QUÉ llevas, escrito encima. Una sola etiqueta para todo el bulto, con la
+	-- pieza más valiosa: seis carteles apilados serían ilegibles, y el dato que
+	-- decide --si merece la pena arriesgarse con esto por la roja-- es el del
+	-- objeto que más multiplica. Lo ven los DEMÁS jugadores también, que es lo que
+	-- convierte a alguien que pasa en un objetivo que merece la pena perseguir.
+	local mejor = estado.cajas[1]
+	for _, caja in estado.cajas do
+		local a, defA = pcall(Rarity.def, caja.rareza)
+		local b, defB = pcall(Rarity.def, mejor.rareza)
+		if a and b and defA.multiplicador > defB.multiplicador then
+			mejor = caja
+		end
+	end
+
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "EtiquetaCarga"
+	cartel.Size = UDim2.fromScale(9, 1.4)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
+	cartel.AlwaysOnTop = false -- tapado por edificios: esconderse tiene que servir
+	cartel.MaxDistance = 140
+	cartel.Adornee = root
+	cartel.Parent = bulto
+
+	local texto = Instance.new("TextLabel")
+	texto.Size = UDim2.fromScale(1, 1)
+	texto.BackgroundTransparency = 1
+	texto.TextColor3 = Rarity.color(mejor.rareza)
+	texto.TextStrokeTransparency = 0.25
+	texto.TextScaled = true
+	texto.Font = Enum.Font.GothamBold
+	texto.Text = if #estado.cajas > 1
+		then string.format("%s  +%d", Rarity.etiqueta(mejor.rareza), #estado.cajas - 1)
+		else Rarity.etiqueta(mejor.rareza)
+	texto.Parent = cartel
 end
 
 -- El haz de luz no es decoración: es la mitad de la mecánica. Llevar una legendaria

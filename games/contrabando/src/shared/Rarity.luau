@@ -47,4 +47,70 @@ function Rarity.esLlamativa(id: string): boolean
 	return id == "sellada" or id == "legendaria"
 end
 
+-- QUÉ es cada cosa que llevas, no sólo de qué color es.
+--
+-- Antes todo era la misma caja de madera marrón, y con eso una legendaria de x135
+-- y una común de x1 se veían igual salvo por el tono -- "la caja de madera queda
+-- un poco mal, podríamos ver otras cosas para llevar" (JJ). Llevar un cajón o
+-- llevar un estuche blindado tiene que notarse en la mano: es la diferencia entre
+-- transportar mercancía y transportar ALGO, y de eso vive la tensión de la ruta
+-- roja.
+--
+-- `forma` la interpreta quien dibuja (CargoService a la espalda, Stock en el
+-- muelle); aquí sólo se dice qué es cada rareza, para que las dos mitades no
+-- tengan cada una su propia idea.
+export type Aspecto = {
+	nombre: string,
+	forma: string,
+	material: Enum.Material,
+	-- Proporciones respecto a la pieza base. Un estuche es plano y ancho; un cajón
+	-- es un cubo. Que no midan todos igual es la mitad de lo que los distingue de
+	-- lejos, antes incluso de leer la etiqueta.
+	escala: Vector3,
+}
+
+local ASPECTOS: { [string]: Aspecto } = {
+	comun = {
+		nombre = "Cajón",
+		forma = "caja",
+		material = Enum.Material.WoodPlanks,
+		escala = Vector3.new(1, 1, 1),
+	},
+	marcada = {
+		nombre = "Maletín",
+		forma = "maletin",
+		material = Enum.Material.Metal,
+		escala = Vector3.new(1.15, 0.42, 0.85),
+	},
+	sellada = {
+		nombre = "Estuche sellado",
+		forma = "estuche",
+		material = Enum.Material.DiamondPlate,
+		escala = Vector3.new(1.05, 0.8, 1.05),
+	},
+	legendaria = {
+		nombre = "Urna",
+		forma = "urna",
+		material = Enum.Material.Foil,
+		escala = Vector3.new(0.85, 1.25, 0.85),
+	},
+}
+
+function Rarity.aspecto(id: string): Aspecto
+	return ASPECTOS[id] or ASPECTOS.comun
+end
+
+-- La etiqueta que se lee encima de la pieza: qué es y cuánto multiplica. El
+-- multiplicador sale de Economy, no de una copia aquí, porque es el número con el
+-- que el jugador decide si le compensa cargar con ello.
+function Rarity.etiqueta(id: string): string
+	-- Rarity.def LANZA con un id desconocido (delega en Economy.rareza, que hace
+	-- error()). Aquí no puede propagarse: esto lo llama el dibujado de una caja, y
+	-- una etiqueta mal formada no puede costar la pieza entera -- ni, peor, tumbar
+	-- el bucle que dibuja las demás.
+	local ok, def = pcall(Rarity.def, id)
+	local multiplicador = if ok and def then def.multiplicador else 1
+	return string.format("%s  x%d", Rarity.aspecto(id).nombre, multiplicador)
+end
+
 return Rarity

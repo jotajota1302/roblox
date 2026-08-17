@@ -256,24 +256,28 @@ local function nave(base: Part, padre: Instance)
 	)
 	pieza("NaveJambaDer", Vector3.new(10, alto - 6, 1.5), Vector3.new(ancho / 2 - 5, (alto - 6) / 2, largo / 2), PORTON)
 
-	-- Luz dentro. Con el tejado puesto, el interior queda en sombra y la mercancía
-	-- --que es lo único que hay que ver ahí-- se convierte en bultos negros. Un
-	-- almacén oscuro no invita a entrar, y entrar es el gesto de cada vuelta.
-	local farola = part(
+	-- Luz dentro, lo justo para que la mercancía no sea un bulto negro.
+	--
+	-- La primera versión era una barra de neón de 40 studs y quedaba como un plató:
+	-- "se ve demasiado iluminado" (JJ). El problema del neón es que la fuente misma
+	-- es lo más brillante de la escena, así que el ojo va a la lámpara en vez de a
+	-- las cajas. Ahora la pieza es pequeña y mate, y la luz la pone un PointLight
+	-- discreto: se ve el interior sin que parezca un escaparate.
+	local plafon = part(
 		"NaveLuz",
-		Vector3.new(ancho - 12, 0.6, 3),
+		Vector3.new(6, 0.5, 2),
 		centro + Vector3.new(0, suelo - base.Position.Y + alto - 2, 0),
-		Color3.fromRGB(255, 244, 214),
+		Color3.fromRGB(226, 220, 204),
 		padre
 	)
-	farola.Material = Enum.Material.Neon
-	farola.CanCollide = false
+	plafon.Material = Enum.Material.SmoothPlastic
+	plafon.CanCollide = false
 
 	local luz = Instance.new("PointLight")
-	luz.Color = Color3.fromRGB(255, 238, 200)
-	luz.Range = 46
-	luz.Brightness = 2.2
-	luz.Parent = farola
+	luz.Color = Color3.fromRGB(255, 240, 214)
+	luz.Range = 34
+	luz.Brightness = 0.9
+	luz.Parent = plafon
 
 	-- El nombre escrito en el frontal. En un mapa con cien edificios iguales, es lo
 	-- que distingue el tuyo del bloque de oficinas de al lado.

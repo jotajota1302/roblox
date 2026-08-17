@@ -24,7 +24,7 @@ local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Ra
 
 local Stock = {}
 local carpeta: Folder? = nil
-local dibujadas = -1
+local dibujadas = ""
 
 local function sitios(almacen: BasePart): { Vector3 }
 	local total = almacen:GetAttribute("muelleSitios")
@@ -41,17 +41,26 @@ local function sitios(almacen: BasePart): { Vector3 }
 	return lista
 end
 
--- `cuantas` es lo que hay en el almacén ahora mismo. Se redibuja sólo cuando el
--- número cambia: reconstruir diez piezas cinco veces por segundo es tirar
--- rendimiento en un juego que tiene que ir en un móvil de gama baja.
-function Stock.actualizar(almacen: BasePart?, cuantas: number)
+-- `piezas` es lo que hay guardado, cada una con su rareza ya decidida por el
+-- servidor. Se redibuja sólo cuando cambia la lista: reconstruir diez modelos
+-- cinco veces por segundo es tirar rendimiento en un juego que tiene que ir en un
+-- móvil de gama baja.
+function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 	if not almacen then
 		return
 	end
-	if cuantas == dibujadas then
+	local lote = piezas or {}
+	-- La huella de la lista, no sólo su tamaño: cambiar una urna por un cajón sin
+	-- cambiar la cuenta tiene que repintarse igual, o el jugador estaría eligiendo
+	-- sobre un dibujo viejo.
+	local huella = ""
+	for _, p in lote do
+		huella ..= p.rareza .. ","
+	end
+	if huella == dibujadas then
 		return
 	end
-	dibujadas = cuantas
+	dibujadas = huella
 
 	if carpeta then
 		carpeta:Destroy()
@@ -62,26 +71,53 @@ function Stock.actualizar(almacen: BasePart?, cuantas: number)
 	carpeta = f
 
 	local lista = sitios(almacen)
-	for i = 1, math.min(cuantas, #lista) do
+	for i = 1, math.min(#lote, #lista) do
+		local rareza = lote[i].rareza
+		local aspecto = Rarity.aspecto(rareza)
+
 		local caja = Instance.new("Part")
 		caja.Name = "CajaAlmacen" .. i
-		-- 3 studs: poco menos de la mitad de la altura de un personaje. A 4,4 eran
+		-- 3 studs de base: poco menos de la mitad de un personaje. A 4,4 eran
 		-- "excesivamente grandes" (JJ, jugando) -- diez de ésas llenan la nave y
 		-- tapan al propio jugador, así que la pila deja de leerse como un contador.
-		caja.Size = Vector3.new(3, 3, 3)
+		-- Cada rareza deforma esa base con su escala: la urna sale alta y estrecha,
+		-- el maletín plano y ancho. Se distinguen de lejos, antes de leer nada.
+		caja.Size = Vector3.new(3, 3, 3) * aspecto.escala
 		caja.Position = lista[i]
-		-- Todas del color de la común: la rareza de lo que hay guardado NO se sabe
-		-- hasta recogerlo (la tirada la hace el servidor al reclamar), y pintarlas
-		-- de colores aquí prometería un botín que nadie ha decidido todavía.
-		caja.Color = Rarity.color("comun")
-		caja.Material = Enum.Material.WoodPlanks
+		caja.Color = Rarity.color(rareza)
+		caja.Material = aspecto.material
 		caja.Anchored = true
-		-- Atravesables: están en el muelle, que es justo por donde se anda para
-		-- llegar al botón de recoger. Una pila sólida creciendo delante de la puerta
-		-- acabaría encerrando al jugador en su propio almacén.
+		-- Atravesables: están en el muelle, que es justo por donde se anda. Una pila
+		-- sólida creciendo dentro de la nave acabaría encerrando al jugador en su
+		-- propio almacén.
 		caja.CanCollide = false
 		caja.CFrame = CFrame.new(lista[i]) * CFrame.Angles(0, math.rad(i * 23), 0)
+		-- El índice viaja con la pieza: es lo que se manda al servidor para pedir
+		-- ÉSTA y no otra.
+		caja:SetAttribute("indice", i)
 		caja.Parent = f
+
+		-- Qué es y cuánto multiplica, escrito encima. Es el dato de la decisión: sin
+		-- él, elegir entre la urna y tres cajones sería elegir por la forma, a
+		-- ciegas, y volvería a no haber nada que decidir.
+		local cartel = Instance.new("BillboardGui")
+		cartel.Name = "Etiqueta"
+		cartel.Size = UDim2.fromScale(8, 1.3)
+		cartel.StudsOffsetWorldSpace = Vector3.new(0, 2.8, 0)
+		cartel.AlwaysOnTop = true
+		cartel.MaxDistance = 70
+		cartel.Adornee = caja
+		cartel.Parent = caja
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Rarity.color(rareza)
+		texto.TextStrokeTransparency = 0.3
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = Rarity.etiqueta(rareza)
+		texto.Parent = cartel
 	end
 end
 

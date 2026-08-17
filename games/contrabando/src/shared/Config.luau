@@ -78,8 +78,13 @@ Config.RAREZAS = {
 -- NO HAYA NADA de la ciudad por encima del suelo en 70 studs a la redonda, y que
 -- haya una calle cerca. De 15 parcelas que lo cumplen, ésta es la que quedaba en
 -- la esquina apartada, con una calle a 70 studs.
-Config.ALMACEN_POS = Vector3.new(-640, 19.2, 700)
-Config.TALLER_POS = Vector3.new(-640, 19.2, 596)
+-- Elegido barriendo el mapa entero y puntuando por DOS cosas a la vez: cuánto
+-- espacio libre hay alrededor (80 studs, el máximo que ofrece la ciudad) y cuánto
+-- se aleja del centro (965). Lo segundo importa tanto como lo primero: en una
+-- esquina de verdad nadie pasa por delante del almacén de camino a otra cosa, y
+-- eso es lo que hace que salir signifique algo.
+Config.ALMACEN_POS = Vector3.new(-653, 21.8, 710)
+Config.TALLER_POS = Vector3.new(-653, 21.8, 600)
 
 -- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
 -- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles

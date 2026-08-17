@@ -19,6 +19,16 @@ export type Estado = {
 	ruta: string?,
 	marcadoHasta: number,
 	almacenCajas: number,
+	-- Lo que hay guardado, PIEZA A PIEZA y con su rareza ya sorteada.
+	--
+	-- Antes el almacén era sólo un número y la rareza se tiraba en el instante de
+	-- recoger, así que no había nada que decidir: pulsabas y te llevabas lo que
+	-- cupiera. Con las piezas ya definidas, entrar al almacén es una decisión real
+	-- --¿la urna que ocupa el zurrón entero y multiplica x135, o tres cajones?--
+	-- y esa decisión se encadena con la de ruta y con el haz que te delata.
+	-- `almacenCajas` se mantiene como su cuenta para no obligar a todo lo demás
+	-- (HUD, guardado) a saber de esta lista.
+	almacen: { Economy.Caja },
 	almacenUltimaVisita: number,
 	-- nil significa "a pie". Vehicles.deEstado es el único sitio que traduce ese
 	-- nil, para que ningún servicio tenga que acordarse de hacerlo.
@@ -44,6 +54,7 @@ function PlayerState.get(player: Player): Estado
 			ruta = nil,
 			marcadoHasta = 0,
 			almacenCajas = 3, -- las tres cajas de los primeros cinco segundos
+			almacen = {},
 			almacenUltimaVisita = os.time(),
 			vehiculo = nil,
 			calor = 0,
@@ -73,6 +84,10 @@ function PlayerState.sync(player: Player)
 		ruta = estado.ruta,
 		marcadoHasta = estado.marcadoHasta,
 		almacenCajas = estado.almacenCajas,
+		-- Las piezas guardadas, para que el muelle dibuje CADA UNA como lo que es.
+		-- Sin esto el cliente sólo sabría cuántas hay y volvería a pintar diez
+		-- cajones iguales, que es justo lo que quita la decisión.
+		almacen = estado.almacen,
 		calor = estado.calor or 0,
 		-- El cliente recibe el vehículo YA resuelto (nunca el nil crudo) y su
 		-- capacidad calculada: dibujar "2/10" no debe requerir que el cliente
