@@ -29,6 +29,11 @@ export type Perfil = {
 	-- no aplica" y no activa la zona segura -- así los perfiles de prueba que no la
 	-- rellenan (o el del atacante, que no la necesita) siguen funcionando igual.
 	distanciaOrigen: number?,
+	-- ¿Está la víctima dentro de un refugio? Misma idea que distanciaOrigen: la
+	-- geometría la resuelve quien arma el perfil, porque este módulo es puro y no
+	-- sabe dónde están los refugios. nil o false significan "a la intemperie", así
+	-- que los perfiles antiguos siguen valiendo sin tocarlos.
+	enRefugio: boolean?,
 }
 
 local Intercept = {}
@@ -42,6 +47,14 @@ function Intercept.puedeRobar(atacante: Perfil, victima: Perfil, distancia: numb
 	-- segura"), no una condición del estado de la víctima.
 	if victima.distanciaOrigen ~= nil and victima.distanciaOrigen <= Config.ZONA_SEGURA_RADIO then
 		return false, "zona_segura"
+	end
+	-- Y los refugios, por el mismo motivo y en el mismo sitio: son una garantía
+	-- ESPACIAL, no una condición del estado de la víctima. Un refugio que protege
+	-- de las patrullas pero no de otro jugador no sería un refugio -- sería una
+	-- trampa, y de las peores: el jugador se mete ahí creyendo que está a salvo,
+	-- que es exactamente el momento en que deja de mirar a su espalda.
+	if victima.enRefugio == true then
+		return false, "refugio"
 	end
 	if #victima.cajas == 0 then
 		return false, "victima_sin_carga"

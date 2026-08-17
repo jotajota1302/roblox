@@ -20,6 +20,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -31,6 +32,7 @@ local HZ = 5
 local HeatService = {}
 local calor: { [Player]: Heat.Estado } = {}
 local detectores: { BasePart } = {}
+local refugios: { Vector3 } = {}
 
 -- "Una patrulla te está viendo ahora mismo". Lo escribe PatrolService y lo lee el
 -- enfriamiento. DECLARADA AQUÍ ARRIBA, con todas las demás, y no junto a la
@@ -44,6 +46,17 @@ local perseguidos: { [Player]: boolean } = {}
 
 function HeatService.registrarDetector(poste: BasePart)
 	table.insert(detectores, poste)
+end
+
+function HeatService.registrarRefugios(sitios: { Vector3 })
+	refugios = sitios
+end
+
+-- Lo consultan también las patrullas y el robo: la regla "dentro de un refugio no
+-- te alcanzan" tiene que salir de UN sitio, o el día que cambie el radio habrá
+-- servicios protegiendo un área y otros no.
+function HeatService.enRefugio(posicion: Vector3): boolean
+	return Shelter.dentro(posicion, refugios) ~= nil
 end
 
 local function estadoDe(player: Player): Heat.Estado
@@ -128,9 +141,17 @@ local function muestra(player: Player, ahora: number): boolean
 		end
 	end
 
+	-- Dentro de un refugio se enfría MUCHO más rápido y no cuenta que te vean: es
+	-- el sitio al que corres cuando la cosa se pone fea. Pero no es instantáneo
+	-- como el almacén -- sigue costando tiempo parado sin cobrar, que es lo único
+	-- que escasea de verdad en una sesión (ver la cabecera de Shelter).
+	local aCubierto = Shelter.dentro(root.Position, refugios) ~= nil
+	local periodo = Shelter.periodoDeEnfriado(aCubierto)
+
 	-- `vigilado` incluye a propósito sólo los detectores: las patrullas se lo dicen
 	-- por su cuenta con marcarPerseguido, que es quien sabe si de verdad te ven.
-	estado = Heat.enfriar(estado, ahora, vigilado or perseguidos[player] == true)
+	local encima = (vigilado or perseguidos[player] == true) and not aCubierto
+	estado = Heat.enfriar(estado, ahora, encima, periodo)
 	calor[player] = estado
 
 	if estado.nivel ~= nivelAntes then

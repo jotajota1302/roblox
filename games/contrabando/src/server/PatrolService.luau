@@ -230,6 +230,19 @@ local function perseguir(patrulla: Patrulla, player: Player)
 
 			local separacion = (objetivo.Position - patrulla.raiz.Position).Magnitude
 
+			-- DENTRO DE UN REFUGIO NO TE ALCANZAN. Es la promesa entera del sistema
+			-- y no admite excepciones: si te pillaran en el último paso, entrar
+			-- dejaría de ser una decisión y pasaría a ser una apuesta -- y nadie
+			-- vuelve a fiarse de un refugio que le ha fallado una vez.
+			if HeatService.enRefugio(objetivo.Position) then
+				-- Se queda rondando fuera en vez de irse: el jugador tiene que ver
+				-- que le esperan, porque eso es lo que convierte estar a salvo en
+				-- una decisión (salir ahora y correr, o esperar a que se enfríe).
+				patrulla.humanoid:MoveTo(objetivo.Position)
+				task.wait(1.5)
+				continue
+			end
+
 			if separacion <= Config.PATRULLA_ALCANCE then
 				alcanzar(player)
 				break

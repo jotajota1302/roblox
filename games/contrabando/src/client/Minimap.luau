@@ -179,6 +179,23 @@ function Minimap.refrescar()
 		p.Visible = true
 	end
 
+	-- Los refugios. Es lo que se busca en el mapa cuando la cosa se pone fea, así
+	-- que van SIEMPRE visibles y no sólo con calor: hay que haberlos visto antes de
+	-- necesitarlos, o cuando los necesites será tarde para aprenderte dónde están.
+	-- Se leen del mundo en vez de recibirlos por el estado -- son geometría fija y
+	-- no cambian por jugador.
+	local mundo = workspace:FindFirstChild("Mundo")
+	if mundo then
+		for _, pieza in mundo:GetChildren() do
+			if pieza:IsA("BasePart") and pieza:GetAttribute("refugio") == true then
+				local p = punto("Refugio_" .. pieza.Name, Color3.fromRGB(120, 180, 255), 10, 3)
+				local donde = aPantalla(centro, pieza.Position)
+				p.Position = donde
+				p.Visible = true
+			end
+		end
+	end
+
 	-- La gente. Se dibuja a TODO EL MUNDO, con carga o sin ella: saber que hay
 	-- alguien cerca es media decisión en la ruta roja, y ocultar a los que van
 	-- vacíos escondería justamente a los cazadores.

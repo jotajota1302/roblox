@@ -62,6 +62,11 @@ local function perfil(player: Player): Intercept.Perfil?
 		-- del juego dejaría de cumplirse. Se calcula para todos por igual;
 		-- Intercept.puedeRobar sólo la mira en el perfil de la víctima.
 		distanciaOrigen = (root.Position - Config.ALMACEN_POS).Magnitude,
+		-- La otra garantía espacial: dentro de un refugio no se roba. Se pregunta a
+		-- HeatService y no a Shelter directamente para que la respuesta salga de un
+		-- único sitio -- el día que cambie el radio, no puede haber un servicio
+		-- protegiendo un área y otro protegiendo otra distinta.
+		enRefugio = HeatService.enRefugio(root.Position),
 	}
 end
 

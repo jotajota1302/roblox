@@ -21,6 +21,7 @@
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
+local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
 
 local CityBuilder = {}
 
@@ -382,6 +383,67 @@ local function muelle(base: Part)
 	base:SetAttribute("muelleSitios", #sitios)
 end
 
+-- Un refugio: el sitio donde no te pueden alcanzar.
+--
+-- Tiene que reconocerse DESDE LEJOS y mientras corres mirando hacia atrás, porque
+-- ése es el único momento en que importa. De ahí el pilar de luz: cuando te
+-- persiguen no vas a leer un cartel, vas a buscar una referencia de color en el
+-- horizonte. Es la misma razón por la que los destinos llevan baliza.
+local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre: Instance): BasePart?
+	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
+	if y == nil then
+		-- Sin calle donde plantarlo. Se omite en vez de ponerlo en una azotea: un
+		-- refugio inalcanzable es peor que uno menos, porque el jugador lo ve en el
+		-- mapa, se desvía hacia él y descubre que no se puede entrar justo cuando
+		-- lo necesitaba.
+		return nil
+	end
+
+	local AZUL = Color3.fromRGB(74, 118, 176)
+	local losa = part(
+		"Refugio_" .. indice,
+		Vector3.new(Config.REFUGIO_RADIO * 1.2, ALTO_LOSA, Config.REFUGIO_RADIO * 1.2),
+		Vector3.new(x, y + ALTO_LOSA / 2, z),
+		AZUL,
+		padre
+	)
+	losa.Material = Enum.Material.Pavement
+	losa:SetAttribute("refugio", true)
+
+	-- El pilar, visible por encima de los edificios (que llegan a 175 studs).
+	local faro = part("RefugioFaro_" .. indice, Vector3.new(5, 190, 5), Vector3.new(x, y + 95, z), AZUL, padre)
+	faro.Material = Enum.Material.Neon
+	faro.CanCollide = false
+	faro.Transparency = 0.25
+
+	local luz = Instance.new("PointLight")
+	luz.Color = Color3.fromRGB(120, 180, 255)
+	luz.Range = 60
+	luz.Brightness = 2
+	luz.Parent = losa
+
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "Cartel"
+	cartel.Size = UDim2.fromScale(22, 6)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 110, 0)
+	cartel.AlwaysOnTop = true
+	cartel.MaxDistance = 1400
+	cartel.Adornee = faro
+	cartel.Parent = faro
+
+	local texto = Instance.new("TextLabel")
+	texto.Size = UDim2.fromScale(1, 1)
+	texto.BackgroundTransparency = 1
+	texto.TextColor3 = Color3.fromRGB(220, 235, 255)
+	texto.TextStrokeTransparency = 0.2
+	texto.TextScaled = true
+	texto.Font = Enum.Font.GothamBold
+	texto.Text = "REFUGIO"
+	texto.Parent = cartel
+
+	return losa
+end
+
 export type Mundo = {
 	almacen: BasePart,
 	salida: BasePart,
@@ -389,6 +451,10 @@ export type Mundo = {
 	aparicion: BasePart,
 	destinos: { BasePart },
 	detectores: { BasePart },
+	-- Posiciones, no piezas: quien los consulta (calor, patrullas, robo) sólo
+	-- necesita saber dónde están, y pasar las piezas invitaría a que alguien
+	-- empezara a leerles propiedades y a depender de cómo están dibujados.
+	refugios: { Vector3 },
 }
 
 function CityBuilder.build(): Mundo
@@ -516,6 +582,19 @@ function CityBuilder.build(): Mundo
 		end
 	end
 
+	-- Los refugios, uno por cada sitio que propone Shelter para cada ruta. Se
+	-- plantan DESPUÉS de los destinos porque sólo tienen sentido sobre un trayecto
+	-- que ya existe.
+	local refugios: { Vector3 } = {}
+	for _, ruta in Routes.todas() do
+		for _, sitio in Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.REFUGIOS_POR_RUTA) do
+			local pieza = refugio(ciudad, #refugios + 1, sitio, mundo)
+			if pieza then
+				table.insert(refugios, pieza.Position)
+			end
+		end
+	end
+
 	return {
 		almacen = almacen,
 		salida = salida,
@@ -523,6 +602,7 @@ function CityBuilder.build(): Mundo
 		aparicion = spawn,
 		destinos = destinos,
 		detectores = detectores,
+		refugios = refugios,
 	}
 end
 

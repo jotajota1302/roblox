@@ -60,7 +60,7 @@ local Avatar = safeRequire("Avatar")
 -- HAY DOS FORMAS DE TENER CIUDAD Y NO PUEDEN CONVIVIR A LA VEZ:
 --
 --   · el modelo del Creator Store, que Rojo monta como Workspace.Ciudad desde
---     src/assets/Ciudad.rbxm (bloque "Ciudad" de default.project.json);
+--     mapa/Ciudad.rbxm (bloque "Ciudad" de default.project.json);
 --   · MapBuilder, que la genera por código.
 --
 -- Las dos dejan exactamente el mismo contrato -- un Model llamado "Ciudad" que
@@ -135,6 +135,12 @@ if mundo then
 		for _, poste in mundo.detectores do
 			HeatService.registrarDetector(poste)
 		end
+		-- Los refugios se registran en HeatService y NO en cada servicio que los
+		-- necesita: el calor, las patrullas y el robo preguntan todos ahí. Con tres
+		-- copias de la lista, el día que una se quede sin actualizar habría un
+		-- refugio que protege del robo pero no de la policía, y el jugador no
+		-- tendría forma de saber cuál.
+		HeatService.registrarRefugios(mundo.refugios)
 	end
 end
 

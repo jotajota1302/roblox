@@ -152,6 +152,36 @@ Config.DETECTOR_BLOQUEO = 30
 -- almacén, y entonces no hay juego.
 Config.CALOR_SEGUNDOS_POR_NIVEL = 20
 
+-- REFUGIOS: sitios del mapa donde no te pueden alcanzar.
+--
+-- Existen porque hasta ahora la única zona segura era el almacén -- UN punto en
+-- una esquina del mapa -- y eso deja al jugador perseguido con una sola opción:
+-- correr y aguantar. Correr HACIA algo es una decisión; correr a secas es un
+-- castigo que sólo se puede esperar a que pase.
+--
+-- Y hacen por el mapa lo que faltaba desde la primera partida: que la ruta elegida
+-- cambie EL CAMINO y no sólo su longitud. Con refugios repartidos aparecen
+-- trayectos que los van encadenando --más largos, más seguros-- frente a atajos
+-- expuestos que pagan igual pero sin red.
+--
+-- Radio pequeño comparado con la zona segura del almacén (150): un refugio es un
+-- portal donde meterse, no un barrio entero a salvo.
+Config.REFUGIO_RADIO = 45
+
+-- Dentro se enfría MUCHO más rápido, pero NO al instante. Esa diferencia con el
+-- almacén (que apaga el calor de golpe) es lo que impide que un refugio sea un
+-- botón de "anular la persecución": sigue costando lo único que de verdad escasea
+-- en una sesión, que es tiempo. Cinco segundos por nivel contra veinte a la
+-- intemperie: merece la pena desviarse, y aun así tres estrellas son quince
+-- segundos parado sin cobrar.
+Config.REFUGIO_SEGUNDOS_POR_NIVEL = 5
+
+-- Cuántos por ruta y a qué altura del trayecto. Desviados de la línea a propósito:
+-- un refugio que te pilla de paso no es una decisión, es un regalo. Hay que querer
+-- ir.
+Config.REFUGIOS_POR_RUTA = 2
+Config.REFUGIO_DESVIO = 120
+
 -- Patrullas por nivel de calor, y a qué velocidad van.
 --
 -- SON MÁS RÁPIDAS QUE EL JUGADOR A PROPÓSITO, y eso sólo es justo por lo otro que

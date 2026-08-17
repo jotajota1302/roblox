@@ -79,7 +79,10 @@ end
 -- 20 s y un bucle de refresco de 1 s, marcar el reloj a `ahora` en cada muestra
 -- tira los 19 segundos restantes una y otra vez, y el calor NO BAJA NUNCA. El
 -- fallo no da la cara en ninguna prueba que llame a la función una sola vez.
-function Heat.enfriar(estado: Estado, ahora: number, hayVigilancia: boolean): Estado
+-- `periodo` permite enfriar más rápido en sitios concretos (los refugios). Es
+-- opcional y por defecto vale el de la intemperie, así que quien no sepa de
+-- refugios sigue llamando igual que siempre.
+function Heat.enfriar(estado: Estado, ahora: number, hayVigilancia: boolean, periodo: number?): Estado
 	if estado.nivel <= 0 then
 		if estado.ultimoDescenso == ahora then
 			return estado
@@ -98,8 +101,8 @@ function Heat.enfriar(estado: Estado, ahora: number, hayVigilancia: boolean): Es
 		return nuevo
 	end
 
-	local periodo = Config.CALOR_SEGUNDOS_POR_NIVEL
-	local transcurridos = math.floor((ahora - estado.ultimoDescenso) / periodo)
+	local paso = periodo or Config.CALOR_SEGUNDOS_POR_NIVEL
+	local transcurridos = math.floor((ahora - estado.ultimoDescenso) / paso)
 	if transcurridos <= 0 then
 		return estado
 	end
@@ -107,7 +110,7 @@ function Heat.enfriar(estado: Estado, ahora: number, hayVigilancia: boolean): Es
 	local bajada = math.min(transcurridos, estado.nivel)
 	local nuevo = copia(estado)
 	nuevo.nivel = estado.nivel - bajada
-	nuevo.ultimoDescenso = estado.ultimoDescenso + bajada * periodo
+	nuevo.ultimoDescenso = estado.ultimoDescenso + bajada * paso
 	return nuevo
 end
 
