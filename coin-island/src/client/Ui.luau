@@ -1,15 +1,28 @@
 --[[
 	Ui.luau — toda la interfaz, construida por código.
 
-	Esto corre en el CLIENTE (el ordenador del jugador). Aquí NO hay ninguna verdad:
-	los números que pinta son una copia de lo que el servidor le ha contado por el
-	remote SYNC_STATE. Si un jugador hackea esta pantalla y se pone "9999 monedas",
-	solo se engaña a sí mismo: el servidor sigue sabiendo que tiene 12.
+	Esto corre en el CLIENTE (el ordenador o el móvil del jugador). Aquí NO hay
+	ninguna verdad: los números que pinta son una copia de lo que el servidor le ha
+	contado por el remote SYNC_STATE. Si un jugador hackea esta pantalla y se pone
+	"9999 monedas", solo se engaña a sí mismo: el servidor sigue sabiendo que tiene 12.
 
 	La UI de Roblox es como HTML muy simplificado:
 	  ScreenGui -> Frame -> TextLabel / TextButton / ImageLabel
 	  UDim2.new(escala_x, pixeles_x, escala_y, pixeles_y)  <- % + píxeles a la vez
 	  UIListLayout apila hijos automáticamente (como flexbox column)
+
+	DISEÑO PARA MÓVIL (aprendido a base de romperlo).
+	La mayoría de Roblox se juega en móvil, donde el viewport puede ser de 705x338.
+	La primera versión de esta pantalla usaba tamaños fijos en píxeles y en un móvil
+	el panel se salía 95px por arriba: el botón de cerrar quedaba fuera y no se podía
+	salir de la tienda. Reglas que se siguen ahora:
+
+	  1. Tamaños en Scale (proporción), con UISizeConstraint para no pasarse en PC.
+	  2. Contenido en ScrollingFrame: si no cabe, se hace scroll, no se pierde.
+	  3. Botones táctiles de 48px mínimo (Roblox y Apple recomiendan 44).
+	  4. Nada en la esquina inferior derecha ni en la inferior izquierda: ahí están
+	     el botón de salto y el joystick nativos de Roblox.
+	  5. Sin emojis en los textos: muchos no tienen glifo y salen como un cuadrado.
 ]]
 
 local Players = game:GetService("Players")
@@ -31,9 +44,11 @@ local TEXT = Color3.fromRGB(238, 238, 240)
 local MUTED = Color3.fromRGB(150, 154, 168)
 local GREEN = Color3.fromRGB(76, 160, 96)
 
+local TOUCH_MIN = 48 -- alto mínimo de cualquier cosa pulsable
+
 -- Estado local: la última foto que nos mandó el servidor.
 local state = { coins = 0, upgrades = {}, multiplier = 1 }
-local rows = {} -- referencias a los widgets de cada mejora, para refrescarlos
+local rows = {}
 local coinLabel: TextLabel
 local shopFrame: Frame
 
@@ -70,8 +85,8 @@ end
 
 local function refresh()
 	if coinLabel then
-		local suffix = if state.multiplier > 1 then "  (x" .. state.multiplier .. ")" else ""
-		coinLabel.Text = "🪙 " .. state.coins .. suffix
+		local suffix = if state.multiplier > 1 then "  x" .. state.multiplier else ""
+		coinLabel.Text = state.coins .. " monedas" .. suffix
 	end
 
 	for _, row in rows do
@@ -81,13 +96,13 @@ local function refresh()
 		row.levelLabel.Text = "Nivel " .. level .. " / " .. upgrade.maxLevel
 
 		if level >= upgrade.maxLevel then
-			row.button.Text = "AL MÁXIMO"
+			row.button.Text = "MÁXIMO"
 			row.button.BackgroundColor3 = PANEL
 			row.button.TextColor3 = MUTED
 			row.button.Active = false
 		else
 			local cost = Config.upgradeCost(upgrade, level)
-			row.button.Text = "🪙 " .. cost
+			row.button.Text = tostring(cost)
 			row.button.Active = true
 			-- Verde si te lo puedes permitir, apagado si no. El servidor lo comprueba
 			-- igualmente; esto es solo cortesía visual.
@@ -109,8 +124,8 @@ end
 local function buildUpgradeRow(upgrade, parent: Instance, order: number)
 	local button = create("TextButton", {
 		Name = "Buy",
-		Size = UDim2.new(0, 96, 0, 40),
-		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.new(0, 92, 0, TOUCH_MIN),
+		Position = UDim2.new(1, -10, 0.5, 0),
 		AnchorPoint = Vector2.new(1, 0.5),
 		BackgroundColor3 = GREEN,
 		TextColor3 = TEXT,
@@ -121,19 +136,20 @@ local function buildUpgradeRow(upgrade, parent: Instance, order: number)
 	}, { corner(8) })
 
 	local levelLabel = create("TextLabel", {
-		Size = UDim2.new(1, -120, 0, 16),
-		Position = UDim2.new(0, 12, 0, 46),
+		Size = UDim2.new(1, -115, 0, 16),
+		Position = UDim2.new(0, 12, 0, 50),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
 		TextSize = 13,
 		TextColor3 = GOLD,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		Text = "",
 	})
 
-	local row = create("Frame", {
+	create("Frame", {
 		Name = upgrade.id,
-		Size = UDim2.new(1, 0, 0, 72),
+		Size = UDim2.new(1, 0, 0, 74),
 		BackgroundColor3 = INK,
 		BorderSizePixel = 0,
 		LayoutOrder = order,
@@ -141,23 +157,25 @@ local function buildUpgradeRow(upgrade, parent: Instance, order: number)
 	}, {
 		corner(10),
 		create("TextLabel", {
-			Size = UDim2.new(1, -120, 0, 20),
+			Size = UDim2.new(1, -115, 0, 20),
 			Position = UDim2.new(0, 12, 0, 8),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.GothamBold,
 			TextSize = 16,
 			TextColor3 = TEXT,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			Text = upgrade.displayName,
 		}),
 		create("TextLabel", {
-			Size = UDim2.new(1, -120, 0, 16),
-			Position = UDim2.new(0, 12, 0, 28),
+			Size = UDim2.new(1, -115, 0, 16),
+			Position = UDim2.new(0, 12, 0, 30),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
 			TextSize = 13,
 			TextColor3 = MUTED,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			Text = upgrade.description,
 		}),
 		levelLabel,
@@ -175,13 +193,11 @@ local function buildUpgradeRow(upgrade, parent: Instance, order: number)
 		button = button,
 		levelLabel = levelLabel,
 	})
-
-	return row
 end
 
-local function buildRobuxButton(text: string, order: number, parent: Instance, onClick: () -> ()): TextButton
+local function buildRobuxButton(text: string, order: number, parent: Instance, onClick: () -> ())
 	local button = create("TextButton", {
-		Size = UDim2.new(1, 0, 0, 40),
+		Size = UDim2.new(1, 0, 0, TOUCH_MIN),
 		BackgroundColor3 = Color3.fromRGB(60, 66, 84),
 		TextColor3 = TEXT,
 		Font = Enum.Font.GothamBold,
@@ -192,7 +208,6 @@ local function buildRobuxButton(text: string, order: number, parent: Instance, o
 	}, { corner(8) })
 
 	button.MouseButton1Click:Connect(onClick)
-	return button
 end
 
 function Ui.start()
@@ -201,41 +216,48 @@ function Ui.start()
 		-- Sin esto, la interfaz se destruye y se recrea cada vez que el jugador muere.
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		-- Respeta el notch y la zona segura de los móviles modernos.
+		ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets,
 		Parent = player:WaitForChild("PlayerGui"),
 	})
 
 	-- ── HUD de monedas (arriba a la izquierda) ──────────────────────────────
 	coinLabel = create("TextLabel", {
 		Name = "Coins",
-		Size = UDim2.new(0, 200, 0, 44),
-		Position = UDim2.new(0, 16, 0, 16),
+		Size = UDim2.new(0, 170, 0, 40),
+		Position = UDim2.new(0, 12, 0, 12),
 		BackgroundColor3 = INK,
 		BackgroundTransparency = 0.15,
 		Font = Enum.Font.GothamBold,
-		TextSize = 22,
+		TextSize = 18,
 		TextColor3 = GOLD,
-		Text = "🪙 0",
+		Text = "0 monedas",
 		Parent = screen,
 	}, { corner(10) })
 
-	-- ── Botón de abrir tienda (abajo a la derecha, grande para dedos) ───────
+	-- ── Botón de abrir tienda ───────────────────────────────────────────────
+	-- A media altura en el lado derecho: la esquina inferior derecha es del botón
+	-- de salto de Roblox y la inferior izquierda del joystick. Meterse ahí hace
+	-- que el jugador salte cuando quería comprar.
 	local openButton = create("TextButton", {
 		Name = "OpenShop",
-		Size = UDim2.new(0, 150, 0, 52),
-		Position = UDim2.new(1, -16, 1, -16),
-		AnchorPoint = Vector2.new(1, 1),
+		Size = UDim2.new(0, 132, 0, 52),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
 		BackgroundColor3 = GOLD,
 		TextColor3 = INK,
 		Font = Enum.Font.GothamBold,
 		TextSize = 18,
-		Text = "🛒 Tienda",
+		Text = "Tienda",
 		Parent = screen,
 	}, { corner(12) })
 
 	-- ── Panel de tienda ─────────────────────────────────────────────────────
+	-- Proporcional al viewport, con un tope para que en un monitor grande no se
+	-- vuelva gigante. Así cabe tanto en 705x338 como en 1920x1080.
 	shopFrame = create("Frame", {
 		Name = "Shop",
-		Size = UDim2.new(0, 440, 0, 470),
+		Size = UDim2.new(0.92, 0, 0.92, 0),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundColor3 = PANEL,
@@ -244,44 +266,74 @@ function Ui.start()
 		Parent = screen,
 	}, {
 		corner(14),
-		create("TextLabel", {
-			Size = UDim2.new(1, 0, 0, 48),
-			BackgroundTransparency = 1,
-			Font = Enum.Font.GothamBold,
-			TextSize = 20,
-			TextColor3 = TEXT,
-			Text = "Tienda de la isla",
-		}),
-		create("TextButton", {
-			Name = "Close",
-			Size = UDim2.new(0, 36, 0, 36),
-			Position = UDim2.new(1, -10, 0, 8),
-			AnchorPoint = Vector2.new(1, 0),
-			BackgroundTransparency = 1,
-			Font = Enum.Font.GothamBold,
-			TextSize = 22,
-			TextColor3 = MUTED,
-			Text = "✕",
+		create("UISizeConstraint", {
+			MaxSize = Vector2.new(460, 470),
+			MinSize = Vector2.new(280, 180),
 		}),
 	})
 
-	shopFrame:FindFirstChild("Close").MouseButton1Click:Connect(function()
+	-- Cabecera fija: título + cerrar. Nunca se va con el scroll, así que el botón
+	-- de salir está SIEMPRE accesible (era justo el fallo en móvil).
+	local header = create("Frame", {
+		Name = "Header",
+		Size = UDim2.new(1, 0, 0, 52),
+		BackgroundTransparency = 1,
+		Parent = shopFrame,
+	}, {
+		create("TextLabel", {
+			Size = UDim2.new(1, -70, 1, 0),
+			Position = UDim2.new(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBold,
+			TextSize = 19,
+			TextColor3 = TEXT,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Text = "Tienda de la isla",
+		}),
+	})
+
+	local closeButton = create("TextButton", {
+		Name = "Close",
+		Size = UDim2.new(0, TOUCH_MIN, 0, TOUCH_MIN),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundColor3 = INK,
+		Font = Enum.Font.GothamBold,
+		TextSize = 22,
+		TextColor3 = TEXT,
+		Text = "X",
+		Parent = header,
+	}, { corner(10) })
+
+	closeButton.MouseButton1Click:Connect(function()
 		shopFrame.Visible = false
 	end)
 	openButton.MouseButton1Click:Connect(function()
 		shopFrame.Visible = not shopFrame.Visible
 	end)
 
-	-- Contenedor con UIListLayout: apila los hijos sin calcular posiciones a mano.
-	local list = create("Frame", {
-		Size = UDim2.new(1, -24, 1, -60),
-		Position = UDim2.new(0, 12, 0, 52),
+	-- Contenido desplazable: si no cabe, se hace scroll. Nada queda inalcanzable.
+	local list = create("ScrollingFrame", {
+		Name = "Frame",
+		Size = UDim2.new(1, -20, 1, -62),
+		Position = UDim2.new(0, 10, 0, 56),
 		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = MUTED,
+		CanvasSize = UDim2.new(), -- lo calcula AutomaticCanvasSize
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
 		Parent = shopFrame,
 	}, {
 		create("UIListLayout", {
 			Padding = UDim.new(0, 8),
 			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		create("UIPadding", {
+			PaddingBottom = UDim.new(0, 8),
+			PaddingRight = UDim.new(0, 6),
 		}),
 	})
 
@@ -290,7 +342,7 @@ function Ui.start()
 	end
 
 	-- ── Compras con Robux (dinero real) ─────────────────────────────────────
-	local separator = create("TextLabel", {
+	create("TextLabel", {
 		Size = UDim2.new(1, 0, 0, 24),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
@@ -301,7 +353,7 @@ function Ui.start()
 		Parent = list,
 	})
 
-	buildRobuxButton("💎 x2 monedas para siempre", 101, list, function()
+	buildRobuxButton("x2 monedas para siempre", 101, list, function()
 		if Config.GAME_PASS_ID > 0 then
 			MarketplaceService:PromptGamePassPurchase(player, Config.GAME_PASS_ID)
 		else
@@ -309,7 +361,7 @@ function Ui.start()
 		end
 	end)
 
-	buildRobuxButton("💰 +100 monedas", 102, list, function()
+	buildRobuxButton("+100 monedas", 102, list, function()
 		if Config.PRODUCT_ID > 0 then
 			MarketplaceService:PromptProductPurchase(player, Config.PRODUCT_ID)
 		else
