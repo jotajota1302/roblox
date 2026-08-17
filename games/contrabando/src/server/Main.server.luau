@@ -43,6 +43,7 @@ local WorldBuilder = safeRequire("WorldBuilder")
 local PlayerState = safeRequire("PlayerState")
 local CargoService = safeRequire("CargoService")
 local RouteService = safeRequire("RouteService")
+local WarehouseService = safeRequire("WarehouseService")
 
 -- El mundo primero: sin suelo no puede entrar nadie.
 local mundo = nil
@@ -69,6 +70,7 @@ end
 safeStart("PlayerState", PlayerState)
 safeStart("CargoService", CargoService)
 safeStart("RouteService", RouteService)
+safeStart("WarehouseService", WarehouseService)
 
 if mundo then
 	if RouteService then
@@ -78,6 +80,9 @@ if mundo then
 		for _, destino in mundo.destinos do
 			CargoService.registrarDestino(destino)
 		end
+	end
+	if WarehouseService then
+		WarehouseService.registrarAlmacen(mundo.almacen)
 	end
 end
 

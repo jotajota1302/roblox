@@ -22,6 +22,7 @@ local TOUCH_MIN = 48
 local Hud = {}
 local dineroLabel: TextLabel
 local cargaLabel: TextLabel
+local almacenLabel: TextLabel
 local avisoLabel: TextLabel
 
 function Hud.build()
@@ -35,14 +36,14 @@ function Hud.build()
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0, 0)
 	panel.Position = UDim2.fromScale(0.02, 0.03)
-	panel.Size = UDim2.fromScale(0.3, 0.14)
+	panel.Size = UDim2.fromScale(0.3, 0.19)
 	panel.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
 	panel.BackgroundTransparency = 0.25
 	panel.BorderSizePixel = 0
 	panel.Parent = gui
 
 	local panelSize = Instance.new("UISizeConstraint")
-	panelSize.MinSize = Vector2.new(140, 56)
+	panelSize.MinSize = Vector2.new(140, 78)
 	panelSize.MaxSize = Vector2.new(280, 110)
 	panelSize.Parent = panel
 
@@ -51,10 +52,11 @@ function Hud.build()
 	layout.Padding = UDim.new(0, 2)
 	layout.Parent = panel
 
-	local function linea(nombre: string): TextLabel
+	local function linea(nombre: string, orden: number): TextLabel
 		local label = Instance.new("TextLabel")
 		label.Name = nombre
-		label.Size = UDim2.fromScale(1, 0.5)
+		label.LayoutOrder = orden
+		label.Size = UDim2.fromScale(1, 0.33)
 		label.BackgroundTransparency = 1
 		label.TextColor3 = Color3.fromRGB(235, 235, 240)
 		label.TextScaled = true
@@ -65,8 +67,9 @@ function Hud.build()
 		return label
 	end
 
-	dineroLabel = linea("Dinero")
-	cargaLabel = linea("Carga")
+	dineroLabel = linea("Dinero", 1)
+	cargaLabel = linea("Carga", 2)
+	almacenLabel = linea("Almacen", 3)
 
 	-- Botón de entregar: centro-derecha, lejos del joystick y del salto.
 	local entregar = Instance.new("TextButton")
@@ -90,6 +93,27 @@ function Hud.build()
 		Remotes.event(Remotes.ENTREGAR):FireServer()
 	end)
 
+	local recoger = Instance.new("TextButton")
+	recoger.Name = "Recoger"
+	recoger.AnchorPoint = Vector2.new(1, 0.5)
+	recoger.Position = UDim2.fromScale(0.97, 0.32)
+	recoger.Size = UDim2.fromScale(0.18, 0.12)
+	recoger.BackgroundColor3 = Color3.fromRGB(120, 100, 60)
+	recoger.TextColor3 = Color3.fromRGB(255, 255, 255)
+	recoger.TextScaled = true
+	recoger.Font = Enum.Font.GothamBold
+	recoger.Text = "Recoger"
+	recoger.Parent = gui
+
+	local recogerSize = Instance.new("UISizeConstraint")
+	recogerSize.MinSize = Vector2.new(TOUCH_MIN * 2, TOUCH_MIN)
+	recogerSize.MaxSize = Vector2.new(200, 90)
+	recogerSize.Parent = recoger
+
+	recoger.Activated:Connect(function()
+		Remotes.event(Remotes.RECLAMAR):FireServer()
+	end)
+
 	avisoLabel = Instance.new("TextLabel")
 	avisoLabel.Name = "Aviso"
 	avisoLabel.AnchorPoint = Vector2.new(0.5, 0)
@@ -103,12 +127,13 @@ function Hud.build()
 	avisoLabel.Parent = gui
 end
 
-function Hud.update(estado: { dinero: number, cajas: { any } })
+function Hud.update(estado: { dinero: number, cajas: { any }, almacenCajas: number? })
 	if not dineroLabel then
 		return
 	end
 	dineroLabel.Text = string.format("Dinero: %d", estado.dinero)
 	cargaLabel.Text = string.format("Carga: %d cajas", #estado.cajas)
+	almacenLabel.Text = string.format("Almacen: %d/%d", estado.almacenCajas or 0, 10)
 end
 
 local avisoId = 0

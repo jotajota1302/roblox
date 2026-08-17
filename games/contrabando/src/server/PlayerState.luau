@@ -17,6 +17,8 @@ export type Estado = {
 	cajas: { Economy.Caja },
 	ruta: string?,
 	marcadoHasta: number,
+	almacenCajas: number,
+	almacenUltimaVisita: number,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -31,6 +33,8 @@ function PlayerState.get(player: Player): Estado
 			cajas = {},
 			ruta = nil,
 			marcadoHasta = 0,
+			almacenCajas = 3, -- las tres cajas de los primeros cinco segundos
+			almacenUltimaVisita = os.time(),
 		}
 		estados[player] = estado
 	end
@@ -44,6 +48,7 @@ function PlayerState.sync(player: Player)
 		cajas = estado.cajas,
 		ruta = estado.ruta,
 		marcadoHasta = estado.marcadoHasta,
+		almacenCajas = estado.almacenCajas,
 	})
 end
 
