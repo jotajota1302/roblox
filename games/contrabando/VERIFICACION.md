@@ -377,6 +377,81 @@ Medido después del cambio, por la roja: **3 cajas → 300 monedas en 85 s**. Co
 furgoneta (1.500) cae sobre el quinto viaje, unos siete minutos — dentro de la sesión, que es
 justo donde tiene que estar el primer sumidero.
 
+### La ciudad, recorrida andando (17/08, tarde)
+
+Con el cambio de la recta a la ciudad **ningún número del balance seguía siendo válido**, así
+que se recorrió el bucle entero con una sonda que usa los mismos remotes que un jugador y
+camina con su propio personaje: `PathfindingService` para trazar y `Humanoid:MoveTo` para
+andar. Nunca teletransporta dentro de un tramo medido — esa lección ya costó una sesión.
+
+Lo primero que midió, y sirvió para dos cosas:
+
+| | Recta | Andando | Rodeo | Tiempo |
+|---|---|---|---|---|
+| Verde | 502 studs | 582 | **+15 %** | 51 s |
+
+El rodeo de la ciudad es del 15 %: hay manzanas de por medio, pero no laberinto. Y **el cobro
+funciona**: 3 cajas comunes → 30 monedas, el zurrón vacío y la ruta liberada. El defecto más
+grave de la primera partida ("le doy a entregar y no se actualiza") queda cerrado.
+
+Pero el mismo recorrido dio **calor máximo 0 y cero patrullas**. En una ruta con tres
+detectores, eso no era suerte.
+
+#### La mitad de los detectores estaba en los tejados
+
+`sueloDeLaCiudad` lanza un rayo desde arriba y devuelve **lo primero que toca**, y en una
+ciudad eso es un tejado la mitad de las veces. Medido: **15 de los 30 detectores plantados
+sobre edificios**, uno a 186 studs de altura. Ninguno podía dispararse nunca — por debajo
+pasaba la calle, a ochenta studs de su radio de 35.
+
+Es el peor tipo de fallo que da este proyecto: **nada revienta**. El poste existe, se ve
+perfectamente si miras hacia arriba, y el juego es simplemente más fácil de lo que dice ser
+sin que nada lo señale.
+
+Arreglado con `sueloTransitable`, que rechaza cotas por encima de 40 studs y busca la calle
+más cercana en anillos. Después: **0 de 30 en tejados**, alturas de 14 a 50.
+
+Y de paso se corrigió lo que había motivado la búsqueda: el primer detector de cada ruta va
+ahora **sobre el trayecto** (a 6, 6 y 19 studs de la línea, dentro del radio de 35), así que
+la ruta verde —donde se aprende qué es un detector— por fin enseña algo.
+
+#### El mismo recorrido, después
+
+> **VERDE en 52 s · calor máximo 2 · 2 patrullas persiguiendo · cobro 120 · ruta liberada**
+
+Ése es el viaje que faltaba. Ojo al matiz: la sonda **no esquiva**, va en línea recta a lo
+tonto, así que ese calor 2 es el caso peor de la ruta más fácil. Un jugador que vea las
+lentes rojas y las rodee debería quedarse en 1.
+
+#### Tres fallos de las patrullas, invisibles los tres
+
+Encontrados revisando el código a raíz de lo anterior. Ninguno da error; los tres dejan el
+juego funcionando y más fácil de lo que promete:
+
+1. **Tres patrullas escribiendo el mismo booleano.** "Te están viendo" lo ponía cada
+   perseguidor por su cuenta, así que la última en pasar ganaba: bastaba con que una se
+   quedara atrás para apagar la señal que las otras dos, encima del jugador, acababan de
+   encender — y el calor se ponía a enfriar en plena persecución.
+2. **Y ese booleano se quedaba encendido para siempre** al salir del bucle por cualquier vía
+   que no fuera alejarse (morir, desconectarse, reaparecer): el calor no volvía a bajar nunca.
+3. **Patrullas encalladas.** El mapa tiene **116 vallas** y el pathfinding manda contra ellas:
+   la sonda acabó empujando una durante minutos, en estado `Running`, a 11,8 de velocidad y
+   avanzando cero. A un jugador no le pasa —ve la valla y la rodea— pero una patrulla clavada
+   deja de perseguir para siempre y **el jugador no se entera**: sigue corriendo con tres
+   estrellas creyendo que le pisan los talones.
+
+#### Y una trampa de método, nueva
+
+**Entrar en Play antes de que Rojo haya sincronizado construye el mundo con el código viejo.**
+Pasó aquí: se verificó dos veces un arreglo que ya estaba escrito y compilado, sobre un mundo
+que se había generado con la versión anterior. Antes de dar por buena cualquier medición del
+mundo, comprobar que el datamodel **Edit** tiene el código — es de ahí de donde Roblox copia
+al entrar en Play.
+
+Y la gemela, que costó otro rato: **medir distancias en 3D cuando lo que importa es el
+plano**. Un detector en una azotea daba "83 studs de la línea" cuando su desviación real era
+0; los 83 eran altura.
+
 ## 4. Antes de publicar
 
 - [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de

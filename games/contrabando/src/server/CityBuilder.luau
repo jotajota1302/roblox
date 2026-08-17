@@ -59,6 +59,47 @@ local function sueloDeLaCiudad(ciudad: Instance?, x: number, z: number): number?
 	return r and r.Position.Y or nil
 end
 
+-- Por encima de esta cota ya no es calle: es un tejado.
+--
+-- La ciudad se sondeó con 225 rayos en rejilla y su suelo transitable va de 3 a 30
+-- studs; los edificios llegan a 175. 40 deja margen para desniveles y aceras
+-- altas sin llegar a confundir una azotea con una acera.
+local COTA_CALLE = 40
+
+-- Suelo TRANSITABLE cerca de (x, z), buscando en espiral si hace falta.
+--
+-- EXISTE POR UN FALLO QUE HACÍA INÚTIL MEDIO SISTEMA DE VIGILANCIA. Un rayo desde
+-- arriba devuelve lo primero que toca, y en una ciudad eso es un tejado la mitad
+-- de las veces: 15 de los 30 detectores acabaron plantados sobre edificios, uno a
+-- 186 studs de altura. Ninguno de ellos podía dispararse jamás -- por debajo pasa
+-- la calle, a ochenta studs de su radio de 35. Esto es lo que explicaba que
+-- recorrer la ruta verde entera diera calor máximo 0.
+--
+-- El síntoma es de los peores que da este proyecto: nada revienta, el poste existe
+-- y se ve perfectamente si miras hacia arriba, y el juego simplemente es más fácil
+-- de lo que dice ser sin que nada lo señale.
+local function sueloTransitable(ciudad: Instance?, x: number, z: number): (number?, number, number)
+	local y = sueloDeLaCiudad(ciudad, x, z)
+	if y ~= nil and y <= COTA_CALLE then
+		return y, x, z
+	end
+	-- En anillos hacia fuera: el sitio ideal está ocupado por un edificio, así que
+	-- se busca la calle más cercana en vez de renunciar. Moverlo veinte studs es
+	-- mucho mejor que dejarlo en una azotea donde no sirve para nada.
+	for radio = 20, 100, 20 do
+		for k = 0, 7 do
+			local a = k * math.pi / 4
+			local nx = x + math.cos(a) * radio
+			local nz = z + math.sin(a) * radio
+			local ny = sueloDeLaCiudad(ciudad, nx, nz)
+			if ny ~= nil and ny <= COTA_CALLE then
+				return ny, nx, nz
+			end
+		end
+	end
+	return nil, x, z
+end
+
 -- Coloca una losa APOYADA en el suelo que haya debajo. `alturaPorDefecto` es la
 -- cota medida al elegir el emplazamiento: se usa cuando no hay ciudad, para que el
 -- juego siga cuadrando sin ella.
@@ -166,10 +207,14 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		local x = centro.X + rng:NextNumber(-desvio, desvio)
 		local z = centro.Z + rng:NextNumber(-desvio, desvio)
 
-		local y = sueloDeLaCiudad(ciudad, x, z)
+		-- Suelo de CALLE, no lo primero que toque el rayo: la mitad de los postes
+		-- acababa en tejados, donde no se disparan nunca (ver sueloTransitable).
+		local y
+		y, x, z = sueloTransitable(ciudad, x, z)
 		if y == nil then
-			-- Sin suelo ahí (un hueco entre parcelas): se cae a la línea del
-			-- trayecto, que sí lo tiene, en vez de plantar un poste flotando.
+			-- Ni siquiera hay calle cerca (un hueco entre parcelas): se cae a la
+			-- línea del trayecto, que sí la tiene, en vez de plantar un poste
+			-- flotando en el vacío.
 			y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
 			x, z = centro.X, centro.Z
 		end
