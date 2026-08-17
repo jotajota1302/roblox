@@ -197,6 +197,78 @@ largo. Si es eso, la solución no era nada de lo que hemos hecho — era acortar
 
 ---
 
+## 6-bis. Cómo se comportaría el multijugador
+
+Nunca se ha probado con dos personas. Lo que sigue es medición donde se puede medir y
+razonamiento donde no.
+
+### Lo técnico: medido, y no preocupa
+
+| Prueba | Resultado |
+|---|---|
+| 30 rutas de pathfinding a la vez | **0,23 s en total**, las 30 resueltas de verdad |
+| Bucle de robos con 50 jugadores (O(n²), 5 Hz) | **0,1 %** de un segundo |
+| Bucle de peligro con 50 jugadores × 30 esquinas | **~0 %** |
+
+El coste de una ruta suelta (0,8 s) es el calentamiento del navmesh, no el de cada consulta.
+Una vez caliente, salen a 8 ms. **No hay cuello de botella técnico**: el juego aguanta un
+servidor lleno sin tocar nada.
+
+Y la seguridad está bien planteada de origen: no existe ningún remote de "he tocado a éste"
+—el servidor recorre él mismo a los jugadores— así que el exploit clásico de robar desde el
+otro extremo del mapa no se puede ni expresar.
+
+### Lo de diseño: aquí sí hay tres problemas
+
+**1. Todos compartimos el mismo almacén físico, y eso rompe la fantasía.**
+
+Hay UN edificio para todo el servidor. Las existencias son de cada jugador —cada uno ve las
+suyas en el muelle, eso funciona— pero el sitio es el mismo. Con quince personas dentro, "tu
+almacén" no es tuyo: es un cuartucho lleno de desconocidos.
+
+Es exactamente donde Steal a Brainrot hace lo contrario, y no es un detalle estético: **tu
+base es tu marcador**. Sin base propia no hay nada que enseñar, y sin nada que enseñar se
+cae la mitad del motivo para volver mañana.
+
+**2. Los encuentros van a ser raros, que es peor que ser frecuentes.**
+
+El mapa mide 1548 × 1569 studs y hay tres rutas. Dos jugadores en la misma ruta pueden no
+cruzarse en toda la sesión. La capa social —que es lo que hace funcionar a este género en
+Roblox— se diluye en un mapa demasiado grande para la gente que hay.
+
+Y tiene el fallo simétrico: si todos eligen la roja porque paga ×10, se amontonan todos en el
+mismo trayecto y el juego pasa de vacío a caótico sin punto medio.
+
+**3. Las amenazas se suman en vez de sustituirse.**
+
+Con peligro 3 tienes tres ladrones PNJ encima. Si además aparece un jugador cazador, son
+cuatro. Nadie ha comprobado si eso es tensión o atropello.
+
+Lo que sí está bien resuelto es la interacción entre ambos: quien te roba **hereda tu
+peligro**, así que los PNJ pasan a perseguirle a él. Esa pieza es buena y se sostiene sola.
+
+### La idea que resuelve 1 y 2 a la vez
+
+**Que el almacén sea una hilera de plazas, una por jugador, contiguas.**
+
+Es lo que hace Steal a Brainrot y resuelve tres cosas de golpe:
+
+- **La fantasía**: tu plaza es tuya, con tu mercancía y tus vehículos aparcados.
+- **La progresión visible**: la plaza crece, se llena y se ve — justo lo que hoy falta.
+- **La densidad**: todo el mundo vuelve al mismo sitio entre viaje y viaje, así que os veis,
+  os comparáis y os cruzáis, aunque el mapa sea grande.
+
+Encaja además con lo que ya pidió JJ (base con vehículos conseguidos e insignias), así que no
+es trabajo nuevo: es el mismo trabajo, bien colocado.
+
+### Lo que hay que probar antes de decidir nada de esto
+
+**Dos personas, Studio → Probar → Clientes y servidores.** No hace falta publicar. Media hora
+de prueba responde lo que ningún análisis puede: si robar da tensión o rabia, si cuatro
+amenazas a la vez son demasiadas, y si dos jugadores llegan siquiera a encontrarse.
+
+---
+
 ## 7. Resumen en cinco líneas
 
 1. El juego está **construido, probado y es jugable de punta a punta**.
