@@ -145,6 +145,31 @@ return resultado
 Verificado en la Tarea 0: sin el clon, la corrección del paso 7 seguía dando el informe
 rojo del paso 6.
 
+**Para lo que toca el mundo — la sonda.** `require` dentro de `execute_luau` corre en un
+sandbox aparte y **no comparte el caché de módulos con el servidor real**: la instancia que
+obtienes ahí es nueva, con su estado vacío, así que puedes probar la lógica pero no el
+servidor que está corriendo. Para probar el camino de verdad, planta un `Script` en
+`ServerScriptService` — ése sí se ejecuta dentro del servidor real y comparte sus módulos —
+y que publique lo que veas en atributos del `workspace`, que sí se leen desde fuera:
+
+```lua
+local sonda = Instance.new("Script")
+sonda.Name = "SondaVerificacion"
+sonda.Source = [==[
+	local CargoService = require(game.ServerScriptService.Server.CargoService)
+	-- ... actúa sobre el servidor real ...
+	workspace:SetAttribute("sonda_dinero", estado.dinero)
+]==]
+sonda.Parent = game.ServerScriptService
+```
+
+Luego, desde `datamodel_type: "Client"`, actúa como actuaría un jugador (mover el personaje,
+disparar el remote) y lee los atributos. **Retira la sonda al terminar.**
+
+Verificado en la Tarea 3: por esta vía se comprobó que entregar lejos del destino paga 0 y
+en el destino paga 30 — el camino completo cliente → remote → servidor real, que la
+verificación en sandbox no puede tocar.
+
 **Por qué aquí sí vale `require` dentro de `execute_luau`:** el aviso de `CLAUDE.md` es que
 ese `require` corre en un sandbox aparte y no comparte estado con el servidor real. Para
 módulos **puros y sin estado** eso es irrelevante — es justo el caso donde funciona. Para
@@ -1571,11 +1596,16 @@ PlayServer). Entrar en Play y ejecutar `execute_luau` (datamodel `Client`):
 ```lua
 local gui = game.Players.LocalPlayer.PlayerGui:WaitForChild("ContrabandoHud")
 local area = gui.AbsoluteSize
+-- El origen del ScreenGui NO es (0,0) cuando hay insets de dispositivo: con
+-- DeviceSafeInsets aparece desplazado (p. ej. (0,-58)). Las posiciones absolutas de los
+-- hijos hay que medirlas RELATIVAS a él, o todo lo que esté arriba parecerá salirse.
+local origen = gui.AbsolutePosition
 local fuera = {}
 
 for _, hijo in gui:GetChildren() do
 	if hijo:IsA("GuiObject") then
-		local pos, size = hijo.AbsolutePosition, hijo.AbsoluteSize
+		local pos = hijo.AbsolutePosition - origen
+		local size = hijo.AbsoluteSize
 		if pos.X < 0 or pos.Y < 0 or pos.X + size.X > area.X or pos.Y + size.Y > area.Y then
 			table.insert(fuera, string.format("%s en %d,%d de %dx%d", hijo.Name, pos.X, pos.Y, size.X, size.Y))
 		end
@@ -1590,9 +1620,10 @@ return { area = string.format("%dx%d", area.X, area.Y), problemas = fuera }
 
 Esperado: `problemas` vacío.
 
-**Ojo con los falsos positivos:** comparar contra `gui.AbsoluteSize`, **nunca** contra
-`Camera.ViewportSize`. Con el simulador activo no coinciden — el inset desplaza el origen — y
-salen cinco errores que no existen.
+**Dos fuentes de falsos positivos, las dos ya pagadas:** comparar contra `gui.AbsoluteSize`
+y **nunca** contra `Camera.ViewportSize` (con el simulador activo no coinciden), y restar
+`gui.AbsolutePosition` de la posición de cada hijo. Sin lo segundo, en la Tarea 4 salieron
+dos elementos "fuera de pantalla" que estaban perfectamente colocados.
 
 - [ ] **Paso 5: commit**
 
@@ -3792,9 +3823,12 @@ local problemas = {}
 for _, gui in pg:GetChildren() do
 	if gui:IsA("ScreenGui") and gui.Enabled then
 		local area = gui.AbsoluteSize
+		-- Relativas al origen del ScreenGui, que con insets de dispositivo no es (0,0).
+		local origen = gui.AbsolutePosition
 		for _, hijo in gui:GetDescendants() do
 			if hijo:IsA("GuiObject") and hijo.Visible then
-				local pos, size = hijo.AbsolutePosition, hijo.AbsoluteSize
+				local pos = hijo.AbsolutePosition - origen
+				local size = hijo.AbsoluteSize
 				if pos.X < 0 or pos.Y < 0 or pos.X + size.X > area.X or pos.Y + size.Y > area.Y then
 					table.insert(problemas, gui.Name .. "/" .. hijo.Name .. " se sale")
 				end

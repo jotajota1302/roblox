@@ -112,6 +112,9 @@ Avisos verificados:
 - Para medir la interfaz, comparar contra el área real del `ScreenGui`, **nunca** contra
   `Camera.ViewportSize`: con el simulador activo no coinciden (el inset desplaza el origen)
   y salen falsos positivos.
+- Y en la misma medición, restar `gui.AbsolutePosition` a la posición de cada hijo. Con
+  `ScreenInsets = DeviceSafeInsets` el origen del `ScreenGui` no es (0,0) sino algo como
+  (0,−58), así que todo lo colocado arriba parece salirse de pantalla sin estarlo.
 
 ## Trampas de Roblox ya pagadas
 
