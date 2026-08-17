@@ -46,6 +46,41 @@ export type Modelo = {
 local RideCatalog = {}
 
 RideCatalog.MODELOS = {
+	-- Los cuatro pequeños están GENERADOS con Cube 3D, no sacados del Toolbox, y
+	-- ésa es la diferencia que importa: los genera Roblox, así que no pueden traer
+	-- código, pasan la moderación solos y son de la cuenta de JJ. Es la vía que
+	-- este proyecto debería preferir siempre que el resultado valga -- y aquí
+	-- valió, porque no había mallas limpias decentes de patines ni de patinete.
+	patines = {
+		mesh = "rbxassetid://85333403995294",
+		textura = "rbxassetid://121874462881181",
+		tamano = Vector3.new(2.4, 1.6, 2.6),
+		offset = Vector3.new(0, -2.6, 0),
+		giroY = 0,
+	},
+	monopatin = {
+		mesh = "rbxassetid://136682752722782",
+		textura = "rbxassetid://85379852016686",
+		tamano = Vector3.new(1.8, 0.9, 4.4),
+		offset = Vector3.new(0, -2.9, 0),
+		giroY = 0,
+	},
+	patinete = {
+		mesh = "rbxassetid://119645081769748",
+		textura = "rbxassetid://71699102265311",
+		tamano = Vector3.new(1.6, 3.8, 4.6),
+		-- Bajo y algo retrasado: colocado al centro, el manillar le quedaba al
+		-- conductor a la altura del pecho y la plataforma por delante de los pies.
+		offset = Vector3.new(0, -2, -0.7),
+		giroY = 0,
+	},
+	patinete_electrico = {
+		mesh = "rbxassetid://118747264146015",
+		textura = "rbxassetid://116829806666752",
+		tamano = Vector3.new(1.8, 4, 5),
+		offset = Vector3.new(0, -1.9, -0.7),
+		giroY = 0,
+	},
 	bicicleta = {
 		mesh = "rbxassetid://475108790",
 		textura = "rbxassetid://475108895",
