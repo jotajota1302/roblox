@@ -13,6 +13,18 @@ herramientas hacen falta y qué riesgos hay.
 la mediana de un desarrollador que cobra es 1.440 $/año y el 85% gana menos de 100 $/mes.
 Entrar cuesta 0 €, así que el experimento sale barato — pero es una lotería de cola larga.
 
+## 🎯 [`MERCADO.md`](MERCADO.md) — ¿qué juego tiene sentido hacer?
+
+Estudio de mercado: qué géneros dominan, cuáles están saturados, qué busca activamente
+Roblox, y los benchmarks de retención que deciden si un juego funciona (D1: 20% bien,
+30% muy bien, 40% excelente).
+
+**Dos conclusiones:** el hueco está en el público adulto (27% de los usuarios diarios,
+creciendo >50% interanual) y ahí encaja el material que ya existe de CRIME y del RPG
+narrativo. Y una trampa importante: **la IA generativa en tiempo real pierde entre 10 y 60
+veces lo que ingresa por jugador** — sirve para producir contenido, no para ejecutarlo en
+la partida.
+
 ## 🎮 [`coin-island/`](coin-island/) — el piloto
 
 Juego pequeño y completo para entender cómo funciona Roblox por dentro: mundo 3D
