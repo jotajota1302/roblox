@@ -57,6 +57,10 @@ function Persistence.cargar(player: Player)
 
 	local estado = PlayerState.get(player)
 	estado.dinero = tonumber(datos.dinero) or estado.dinero
+	-- La experiencia es lo ÚNICO que no se puede gastar, así que es lo que más duele
+	-- perder: el dinero se recupera con un par de viajes y el nivel no. Se acepta
+	-- con math.max(0, ...) para que un dato corrupto no deje a nadie en negativo.
+	estado.xp = math.max(0, tonumber(datos.xp) or estado.xp or 0)
 	estado.almacenCajas = tonumber(datos.almacenCajas) or estado.almacenCajas
 	estado.almacenUltimaVisita = tonumber(datos.almacenUltimaVisita) or estado.almacenUltimaVisita
 	-- El vehículo se valida contra el catálogo antes de aceptarlo. Lo guardado
@@ -93,6 +97,7 @@ function Persistence.guardar(player: Player)
 	-- monedas es la clase de agravio que hace desinstalar.
 	local datos = {
 		dinero = estado.dinero,
+		xp = estado.xp or 0,
 		almacenCajas = estado.almacenCajas,
 		almacenUltimaVisita = os.time(),
 		vehiculo = estado.vehiculo,

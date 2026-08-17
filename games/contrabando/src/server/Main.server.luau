@@ -53,6 +53,7 @@ local HeatService = safeRequire("HeatService")
 local PatrolService = safeRequire("PatrolService")
 local Persistence = safeRequire("Persistence")
 local Telemetry = safeRequire("Telemetry")
+local Nameplates = safeRequire("Nameplates")
 local Avatar = safeRequire("Avatar")
 
 -- El mundo primero: la ciudad, y el juego encima.
@@ -115,6 +116,7 @@ safeStart("HeatService", HeatService)
 safeStart("PatrolService", PatrolService)
 safeStart("Telemetry", Telemetry)
 safeStart("Persistence", Persistence)
+safeStart("Nameplates", Nameplates)
 
 if mundo then
 	if RouteService then

@@ -12,11 +12,13 @@ local Players = game:GetService("Players")
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
+local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
+local Nameplates = require(script.Parent.Nameplates)
 local Ride = require(script.Parent.Ride)
 local RouteService = require(script.Parent.RouteService)
 local Telemetry = require(script.Parent.Telemetry)
@@ -335,6 +337,14 @@ local function cobrar(player: Player, destino: BasePart)
 	local cajas = CargoService.vaciar(player, false)
 	local cobrado = Economy.valorEntrega(cajas, multiplicador)
 	estado.dinero += cobrado
+
+	-- Y experiencia, que es lo único que no se puede gastar. El dinero se va en
+	-- vehículos; el nivel se queda, y por eso es lo que sirve para saber quién
+	-- tienes delante cuando os cruzáis en una calle.
+	local nivelAntes = Levels.nivelDe(estado.xp or 0)
+	estado.xp = (estado.xp or 0) + Levels.xpPorEntrega(cobrado)
+	local nivelAhora = Levels.nivelDe(estado.xp)
+
 	RouteService.limpiar(player)
 	PlayerState.sync(player)
 	Telemetry.evento(player, "entrega", {
@@ -347,6 +357,15 @@ local function cobrar(player: Player, destino: BasePart)
 	-- esquina. Es el único momento en que el juego te da algo, y una cifra que
 	-- salta de 0 a 300 sin más se pierde entre lo demás.
 	avisar(player, string.format("+%d por %d cosas en la %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
+
+	-- Subir de nivel se dice aparte y DESPUÉS del cobro: son dos buenas noticias y
+	-- juntas en una línea se pisan. La segunda es la que se recuerda.
+	if nivelAhora > nivelAntes then
+		task.delay(1.6, function()
+			avisar(player, string.format("¡Nivel %d!", nivelAhora), Palette.AVISO_BUENO)
+			Nameplates.refrescar(player)
+		end)
+	end
 end
 
 -- ENTREGA AUTOMÁTICA: llegas y cobras.

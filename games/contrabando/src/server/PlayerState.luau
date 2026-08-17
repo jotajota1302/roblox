@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
+local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 
@@ -39,6 +40,10 @@ export type Estado = {
 	-- contradecir al primero en pantalla. NO SE PERSISTE: ver la cabecera de
 	-- HeatService.
 	calor: number,
+	-- Experiencia acumulada. El NIVEL no se guarda: se calcula de aquí con
+	-- Levels.nivelDe. Guardar los dos es garantizar que algún día no cuadren, y el
+	-- que no cuadrase sería el que ve el jugador.
+	xp: number,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -58,6 +63,7 @@ function PlayerState.get(player: Player): Estado
 			almacenUltimaVisita = os.time(),
 			vehiculo = nil,
 			calor = 0,
+			xp = 0,
 		}
 		estados[player] = estado
 	end
@@ -89,6 +95,11 @@ function PlayerState.sync(player: Player)
 		-- cajones iguales, que es justo lo que quita la decisión.
 		almacen = estado.almacen,
 		calor = estado.calor or 0,
+		xp = estado.xp or 0,
+		-- El nivel viaja ya calculado: el cliente sólo dibuja, y así no hay dos
+		-- sitios haciendo la misma cuenta con riesgo de discrepar en pantalla.
+		nivel = Levels.nivelDe(estado.xp or 0),
+		progresoNivel = Levels.progreso(estado.xp or 0),
 		-- El cliente recibe el vehículo YA resuelto (nunca el nil crudo) y su
 		-- capacidad calculada: dibujar "2/10" no debe requerir que el cliente
 		-- sepa ninguna regla, porque el cliente no decide nada en este juego.
