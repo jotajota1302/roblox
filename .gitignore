@@ -14,6 +14,15 @@ sourcemap.json
 *.rbxm
 *.rbxmx
 
+# EXCEPCIÓN: los assets que son PARTE del juego, no artefactos de compilación.
+# La regla de arriba existe para no versionar lo que genera Rojo; ésta es al revés
+# -- el mapa sobre el que se juega, que no puede vivir como un id en el código
+# porque InsertService:LoadAsset no carga assets de otra cuenta (probado: "User is
+# not authorized to access Asset"). Sin esta línea, clonar el repo da un juego sin
+# ciudad. Ver games/contrabando/src/assets/LEEME.md.
+!games/*/src/assets/*.rbxm
+!games/*/src/assets/*.rbxmx
+
 # Secretos (por si algún día usamos backend propio)
 .env
 .env.*
