@@ -22,6 +22,8 @@ sourcemap.json
 # ciudad. Ver games/contrabando/src/assets/LEEME.md.
 !games/*/src/assets/*.rbxm
 !games/*/src/assets/*.rbxmx
+!games/*/mapa/*.rbxm
+!games/*/mapa/*.rbxmx
 
 # Secretos (por si algún día usamos backend propio)
 .env

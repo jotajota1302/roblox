@@ -29,7 +29,7 @@
       },
 
       "Ciudad": {
-        "$path": { "optional": "src/assets/Ciudad.rbxm" }
+        "$path": { "optional": "mapa/Ciudad.rbxm" }
       }
     },
 

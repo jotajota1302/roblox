@@ -170,6 +170,42 @@ Avisos verificados:
 - Un `require` que falla se propaga: protege los del punto de entrada.
 - Los emojis en `TextLabel` suelen salir como `□`. No usarlos.
 
+## Trabajo en paralelo: quién es dueño de qué
+
+**A veces hay más de una sesión trabajando en `contrabando/` a la vez.** El 17/08 hubo dos
+y salió caro: tres ciudades superpuestas en el mismo sitio (21.000 piezas donde caben
+7.000), el mapa movido de carpeta a mitad de faena, y dos `LEEME.md` afirmando cosas
+contrarias sobre qué mapa estaba activo. Nada de eso dio un error: el juego arrancaba.
+
+El reparto, decidido por JJ:
+
+| Zona | Dueño | Qué incluye |
+|---|---|---|
+| **El mapa** | la sesión del mapa | `mapa/`, `src/server/MapBuilder.luau` y sus documentos |
+| **El juego** | la sesión del juego | `CityBuilder`, calor, policía, robo, mercancía, interfaz, `Config`, `shared/` |
+
+**Nadie edita ficheros de la otra zona.** Si necesitas un cambio al otro lado, se pide; no
+se hace.
+
+### El único punto de contacto
+
+Hay **dos formas de tener ciudad y no pueden correr a la vez**: el modelo del Creator Store
+que Rojo monta desde `mapa/Ciudad.rbxm`, y `MapBuilder`, que la genera por código. Las dos
+dejan el mismo contrato — un `Model` llamado `Ciudad` que `CityBuilder` usa de suelo para
+sus raycasts — así que se cambia de una a otra **poniendo o quitando el bloque `"Ciudad"`
+del `default.project.json`**, y nada más.
+
+`Main.server.luau` sólo llama a `MapBuilder` **si no hay ya una `Ciudad` montada**, así que
+manda lo que monte Rojo. Ese guard es lo que impide que vuelvan a superponerse: no lo
+quites.
+
+**Activo a 17/08: la ciudad del Creator Store** (decisión de JJ).
+
+### Antes de tocar nada, `git pull`
+
+Las dos sesiones comparten repo. Guardar encima sin traerse lo del otro tira su trabajo sin
+avisar, y ya pasó con el guard de las ciudades.
+
 ## Regla de oro
 
 **El bucle antes que el contenido, y los datos antes que el bucle.** Si algo no se puede
