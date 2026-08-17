@@ -141,15 +141,30 @@ function CargoService.nuevaCaja(): Economy.Caja
 	return { rareza = Rarity.tirada(rng) }
 end
 
+local function avisar(player: Player, texto: string, color: Color3)
+	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+end
+
 -- Punto de entrega. El multiplicador es el de la ruta elegida en la salida, y
 -- entregaValida exige que la ruta elegida coincida con la ruta del destino:
 -- sin eso, elegir la roja y entregar en el destino verde cobraría el premio
 -- grande por el viaje corto.
+--
+-- CADA SALIDA DE ESTA FUNCIÓN AVISA. Antes sólo cobraba o callaba, y el
+-- comentario final decía "no se cobra y no se avisa" como si fuera una decisión.
+-- No lo era: en la primera partida de verdad, el jugador pulsó Entregar al llegar
+-- al destino verde, no pasó absolutamente nada, y lo que leyó fue "el juego está
+-- roto". Hay CUATRO motivos distintos por los que una entrega no cobra —no llevas
+-- nada, no has llegado, has llegado al destino de otra ruta, o saliste sin elegir
+-- ruta— y desde dentro los cuatro se ven exactamente igual: un botón muerto. Un
+-- botón que no responde cuesta la partida entera; una línea de texto la salva.
+--
 -- Va como función pública (no local) para poder probarla desde el servidor sin
 -- pasar por el remote.
 function CargoService.entregar(player: Player)
 	local estado = PlayerState.get(player)
 	if #estado.cajas == 0 then
+		avisar(player, "No llevas nada que entregar", Palette.AVISO_MALO)
 		return
 	end
 
@@ -159,30 +174,61 @@ function CargoService.entregar(player: Player)
 		return
 	end
 
+	-- Primero se busca el destino que tiene delante, y sólo después se juzga si le
+	-- vale. Al revés (la versión anterior, que exigía las dos cosas en la misma
+	-- condición) es imposible distinguir "aún no has llegado" de "has llegado al
+	-- sitio equivocado", que son dos consejos opuestos: uno dice sigue andando y el
+	-- otro dice date la vuelta.
+	local cerca: BasePart? = nil
 	for _, destino in destinos do
-		local rutaDelDestino = destino:GetAttribute("ruta")
-		if
-			(root.Position - destino.Position).Magnitude <= DISTANCIA_ENTREGA
-			and Routes.entregaValida(estado.ruta, rutaDelDestino)
-		then
-			local multiplicador = Routes.get(rutaDelDestino).multiplicador
-			-- Un solo sync al final, con el estado ya completo: zurrón vacío, dinero
-			-- cobrado y ruta liberada llegan juntos.
-			local cajas = CargoService.vaciar(player, false)
-			local cobrado = Economy.valorEntrega(cajas, multiplicador)
-			estado.dinero += cobrado
-			RouteService.limpiar(player)
-			PlayerState.sync(player)
-			Telemetry.evento(player, "entrega", {
-				ruta = rutaDelDestino,
-				cajas = #cajas,
-				valor = cobrado,
-			})
-			Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
-			return
+		if (root.Position - destino.Position).Magnitude <= DISTANCIA_ENTREGA then
+			cerca = destino
+			break
 		end
 	end
-	-- Si no está cerca de ningún destino, no pasa nada: no se cobra y no se avisa.
+
+	if not cerca then
+		if estado.ruta == nil then
+			avisar(player, "Saliste sin elegir ruta: vuelve a la salida del almacén", Palette.AVISO_MALO)
+		else
+			avisar(player, "Todavía no has llegado: sigue la baliza " .. estado.ruta, Palette.AVISO_MALO)
+		end
+		return
+	end
+
+	local rutaDelDestino = cerca:GetAttribute("ruta") :: string
+	if not Routes.entregaValida(estado.ruta, rutaDelDestino) then
+		if estado.ruta == nil then
+			avisar(player, "Saliste sin elegir ruta, así que esta carga no vale aquí", Palette.AVISO_MALO)
+		else
+			avisar(
+				player,
+				string.format("Este es el destino %s y tu ruta es la %s", rutaDelDestino, estado.ruta),
+				Palette.AVISO_MALO
+			)
+		end
+		return
+	end
+
+	local multiplicador = Routes.get(rutaDelDestino).multiplicador
+	-- Un solo sync al final, con el estado ya completo: zurrón vacío, dinero
+	-- cobrado y ruta liberada llegan juntos.
+	local cajas = CargoService.vaciar(player, false)
+	local cobrado = Economy.valorEntrega(cajas, multiplicador)
+	estado.dinero += cobrado
+	RouteService.limpiar(player)
+	PlayerState.sync(player)
+	Telemetry.evento(player, "entrega", {
+		ruta = rutaDelDestino,
+		cajas = #cajas,
+		valor = cobrado,
+	})
+	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+	-- El cobro también se dice con palabras, no sólo cambiando una cifra en una
+	-- esquina. Es el único momento en que el juego te da algo, y una cifra que
+	-- salta de 0 a 300 sin más se pierde entre lo demás: aquí es donde se nota si
+	-- la ruta que elegiste valió la pena.
+	avisar(player, string.format("+%d por %d cajas en la %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
 end
 
 function CargoService.registrarDestino(destino: BasePart)

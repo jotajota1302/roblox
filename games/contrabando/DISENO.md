@@ -5,6 +5,12 @@
 >
 > Lo que responde: qué pasa en los primeros 60 segundos, por qué el jugador vuelve
 > mañana, y cómo la presencia de otro jugador cambia la partida.
+>
+> ⚠️ **El viaje descrito aquí quedó obsoleto el 17/08 y se rediseña en
+> [`DISENO-CIUDAD.md`](DISENO-CIUDAD.md).** La primera partida jugada por una persona
+> disparó el criterio de kill nº 1 de la sección 6 (ver [`PRIMERA-PARTIDA.md`](PRIMERA-PARTIDA.md)):
+> el trayecto era una recta vacía. Todo lo demás de este documento —economía, almacén,
+> rarezas, vehículos, reglas del robo— **sigue vigente y es la autoridad**.
 
 ---
 

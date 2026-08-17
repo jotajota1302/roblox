@@ -82,8 +82,32 @@ local function debeElegir(): boolean
 	return (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA
 end
 
+-- Aviso al cruzar la salida con carga y sin ruta. Sin esto, salir sin elegir es
+-- un error MUDO que sólo se descubre dos minutos después, al llegar al destino y
+-- ver que no cobras: has hecho el viaje entero para nada y el juego no te ha
+-- dicho ni una palabra. Se avisa aquí, en el cliente, porque es puramente
+-- informativo — el servidor sigue siendo quien decide si una entrega vale.
+local dentroDeLaSalida = false
+
+local function vigilarSalidaSinRuta(eligiendo: boolean)
+	if eligiendo then
+		dentroDeLaSalida = true
+		return
+	end
+	if not dentroDeLaSalida then
+		return
+	end
+	dentroDeLaSalida = false
+	-- Sólo cuenta como "salir" si de verdad llevas algo: cruzar la salida de
+	-- vacío es lo que se hace al volver a por más, y avisar ahí sería ruido.
+	if ultimoEstado and #ultimoEstado.cajas > 0 and ultimoEstado.ruta == nil then
+		Hud.aviso("Sales sin ruta elegida: no podrás cobrar", Color3.fromRGB(230, 180, 70))
+	end
+end
+
 local function refrescarSelector()
 	local eligiendo = debeElegir()
+	vigilarSalidaSinRuta(eligiendo)
 	if not eligiendo then
 		-- Al salir de la zona se olvida el cierre manual: volver a la salida es
 		-- justamente decir "ahora sí quiero elegir".
