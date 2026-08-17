@@ -26,6 +26,17 @@ arrancan sin audiencia previa. Y una trampa: **la IA generativa en tiempo real p
 10 y 60 veces lo que ingresa por jugador** — sirve para producir contenido, no para
 ejecutarlo en la partida.
 
+## 🧭 [`TARGETS.md`](TARGETS.md) — anatomía de los éxitos y plan
+
+Disección por dentro de Grow a Garden, Steal a Brainrot y Brookhaven: qué bucle tienen y
+qué sistemas los sostienen. De ahí salen **seis mecanismos de retención reutilizables**
+(ingreso pasivo, timers escalonados, RNG exponencial, tienda con refresco, eventos globales
+sincronizados y fricción social con riesgo) — ninguno necesita arte caro ni narrativa.
+
+Y tres conceptos concretos evaluados con esos criterios: excavación, contrabando y
+restauración. **Recomendado: contrabando**, con su plan de las primeras semanas y los
+criterios para matarlo rápido si no engancha.
+
 ## 🎮 [`coin-island/`](coin-island/) — el piloto
 
 Juego pequeño y completo para entender cómo funciona Roblox por dentro: mundo 3D
