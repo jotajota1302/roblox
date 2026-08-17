@@ -17,6 +17,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
 local RouteService = require(script.Parent.RouteService)
+local Telemetry = require(script.Parent.Telemetry)
 
 local DISTANCIA_ENTREGA = 30 -- studs de margen alrededor del destino
 
@@ -159,6 +160,11 @@ function CargoService.entregar(player: Player)
 			estado.dinero += Economy.valorEntrega(cajas, multiplicador)
 			RouteService.limpiar(player)
 			PlayerState.sync(player)
+			Telemetry.evento(player, "entrega", {
+				ruta = rutaDelDestino,
+				cajas = #cajas,
+				valor = Economy.valorEntrega(cajas, multiplicador),
+			})
 			Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 			return
 		end

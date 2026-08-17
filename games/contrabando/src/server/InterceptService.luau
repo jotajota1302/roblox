@@ -24,6 +24,7 @@ local Intercept = require(game.ReplicatedStorage.Shared.Intercept)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local PlayerState = require(script.Parent.PlayerState)
+local Telemetry = require(script.Parent.Telemetry)
 
 local ROJO = Color3.fromRGB(220, 80, 80)
 local AMBAR = Color3.fromRGB(230, 180, 70)
@@ -131,6 +132,8 @@ function InterceptService.tick(ahora: number)
 			avisar(atacante, string.format("Has robado %d cajas. Estas marcado 60 s", metidas), AMBAR)
 			sonar(victima, "robo")
 			sonar(atacante, "robo")
+			Telemetry.evento(atacante, "robo", { robadas = #robadas, ruta = perfilVictima.ruta })
+			Telemetry.evento(victima, "robado", { perdidas = #robadas, ruta = perfilVictima.ruta })
 
 			break -- un robo por atacante y por ciclo
 		end

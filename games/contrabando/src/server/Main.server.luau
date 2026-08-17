@@ -45,6 +45,8 @@ local CargoService = safeRequire("CargoService")
 local RouteService = safeRequire("RouteService")
 local WarehouseService = safeRequire("WarehouseService")
 local InterceptService = safeRequire("InterceptService")
+local Persistence = safeRequire("Persistence")
+local Telemetry = safeRequire("Telemetry")
 
 -- El mundo primero: sin suelo no puede entrar nadie.
 local mundo = nil
@@ -73,6 +75,8 @@ safeStart("CargoService", CargoService)
 safeStart("RouteService", RouteService)
 safeStart("WarehouseService", WarehouseService)
 safeStart("InterceptService", InterceptService)
+safeStart("Telemetry", Telemetry)
+safeStart("Persistence", Persistence)
 
 if mundo then
 	if RouteService then

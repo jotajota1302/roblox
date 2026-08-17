@@ -15,6 +15,7 @@
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
+local Telemetry = require(script.Parent.Telemetry)
 
 local DISTANCIA_SALIDA = 40
 
@@ -49,6 +50,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 
 	estado.ruta = rutaId
 	PlayerState.sync(player)
+	Telemetry.evento(player, "ruta_elegida", { ruta = rutaId, cajas = #estado.cajas })
 	return true
 end
 
