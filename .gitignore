@@ -1,0 +1,16 @@
+# Binarios de herramientas: se descargan con setup.ps1, no se versionan (14 MB)
+tools/
+
+# Artefactos generados
+sourcemap.json
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+
+# Secretos (por si algún día usamos backend propio)
+.env
+.env.*
+!.env.example

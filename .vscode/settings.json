@@ -1,0 +1,19 @@
+{
+  // Autocompletado y tipos reales de la API de Roblox dentro de VS Code.
+  // Requiere la extensión JohnnyMorganz.luau-lsp (ver extensions.json).
+  "luau-lsp.sourcemap.enabled": true,
+  "luau-lsp.sourcemap.autogenerate": true,
+  "luau-lsp.sourcemap.rojoProjectFile": "coin-island/default.project.json",
+  "luau-lsp.types.roblox": true,
+  "luau-lsp.completion.imports.enabled": true,
+
+  "stylua.styluaPath": "tools/stylua.exe",
+  "[luau]": {
+    "editor.defaultFormatter": "JohnnyMorganz.stylua",
+    "editor.formatOnSave": true
+  },
+
+  "files.associations": {
+    "*.luau": "luau"
+  }
+}
