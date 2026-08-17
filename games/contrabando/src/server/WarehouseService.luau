@@ -84,6 +84,34 @@ end
 -- El índice viene del cliente, así que se valida como todo lo que viene de fuera:
 -- que sea un número, que esté dentro del rango y que la pieza exista. Sin eso, un
 -- índice inventado sacaría del almacén algo que no está.
+-- La carga de VUELTA que espera en un destino. Va por el mismo remote que el
+-- almacén porque para el jugador es el mismo gesto --acercarse a una pieza y
+-- cogerla-- y partirlo en dos caminos sólo serviría para que un día uno de los
+-- dos dejara de validar algo.
+local function reclamarRetorno(player: Player, root: BasePart): number
+	local estado = PlayerState.get(player)
+	if estado.retornoZona == nil or #estado.retorno == 0 then
+		return 0
+	end
+
+	local capacidad = Cargo.capacidad(estado.vehiculo)
+	local cogidas = 0
+	-- Al revés, porque el bucle borra elementos: hacia delante cada remove
+	-- desplaza los que faltan por mirar y se saltaría uno de cada dos.
+	for i = #estado.retorno, 1, -1 do
+		local caja = estado.retorno[i]
+		if Cargo.cabe(estado.cajas, caja, capacidad, estado.vehiculo) then
+			table.remove(estado.retorno, i)
+			CargoService.recoger(player, caja)
+			cogidas += 1
+		end
+	end
+	if cogidas > 0 then
+		PlayerState.sync(player)
+	end
+	return cogidas
+end
+
 function WarehouseService.reclamar(player: Player, indice: number?): number
 	local estado = PlayerState.get(player)
 	actualizar(player)
@@ -93,8 +121,10 @@ function WarehouseService.reclamar(player: Player, indice: number?): number
 	if not root or not almacen then
 		return 0
 	end
+	-- Lejos del almacén sólo puede ser carga de vuelta: es la única mercancía que
+	-- existe fuera de él.
 	if (root.Position - almacen.Position).Magnitude > DISTANCIA_ALMACEN then
-		return 0
+		return reclamarRetorno(player, root)
 	end
 
 	local capacidad = Cargo.capacidad(estado.vehiculo)

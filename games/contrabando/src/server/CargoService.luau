@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
+local Config = require(game.ReplicatedStorage.Shared.Config)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
@@ -24,6 +25,17 @@ local RouteService = require(script.Parent.RouteService)
 local Telemetry = require(script.Parent.Telemetry)
 
 local DISTANCIA_ENTREGA = 30 -- studs de margen alrededor del destino
+-- Margen para entregar la carga de VUELTA en el almacén. Más generoso que el de
+-- los destinos porque el almacén es un edificio con nave, patio y muelle: exigir
+-- pisar su centro exacto obligaría a meterse dentro para cobrar algo que ya has
+-- traído.
+local DISTANCIA_ALMACEN_ENTREGA = 55
+
+-- Marcador para "el destino es el almacén". destinoParaCobrar tiene que devolver
+-- una pieza y el almacén no está en la lista de destinos; esta pieza vacía evita
+-- tener que cambiar la firma y que todos los que la llaman se enteren.
+local almacenComoDestino: BasePart = Instance.new("Part")
+almacenComoDestino.Name = "AlmacenComoDestino"
 
 -- ARRIBA DEL TODO, antes que cualquiera que la use. Estaba declarada a mitad de
 -- fichero y en cuanto recoger() paso a necesitarla se habria resuelto como un
@@ -309,6 +321,15 @@ local function destinoParaCobrar(estado, root: BasePart): (BasePart?, string)
 	-- vale. Al revés es imposible distinguir "aún no has llegado" de "has llegado
 	-- al sitio equivocado", que son dos consejos opuestos: uno dice sigue andando y
 	-- el otro dice date la vuelta.
+	-- LA VUELTA TAMBIÉN ES UNA ENTREGA. Con carga de retorno encima, el destino es
+	-- el almacén y no hace falta elegir ruta: ya la elegiste a la ida.
+	if estado.retornoZona ~= nil then
+		if (root.Position - Config.ALMACEN_POS).Magnitude <= DISTANCIA_ALMACEN_ENTREGA then
+			return almacenComoDestino, "ok"
+		end
+		return nil, "no_has_llegado_al_almacen"
+	end
+
 	local cerca: BasePart? = nil
 	for _, destino in destinos do
 		if (root.Position - destino.Position).Magnitude <= DISTANCIA_ENTREGA then
@@ -330,8 +351,12 @@ end
 -- El cobro en sí. No comprueba nada: quien llama ya lo ha hecho.
 local function cobrar(player: Player, destino: BasePart)
 	local estado = PlayerState.get(player)
-	local rutaDelDestino = destino:GetAttribute("ruta") :: string
-	local multiplicador = Routes.get(rutaDelDestino).multiplicador
+	local esRetorno = estado.retornoZona ~= nil
+	local rutaDelDestino = if esRetorno then estado.retornoZona :: string else destino:GetAttribute("ruta") :: string
+	-- El retorno paga una fracción: si rindiera igual que la ida, la ruta elegida
+	-- daría lo mismo y la decisión de destino --que es el corazón del juego-- se
+	-- quedaría sin peso.
+	local multiplicador = Routes.get(rutaDelDestino).multiplicador * (if esRetorno then Config.RETORNO_FRACCION else 1)
 	-- Un solo sync al final, con el estado ya completo: zurrón vacío, dinero
 	-- cobrado y ruta liberada llegan juntos.
 	local cajas = CargoService.vaciar(player, false)
@@ -346,6 +371,26 @@ local function cobrar(player: Player, destino: BasePart)
 	local nivelAhora = Levels.nivelDe(estado.xp)
 
 	RouteService.limpiar(player)
+
+	if esRetorno then
+		-- Se cierra el ciclo: ya no llevas nada de vuelta y el almacén vuelve a ser
+		-- el punto de partida.
+		estado.retornoZona = nil
+		estado.retorno = {}
+	else
+		-- Y aquí se abre el siguiente: el destino te ofrece carga para el camino de
+		-- vuelta. Es lo que convierte los 90 segundos de volver de vacío en otro
+		-- viaje con algo que perder.
+		--
+		-- SIEMPRE pequeñas (nivel 1): si hiciera falta vehículo para moverlas, el
+		-- jugador nuevo volvería de vacío igual y no habríamos arreglado nada.
+		estado.retorno = {}
+		for _ = 1, Config.RETORNO_PIEZAS do
+			table.insert(estado.retorno, CargoService.nuevaCaja(1))
+		end
+		estado.retornoZona = rutaDelDestino
+	end
+
 	PlayerState.sync(player)
 	Telemetry.evento(player, "entrega", {
 		ruta = rutaDelDestino,
@@ -388,7 +433,10 @@ function CargoService.arrancarEntregaAutomatica()
 					-- Se corta pronto en el caso normal (sin carga o sin ruta) para
 					-- no medir distancias a tres destinos por cada jugador dos veces
 					-- por segundo cuando la mayoría van de vuelta y de vacío.
-					if #estado.cajas == 0 or estado.ruta == nil then
+					-- Con carga de RETORNO no hay ruta elegida --el destino es el
+					-- almacén-- así que exigir `ruta` aquí dejaría la vuelta sin
+					-- cobrar sola, que es justo el tramo que veníamos a arreglar.
+					if #estado.cajas == 0 or (estado.ruta == nil and estado.retornoZona == nil) then
 						return
 					end
 					local character = player.Character

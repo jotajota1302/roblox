@@ -149,6 +149,21 @@ local function apuntarBrujula(estado: any)
 	if estado == nil then
 		return
 	end
+	-- Con carga de vuelta, la brújula apunta a casa: es el destino de verdad y
+	-- olvidarlo dejaría al jugador con la flecha señalando el sitio del que acaba
+	-- de salir.
+	if estado.retornoZona ~= nil and #estado.cajas > 0 then
+		Compass.apuntar(Config.ALMACEN_POS, "De vuelta al almacén", Palette.ALMACEN)
+		return
+	end
+	if estado.retornoZona ~= nil then
+		local ok, ruta = pcall(Routes.get, estado.retornoZona)
+		if ok and ruta then
+			Compass.apuntar(ruta.destino, "Carga de vuelta ahí", Palette.ruta(ruta.id))
+			return
+		end
+	end
+
 	if estado.ruta ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.ruta)
 		if ok and ruta then
@@ -174,6 +189,15 @@ Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	pcall(function()
 		local almacen = mundo and mundo:FindFirstChild("Almacen") :: BasePart?
 		Stock.actualizar(almacen, estado.almacen)
+		-- Y la carga de vuelta, en el destino donde se acaba de entregar.
+		local centro = nil
+		if estado.retornoZona then
+			local ok, ruta = pcall(Routes.get, estado.retornoZona)
+			if ok and ruta then
+				centro = ruta.destino
+			end
+		end
+		Stock.actualizarRetorno(estado.retorno, centro)
 	end)
 end)
 

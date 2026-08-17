@@ -207,6 +207,32 @@ Config.RUTAS = {
 	},
 }
 
+-- LA CARGA DE VUELTA. Cada destino te da mercancía para llevar al almacén, y el
+-- almacén te la compra.
+--
+-- Existe porque la vuelta era tiempo muerto puro: ~90 segundos por la ruta roja
+-- yendo de vacío, sin nada que llevar, sin nadie que pudiera robarte y sin una
+-- sola decisión. Eso era LA MITAD del ciclo sin juego.
+--
+-- La alternativa evidente --repartir varios almacenes por el mapa-- acorta ese
+-- tramo pero no lo llena, y encima dispersa a los jugadores: con el mapa que hay,
+-- dos personas volviendo a almacenes distintos no se cruzan jamás, y los
+-- encuentros son justo lo que hace funcionar a este género. Así que se llena el
+-- viaje en vez de acortarlo, y se conserva UN solo almacén al que vuelve todo el
+-- mundo.
+--
+-- PAGA MENOS QUE LA IDA, y esa proporción es lo que mantiene la jerarquía: si el
+-- retorno rindiera igual, la ruta elegida daría lo mismo y la decisión de destino
+-- --que es el corazón del juego-- se quedaría sin peso. Un 60 % hace que la vuelta
+-- valga la pena sin competir con el viaje de verdad.
+Config.RETORNO_FRACCION = 0.6
+
+-- Cuántas piezas te ofrece un destino al entregar. Pocas y pequeñas: la vuelta es
+-- un extra, no un segundo almacén. Y pequeñas de tamaño a propósito, para que
+-- quepan a pie -- si hicieran falta vehículo, el jugador nuevo volvería de vacío
+-- igual y no habríamos arreglado nada.
+Config.RETORNO_PIEZAS = 3
+
 -- Almacén
 Config.ALMACEN_RITMO = 30 -- PROTOTIPO: 180 (1 caja cada 3 min)
 Config.ALMACEN_TOPE = 10

@@ -32,6 +32,8 @@ local DORADO = Color3.fromRGB(212, 172, 82)
 local Stock = {}
 local carpeta: Folder? = nil
 local dibujadas = ""
+local carpetaRetorno: Folder? = nil
+local dibujadasRetorno = ""
 
 local function sitios(almacen: BasePart): { Vector3 }
 	local total = almacen:GetAttribute("muelleSitios")
@@ -223,6 +225,60 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto
 		texto.Font = Enum.Font.GothamBold
 		texto.Text = Goods.etiqueta(objeto, rareza)
 		texto.Parent = cartel
+	end
+end
+
+-- LA CARGA DE VUELTA, dibujada en el destino donde acabas de entregar.
+--
+-- Reutiliza el mismo dibujo que el muelle del almacén a propósito: para el
+-- jugador es la misma cosa --piezas en el suelo que se cogen acercándose-- y
+-- enseñárselas distintas le haría dudar de si se cogen igual.
+function Stock.actualizarRetorno(piezas: { { rareza: string, objeto: string? } }?, centro: Vector3?)
+	local lote = piezas or {}
+	local huella = tostring(centro)
+	for _, p in lote do
+		huella ..= p.rareza .. ":" .. tostring(p.objeto) .. ","
+	end
+	if huella == dibujadasRetorno then
+		return
+	end
+	dibujadasRetorno = huella
+
+	if carpetaRetorno then
+		carpetaRetorno:Destroy()
+		carpetaRetorno = nil
+	end
+	if #lote == 0 or not centro then
+		return
+	end
+
+	local f = Instance.new("Folder")
+	f.Name = "CargaDeVuelta"
+	f.Parent = workspace
+	carpetaRetorno = f
+
+	for i, pieza in lote do
+		local aspecto = Goods.aspecto(pieza.objeto)
+		local caja = Instance.new("Part")
+		caja.Name = "Retorno" .. i
+		caja.Size = Goods.medida(pieza.objeto, 1.6)
+		-- En fila delante del destino, no amontonadas: hay que poder acercarse a
+		-- una concreta.
+		caja.CFrame = CFrame.new(centro + Vector3.new((i - 2) * 6, 2.5, 8)) * CFrame.Angles(0, math.rad(i * 20), 0)
+		caja.Color = Rarity.color(pieza.rareza)
+		caja.Material = aspecto.material
+		caja.Anchored = true
+		caja.CanCollide = false
+		caja.Parent = f
+
+		local aviso = Instance.new("ProximityPrompt")
+		aviso.Name = "PromptCaja"
+		aviso.ActionText = "Cargar de vuelta"
+		aviso.ObjectText = Goods.etiqueta(pieza.objeto, pieza.rareza)
+		aviso.MaxActivationDistance = 9
+		aviso.HoldDuration = 0
+		aviso.RequiresLineOfSight = false
+		aviso.Parent = caja
 	end
 end
 

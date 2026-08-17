@@ -44,6 +44,12 @@ export type Estado = {
 	-- Levels.nivelDe. Guardar los dos es garantizar que algún día no cuadren, y el
 	-- que no cuadrase sería el que ve el jugador.
 	xp: number,
+	-- La carga de VUELTA que te espera en el destino donde acabas de entregar, y
+	-- de qué zona viene (de ahí sale lo que te pagan por ella). Se vacía al
+	-- recogerla o al salir otra vez del almacén: es una oferta del momento, no un
+	-- segundo almacén que se acumule.
+	retorno: { Economy.Caja },
+	retornoZona: string?,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -64,6 +70,8 @@ function PlayerState.get(player: Player): Estado
 			vehiculo = nil,
 			calor = 0,
 			xp = 0,
+			retorno = {},
+			retornoZona = nil,
 		}
 		estados[player] = estado
 	end
@@ -96,6 +104,8 @@ function PlayerState.sync(player: Player)
 		almacen = estado.almacen,
 		calor = estado.calor or 0,
 		xp = estado.xp or 0,
+		retorno = estado.retorno or {},
+		retornoZona = estado.retornoZona,
 		-- El nivel viaja ya calculado: el cliente sólo dibuja, y así no hay dos
 		-- sitios haciendo la misma cuenta con riesgo de discrepar en pantalla.
 		nivel = Levels.nivelDe(estado.xp or 0),
