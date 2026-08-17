@@ -400,6 +400,9 @@ local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre
 	end
 
 	local AZUL = Color3.fromRGB(74, 118, 176)
+	local AZUL_OSCURO = Color3.fromRGB(44, 70, 108)
+	local PIEDRA = Color3.fromRGB(196, 198, 202)
+
 	local losa = part(
 		"Refugio_" .. indice,
 		Vector3.new(Config.REFUGIO_RADIO * 1.2, ALTO_LOSA, Config.REFUGIO_RADIO * 1.2),
@@ -410,7 +413,51 @@ local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre
 	losa.Material = Enum.Material.Pavement
 	losa:SetAttribute("refugio", true)
 
-	-- El pilar, visible por encima de los edificios (que llegan a 175 studs).
+	-- UNA CASETA DE VERDAD, no una losa pintada de azul.
+	--
+	-- Lo pidió JJ y tiene razón de sobra: el refugio es el sitio al que corres
+	-- cuando te persiguen, y tiene que reconocerse como un EDIFICIO desde lejos y
+	-- de reojo. Una mancha de color en el suelo se confunde con cualquier plaza de
+	-- la ciudad justo en el momento en que no puedes pararte a mirar.
+	--
+	-- Abierta por los cuatro lados a propósito: son cuatro pilares y un techo. Un
+	-- refugio con paredes tendría puerta, y una puerta es un sitio donde quedarse
+	-- atascado con tres perseguidores detrás.
+	local suelo = y + ALTO_LOSA
+	local alto, vano = 16, 13
+
+	local function pieza(nombre: string, tamano: Vector3, dx: number, dy: number, dz: number, color: Color3)
+		local p = part(nombre, tamano, Vector3.new(x + dx, suelo + dy, z + dz), color, padre)
+		p.Material = Enum.Material.Concrete
+		return p
+	end
+
+	for i, esquina in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
+		pieza(
+			string.format("RefugioPilar_%d_%d", indice, i),
+			Vector3.new(3, alto, 3),
+			esquina[1] * vano,
+			alto / 2,
+			esquina[2] * vano,
+			PIEDRA
+		)
+	end
+	pieza("RefugioTecho_" .. indice, Vector3.new(vano * 2 + 9, 2.5, vano * 2 + 9), 0, alto + 1.25, 0, AZUL_OSCURO)
+	-- Una franja encendida bajo el alero: de noche o en sombra, es lo que hace que
+	-- el sitio se lea como "abierto" y no como una ruina.
+	local franja = pieza(
+		"RefugioFranja_" .. indice,
+		Vector3.new(vano * 2 + 9, 1.2, vano * 2 + 9),
+		0,
+		alto - 0.6,
+		0,
+		Color3.fromRGB(150, 200, 255)
+	)
+	franja.Material = Enum.Material.Neon
+	franja.CanCollide = false
+
+	-- Y el pilar de luz por encima de los edificios (llegan a 175 studs), para
+	-- verlo desde la otra punta del barrio.
 	local faro = part("RefugioFaro_" .. indice, Vector3.new(5, 190, 5), Vector3.new(x, y + 95, z), AZUL, padre)
 	faro.Material = Enum.Material.Neon
 	faro.CanCollide = false
