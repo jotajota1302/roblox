@@ -17,6 +17,7 @@ local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
+local Ride = require(script.Parent.Ride)
 local RouteService = require(script.Parent.RouteService)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -410,6 +411,10 @@ function CargoService.start()
 		-- Hoy siempre repinta un cuerpo vacío porque la carga se acaba de perder
 		-- arriba, pero queda correcto el día que esa regla cambie.
 		CargoService.mostrarCarga(player)
+		-- Y el vehículo también se fue con el cuerpo viejo. Éste SÍ se recupera
+		-- entero: reaparecer cuesta la carga, no lo que has comprado -- perder una
+		-- furgoneta de 15.000 por morir sería un castigo que nadie ha decidido.
+		Ride.montar(player.Character, estado.vehiculo)
 	end
 
 	local function conectar(player: Player)

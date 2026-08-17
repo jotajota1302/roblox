@@ -26,6 +26,7 @@ local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local CargoService = require(script.Parent.CargoService)
+local Ride = require(script.Parent.Ride)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -92,11 +93,15 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	estado.vehiculo = def.id
 
 	CargoService.aplicarVelocidad(player)
+	-- Y se VE al instante. Sin esto, pagar 4.500 por una moto cambia dos numeros en
+	-- un panel y el jugador sigue siendo el mismo muneco andando -- que es la forma
+	-- mas rapida de que una compra no se sienta como una compra.
+	Ride.montar(player.Character, def.id)
 	PlayerState.sync(player)
 
 	Telemetry.evento(player, "compra_vehiculo", { vehiculo = def.id, coste = def.coste })
 	Remotes.event(Remotes.AVISO)
-		:FireClient(player, string.format("%s comprada. Ahora llevas %d cajas", def.nombre, def.capacidad), VERDE)
+		:FireClient(player, string.format("%s: llevas %d huecos y cosas mas grandes", def.nombre, def.capacidad), VERDE)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 
 	return true, "ok"

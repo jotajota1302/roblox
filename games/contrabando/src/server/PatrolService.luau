@@ -32,6 +32,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
 local PlayerState = require(script.Parent.PlayerState)
+local Ride = require(script.Parent.Ride)
 local Telemetry = require(script.Parent.Telemetry)
 
 -- Cada cuánto se replantea el camino. No más a menudo: calcular una ruta en este
@@ -89,7 +90,30 @@ end
 -- HumanoidDescription): está hecho de Part, así que se ve aunque el place no esté
 -- publicado y no hay que descargar ninguna malla. Ver la cabecera de Avatar.luau,
 -- que cuenta por qué esto importa tanto en este proyecto.
-local function crearAgente(donde: Vector3, velocidad: number): Patrulla?
+-- En qué va a venir el que te persigue. ESCALA CONTIGO, y por eso es legible:
+-- si tú vas en moto, el que aparece por la esquina viene en moto, y lo sabes de
+-- un vistazo sin leer nada. Un perseguidor a pie detrás de una furgoneta sería
+-- una amenaza que el jugador aprende a ignorar; uno en moto detrás de otra moto
+-- se entiende solo.
+--
+-- Un peldaño POR DEBAJO del jugador a propósito: la velocidad ya se iguala aparte
+-- (ver ajustar), y el vehículo aquí es información, no potencia. Que el suyo se
+-- vea un punto peor deja el mensaje correcto -- tu dinero sirve para algo -- sin
+-- que deje de alcanzarte.
+local function vehiculoDelPerseguidor(vehiculoDelJugador: string?): string?
+	local escalera = Config.VEHICULOS
+	local indice = 1
+	for i, v in escalera do
+		if v.id == (vehiculoDelJugador or Config.VEHICULO_INICIAL) then
+			indice = i
+			break
+		end
+	end
+	local suyo = escalera[math.max(1, indice - 1)]
+	return if Ride.existe(suyo.id) then suyo.id else nil
+end
+
+local function crearAgente(donde: Vector3, velocidad: number, vehiculo: string?): Patrulla?
 	local ok, resultado = pcall(function()
 		local descripcion = Instance.new("HumanoidDescription")
 		local modelo = Players:CreateHumanoidModelFromDescription(descripcion, Enum.HumanoidRigType.R6)
@@ -128,6 +152,12 @@ local function crearAgente(donde: Vector3, velocidad: number): Patrulla?
 
 		modelo:PivotTo(CFrame.new(donde))
 		modelo.Parent = contenedor()
+
+		-- Su vehículo, si le toca uno. Va DESPUÉS de meterlo en el mundo porque
+		-- Ride suelda contra el HumanoidRootPart, y ése no existe hasta entonces.
+		if vehiculo then
+			Ride.montar(modelo, vehiculo)
+		end
 
 		local root = modelo:FindFirstChild("HumanoidRootPart") :: BasePart
 		return { modelo = modelo, humanoid = humanoid, raiz = root, viva = true } :: Patrulla
@@ -412,7 +442,7 @@ local function ajustar(player: Player)
 		if not donde then
 			break
 		end
-		local nueva = crearAgente(donde, velocidad)
+		local nueva = crearAgente(donde, velocidad, vehiculoDelPerseguidor(PlayerState.get(player).vehiculo))
 		if not nueva then
 			break
 		end
