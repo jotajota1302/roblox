@@ -198,16 +198,43 @@ Galaxy A06, que es el peor caso:
   así que medir cada uno en su propio espacio esconde el solape. La regla del proyecto
   —*nada en las esquinas inferiores*— no se cumple sola.
 
-Medido después del arreglo, en 705×338 y en coordenadas absolutas:
+Y al rehacer el aspecto de la interfaz aparecieron **tres solapes más**, ninguno visible en
+una captura: el aviso encima del panel de estado, el aviso cruzando las tres tarjetas de
+ruta, y el título del selector rozando el panel. Se encontraron comparando **todos contra
+todos**, no revisando uno por uno.
+
+Estado final, medido en 705×338 y en coordenadas absolutas, con el aviso encendido:
 
 ```
-hud.Panel        14, -48 -> 226,  30      roblox.JumpButton   610, 190 -> 680, 260
-hud.Recoger     557,   6 -> 684,  54      solapes: ninguno
-hud.Entregar    557,  60 -> 684, 108
-hud.Comprar     529, 114 -> 684, 162      (28 px de margen sobre el salto)
+Panel        14, -48 -> 226,  30        JumpButton   610, 190 -> 680, 260
+Recoger     557,   6 -> 684,  54        Joystick    -100,  93 -> 282, 380
+Entregar    557,  60 -> 684, 108
+Comprar     529, 114 -> 684, 162        solapes: NINGUNO
+Aviso       148,  43 -> 501,  74        todos los textos: caben
 ```
 
-Nada fuera del área, ningún botón por debajo de 48 px, ningún texto cortado.
+En iPad Pro M5 (1375×1032), lo mismo: cero solapes. Nada fuera del área, ningún botón por
+debajo de 48 px, ningún texto cortado.
+
+### El aspecto de la interfaz
+
+Se rehízo cuando el mundo pasó a tener modelos 3D: el HUD se había escrito para un juego de
+cubos de colores y ahí encajaba, pero con textura y volumen alrededor pasó a parecer un
+depurador puesto encima. Esquinas, bordes del mismo tono más oscuro, degradado vertical,
+sombras, el multiplicador dominando cada tarjeta de ruta y el dinero con separador de
+millares. **Ninguna posición cambió por esto**, para no invalidar las medidas de arriba.
+
+Dos trampas cobradas en el intento:
+
+- **`Color3.new(1.14, 1.14, 1.14)` revienta** — los componentes van en `[0,1]`. Un
+  `UIGradient` sólo puede oscurecer (multiplica), nunca aclarar. La excepción mató
+  `Hud.build()` entero justo después del primer botón: el juego arrancó con medio HUD, sin
+  selector de ruta y **sin ningún error a la vista**. Desde entonces cada pantalla se
+  construye dentro de su propio `pcall`, igual que los servicios del servidor.
+- **Una sombra dentro de un `UIListLayout` descuadra el reparto**: es un hijo más, así que
+  los tres botones de ruta pasaron a ser seis elementos y la tarjeta roja acabó fuera de la
+  pantalla. En una pantalla de tres opciones, una dejó de existir. `UiKit.sombra` ahora se
+  niega a crearse dentro de un contenedor con layout.
 
 ---
 

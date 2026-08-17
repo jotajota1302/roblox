@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
+local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 
 local TOUCH_MIN = 48
 
@@ -32,6 +33,27 @@ local comprarBoton: TextButton
 -- no sólo tapar: un botón invisible que sigue respondiendo es peor que uno visible.
 local accionBotones: { TextButton } = {}
 local modal = false
+-- El borde del botón de comprar, guardado porque cambia de color cuando el
+-- dinero alcanza: es la señal de "ya puedes" sin tener que leer la cifra.
+local comprarTrazo: UIStroke? = nil
+
+-- El acabado común de un botón: esquinas, borde del mismo color pero más oscuro
+-- (un borde negro se ve pegado encima; uno del mismo tono pertenece a la pieza),
+-- degradado vertical que sugiere la luz cenital del mundo, y sombra.
+--
+-- Va DESPUÉS del UISizeConstraint a propósito: la sombra copia posición y tamaño
+-- del botón, y las restricciones cambian el tamaño real. Y ninguna de estas
+-- líneas mueve nada, así que las posiciones verificadas en las tres pantallas
+-- siguen siendo exactamente las mismas.
+local function acabado(boton: TextButton, base: Color3): UIStroke
+	UiKit.redondear(boton, 10)
+	local trazo = UiKit.borde(boton, UiKit.oscurecer(base, 0.22), 2)
+	UiKit.volumen(boton, 0.14)
+	UiKit.sombra(boton, 10)
+	boton.AutoButtonColor = true
+	boton.TextStrokeTransparency = 0.6
+	return trazo
+end
 
 function Hud.build()
 	local gui = Instance.new("ScreenGui")
@@ -45,10 +67,13 @@ function Hud.build()
 	panel.AnchorPoint = Vector2.new(0, 0)
 	panel.Position = UDim2.fromScale(0.02, 0.03)
 	panel.Size = UDim2.fromScale(0.3, 0.19)
-	panel.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-	panel.BackgroundTransparency = 0.25
+	panel.BackgroundColor3 = UiKit.TINTA
+	panel.BackgroundTransparency = 0.18
 	panel.BorderSizePixel = 0
 	panel.Parent = gui
+	UiKit.redondear(panel, 10)
+	UiKit.borde(panel, Color3.fromRGB(90, 88, 96), 1.5, 0.35)
+	UiKit.margen(panel, 8)
 
 	local panelSize = Instance.new("UISizeConstraint")
 	panelSize.MinSize = Vector2.new(140, 78)
@@ -60,24 +85,51 @@ function Hud.build()
 	layout.Padding = UDim.new(0, 2)
 	layout.Parent = panel
 
-	local function linea(nombre: string, orden: number): TextLabel
-		local label = Instance.new("TextLabel")
-		label.Name = nombre
-		label.LayoutOrder = orden
-		label.Size = UDim2.fromScale(1, 0.33)
-		label.BackgroundTransparency = 1
-		label.TextColor3 = Color3.fromRGB(235, 235, 240)
-		label.TextScaled = true
-		label.Font = Enum.Font.GothamMedium
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Text = ""
-		label.Parent = panel
-		return label
+	-- Cada línea es etiqueta + valor, no una cadena única. Con "Dinero: 3200" todo
+	-- pesa lo mismo y el ojo tiene que leerlo entero para encontrar la cifra; con
+	-- la etiqueta apagada a la izquierda y el valor destacado a la derecha, el
+	-- número se ve sin leer nada.
+	local function linea(nombre: string, orden: number, etiqueta: string): TextLabel
+		local fila = Instance.new("Frame")
+		fila.Name = nombre
+		fila.LayoutOrder = orden
+		fila.Size = UDim2.fromScale(1, 0.33)
+		fila.BackgroundTransparency = 1
+		fila.Parent = panel
+
+		local titulo = Instance.new("TextLabel")
+		titulo.Name = "Etiqueta"
+		titulo.Size = UDim2.fromScale(0.42, 1)
+		titulo.BackgroundTransparency = 1
+		titulo.TextColor3 = UiKit.APAGADO
+		titulo.TextScaled = true
+		titulo.Font = Enum.Font.GothamMedium
+		titulo.TextXAlignment = Enum.TextXAlignment.Left
+		titulo.Text = etiqueta
+		titulo.Parent = fila
+
+		local valor = Instance.new("TextLabel")
+		valor.Name = "Valor"
+		valor.AnchorPoint = Vector2.new(1, 0)
+		valor.Position = UDim2.fromScale(1, 0)
+		valor.Size = UDim2.fromScale(0.56, 1)
+		valor.BackgroundTransparency = 1
+		valor.TextColor3 = UiKit.PAPEL
+		valor.TextScaled = true
+		valor.Font = Enum.Font.GothamBold
+		valor.TextXAlignment = Enum.TextXAlignment.Right
+		valor.Text = ""
+		valor.Parent = fila
+
+		return valor
 	end
 
-	dineroLabel = linea("Dinero", 1)
-	cargaLabel = linea("Carga", 2)
-	almacenLabel = linea("Almacen", 3)
+	dineroLabel = linea("Dinero", 1, "Dinero")
+	cargaLabel = linea("Carga", 2, "Carga")
+	almacenLabel = linea("Almacen", 3, "Almacen")
+	-- El dinero es el número que más se mira: se le da el color del oro para que
+	-- destaque entre los otros dos sin necesidad de leer la etiqueta.
+	dineroLabel.TextColor3 = Color3.fromRGB(238, 202, 122)
 
 	-- La columna de acciones: derecha, y con los tres repartidos entre 0,26 y 0,58
 	-- de la altura. No son cifras estéticas. MEDIDO en un Galaxy A06 (705x338): con
@@ -102,6 +154,7 @@ function Hud.build()
 	botonSize.MinSize = Vector2.new(TOUCH_MIN * 2, TOUCH_MIN)
 	botonSize.MaxSize = Vector2.new(200, 90)
 	botonSize.Parent = entregar
+	acabado(entregar, entregar.BackgroundColor3)
 
 	entregar.Activated:Connect(function()
 		Remotes.event(Remotes.ENTREGAR):FireServer()
@@ -123,6 +176,7 @@ function Hud.build()
 	recogerSize.MinSize = Vector2.new(TOUCH_MIN * 2, TOUCH_MIN)
 	recogerSize.MaxSize = Vector2.new(200, 90)
 	recogerSize.Parent = recoger
+	acabado(recoger, recoger.BackgroundColor3)
 
 	recoger.Activated:Connect(function()
 		Remotes.event(Remotes.RECLAMAR):FireServer()
@@ -148,6 +202,7 @@ function Hud.build()
 	comprarSize.MinSize = Vector2.new(TOUCH_MIN * 2.5, TOUCH_MIN)
 	comprarSize.MaxSize = Vector2.new(240, 90)
 	comprarSize.Parent = comprarBoton
+	comprarTrazo = acabado(comprarBoton, comprarBoton.BackgroundColor3)
 
 	comprarBoton.Activated:Connect(function()
 		-- El id viaja como atributo del propio botón: es el servidor quien decidió
@@ -160,17 +215,32 @@ function Hud.build()
 
 	accionBotones = { entregar, recoger }
 
+	-- El aviso lleva su propio fondo. Antes era texto blanco suelto sobre el
+	-- mundo, y el mundo aquí es un cielo claro y un edificio claro: justo donde
+	-- aparece "te vienen detras", que es el aviso que hay que leer sin pensarlo.
 	avisoLabel = Instance.new("TextLabel")
 	avisoLabel.Name = "Aviso"
+	-- Colocado por medición, no a ojo. En 0,12 y con 0,6 de ancho se montaba
+	-- encima del panel de estado (que ocupa hasta el 26 % de la altura y el 32 %
+	-- del ancho) y por la derecha rozaba el botón de Recoger. Aquí queda en tierra
+	-- de nadie: por debajo del panel y a la izquierda de la columna de botones.
 	avisoLabel.AnchorPoint = Vector2.new(0.5, 0)
-	avisoLabel.Position = UDim2.fromScale(0.5, 0.12)
-	avisoLabel.Size = UDim2.fromScale(0.6, 0.09)
-	avisoLabel.BackgroundTransparency = 1
-	avisoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	avisoLabel.Position = UDim2.fromScale(0.46, 0.3)
+	avisoLabel.Size = UDim2.fromScale(0.5, 0.09)
+	avisoLabel.BackgroundColor3 = UiKit.TINTA
+	avisoLabel.BackgroundTransparency = 1 -- se enciende sólo cuando hay texto
+	avisoLabel.TextColor3 = UiKit.PAPEL
 	avisoLabel.TextScaled = true
 	avisoLabel.Font = Enum.Font.GothamBold
+	avisoLabel.TextStrokeTransparency = 0.5
 	avisoLabel.Text = ""
 	avisoLabel.Parent = gui
+	UiKit.redondear(avisoLabel, 8)
+	UiKit.margen(avisoLabel, 6)
+
+	local avisoSize = Instance.new("UISizeConstraint")
+	avisoSize.MaxSize = Vector2.new(520, 46)
+	avisoSize.Parent = avisoLabel
 end
 
 export type EstadoHud = {
@@ -186,12 +256,28 @@ function Hud.update(estado: EstadoHud)
 	if not dineroLabel then
 		return
 	end
-	dineroLabel.Text = string.format("Dinero: %d", estado.dinero)
+	dineroLabel.Text = UiKit.millares(estado.dinero)
 	-- Carga sobre capacidad, no un número suelto: "2 cajas" no dice si te queda
 	-- sitio, y de ese hueco depende toda la decisión de qué te llevas.
 	local capacidad = estado.capacidad or Config.CAPACIDAD_A_PIE
-	cargaLabel.Text = string.format("Carga: %d/%d  %s", #estado.cajas, capacidad, estado.vehiculoNombre or "")
-	almacenLabel.Text = string.format("Almacen: %d/%d", estado.almacenCajas or 0, Config.ALMACEN_TOPE)
+	cargaLabel.Text = string.format("%d/%d", #estado.cajas, capacidad)
+	-- La etiqueta de esa línea es el vehículo, no la palabra "Carga": ya se
+	-- entiende que "2/10" es carga, y así el jugador ve en qué va sin gastar una
+	-- cuarta línea en un panel que tiene tres.
+	local etiquetaCarga = cargaLabel.Parent and cargaLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
+	if etiquetaCarga then
+		etiquetaCarga.Text = estado.vehiculoNombre or "Carga"
+	end
+	almacenLabel.Text = string.format("%d/%d", estado.almacenCajas or 0, Config.ALMACEN_TOPE)
+
+	-- El zurrón lleno se pinta en ámbar: es la señal de "ya no te cabe más, vete",
+	-- y es lo que separa un viaje aprovechado de otro a medias.
+	cargaLabel.TextColor3 = if #estado.cajas >= capacidad then Color3.fromRGB(230, 180, 70) else UiKit.PAPEL
+	-- Y el almacén al tope, también: a partir de ahí deja de producir y cada
+	-- minuto fuera es tiempo tirado.
+	almacenLabel.TextColor3 = if (estado.almacenCajas or 0) >= Config.ALMACEN_TOPE
+		then Color3.fromRGB(230, 180, 70)
+		else UiKit.PAPEL
 
 	if not comprarBoton then
 		return
@@ -200,15 +286,22 @@ function Hud.update(estado: EstadoHud)
 	local siguiente = mejoras and mejoras[1]
 	if siguiente and not modal then
 		comprarBoton:SetAttribute("vehiculo", siguiente.id)
-		comprarBoton.Text = string.format("%s\n%d", siguiente.nombre, siguiente.coste)
+		comprarBoton.Text = string.format("%s\n%s", siguiente.nombre, UiKit.millares(siguiente.coste))
 		comprarBoton.Visible = true
 		-- Apagado en gris cuando no llega el dinero: enseñar el precio que aún no
 		-- puedes pagar es la mitad del motivo para hacer otro viaje. Ocultarlo
 		-- dejaría el dinero sin destino visible, que es el problema que el taller
 		-- viene a resolver.
 		local alcanza = estado.dinero >= siguiente.coste
-		comprarBoton.BackgroundColor3 = if alcanza then Color3.fromRGB(70, 90, 130) else Color3.fromRGB(60, 60, 66)
+		local base = if alcanza then Color3.fromRGB(70, 90, 130) else Color3.fromRGB(58, 58, 64)
+		comprarBoton.BackgroundColor3 = base
 		comprarBoton.TextTransparency = if alcanza then 0 else 0.35
+		if comprarTrazo then
+			-- Cuando ya alcanza, el borde se enciende en oro: la señal de "puedes
+			-- comprarlo" tiene que verse de reojo, sin comparar dos cifras.
+			comprarTrazo.Color = if alcanza then Color3.fromRGB(238, 202, 122) else UiKit.oscurecer(base, 0.22)
+			comprarTrazo.Thickness = if alcanza then 2.5 else 2
+		end
 	else
 		comprarBoton.Visible = false
 	end
@@ -225,6 +318,17 @@ function Hud.setModal(activo: boolean)
 	if activo and comprarBoton then
 		comprarBoton.Visible = false
 	end
+	-- El aviso también. Medido: su franja (y 43-74) cruza las tres tarjetas de
+	-- ruta (y 60-175), así que un aviso que llegara justo al abrir el selector se
+	-- leería encima de la decisión. Y no hace falta: el selector sólo aparece en
+	-- la salida, dentro de la zona segura, donde no hay nada que avisar.
+	if activo and avisoLabel then
+		avisoLabel.Text = ""
+		avisoLabel.BackgroundTransparency = 1
+	end
+	if avisoLabel then
+		avisoLabel.Visible = not activo
+	end
 end
 
 local avisoId = 0
@@ -237,10 +341,12 @@ function Hud.aviso(texto: string, color: Color3)
 	local id = avisoId
 	avisoLabel.Text = texto
 	avisoLabel.TextColor3 = color
+	avisoLabel.BackgroundTransparency = 0.25
 	task.delay(3, function()
 		-- Sólo se borra si nadie ha escrito otro aviso mientras tanto.
 		if avisoId == id then
 			avisoLabel.Text = ""
+			avisoLabel.BackgroundTransparency = 1
 		end
 	end)
 end

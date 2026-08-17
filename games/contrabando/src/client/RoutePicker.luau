@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
+local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 
 local RoutePicker = {}
 local gui: ScreenGui? = nil
@@ -40,19 +41,24 @@ function RoutePicker.build(alElegir: (string) -> ())
 
 	local titulo = Instance.new("TextLabel")
 	titulo.Name = "Titulo"
+	-- A 0,24 y no más abajo: el panel de estado sigue visible bajo el velo (a
+	-- propósito, porque el dinero y la carga son justo lo que se mira para
+	-- decidir) y ocupa la esquina superior izquierda hasta el 26 % de la altura.
+	-- Un título más bajo o más ancho se le monta encima.
 	titulo.AnchorPoint = Vector2.new(0.5, 1)
-	titulo.Position = UDim2.fromScale(0.5, 0.29)
-	titulo.Size = UDim2.fromScale(0.8, 0.12)
+	titulo.Position = UDim2.fromScale(0.6, 0.24)
+	titulo.Size = UDim2.fromScale(0.52, 0.11)
 	titulo.BackgroundTransparency = 1
-	titulo.TextColor3 = Color3.fromRGB(240, 240, 245)
+	titulo.TextColor3 = UiKit.PAPEL
 	titulo.TextScaled = true
 	titulo.Font = Enum.Font.GothamBold
+	titulo.TextStrokeTransparency = 0.5
 	titulo.Text = "Por donde sales?"
 	titulo.ZIndex = 2
 	titulo.Parent = pantalla
 
 	local tituloSize = Instance.new("UISizeConstraint")
-	tituloSize.MaxSize = Vector2.new(560, 52)
+	tituloSize.MaxSize = Vector2.new(380, 46)
 	tituloSize.Parent = titulo
 
 	local fila = Instance.new("Frame")
@@ -82,11 +88,57 @@ function RoutePicker.build(alElegir: (string) -> ())
 		boton.ZIndex = 2
 		boton.Size = UDim2.fromScale(0.3, 1)
 		boton.BackgroundColor3 = Palette.ruta(ruta.id)
-		boton.TextColor3 = Color3.fromRGB(255, 255, 255)
-		boton.TextScaled = true
-		boton.Font = Enum.Font.GothamBold
-		boton.Text = string.format("%s\nx%d\n%d m", string.upper(ruta.id), ruta.multiplicador, ruta.distancia)
+		boton.AutoButtonColor = true
+		-- El texto va en tres etiquetas hijas, no en una cadena con saltos de
+		-- línea. Con TextScaled sobre tres líneas, Roblox reduce todo al tamaño
+		-- que le cabe a la más larga y las tres acaban pesando lo mismo -- pero el
+		-- multiplicador es la cifra por la que se elige, y tiene que dominar la
+		-- tarjeta. Separarlas es la única forma de darle su propio tamaño.
+		boton.Text = ""
 		boton.Parent = fila
+		UiKit.redondear(boton, 14)
+		-- Borde grueso en vez de sombra: estas tarjetas viven dentro de un
+		-- UIListLayout, que reparte el espacio entre todos sus hijos, y una sombra
+		-- sería un hijo más (ver UiKit.sombra, que por eso se niega a crearla
+		-- aquí). El borde da la misma separación del fondo sin tocar el reparto.
+		UiKit.borde(boton, UiKit.oscurecer(Palette.ruta(ruta.id), 0.3), 4)
+		UiKit.volumen(boton, 0.22)
+		UiKit.margen(boton, 8)
+
+		local pila = Instance.new("UIListLayout")
+		pila.FillDirection = Enum.FillDirection.Vertical
+		pila.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		pila.VerticalAlignment = Enum.VerticalAlignment.Center
+		pila.SortOrder = Enum.SortOrder.LayoutOrder
+		pila.Parent = boton
+
+		local function texto(
+			nombre: string,
+			orden: number,
+			alto: number,
+			contenido: string,
+			fuente: Enum.Font,
+			opacidad: number
+		)
+			local t = Instance.new("TextLabel")
+			t.Name = nombre
+			t.LayoutOrder = orden
+			t.Size = UDim2.fromScale(1, alto)
+			t.BackgroundTransparency = 1
+			t.TextColor3 = Color3.fromRGB(255, 255, 255)
+			t.TextTransparency = opacidad
+			t.TextScaled = true
+			t.Font = fuente
+			t.TextStrokeTransparency = 0.55
+			t.Text = contenido
+			t.ZIndex = 2
+			t.Parent = boton
+			return t
+		end
+
+		texto("Nombre", 1, 0.24, string.upper(ruta.id), Enum.Font.GothamMedium, 0.15)
+		texto("Multiplicador", 2, 0.5, string.format("x%d", ruta.multiplicador), Enum.Font.GothamBlack, 0)
+		texto("Distancia", 3, 0.2, string.format("%d m", ruta.distancia), Enum.Font.GothamMedium, 0.35)
 
 		local size = Instance.new("UISizeConstraint")
 		size.MinSize = Vector2.new(90, 96)
