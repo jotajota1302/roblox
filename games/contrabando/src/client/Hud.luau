@@ -26,6 +26,12 @@ local cargaLabel: TextLabel
 local almacenLabel: TextLabel
 local avisoLabel: TextLabel
 local comprarBoton: TextButton
+-- Los botones de acción, para poder apagarlos en bloque mientras hay una
+-- pantalla modal delante. Medido en un Galaxy A06 (705x338): el selector de ruta
+-- se superponía a los tres y asomaban por detrás, ilegibles y pulsables. Ocultar,
+-- no sólo tapar: un botón invisible que sigue respondiendo es peor que uno visible.
+local accionBotones: { TextButton } = {}
+local modal = false
 
 function Hud.build()
 	local gui = Instance.new("ScreenGui")
@@ -146,6 +152,8 @@ function Hud.build()
 		end
 	end)
 
+	accionBotones = { entregar, recoger }
+
 	avisoLabel = Instance.new("TextLabel")
 	avisoLabel.Name = "Aviso"
 	avisoLabel.AnchorPoint = Vector2.new(0.5, 0)
@@ -184,7 +192,7 @@ function Hud.update(estado: EstadoHud)
 	end
 	local mejoras = estado.mejoras
 	local siguiente = mejoras and mejoras[1]
-	if siguiente then
+	if siguiente and not modal then
 		comprarBoton:SetAttribute("vehiculo", siguiente.id)
 		comprarBoton.Text = string.format("%s\n%d", siguiente.nombre, siguiente.coste)
 		comprarBoton.Visible = true
@@ -196,6 +204,19 @@ function Hud.update(estado: EstadoHud)
 		comprarBoton.BackgroundColor3 = if alcanza then Color3.fromRGB(70, 90, 130) else Color3.fromRGB(60, 60, 66)
 		comprarBoton.TextTransparency = if alcanza then 0 else 0.35
 	else
+		comprarBoton.Visible = false
+	end
+end
+
+-- Llamada por Main.client cuando aparece o desaparece el selector de ruta. El
+-- botón de comprar no se reenciende aquí: tiene además su propia condición (que
+-- quede algo que comprar), y de eso decide el siguiente Hud.update.
+function Hud.setModal(activo: boolean)
+	modal = activo
+	for _, boton in accionBotones do
+		boton.Visible = not activo
+	end
+	if activo and comprarBoton then
 		comprarBoton.Visible = false
 	end
 end

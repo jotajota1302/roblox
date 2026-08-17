@@ -21,9 +21,14 @@ RoutePicker.build(function(rutaId)
 end)
 
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
-	Hud.update(estado)
 	-- El selector aparece cuando llevas carga y aún no has elegido por dónde vas.
-	if #estado.cajas > 0 and estado.ruta == nil then
+	-- Es modal: mientras esté, los botones de acción se apagan. El orden importa
+	-- -- setModal ANTES de update -- porque update es quien decide si el botón de
+	-- comprar vuelve a encenderse, y necesita saber ya si hay algo delante.
+	local eligiendo = #estado.cajas > 0 and estado.ruta == nil
+	Hud.setModal(eligiendo)
+	Hud.update(estado)
+	if eligiendo then
 		RoutePicker.mostrar()
 	else
 		RoutePicker.ocultar()
