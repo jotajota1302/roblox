@@ -56,6 +56,12 @@ function PlayerState.forEach(fn: (Player, Estado) -> ())
 end
 
 function PlayerState.start()
+	-- Los remotes se crean al arrancar, nunca perezosamente. SYNC_STATE sólo se envía,
+	-- así que sin esta línea no existiría hasta el primer sync -- y el cliente, que hace
+	-- WaitForChild sobre él nada más cargar, esperaría para siempre sin llegar nunca a
+	-- pedir su estado. Un interbloqueo perfecto.
+	Remotes.event(Remotes.SYNC_STATE)
+
 	Players.PlayerRemoving:Connect(function(player)
 		estados[player] = nil
 	end)
