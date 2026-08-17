@@ -42,6 +42,7 @@ local function safeStart(nombre: string, modulo: any): boolean
 end
 
 local CityBuilder = safeRequire("CityBuilder")
+local MapBuilder = safeRequire("MapBuilder")
 local PlayerState = safeRequire("PlayerState")
 local CargoService = safeRequire("CargoService")
 local RouteService = safeRequire("RouteService")
@@ -54,7 +55,33 @@ local Persistence = safeRequire("Persistence")
 local Telemetry = safeRequire("Telemetry")
 local Avatar = safeRequire("Avatar")
 
--- El mundo primero: sin suelo no puede entrar nadie.
+-- El mundo primero: la ciudad, y el juego encima.
+--
+-- HAY DOS FORMAS DE TENER CIUDAD Y NO PUEDEN CONVIVIR A LA VEZ:
+--
+--   · el modelo del Creator Store, que Rojo monta como Workspace.Ciudad desde
+--     src/assets/Ciudad.rbxm (bloque "Ciudad" de default.project.json);
+--   · MapBuilder, que la genera por código.
+--
+-- Las dos dejan exactamente el mismo contrato -- un Model llamado "Ciudad" que
+-- CityBuilder usa de suelo para sus raycasts -- así que se eligen sin tocar nada
+-- más. Lo que NO puede pasar es que corran las dos: serían dos ciudades enteras
+-- superpiestas en las mismas coordenadas, 14.000 piezas en el sitio de 7.000. No
+-- es hipotético: ya ocurrió con tres copias a la vez y hubo que limpiarlo a mano.
+--
+-- Manda lo que haya montado Rojo. Poner o quitar el bloque "Ciudad" del
+-- default.project.json es lo único que cambia entre un modo y otro.
+if MapBuilder and workspace:FindFirstChild("Ciudad") == nil then
+	local ok, err = pcall(function()
+		MapBuilder.buildCiudad(workspace)
+	end)
+	if not ok then
+		-- Si falla, CityBuilder cae a su explanada de respaldo: sin ciudad el juego
+		-- es feo, pero se puede jugar y medir.
+		warn("[Contrabando] no se pudo construir la ciudad procedural: " .. tostring(err))
+	end
+end
+
 local mundo = nil
 if CityBuilder then
 	local ok, resultado = pcall(CityBuilder.build)
