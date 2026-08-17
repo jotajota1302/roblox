@@ -42,6 +42,7 @@ end
 local WorldBuilder = safeRequire("WorldBuilder")
 local PlayerState = safeRequire("PlayerState")
 local CargoService = safeRequire("CargoService")
+local RouteService = safeRequire("RouteService")
 
 -- El mundo primero: sin suelo no puede entrar nadie.
 local mundo = nil
@@ -67,9 +68,17 @@ end
 
 safeStart("PlayerState", PlayerState)
 safeStart("CargoService", CargoService)
+safeStart("RouteService", RouteService)
 
-if mundo and CargoService then
-	CargoService.registrarDestino(mundo.destino)
+if mundo then
+	if RouteService then
+		RouteService.registrarSalida(mundo.salida)
+	end
+	if CargoService then
+		for _, destino in mundo.destinos do
+			CargoService.registrarDestino(destino)
+		end
+	end
 end
 
 local function colocar(player: Player)

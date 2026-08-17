@@ -11,11 +11,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
+local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 
 Hud.build()
 
+RoutePicker.build(function(rutaId)
+	Remotes.event(Remotes.ELEGIR_RUTA):FireServer(rutaId)
+end)
+
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	Hud.update(estado)
+	-- El selector aparece cuando llevas carga y aún no has elegido por dónde vas.
+	if #estado.cajas > 0 and estado.ruta == nil then
+		RoutePicker.mostrar()
+	else
+		RoutePicker.ocultar()
+	end
 end)
 
 ContextActionService:BindAction("Entregar", function(_, inputState)

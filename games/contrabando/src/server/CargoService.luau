@@ -14,7 +14,9 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
+local RouteService = require(script.Parent.RouteService)
 
 local DISTANCIA_ENTREGA = 30 -- studs de margen alrededor del destino
 
@@ -128,8 +130,10 @@ function CargoService.nuevaCaja(): Economy.Caja
 	return { rareza = Rarity.tirada(rng) }
 end
 
--- Punto de entrega. En esta tarea el multiplicador es siempre el de la verde;
--- la Tarea 6 lo sustituye por el de la ruta elegida.
+-- Punto de entrega. El multiplicador es el de la ruta elegida en la salida, y
+-- entregaValida exige que la ruta elegida coincida con la ruta del destino:
+-- sin eso, elegir la roja y entregar en el destino verde cobraría el premio
+-- grande por el viaje corto.
 -- Va como función pública (no local) para poder probarla desde el servidor sin
 -- pasar por el remote.
 function CargoService.entregar(player: Player)
@@ -145,9 +149,15 @@ function CargoService.entregar(player: Player)
 	end
 
 	for _, destino in destinos do
-		if (root.Position - destino.Position).Magnitude <= DISTANCIA_ENTREGA then
+		local rutaDelDestino = destino:GetAttribute("ruta")
+		if
+			(root.Position - destino.Position).Magnitude <= DISTANCIA_ENTREGA
+			and Routes.entregaValida(estado.ruta, rutaDelDestino)
+		then
+			local multiplicador = Routes.get(rutaDelDestino).multiplicador
 			local cajas = CargoService.vaciar(player)
-			estado.dinero += Economy.valorEntrega(cajas, Config.RUTAS[1].multiplicador)
+			estado.dinero += Economy.valorEntrega(cajas, multiplicador)
+			RouteService.limpiar(player)
 			PlayerState.sync(player)
 			return
 		end

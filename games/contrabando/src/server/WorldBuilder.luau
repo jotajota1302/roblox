@@ -27,28 +27,39 @@ local function part(nombre: string, tamano: Vector3, posicion: Vector3, color: C
 	return p
 end
 
-function WorldBuilder.build(): { almacen: BasePart, destino: BasePart }
+function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, destinos: { BasePart } }
 	local mundo = Instance.new("Folder")
 	mundo.Name = "Mundo"
 	mundo.Parent = workspace
 
-	-- Carretera larga: 2.400 studs cubren de sobra la ruta roja (2.000).
 	part("Carretera", Vector3.new(2600, 1, 60), Vector3.new(1200, 0, 0), Color3.fromRGB(70, 70, 75), mundo)
 
 	local almacen = part("Almacen", Vector3.new(60, 2, 60), Vector3.new(0, 1, 0), Color3.fromRGB(120, 100, 60), mundo)
 
-	-- En esta tarea sólo hay un destino, el de la ruta verde. La Tarea 6 añade el resto.
-	local verde = Config.RUTAS[1]
-	local destino = part(
-		"Destino_verde",
-		Vector3.new(40, 2, 40),
-		Vector3.new(verde.distancia, 1, 0),
-		Color3.fromRGB(60, 140, 70),
-		mundo
-	)
-	destino:SetAttribute("ruta", verde.id)
+	-- La salida es el único sitio donde se elige ruta. Que sea un punto físico
+	-- concreto es lo que impide cambiar de ruta a mitad de viaje.
+	local salida = part("Salida", Vector3.new(20, 2, 60), Vector3.new(45, 1, 0), Color3.fromRGB(200, 190, 120), mundo)
 
-	return { almacen = almacen, destino = destino }
+	local colores = {
+		verde = Color3.fromRGB(60, 140, 70),
+		ambar = Color3.fromRGB(200, 150, 50),
+		roja = Color3.fromRGB(170, 60, 60),
+	}
+
+	local destinos: { BasePart } = {}
+	for _, ruta in Config.RUTAS do
+		local destino = part(
+			"Destino_" .. ruta.id,
+			Vector3.new(40, 2, 40),
+			Vector3.new(ruta.distancia, 1, 0),
+			colores[ruta.id] or Color3.fromRGB(200, 200, 200),
+			mundo
+		)
+		destino:SetAttribute("ruta", ruta.id)
+		table.insert(destinos, destino)
+	end
+
+	return { almacen = almacen, salida = salida, destinos = destinos }
 end
 
 return WorldBuilder

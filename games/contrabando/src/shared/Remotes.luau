@@ -17,6 +17,7 @@ local Remotes = {}
 Remotes.SYNC_STATE = "SyncState" -- servidor -> cliente: "este es tu estado real"
 Remotes.PEDIR_ESTADO = "PedirEstado" -- cliente -> servidor: "acabo de entrar, ponme al día"
 Remotes.ENTREGAR = "Entregar" -- cliente -> servidor: "quiero entregar aquí"
+Remotes.ELEGIR_RUTA = "ElegirRuta" -- cliente -> servidor: "salgo por esta ruta"
 
 local function getFolder(): Folder
 	if RunService:IsServer() then
