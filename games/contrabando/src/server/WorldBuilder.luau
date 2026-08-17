@@ -50,7 +50,17 @@ local GROSOR_BORDILLO = 4
 -- Llega hasta -120 (antes -80) para que el taller, que se planta en x=-50 con 30
 -- de largo, tenga suelo de sobra por detrás en vez de acabar en el borde exacto.
 local MUNDO_X_INICIO = -120
-local MUNDO_X_FIN = 2060
+-- Se calcula del destino más lejano en vez de llevar la cifra a mano: al acortar
+-- las rutas del prototipo, un 2060 escrito a pelo habría dejado mil studs de
+-- asfalto vacío detrás de la meta -- piezas, memoria y un mapa que parece
+-- inacabado. Y al revés es peor: alargar una ruta y quedarse sin suelo.
+local MUNDO_X_FIN = (function(): number
+	local lejos = 0
+	for _, ruta in Config.RUTAS do
+		lejos = math.max(lejos, ruta.distancia)
+	end
+	return lejos + 60
+end)()
 local SEGMENTO_MAX = 1000
 
 local WorldBuilder = {}

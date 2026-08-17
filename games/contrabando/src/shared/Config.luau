@@ -62,10 +62,18 @@ Config.RAREZAS = {
 
 -- Rutas. Se definen por DISTANCIA, no por tiempo: el tiempo es consecuencia de la
 -- velocidad y de lo que lleves encima.
+--
+-- PROTOTIPO: distancias a la MITAD de las del diseño (600 / 1200 / 2000). Medido
+-- andando: cargado se va a 11,8 studs/s, así que con las originales un viaje de
+-- ida y vuelta costaba 1,7 min por la verde, 3,4 por la ámbar y 5,7 por la roja.
+-- En la sesión de diez minutos que decide si el proyecto sigue, eso son menos de
+-- DOS viajes rojos: se mediría la caminata, no el bucle. A la mitad caben unos
+-- cuatro, con las mismas proporciones y las mismas decisiones. Revertir antes de
+-- publicar, junto con el resto de valores marcados PROTOTIPO.
 Config.RUTAS = {
-	{ id = "verde", multiplicador = 1, distancia = 600, pvp = "ninguno" },
-	{ id = "ambar", multiplicador = 3, distancia = 1200, pvp = "transportistas" },
-	{ id = "roja", multiplicador = 10, distancia = 2000, pvp = "libre" },
+	{ id = "verde", multiplicador = 1, distancia = 300, pvp = "ninguno" }, -- PROTOTIPO: 600
+	{ id = "ambar", multiplicador = 3, distancia = 600, pvp = "transportistas" }, -- PROTOTIPO: 1200
+	{ id = "roja", multiplicador = 10, distancia = 1000, pvp = "libre" }, -- PROTOTIPO: 2000
 }
 
 -- Almacén
