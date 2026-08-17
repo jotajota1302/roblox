@@ -22,6 +22,13 @@ Palette.RUTAS = {
 
 Palette.DESCONOCIDO = Color3.fromRGB(120, 120, 120)
 
+-- El ladrón: tonos apagados y oscuros. Es lo contrario del azul, que a partir
+-- del cambio de tema queda RESERVADO ENTERO para las comisarías -- si el que te
+-- persigue y el sitio donde te refugias comparten color, el jugador tiene que
+-- pararse a mirar cuál es cuál justo cuando no puede pararse.
+Palette.LADRON = Color3.fromRGB(64, 56, 62)
+Palette.COMISARIA = Color3.fromRGB(74, 118, 176)
+
 Palette.ALMACEN = Color3.fromRGB(120, 100, 60)
 Palette.SALIDA = Color3.fromRGB(200, 190, 120)
 Palette.TALLER = Color3.fromRGB(70, 90, 130)

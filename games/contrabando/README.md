@@ -3,6 +3,37 @@
 Implementación de [`DISENO.md`](DISENO.md). Mide una sola cosa: si transportar carga
 entretiene, y si la intercepción da tensión en vez de rabia.
 
+## Dónde está qué
+
+```
+contrabando/
+├── DISENO.md                 Spec del juego (la autoridad)
+├── DISENO-CIUDAD.md          Rediseño v2: viaje con calor y patrullas
+├── PRIMERA-PARTIDA.md        Lo que JJ vio al jugarlo la primera vez
+├── VERIFICACION.md           Qué se ha comprobado, cómo, y qué no
+├── mapa/                     ⭐ ÁREA ACTIVA — todo lo del mapa, agrupado
+│   ├── LEEME.md              ← empieza aquí si vienes a por el mapa
+│   ├── DISENO-MAPA.md        Spec, fases, qué entra y qué no
+│   ├── Ciudad.rbxm           Asset original del Creator Store (no se monta)
+│   └── LEEME-ASSET.md        Nota del asset y cómo regenerarlo
+│
+│   Estado: fase 1 ✅ (foundation) · fase 2 ✅ (carácter:
+│   plaza, densidad variable, callejones) · fase 2.5 ✅ (solares en
+│   ámbar y roja) · fase 3 lite ✅ (hitos de zona + verificación
+│   de conectividad) · fase 4 ⏳ (estética, sólo si el bucle
+│   engancha — la regla del proyecto)
+├── docs/plans/               Planes de implementación histórica
+├── src/
+│   ├── shared/               Módulos puros (reglas del juego, testeables)
+│   ├── server/               Servicios de servidor + generador del mundo
+│   │   ├── CityBuilder.luau     ← planta el juego DENTRO de la ciudad
+│   │   └── MapBuilder.luau      ← genera la ciudad por código
+│   ├── client/               UI, efectos, sin lógica de juego
+│   └── assets/               Carpeta vacía (ver LEEME.md → apunta a mapa/)
+├── default.project.json      Mapeo de Rojo al DataModel
+└── contrabando.rbxl          Artefacto, no versionado
+```
+
 ## Arrancar
 
 Dos formas, según si hay alguien delante de Studio para pulsar Connect:

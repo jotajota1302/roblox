@@ -125,7 +125,7 @@ function Hud.build()
 	-- La cuarta línea es CONDICIONAL: sólo se enseña con calor encima. Por eso el
 	-- panel sigue dimensionado para tres y se estira con el layout en vez de
 	-- reservar sitio para una línea que casi siempre estaría a cero.
-	calorLabel = linea("Calor", 4, "Calor")
+	calorLabel = linea("Calor", 4, "Peligro")
 	calorFila = calorLabel.Parent :: Frame
 	calorFila.Visible = false
 

@@ -73,6 +73,12 @@ return function(kit)
 
 	-- Y lo que el selector le promete al jugador tiene que coincidir con lo que se
 	-- va a encontrar. Es la etiqueta sobre la que decide.
-	kit.eq("la verde se anuncia como poco vigilada", Routes.vigilancia("verde"), "vigilancia baja")
-	kit.eq("y la roja como muy vigilada", Routes.vigilancia("roja"), "vigilancia alta")
+	-- Se comprueba que las tres etiquetas sean DISTINTAS, no su texto exacto: el
+	-- texto es del idioma del juego y ya ha cambiado una vez (de "vigilancia" a
+	-- "peligro" al pasar de policía a ladrones). Lo que no puede cambiar nunca es
+	-- que el selector distinga las tres zonas -- si dos se anuncian igual, la
+	-- decisión de destino se toma a ciegas.
+	local v, a, r = Routes.vigilancia("verde"), Routes.vigilancia("ambar"), Routes.vigilancia("roja")
+	kit.truthy("las tres zonas se anuncian distinto", v ~= a and a ~= r and v ~= r)
+	kit.truthy("y ninguna se queda sin etiqueta", #v > 0 and #a > 0 and #r > 0)
 end

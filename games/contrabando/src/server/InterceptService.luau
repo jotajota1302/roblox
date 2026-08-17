@@ -194,7 +194,7 @@ function InterceptService.tick(ahora: number)
 			-- La víctima sabe quién fue: sin eso el robo es una desaparición
 			-- inexplicable, y eso es rabia, no tensión. Los dos avisos usan el
 			-- MISMO número: el de cajas realmente transferidas.
-			avisar(victima, string.format("%s te ha robado %d cajas", atacante.DisplayName, #robadas), ROJO)
+			avisar(victima, string.format("%s te ha robado %d cosas", atacante.DisplayName, #robadas), ROJO)
 			-- Si acaba de heredar la ruta hay que DECÍRSELO: es la diferencia entre
 			-- saber adónde llevar el botín y volver andando al almacén a preguntar.
 			local heredada = perfilAtacante.ruta == nil and estadoAtacante.ruta ~= nil
@@ -202,11 +202,11 @@ function InterceptService.tick(ahora: number)
 				atacante,
 				if heredada
 					then string.format(
-						"Has robado %d cajas y su ruta (%s). Estas marcado 60 s",
+						"Has robado %d cosas y su ruta (%s). Estas marcado 60 s",
 						#robadas,
 						tostring(estadoAtacante.ruta)
 					)
-					else string.format("Has robado %d cajas. Estas marcado 60 s", #robadas),
+					else string.format("Has robado %d cosas. Estas marcado 60 s", #robadas),
 				AMBAR
 			)
 			sonar(victima, "robo")

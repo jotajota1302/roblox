@@ -258,9 +258,12 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		poste:SetAttribute("detectorId", poste.Name)
 		poste:SetAttribute("ruta", ruta.id)
 
-		-- La lente, arriba y encendida. UN PELIGRO INVISIBLE NO ES TENSIÓN, ES
-		-- INJUSTICIA: si el jugador no puede ver de dónde le vino el calor, no
+		-- La marca, arriba y encendida. UN PELIGRO INVISIBLE NO ES TENSIÓN, ES
+		-- INJUSTICIA: si el jugador no puede ver de dónde le vino el problema, no
 		-- aprende nada y sólo siente que el juego le castiga por sorpresa.
+		--
+		-- Con el tema nuevo esto ya no es una cámara de policía sino una esquina
+		-- fichada: el sitio donde te ven pasar con género y corre la voz.
 		local lente = part(
 			"Lente",
 			Vector3.new(3.4, 3.4, 3.4),
@@ -407,7 +410,11 @@ local function muelle(base: Part)
 	base:SetAttribute("muelleSitios", #sitios)
 end
 
--- Un refugio: el sitio donde no te pueden alcanzar.
+-- Una comisaría: el sitio donde no te pueden alcanzar.
+--
+-- Es la vuelta que le dio JJ al guion y es mejor que la original: la policía deja
+-- de perseguirte y pasa a ser justo lo contrario -- el sitio al que corres. Un
+-- ladrón no entra en una comisaría, y eso no hay que explicarlo.
 --
 -- Tiene que reconocerse DESDE LEJOS y mientras corres mirando hacia atrás, porque
 -- ése es el único momento en que importa. De ahí el pilar de luz: cuando te
@@ -509,7 +516,7 @@ local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre
 	texto.TextStrokeTransparency = 0.2
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "REFUGIO"
+	texto.Text = "COMISARÍA"
 	texto.Parent = cartel
 
 	return losa

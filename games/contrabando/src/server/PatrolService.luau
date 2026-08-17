@@ -1,6 +1,6 @@
 --!strict
 --[[
-	PatrolService.luau — la policía que te busca cuando te has calentado.
+	PatrolService.luau — los ladrones que te buscan cuando llevas algo que vale.
 
 	Es la pieza que llena el viaje. Sin ella el calor es un número que sube y no
 	le pasa nada a nadie; con ella, cada quince o veinte segundos hay algo que
@@ -129,22 +129,33 @@ local function crearAgente(donde: Vector3, velocidad: number, vehiculo: string?)
 		humanoid.MaxHealth = 1e6
 		humanoid.Health = 1e6
 
-		-- Azul policía en todo el cuerpo, para que se reconozca de un vistazo desde
-		-- lejos. En una ciudad llena de gente de bloques, un perseguidor que parece
-		-- un peatón cualquiera no avisa de nada.
+		-- Oscuros de arriba abajo, para que se reconozcan de un vistazo desde lejos.
+		-- En una ciudad llena de gente de bloques, un perseguidor que parece un
+		-- peatón cualquiera no avisa de nada -- y avisar es la mitad de su trabajo:
+		-- una amenaza que no se ve venir no es tensión, es una emboscada.
+		--
+		-- Y NO azul: ese color queda reservado entero para las comisarías desde el
+		-- cambio de tema. Si el que te persigue y el sitio donde te refugias
+		-- comparten tono, el jugador tiene que pararse a mirar cuál es cuál justo
+		-- cuando no puede pararse.
 		for _, parte in modelo:GetDescendants() do
 			if parte:IsA("BasePart") then
-				parte.Color = Palette.TALLER
+				parte.Color = Palette.LADRON
 				parte.Material = Enum.Material.SmoothPlastic
 			end
 		end
 
 		local cabeza = modelo:FindFirstChild("Head")
 		if cabeza and cabeza:IsA("BasePart") then
-			-- Luz azul giratoria: la señal de "te están buscando" tiene que verse
-			-- por el rabillo del ojo mientras corres mirando al frente.
+			-- Un halo rojo: la señal de "vienen a por lo tuyo" tiene que verse por el
+			-- rabillo del ojo mientras corres mirando al frente.
+			--
+			-- ROJO Y NO AZUL desde que los perseguidores son ladrones. El azul queda
+			-- reservado entero para las comisarías, que son exactamente lo contrario
+			-- --el sitio al que corres-- y compartir color con la amenaza obligaría al
+			-- jugador a pararse a distinguirlos justo cuando no puede pararse.
 			local luz = Instance.new("PointLight")
-			luz.Color = Color3.fromRGB(90, 150, 255)
+			luz.Color = Color3.fromRGB(255, 90, 80)
 			luz.Range = 26
 			luz.Brightness = 2.4
 			luz.Parent = cabeza
@@ -223,11 +234,11 @@ local function alcanzar(player: Player)
 
 	Remotes.event(Remotes.AVISO):FireClient(
 		player,
-		cuantas > 0 and string.format("Te han pillado: se llevan %d cajas", cuantas)
-			or "Te han pillado, pero ibas de vacío",
+		cuantas > 0 and string.format("Te han asaltado: se llevan %d cosas", cuantas)
+			or "Te han asaltado, pero ibas de vacío",
 		Palette.AVISO_MALO
 	)
-	Telemetry.evento(player, "patrulla_alcanza", { cajas = cuantas })
+	Telemetry.evento(player, "ladron_alcanza", { cajas = cuantas })
 
 	-- El calor a cero y las patrullas fuera. Si siguieran encima, el jugador
 	-- perdería la otra mitad tres segundos después y el mensaje que se llevaría es
@@ -449,7 +460,7 @@ local function ajustar(player: Player)
 		table.insert(lista, nueva)
 		perseguir(nueva, player)
 		if #lista == 1 then
-			Remotes.event(Remotes.AVISO):FireClient(player, "Te están buscando", Palette.AVISO_MALO)
+			Remotes.event(Remotes.AVISO):FireClient(player, "Te siguen", Palette.AVISO_MALO)
 		end
 	end
 end

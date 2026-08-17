@@ -109,7 +109,7 @@ local function vigilarSalidaSinRuta(eligiendo: boolean)
 	-- Sólo cuenta como "salir" si de verdad llevas algo: cruzar la salida de
 	-- vacío es lo que se hace al volver a por más, y avisar ahí sería ruido.
 	if ultimoEstado and #ultimoEstado.cajas > 0 and ultimoEstado.ruta == nil then
-		Hud.aviso("Sales sin ruta elegida: no podrás cobrar", Color3.fromRGB(230, 180, 70))
+		Hud.aviso("Sales sin destino elegido: no podrás cobrar", Color3.fromRGB(230, 180, 70))
 	end
 end
 
@@ -158,7 +158,7 @@ local function apuntarBrujula(estado: any)
 	end
 	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
 	if #estado.cajas > 0 and salida then
-		Compass.apuntar(salida.Position, "Elige ruta en la salida", Palette.SALIDA)
+		Compass.apuntar(salida.Position, "Elige destino en la salida", Palette.SALIDA)
 		return
 	end
 	Compass.apuntar(Config.ALMACEN_POS, "Tu almacén", Palette.ALMACEN)

@@ -233,13 +233,12 @@ metido sin cobrar, y el tiempo es lo único que escasea en una sesión de diez m
 Y **las patrullas no se van**: se quedan rondando fuera. Verlas esperando convierte estar a
 salvo en otra decisión —salir ahora y correr, o aguantar— en vez de en un final.
 
-## 6-ter. El tema, todavía abierto (idea de JJ, 17/08)
+## 6-ter. El tema, YA DECIDIDO (17/08)
 
-`DISENO.md` dejó la ambientación sin decidir **a propósito**, y sigue sin decidirse. Sobre la
-mesa hay una alternativa que conviene no perder:
+`DISENO.md` dejaba la ambientación sin decidir a propósito. Decidida:
 
-> **Repartidor en vez de contrabandista.** Lo que te persigue son **ladrones** (PNJ y otros
-> jugadores), y la policía pasa a ser justo lo contrario: los refugios.
+> **Eres un repartidor.** Lo que te persigue son **ladrones** (PNJ y otros jugadores), y la
+> policía es justo lo contrario: las **comisarías** son los refugios donde no te alcanzan.
 
 Tres argumentos a favor, en orden de peso:
 
@@ -253,10 +252,24 @@ Tres argumentos a favor, en orden de peso:
 3. Encaja con los refugios, que ya están construidos y funcionan con cualquiera de los dos
    temas.
 
-**Por qué no se ha hecho todavía:** cambiar el tema antes de jugar una sola partida con el
-viaje lleno sería pintar la fachada de una casa que quizá no se sostiene. El renombrado es
-una hora de trabajo mecánico; hacerlo *después* de saber que el bucle engancha cuesta lo
-mismo y se hace con certeza.
+**Lo que cambió en la práctica** — nada de mecánica, todo de lectura:
+
+| Antes | Ahora |
+|---|---|
+| Patrullas de policía (azul) | Ladrones (tonos oscuros, halo rojo) |
+| Refugios | **Comisarías** — un ladrón no entra en una comisaría, y eso no hay que explicarlo |
+| Detectores / cámaras | Esquinas fichadas: donde te ven pasar con género y corre la voz |
+| "Calor" en el HUD | **Peligro** |
+| "vigilancia baja/media/alta" | "poco peligrosa / peligrosa / muy peligrosa" |
+
+**El azul queda reservado entero para las comisarías.** Si el que te persigue y el sitio
+donde te refugias comparten color, el jugador tiene que pararse a mirar cuál es cuál justo
+cuando no puede pararse.
+
+**El nombre interno sigue siendo `calor` en todo el código**, y es deliberado: renombrar cien
+referencias para que casen con el texto de pantalla es mucho riesgo a cambio de nada, y el
+concepto no ha cambiado — cuánta atención has llamado. Lo que está en el idioma del juego es
+lo que ve el jugador.
 
 ## 7. Lo que NO entra
 

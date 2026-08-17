@@ -41,11 +41,11 @@ end
 function Routes.vigilancia(id: string): string
 	local n = Routes.get(id).detectores
 	if n <= 3 then
-		return "vigilancia baja"
+		return "poco peligrosa"
 	elseif n <= 10 then
-		return "vigilancia media"
+		return "peligrosa"
 	end
-	return "vigilancia alta"
+	return "muy peligrosa"
 end
 
 -- Devuelve copias, no la tabla de Config. Con la referencia viva, cualquiera que

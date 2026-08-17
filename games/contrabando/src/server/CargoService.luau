@@ -397,7 +397,7 @@ function CargoService.start()
 		if #estado.cajas > 0 then
 			CargoService.vaciar(player)
 			Remotes.event(Remotes.AVISO)
-				:FireClient(player, "Al reaparecer pierdes la carga que llevabas encima", Palette.AVISO_MALO)
+				:FireClient(player, "Al reaparecer pierdes lo que llevabas encima", Palette.AVISO_MALO)
 		end
 
 		-- I1, parte 1: el haz de la legendaria no se reaplicaba aquí, sólo la

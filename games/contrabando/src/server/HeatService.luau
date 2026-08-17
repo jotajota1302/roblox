@@ -1,6 +1,11 @@
 --!strict
 --[[
-	HeatService.luau — el calor de cada jugador, en el servidor.
+	HeatService.luau — el PELIGRO de cada jugador, en el servidor.
+
+	El nombre interno sigue siendo "calor" en todo el codigo: renombrar cien
+	referencias para que coincidan con el texto de pantalla es mucho riesgo a
+	cambio de nada, y el concepto es el mismo -- cuanta atencion has llamado. Lo
+	que ve el jugador si esta en el idioma del juego nuevo.
 
 	Toda la aritmética vive en Heat.luau (puro y probado). Aquí sólo está lo que
 	necesita tocar el mundo: quién está cerca de qué poste, cuándo avisar y cuándo
@@ -107,7 +112,7 @@ local function muestra(player: Player, ahora: number): boolean
 	if (root.Position - Config.ALMACEN_POS).Magnitude <= Config.ZONA_SEGURA_RADIO then
 		if nivelAntes > 0 then
 			calor[player] = Heat.aSalvo(antes)
-			avisar(player, "A salvo en el almacén: te han perdido la pista", Palette.AVISO_BUENO)
+			avisar(player, "A salvo en tu almacén", Palette.AVISO_BUENO)
 			publicar(player)
 			return true
 		end
@@ -134,7 +139,7 @@ local function muestra(player: Player, ahora: number): boolean
 		if subio then
 			avisar(
 				player,
-				string.format("Te han detectado  ·  calor %d/%d", estado.nivel, Config.CALOR_MAXIMO),
+				string.format("Te han fichado  ·  peligro %d/%d", estado.nivel, Config.CALOR_MAXIMO),
 				Palette.AVISO_MALO
 			)
 			Telemetry.evento(player, "calor_sube", { nivel = estado.nivel, detector = id })
@@ -156,7 +161,7 @@ local function muestra(player: Player, ahora: number): boolean
 
 	if estado.nivel ~= nivelAntes then
 		if estado.nivel < nivelAntes and estado.nivel == 0 then
-			avisar(player, "Los has perdido", Palette.AVISO_BUENO)
+			avisar(player, "Ya nadie te sigue", Palette.AVISO_BUENO)
 		end
 		publicar(player)
 		return true
@@ -199,7 +204,7 @@ function HeatService.transferir(victima: Player, ladron: Player)
 		calor[ladron] = { nivel = heredado, ultimoDescenso = os.time(), disparos = {} }
 		avisar(
 			ladron,
-			string.format("Te llevas su carga y su calor  ·  %d/%d", heredado, Config.CALOR_MAXIMO),
+			string.format("Te llevas su carga y su peligro  ·  %d/%d", heredado, Config.CALOR_MAXIMO),
 			Palette.AVISO_AGRESIVO
 		)
 		publicar(ladron)
