@@ -15,6 +15,7 @@ local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("R
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+local Stock = require(script.Parent:WaitForChild("Stock"))
 
 -- La carpeta del mundo la crea el servidor al arrancar, así que puede no existir
 -- todavía cuando este script empieza. Se espera con un tope: sin ella el juego
@@ -130,7 +131,55 @@ end
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	ultimoEstado = estado
 	refrescarSelector()
+	-- La pila del muelle, que ES el contador del almacén. Protegida por su cuenta:
+	-- un fallo dibujando cajas no puede costar el HUD ni el selector de ruta.
+	pcall(function()
+		local almacen = mundo and mundo:FindFirstChild("Almacen") :: BasePart?
+		Stock.actualizar(almacen, estado.almacenCajas or 0)
+	end)
 end)
+
+-- Recoger ACERCÁNDOSE a las cajas, no sólo con el botón.
+--
+-- El diseño lo decía desde el principio ("recoges las cajas tocándolas") y no
+-- estaba implementado, y el resultado fue lo que contó JJ jugando: "hay un paquete
+-- que no se puede recoger". Claro que no se podía -- las cajas son el dibujo del
+-- contador y lo que recoge es un botón en la esquina, así que el jugador que se
+-- planta encima de una caja y no pasa nada concluye, con toda la razón, que está
+-- rota. El botón se queda (es lo que funciona con el zurrón lleno y sin mirar al
+-- suelo); esto es lo que hace que el gesto natural también valga.
+local ultimaRecogida = 0
+
+local function recogerSiEstasEncima()
+	if ultimoEstado == nil or (ultimoEstado.almacenCajas or 0) <= 0 then
+		return
+	end
+	-- Con el zurrón lleno no se pide nada: el servidor lo rechazaría igual, y
+	-- mandarle una petición cinco veces por segundo para que diga que no es
+	-- gastar red por gusto.
+	if #ultimoEstado.cajas >= (ultimoEstado.capacidad or 3) then
+		return
+	end
+	local ahora = os.clock()
+	if ahora - ultimaRecogida < 1 then
+		return
+	end
+
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local pila = workspace:FindFirstChild("CajasDelMuelle")
+	if not root or not pila then
+		return
+	end
+
+	for _, caja in pila:GetChildren() do
+		if caja:IsA("BasePart") and (root.Position - caja.Position).Magnitude <= 7 then
+			ultimaRecogida = ahora
+			Remotes.event(Remotes.RECLAMAR):FireServer()
+			return
+		end
+	end
+end
 
 -- Y también al moverse: el estado no cambia por caminar, pero la respuesta a
 -- "¿estoy en la salida?" sí. Cuatro veces por segundo basta y de sobra para algo
@@ -139,6 +188,7 @@ task.spawn(function()
 	while true do
 		task.wait(0.25)
 		pcall(refrescarSelector)
+		pcall(recogerSiEstasEncima)
 	end
 end)
 

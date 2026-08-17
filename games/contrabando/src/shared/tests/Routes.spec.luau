@@ -11,7 +11,22 @@ return function(kit)
 	kit.eq("en la ambar solo roban transportistas", Routes.get("ambar").pvp, "transportistas")
 	kit.eq("la roja es libre", Routes.get("roja").pvp, "libre")
 
-	kit.truthy("la roja es la mas larga", Routes.get("roja").distancia > Routes.get("ambar").distancia)
+	-- El escalonado, que es lo que hace que la decisión de ruta sea una decisión.
+	-- Se comprueba sobre la distancia CALCULADA desde el almacén: los destinos son
+	-- coordenadas de la ciudad, y un dedazo en una de ellas puede dejar la roja más
+	-- cerca que la verde sin que nada más se queje.
+	kit.truthy("la roja es la mas lejos", Routes.distancia("roja") > Routes.distancia("ambar"))
+	kit.truthy("y la ambar mas que la verde", Routes.distancia("ambar") > Routes.distancia("verde"))
+
+	-- Y el mismo escalonado en la vigilancia: pagar diez veces más tiene que costar
+	-- algo más que andar un rato, o la roja es dinero gratis para el que tenga
+	-- paciencia.
+	kit.truthy(
+		"cuanto mas paga una zona, mas vigilada esta",
+		Routes.get("roja").detectores > Routes.get("ambar").detectores
+			and Routes.get("ambar").detectores > Routes.get("verde").detectores
+	)
+	kit.truthy("y hasta la verde tiene alguno, para aprender", Routes.get("verde").detectores > 0)
 
 	kit.falsy("una ruta inventada no existe", Routes.existe("dorada"))
 	kit.errors("y pedirla revienta", function()

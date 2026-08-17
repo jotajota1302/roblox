@@ -138,7 +138,20 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 
 		texto("Nombre", 1, 0.24, string.upper(ruta.id), Enum.Font.GothamMedium, 0.15)
 		texto("Multiplicador", 2, 0.5, string.format("x%d", ruta.multiplicador), Enum.Font.GothamBlack, 0)
-		texto("Distancia", 3, 0.2, string.format("%d m", ruta.distancia), Enum.Font.GothamMedium, 0.35)
+		-- Distancia Y vigilancia. La distancia sola bastaba cuando las tres rutas
+		-- eran la misma recta: elegir era decidir cuánto andabas. Con zonas de
+		-- verdad, lo que separa la roja de la verde es CUÁNTA POLICÍA hay, y sin
+		-- ese dato aquí la decisión se toma a ciegas y el jugador aprende a base
+		-- de perder cargas. En palabras y no en símbolos: los caracteres decorados
+		-- salen como cuadrados en TextLabel.
+		texto(
+			"Detalle",
+			3,
+			0.2,
+			string.format("%d m  ·  %s", Routes.distancia(ruta.id), Routes.vigilancia(ruta.id)),
+			Enum.Font.GothamMedium,
+			0.35
+		)
 
 		local size = Instance.new("UISizeConstraint")
 		size.MinSize = Vector2.new(90, 96)

@@ -26,6 +26,10 @@
     "Workspace": {
       "$properties": {
         "Gravity": 180
+      },
+
+      "Ciudad": {
+        "$path": { "optional": "src/assets/Ciudad.rbxm" }
       }
     },
 

@@ -57,6 +57,7 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	aplicarVelocidad(player)
 	PlayerState.sync(player)
 	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
+	CargoService.mostrarCarga(player)
 	return true
 end
 
@@ -74,11 +75,77 @@ function CargoService.vaciar(player: Player, sincronizar: boolean?): { Economy.C
 		PlayerState.sync(player)
 	end
 	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
+	CargoService.mostrarCarga(player)
 	return cajas
 end
 
 function CargoService.aplicarVelocidad(player: Player)
 	aplicarVelocidad(player)
+end
+
+-- LA CARGA SE VE. No es adorno: es la mitad de la información del juego.
+--
+-- Sin esto, un jugador con el zurrón lleno y otro vacío son idénticos, y el diseño
+-- entero se apoya en lo contrario -- "por el camino ves a otros con carga" es lo
+-- que hace que haya algo que cazar, y sin ello el PvP es adivinar. Y en solitario
+-- pasa lo que dijo JJ probándolo: recoges tres cajas y no cambia nada en pantalla,
+-- así que ni siquiera sabes si has recogido.
+--
+-- Se monta en el SERVIDOR, no en el cliente de cada uno, precisamente porque tiene
+-- que verlo todo el mundo: es lo que convierte a un transportista en un objetivo.
+function CargoService.mostrarCarga(player: Player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+
+	local vieja = character:FindFirstChild("CargaVisible")
+	if vieja then
+		vieja:Destroy()
+	end
+
+	local estado = PlayerState.get(player)
+	if #estado.cajas == 0 then
+		return
+	end
+
+	local bulto = Instance.new("Folder")
+	bulto.Name = "CargaVisible"
+	bulto.Parent = character
+
+	-- Apiladas a la espalda, en dos columnas. Se limita a 6 a la vista aunque la
+	-- furgoneta lleve 10: más allá de eso la torre tapa la cámara del propio
+	-- jugador, y lo que se quiere transmitir --"éste va cargado"-- ya se transmite
+	-- con seis. El número exacto lo da el HUD.
+	local visibles = math.min(#estado.cajas, 6)
+	for i = 1, visibles do
+		local caja = estado.cajas[i]
+		local fila = math.floor((i - 1) / 2)
+		local columna = (i - 1) % 2
+
+		local p = Instance.new("Part")
+		p.Name = "Caja" .. i
+		p.Size = Vector3.new(1.1, 1.1, 1.1)
+		-- Del color de su rareza: una legendaria a la espalda se ve de lejos, que es
+		-- justo lo que el diseño quiere -- llevarla vale una fortuna Y te señala.
+		p.Color = Rarity.color(caja.rareza)
+		p.Material = Enum.Material.WoodPlanks
+		p.Anchored = false
+		p.CanCollide = false
+		-- Sin masa: seis cajas con peso real cambian la física del personaje y lo
+		-- vuelven torpe. El coste de llevar carga ya se cobra en la VELOCIDAD, que
+		-- es una regla del juego; cobrarlo otra vez por la puerta de atrás en la
+		-- física sería un impuesto que nadie decidió.
+		p.Massless = true
+		p.CFrame = root.CFrame * CFrame.new(-0.6 + columna * 1.2, 0.2 + fila * 1.15, 1.1)
+		p.Parent = bulto
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = p
+		weld.Parent = p
+	end
 end
 
 -- El haz de luz no es decoración: es la mitad de la mecánica. Llevar una legendaria
@@ -276,6 +343,10 @@ function CargoService.start()
 		-- de vaciar arriba, pero queda correcto aunque esa regla cambie el día de
 		-- mañana.
 		CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
+		-- El personaje es NUEVO: las cajas soldadas al anterior se fueron con él.
+		-- Hoy siempre repinta un cuerpo vacío porque la carga se acaba de perder
+		-- arriba, pero queda correcto el día que esa regla cambie.
+		CargoService.mostrarCarga(player)
 	end
 
 	local function conectar(player: Player)

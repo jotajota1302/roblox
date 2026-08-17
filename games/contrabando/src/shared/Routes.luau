@@ -15,11 +15,38 @@ local Config = require(script.Parent.Config)
 export type Ruta = {
 	id: string,
 	multiplicador: number,
-	distancia: number,
+	destino: Vector3,
+	detectores: number,
 	pvp: string,
 }
 
 local Routes = {}
+
+-- La distancia deja de ser un dato y pasa a ser una CUENTA. Antes vivía en Config
+-- como un número que alguien elegía; con la ciudad de por medio es una
+-- consecuencia de dónde cae el destino, y tenerla en dos sitios sería garantizar
+-- que un día el selector prometa 400 metros a un sitio que está a 900.
+--
+-- Es en línea recta, no andando: es una referencia para decidir, no una promesa.
+function Routes.distancia(id: string): number
+	local ruta = Routes.get(id)
+	return (ruta.destino - Config.ALMACEN_POS).Magnitude
+end
+
+-- Cuánta policía te vas a encontrar, en palabras. Vive aquí y no en el selector
+-- porque es una regla del juego, no una etiqueta: el día que se retoque la
+-- densidad de una zona, lo que el jugador lee tiene que cambiar solo. Un selector
+-- que promete "vigilancia baja" en la zona más sembrada de detectores es peor que
+-- no decir nada.
+function Routes.vigilancia(id: string): string
+	local n = Routes.get(id).detectores
+	if n <= 3 then
+		return "vigilancia baja"
+	elseif n <= 10 then
+		return "vigilancia media"
+	end
+	return "vigilancia alta"
+end
 
 -- Devuelve copias, no la tabla de Config. Con la referencia viva, cualquiera que
 -- ordenase, filtrase o retocase el resultado estaría modificando la configuración

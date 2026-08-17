@@ -60,20 +60,64 @@ Config.RAREZAS = {
 	{ id = "legendaria", multiplicador = 135, peso = 3, probabilidad = 0.02 }, -- PROTOTIPO: 0.002
 }
 
--- Rutas. Se definen por DISTANCIA, no por tiempo: el tiempo es consecuencia de la
--- velocidad y de lo que lleves encima.
+-- Dónde se planta el juego DENTRO de la ciudad (ver DISENO-CIUDAD.md §3).
 --
--- PROTOTIPO: distancias a la MITAD de las del diseño (600 / 1200 / 2000). Medido
--- andando: cargado se va a 11,8 studs/s, así que con las originales un viaje de
--- ida y vuelta costaba 1,7 min por la verde, 3,4 por la ámbar y 5,7 por la roja.
--- En la sesión de diez minutos que decide si el proyecto sigue, eso son menos de
--- DOS viajes rojos: se mediría la caminata, no el bucle. A la mitad caben unos
--- cuatro, con las mismas proporciones y las mismas decisiones. Revertir antes de
--- publicar, junto con el resto de valores marcados PROTOTIPO.
+-- No son cifras elegidas a ojo sobre un plano: salen de barrer el mapa con rayos
+-- buscando parcelas con suelo bajo y hueco libre en 40 studs a la redonda -- 510
+-- candidatas-- y quedarse con las que mejor clavan las distancias que se querían.
+-- Un emplazamiento puesto a ojo acaba dentro de un edificio o en una azotea, y eso
+-- no se ve hasta que alguien da a Play.
+--
+-- El almacén va en la esquina más apartada a propósito: la zona segura tiene que
+-- estar lejos de todo lo demás para que SALIR signifique algo.
+--
+-- Este punto concreto se eligió DOS VECES. La primera vez bastaba con que hubiera
+-- suelo plano, y el almacén acabó plantado encima de una pista de tenis de la
+-- ciudad -- lo dijo JJ jugando: "estaría bien que el almacén no estuviera encima
+-- de nada". El criterio bueno es más estricto y es el que se aplicó después: que
+-- NO HAYA NADA de la ciudad por encima del suelo en 70 studs a la redonda, y que
+-- haya una calle cerca. De 15 parcelas que lo cumplen, ésta es la que quedaba en
+-- la esquina apartada, con una calle a 70 studs.
+Config.ALMACEN_POS = Vector3.new(-640, 19.2, 700)
+Config.TALLER_POS = Vector3.new(-640, 19.2, 596)
+
+-- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
+-- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles
+-- te dejan llegar, no un parámetro que se elige. Lo que antes eran tres tramos de
+-- la misma recta ahora son tres barrios con carácter propio, que es lo que
+-- convierte la decisión de ruta de aritmética ("¿cuánto ando por cuánto cobro?")
+-- en cualitativa ("¿qué tipo de peligro sé manejar?").
+--
+-- Distancias en línea recta desde el almacén: 420 / 848 / 1399. Andando serán más,
+-- porque hay manzanas de por medio. La ROJA además obliga a cruzar a la parcela
+-- separada del noreste por un paso estrecho: un cuello de botella natural para
+-- emboscadas y patrullas que ninguna recta podía darnos.
+--
+-- `detectores` es la densidad de vigilancia de cada zona, y es lo que de verdad
+-- las diferencia. La verde lleva unos pocos A PROPÓSITO y no cero: es donde se
+-- aprende qué es un detector sin que salga caro.
 Config.RUTAS = {
-	{ id = "verde", multiplicador = 1, distancia = 300, pvp = "ninguno" }, -- PROTOTIPO: 600
-	{ id = "ambar", multiplicador = 3, distancia = 600, pvp = "transportistas" }, -- PROTOTIPO: 1200
-	{ id = "roja", multiplicador = 10, distancia = 1000, pvp = "libre" }, -- PROTOTIPO: 2000
+	{
+		id = "verde",
+		multiplicador = 1,
+		destino = Vector3.new(-180, 19, 540),
+		detectores = 3,
+		pvp = "ninguno",
+	},
+	{
+		id = "ambar",
+		multiplicador = 3,
+		destino = Vector3.new(240, 14.8, 420),
+		detectores = 9,
+		pvp = "transportistas",
+	},
+	{
+		id = "roja",
+		multiplicador = 10,
+		destino = Vector3.new(600, 19.2, -180),
+		detectores = 18,
+		pvp = "libre",
+	},
 }
 
 -- Almacén
@@ -86,6 +130,44 @@ Config.ALMACEN_TOPE = 10
 -- del número, el día que una cambie el jugador vería una pantalla que al pulsar
 -- no hace nada -- y un botón que no responde se lee como un juego roto.
 Config.DISTANCIA_SALIDA = 40
+
+-- Calor: el reloj de tensión del viaje (ver DISENO-CIUDAD.md §4). Sube por lo que
+-- haces, baja por lo que consigues, y decide cuánta policía tienes encima.
+Config.CALOR_MAXIMO = 3
+
+-- Radio de un detector y, sobre todo, cuánto tarda en poder volver a dispararse
+-- contra el MISMO jugador. Sin ese bloqueo, quedarse quieto encima de un poste
+-- sube a 3 en dos segundos: el sistema deja de ser una decisión y pasa a ser una
+-- trampa. 30 s es más que de sobra para cruzar su radio a cualquier velocidad.
+Config.DETECTOR_RADIO = 35
+Config.DETECTOR_BLOQUEO = 30
+
+-- Cuánto tarda en bajar un nivel de calor sin vigilancia encima. Es la válvula de
+-- escape, y no es opcional: sin ella la única estrategia sensata es no salir del
+-- almacén, y entonces no hay juego.
+Config.CALOR_SEGUNDOS_POR_NIVEL = 20
+
+-- Patrullas por nivel de calor, y a qué velocidad van.
+--
+-- SON MÁS RÁPIDAS QUE EL JUGADOR A PROPÓSITO, y eso sólo es justo por lo otro que
+-- las define: van ATADAS A LAS CALLES. Tú eres más lento (de 9,9 cargado a 16 de
+-- vacío) pero puedes cortar por parques, callejones y solares. Escapar es leer el
+-- mapa, no ganar una carrera -- y eso es exactamente lo que convierte a la ciudad
+-- en una mecánica en vez de en un decorado. Si algún día las patrullas pudieran
+-- atajar, habría que bajarlas por debajo de la velocidad cargada o el sistema se
+-- convierte en un impuesto: te pillan siempre y la decisión desaparece.
+Config.PATRULLAS = {
+	[0] = { cantidad = 0, velocidad = 0 },
+	[1] = { cantidad = 1, velocidad = 18 },
+	[2] = { cantidad = 2, velocidad = 20 },
+	[3] = { cantidad = 3, velocidad = 22 },
+} :: { [number]: { cantidad: number, velocidad: number } }
+
+-- A cuánto te alcanza una patrulla, y qué te cuesta. NO MATA: morir es que te
+-- echen de la sesión, y perder mercancía es que te salga mal un viaje y quieras
+-- otro. La mitad, y no todo, para que un mal viaje siga valiendo la pena terminarlo.
+Config.PATRULLA_ALCANCE = 6
+Config.PATRULLA_FRACCION = 0.5
 
 -- Intercepción
 Config.ROBO_DISTANCIA = 5 -- studs

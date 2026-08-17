@@ -25,6 +25,8 @@ local Hud = {}
 local dineroLabel: TextLabel
 local cargaLabel: TextLabel
 local almacenLabel: TextLabel
+local calorLabel: TextLabel
+local calorFila: Frame
 local avisoLabel: TextLabel
 local comprarBoton: TextButton
 -- Los botones de acción, para poder apagarlos en bloque mientras hay una
@@ -127,6 +129,12 @@ function Hud.build()
 	dineroLabel = linea("Dinero", 1, "Dinero")
 	cargaLabel = linea("Carga", 2, "Carga")
 	almacenLabel = linea("Almacen", 3, "Almacen")
+	-- La cuarta línea es CONDICIONAL: sólo se enseña con calor encima. Por eso el
+	-- panel sigue dimensionado para tres y se estira con el layout en vez de
+	-- reservar sitio para una línea que casi siempre estaría a cero.
+	calorLabel = linea("Calor", 4, "Calor")
+	calorFila = calorLabel.Parent :: Frame
+	calorFila.Visible = false
 	-- El dinero es el número que más se mira: se le da el color del oro para que
 	-- destaque entre los otros dos sin necesidad de leer la etiqueta.
 	dineroLabel.TextColor3 = Color3.fromRGB(238, 202, 122)
@@ -247,6 +255,7 @@ export type EstadoHud = {
 	dinero: number,
 	cajas: { any },
 	almacenCajas: number?,
+	calor: number?,
 	capacidad: number?,
 	vehiculoNombre: string?,
 	mejoras: { { id: string, nombre: string, coste: number, capacidad: number } }?,
@@ -269,6 +278,23 @@ function Hud.update(estado: EstadoHud)
 		etiquetaCarga.Text = estado.vehiculoNombre or "Carga"
 	end
 	almacenLabel.Text = string.format("%d/%d", estado.almacenCajas or 0, Config.ALMACEN_TOPE)
+
+	-- El calor. La línea sólo aparece cuando hay algo que decir: en frío ocuparía
+	-- un cuarto de un panel de tres líneas para poner un cero, y en un móvil ese
+	-- sitio es caro. En cuanto sube, es lo primero que hay que mirar.
+	local nivel = estado.calor or 0
+	if calorFila then
+		calorFila.Visible = nivel > 0
+	end
+	if calorLabel and nivel > 0 then
+		calorLabel.Text = string.format("%d/%d", nivel, Config.CALOR_MAXIMO)
+		-- Del ámbar al rojo según aprieta: el color dice cuánto sin leer la cifra,
+		-- que es lo que hace falta cuando estás corriendo y mirando al frente.
+		calorLabel.TextColor3 = if nivel >= Config.CALOR_MAXIMO
+			then Color3.fromRGB(235, 75, 70)
+			elseif nivel == 2 then Color3.fromRGB(235, 140, 60)
+			else Color3.fromRGB(230, 190, 80)
+	end
 
 	-- El zurrón lleno se pinta en ámbar: es la señal de "ya no te cabe más, vete",
 	-- y es lo que separa un viaje aprovechado de otro a medias.

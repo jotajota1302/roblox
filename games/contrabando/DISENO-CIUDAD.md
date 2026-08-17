@@ -155,19 +155,41 @@ Módulos nuevos, con la misma línea puro/impuro del resto del proyecto:
 | Módulo | Dónde | Puro | Responsabilidad |
 |---|---|---|---|
 | `Heat.luau` | `shared/` | **Sí** | Subir, bajar, topes, bloqueo de re-disparo. Todo probado sin Roblox |
-| `Zones.luau` | `shared/` | **Sí** | Las tres zonas: destino, multiplicador, densidad de detectores |
 | `HeatService.luau` | `server/` | No | Calor por jugador, detección de proximidad, avisos, sync |
 | `PatrolService.luau` | `server/` | No | Crear, mover y retirar patrullas; el alcance |
 | `CityBuilder.luau` | `server/` | No | Montar la ciudad y plantar encima almacén, taller, destinos y detectores |
+
+**No hay `Zones.luau`.** Se planeó y no se escribió: `Routes.luau` ya era exactamente ese
+módulo —lee las rutas de `Config`, valida entregas— y añadir un segundo dueño de las zonas
+habría garantizado que algún día el selector prometa un sitio y el servidor cobre por otro.
+`Config.RUTAS` gana `destino` y `detectores`, pierde `distancia`, y `Routes` gana
+`distancia()` (calculada, no almacenada) y `vigilancia()`.
 
 `WorldBuilder.luau` se retira: su carretera recta es exactamente lo que este documento
 elimina. Su red de seguridad y su lección sobre el límite de 2048 studs por eje se conservan
 en `CityBuilder`.
 
 **Movimiento de las patrullas:** `PathfindingService` de Roblox, que es nativo y evita
-mantener a mano una red de calles. **Riesgo anotado:** puede salir caro sobre un mapa de
-7152 piezas. Si al medirlo no aguanta, la salida es una red de waypoints por las calles
-principales — más trabajo, coste predecible.
+mantener a mano una red de calles. Medido sobre esta ciudad: **0,6-1,3 s por ruta calculada**
+y un rodeo del +6 % sobre la línea recta. Aguanta.
+
+### La patrulla va a pie, y no fue una elección estética
+
+Medido, y es el hallazgo que más cambia el plan: con `AgentCanJump = false` **sólo la ruta
+ámbar tiene camino**. Verde y roja devuelven `NoPath`. Con el salto activado, las tres
+funcionan. Es decir: llegar a dos de los tres destinos **exige saltar** un bordillo o una
+acera en algún punto.
+
+Para el jugador da igual — salta sin pensarlo. Para la policía lo decide todo: un coche que
+salta bordillos es ridículo, y un coche que no salta **no puede llegar a dos de las tres
+zonas**. De ahí el reparto:
+
+- **Agentes a pie**: son los que persiguen. Saltan, corren y alcanzan. Es el sistema.
+- **Coches de patrulla** (más adelante): circulan por las calles principales como presencia
+  y como detectores móviles. Llegan, y de ellos bajan los agentes.
+
+Se construye lo primero. Los coches son lo segundo, y son decorado con función, no el
+mecanismo — porque el mecanismo no puede depender de algo que no alcanza medio mapa.
 
 ---
 

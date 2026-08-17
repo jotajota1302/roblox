@@ -24,6 +24,7 @@ local Intercept = require(game.ReplicatedStorage.Shared.Intercept)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
+local HeatService = require(script.Parent.HeatService)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -48,11 +49,19 @@ local function perfil(player: Player): Intercept.Perfil?
 		ruta = estado.ruta,
 		marcadoHasta = estado.marcadoHasta,
 		velocidad = root.AssemblyLinearVelocity.Magnitude,
-		-- El almacén se construye en el origen (WorldBuilder), así que la distancia
-		-- al (0,0,0) del mundo es la distancia a la zona segura (I4). Se calcula
-		-- para todos los jugadores por igual; Intercept.puedeRobar sólo la mira en
-		-- el perfil de la víctima.
-		distanciaOrigen = root.Position.Magnitude,
+		-- Distancia al ALMACÉN, que es donde está la zona segura (I4).
+		--
+		-- Antes era `root.Position.Magnitude`, es decir la distancia al (0,0,0) del
+		-- mundo, y era correcto sólo porque el almacén se construía justo ahí. Al
+		-- plantar el juego dentro de la ciudad el almacén se va a (-600, 540) y ese
+		-- atajo se convierte en un fallo grave y silencioso: la zona segura se
+		-- quedaría en mitad del centro —protegiendo a quien pasa por una plaza
+		-- cualquiera— y el almacén, que es el único sitio donde el diseño PROMETE
+		-- que no te pueden robar, quedaría a 800 studs de su propia protección.
+		-- Nada habría fallado, nada habría avisado: simplemente la promesa central
+		-- del juego dejaría de cumplirse. Se calcula para todos por igual;
+		-- Intercept.puedeRobar sólo la mira en el perfil de la víctima.
+		distanciaOrigen = (root.Position - Config.ALMACEN_POS).Magnitude,
 	}
 end
 
@@ -164,6 +173,16 @@ function InterceptService.tick(ahora: number)
 
 			CargoService.aplicarVelocidad(atacante)
 			CargoService.aplicarVelocidad(victima)
+			-- La carga cambió de dueño, así que las cajas visibles también: sin esto
+			-- la víctima seguiría pareciendo un objetivo cargado y el ladrón seguiría
+			-- pareciendo inofensivo, que es exactamente al revés de la verdad.
+			CargoService.mostrarCarga(atacante)
+			CargoService.mostrarCarga(victima)
+			-- Y HEREDA EL CALOR con la carga. Es la pieza que convierte el PvP de
+			-- impuesto en decisión: robar deja de ser gratis porque te traes encima a
+			-- toda la policía que iba detrás del otro. Va en paralelo a la herencia de
+			-- ruta de arriba -- quien roba, hereda el viaje entero, lo bueno y lo malo.
+			HeatService.transferir(victima, atacante)
 			PlayerState.sync(atacante)
 			PlayerState.sync(victima)
 

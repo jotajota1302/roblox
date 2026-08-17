@@ -13,6 +13,8 @@
 
 local Players = game:GetService("Players")
 
+local Config = require(game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
 Players.CharacterAutoLoads = false
 
 local function safeRequire(nombre: string): any
@@ -39,21 +41,23 @@ local function safeStart(nombre: string, modulo: any): boolean
 	return ok
 end
 
-local WorldBuilder = safeRequire("WorldBuilder")
+local CityBuilder = safeRequire("CityBuilder")
 local PlayerState = safeRequire("PlayerState")
 local CargoService = safeRequire("CargoService")
 local RouteService = safeRequire("RouteService")
 local WarehouseService = safeRequire("WarehouseService")
 local GarageService = safeRequire("GarageService")
 local InterceptService = safeRequire("InterceptService")
+local HeatService = safeRequire("HeatService")
+local PatrolService = safeRequire("PatrolService")
 local Persistence = safeRequire("Persistence")
 local Telemetry = safeRequire("Telemetry")
 local Avatar = safeRequire("Avatar")
 
 -- El mundo primero: sin suelo no puede entrar nadie.
 local mundo = nil
-if WorldBuilder then
-	local ok, resultado = pcall(WorldBuilder.build)
+if CityBuilder then
+	local ok, resultado = pcall(CityBuilder.build)
 	if ok then
 		mundo = resultado
 	else
@@ -63,11 +67,13 @@ end
 
 if not mundo then
 	-- Suelo de emergencia: prefiero un jugador sobre una plancha gris a un jugador
-	-- cayendo al vacío sin entender nada.
+	-- cayendo al vacío sin entender nada. Va bajo el ALMACÉN, no bajo el (0,0,0):
+	-- ahí es donde aparece el jugador desde que el juego vive dentro de la ciudad,
+	-- y una plancha en el origen lo dejaría cayendo igualmente.
 	local suelo = Instance.new("Part")
 	suelo.Name = "SueloDeEmergencia"
 	suelo.Size = Vector3.new(400, 1, 400)
-	suelo.Position = Vector3.new(0, 0, 0)
+	suelo.Position = Vector3.new(Config.ALMACEN_POS.X, Config.ALMACEN_POS.Y, Config.ALMACEN_POS.Z)
 	suelo.Anchored = true
 	suelo.Parent = workspace
 end
@@ -78,6 +84,8 @@ safeStart("RouteService", RouteService)
 safeStart("WarehouseService", WarehouseService)
 safeStart("GarageService", GarageService)
 safeStart("InterceptService", InterceptService)
+safeStart("HeatService", HeatService)
+safeStart("PatrolService", PatrolService)
 safeStart("Telemetry", Telemetry)
 safeStart("Persistence", Persistence)
 
@@ -95,6 +103,11 @@ if mundo then
 	end
 	if GarageService then
 		GarageService.registrarTaller(mundo.taller)
+	end
+	if HeatService then
+		for _, poste in mundo.detectores do
+			HeatService.registrarDetector(poste)
+		end
 	end
 end
 

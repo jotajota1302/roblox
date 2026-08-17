@@ -23,6 +23,12 @@ export type Estado = {
 	-- nil significa "a pie". Vehicles.deEstado es el único sitio que traduce ese
 	-- nil, para que ningún servicio tenga que acordarse de hacerlo.
 	vehiculo: string?,
+	-- Nivel de calor (0..3). Lo escribe HeatService y viaja al HUD con el sync
+	-- normal. Vive aquí y no en una tabla aparte de HeatService porque es lo único
+	-- del calor que el cliente necesita, y así no hay un segundo canal que pueda
+	-- contradecir al primero en pantalla. NO SE PERSISTE: ver la cabecera de
+	-- HeatService.
+	calor: number,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -40,6 +46,7 @@ function PlayerState.get(player: Player): Estado
 			almacenCajas = 3, -- las tres cajas de los primeros cinco segundos
 			almacenUltimaVisita = os.time(),
 			vehiculo = nil,
+			calor = 0,
 		}
 		estados[player] = estado
 	end
@@ -66,6 +73,7 @@ function PlayerState.sync(player: Player)
 		ruta = estado.ruta,
 		marcadoHasta = estado.marcadoHasta,
 		almacenCajas = estado.almacenCajas,
+		calor = estado.calor or 0,
 		-- El cliente recibe el vehículo YA resuelto (nunca el nil crudo) y su
 		-- capacidad calculada: dibujar "2/10" no debe requerir que el cliente
 		-- sepa ninguna regla, porque el cliente no decide nada en este juego.
