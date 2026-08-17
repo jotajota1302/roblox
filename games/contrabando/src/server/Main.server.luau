@@ -44,6 +44,7 @@ local PlayerState = safeRequire("PlayerState")
 local CargoService = safeRequire("CargoService")
 local RouteService = safeRequire("RouteService")
 local WarehouseService = safeRequire("WarehouseService")
+local GarageService = safeRequire("GarageService")
 local InterceptService = safeRequire("InterceptService")
 local Persistence = safeRequire("Persistence")
 local Telemetry = safeRequire("Telemetry")
@@ -74,6 +75,7 @@ safeStart("PlayerState", PlayerState)
 safeStart("CargoService", CargoService)
 safeStart("RouteService", RouteService)
 safeStart("WarehouseService", WarehouseService)
+safeStart("GarageService", GarageService)
 safeStart("InterceptService", InterceptService)
 safeStart("Telemetry", Telemetry)
 safeStart("Persistence", Persistence)
@@ -89,6 +91,9 @@ if mundo then
 	end
 	if WarehouseService then
 		WarehouseService.registrarAlmacen(mundo.almacen)
+	end
+	if GarageService then
+		GarageService.registrarTaller(mundo.taller)
 	end
 end
 

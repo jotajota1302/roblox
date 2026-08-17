@@ -21,8 +21,16 @@ export type Ruta = {
 
 local Routes = {}
 
+-- Devuelve copias, no la tabla de Config. Con la referencia viva, cualquiera que
+-- ordenase, filtrase o retocase el resultado estaría modificando la configuración
+-- del juego para todo el servidor -- y un multiplicador cambiado a mitad de
+-- partida no deja rastro por ningún lado.
 function Routes.todas(): { Ruta }
-	return Config.RUTAS
+	local copia: { Ruta } = {}
+	for _, ruta in Config.RUTAS do
+		table.insert(copia, table.clone(ruta))
+	end
+	return copia
 end
 
 function Routes.existe(id: string?): boolean

@@ -33,7 +33,11 @@
 	uno muy por debajo del límite, en vez de una sola pieza gigante.
 ]]
 
+local AssetService = game:GetService("AssetService")
+
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local MeshCatalog = require(game.ReplicatedStorage.Shared.MeshCatalog)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
 
 local ANCHO_CARRETERA = 160 -- antes 60: un pasillo. Con 160 se puede jugar sin caerse por accidente
 local ALTO_BORDILLO = 3
@@ -43,7 +47,9 @@ local GROSOR_BORDILLO = 4
 -- del destino más lejano (roja, x=2000). Se trocea en segmentos de SEGMENTO_MAX
 -- studs como mucho -- muy por debajo del límite de tamaño de un BasePart -- para
 -- que ningún recorte silencioso de Roblox pueda dejar un hueco.
-local MUNDO_X_INICIO = -80
+-- Llega hasta -120 (antes -80) para que el taller, que se planta en x=-50 con 30
+-- de largo, tenga suelo de sobra por detrás en vez de acabar en el borde exacto.
+local MUNDO_X_INICIO = -120
 local MUNDO_X_FIN = 2060
 local SEGMENTO_MAX = 1000
 
@@ -92,7 +98,91 @@ local function tira(
 	return segmentos
 end
 
-function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, destinos: { BasePart } }
+-- Planta un modelo de MeshCatalog. Devuelve nil si algo falla, y el mundo sigue
+-- en pie: los meshes son DECORACIÓN y ninguna regla depende de ellos. Un id que
+-- deja de cargar tiene que costar un edificio feo, nunca un juego sin suelo --
+-- exactamente el fallo que este proyecto ya pagó con el DataStore.
+--
+-- TRAMPA DE ROBLOX, medida aquí: `Instance.new("MeshPart").MeshId = ...` NO
+-- funciona en tiempo de ejecución. Falla con "The current thread cannot write
+-- 'MeshId' (lacking capability NotAccessible)" -- MeshId sólo se escribe desde
+-- Studio o un plugin. En un servidor hay que pedirle la pieza a AssetService, que
+-- sí puede. El resultado admite TextureID y Size con normalidad; el que no se
+-- puede tocar es el mesh. Descubierto porque la carpeta de decorado salía VACÍA
+-- sin un solo error visible: los pcall se lo tragaban todo.
+--
+-- CreateMeshPartAsync espera al servidor de assets, así que esto NO puede ir en
+-- el camino de arranque: el mundo jugable se construye primero y el decorado
+-- llega después (ver el final de build()).
+local function decorado(
+	nombre: string,
+	modelo: MeshCatalog.Modelo,
+	posicion: Vector3,
+	giroY: number,
+	padre: Instance
+): MeshPart?
+	local ok, resultado = pcall(function()
+		local m = AssetService:CreateMeshPartAsync(modelo.mesh)
+		m.Name = nombre
+		m.TextureID = modelo.textura
+		m.Size = modelo.tamano
+		m.CFrame = CFrame.new(posicion) * CFrame.Angles(0, math.rad(giroY), 0)
+		m.Anchored = true
+		-- Sin colisión: la geometría jugable son las losas. Un edificio sólido
+		-- puede empujar al jugador fuera de la zona en la que el servidor mide
+		-- distancias, y entonces el botón de recoger dejaría de funcionar sin que
+		-- nada lo explique.
+		m.CanCollide = false
+		m.CanQuery = false
+		m.CanTouch = false
+		m.Parent = padre
+		return m
+	end)
+	if not ok then
+		warn("[Contrabando] no se pudo plantar el decorado " .. nombre .. ": " .. tostring(resultado))
+		return nil
+	end
+	return resultado
+end
+
+-- La luz por defecto de un place vacío deja el mundo casi de noche, y con modelos
+-- texturizados eso no es un detalle estético: un edificio que no se distingue del
+-- suelo no informa de dónde estás, y la única pista de que vas bien en un viaje
+-- de 2.000 studs es reconocer a lo lejos el sitio al que vas.
+--
+-- Media tarde, no mediodía: con el sol en cenit todo se aplana y los volúmenes se
+-- pierden. Con sombras largas, el almacén y el taller se leen de un vistazo.
+local function iluminar()
+	local ok, err = pcall(function()
+		local luz = game:GetService("Lighting")
+		luz.ClockTime = 15.5
+		luz.Brightness = 2.5
+		luz.GlobalShadows = true
+		luz.EnvironmentDiffuseScale = 0.4
+		luz.EnvironmentSpecularScale = 0.3
+		luz.OutdoorAmbient = Color3.fromRGB(120, 118, 126)
+		luz.Ambient = Color3.fromRGB(70, 68, 74)
+		luz.FogEnd = 3000
+
+		-- Bruma ligera: además de ambientar, da profundidad a una carretera recta de
+		-- 2.000 studs en la que si no, todo está a la misma distancia aparente.
+		if not luz:FindFirstChildOfClass("Atmosphere") then
+			local aire = Instance.new("Atmosphere")
+			aire.Density = 0.32
+			aire.Haze = 1.4
+			aire.Color = Color3.fromRGB(200, 198, 190)
+			aire.Decay = Color3.fromRGB(106, 112, 125)
+			aire.Parent = luz
+		end
+	end)
+	if not ok then
+		warn("[Contrabando] no se pudo ajustar la luz: " .. tostring(err))
+	end
+end
+
+function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, taller: BasePart, destinos: { BasePart } }
+	iluminar()
+
 	local mundo = Instance.new("Folder")
 	mundo.Name = "Mundo"
 	mundo.Parent = workspace
@@ -121,7 +211,7 @@ function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, destinos: 
 		p.Transparency = 1
 	end
 
-	local almacen = part("Almacen", Vector3.new(60, 2, 60), Vector3.new(0, 1, 0), Color3.fromRGB(120, 100, 60), mundo)
+	local almacen = part("Almacen", Vector3.new(60, 2, 60), Vector3.new(0, 1, 0), Palette.ALMACEN, mundo)
 
 	-- Punto de aparición físico, encima del almacén (no dentro): sin él Roblox
 	-- decide dónde aparece el jugador a partir de la extensión de todo el mundo, y
@@ -143,28 +233,95 @@ function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, destinos: 
 
 	-- La salida es el único sitio donde se elige ruta. Que sea un punto físico
 	-- concreto es lo que impide cambiar de ruta a mitad de viaje.
-	local salida = part("Salida", Vector3.new(20, 2, 60), Vector3.new(45, 1, 0), Color3.fromRGB(200, 190, 120), mundo)
+	local salida = part("Salida", Vector3.new(20, 2, 60), Vector3.new(45, 1, 0), Palette.SALIDA, mundo)
 
-	local colores = {
-		verde = Color3.fromRGB(60, 140, 70),
-		ambar = Color3.fromRGB(200, 150, 50),
-		roja = Color3.fromRGB(170, 60, 60),
-	}
+	-- El taller: donde el dinero deja de ser un número. Se coloca DETRÁS del
+	-- almacén (x negativo), no de camino a la salida: pasar por delante de la
+	-- tienda cada vez que sales es lo que convierte una mejora en un anuncio.
+	-- Está dentro de la zona segura, así que nadie puede emboscar a quien compra.
+	local taller = part("Taller", Vector3.new(30, 2, 40), Vector3.new(-50, 1, 0), Palette.TALLER, mundo)
 
+	-- Los colores salen de Palette, no de una tabla local: el botón del selector de
+	-- ruta y el destino al que lleva TIENEN que ser del mismo color, y con dos
+	-- copias del RGB eso dura hasta que alguien retoque una.
 	local destinos: { BasePart } = {}
 	for _, ruta in Config.RUTAS do
 		local destino = part(
 			"Destino_" .. ruta.id,
 			Vector3.new(40, 2, 40),
 			Vector3.new(ruta.distancia, 1, 0),
-			colores[ruta.id] or Color3.fromRGB(200, 200, 200),
+			Palette.ruta(ruta.id),
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
+
+		-- Un pilar alto del color de la ruta, visible desde el otro extremo. No es
+		-- adorno: la ruta roja son 2.000 studs en línea recta y, sin una referencia
+		-- que se vea de lejos, el jugador camina un minuto sin ninguna señal de que
+		-- va bien. Eso no es tensión, es no saber si el juego está roto.
+		local baliza = part(
+			"Baliza_" .. ruta.id,
+			Vector3.new(6, 120, 6),
+			Vector3.new(ruta.distancia, 60, 0),
+			Palette.ruta(ruta.id),
+			mundo
+		)
+		baliza.CanCollide = false
+		baliza.Material = Enum.Material.Neon
+
+		-- Y el multiplicador escrito encima, que es el dato por el que has elegido
+		-- venir hasta aquí. AlwaysOnTop para que no lo tape el propio pilar.
+		local cartel = Instance.new("BillboardGui")
+		cartel.Name = "Cartel"
+		cartel.Size = UDim2.fromScale(24, 8)
+		cartel.StudsOffsetWorldSpace = Vector3.new(0, 70, 0)
+		cartel.AlwaysOnTop = true
+		cartel.MaxDistance = 2500
+		cartel.Adornee = baliza
+		cartel.Parent = baliza
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 255, 255)
+		texto.TextStrokeTransparency = 0.2
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = string.format("%s  x%d", string.upper(ruta.id), ruta.multiplicador)
+		texto.Parent = cartel
+
 		table.insert(destinos, destino)
 	end
 
-	return { almacen = almacen, salida = salida, destinos = destinos }
+	-- Decorado. Va al final, en su propia carpeta y EN OTRO HILO: así se lee de un
+	-- vistazo que nada de aquí participa en ninguna regla, y sobre todo, la espera
+	-- de AssetService no retrasa ni un milisegundo la aparición del suelo. En este
+	-- juego el orden importa más de lo normal: el personaje se carga en cuanto hay
+	-- mundo, y todo lo que se meta antes es tiempo cayendo al vacío.
+	local adorno = Instance.new("Folder")
+	adorno.Name = "Decorado"
+	adorno.Parent = mundo
+
+	task.spawn(function()
+		-- El edificio DETRÁS de la losa, no encima: la losa es el muelle de carga
+		-- por el que se anda y donde aparece el jugador.
+		decorado("EdificioAlmacen", MeshCatalog.ALMACEN, Vector3.new(0, 18, -52), 0, adorno)
+		-- Cajas apiladas en el muelle. Fijas: el contador real del almacén es de
+		-- cada jugador y no cabe en una pila compartida, pero ver mercancía donde
+		-- el juego dice que hay mercancía es lo que hace que "Recoger" signifique
+		-- algo.
+		for i, sitio in { Vector3.new(-20, 4, -18), Vector3.new(-14, 4, -20), Vector3.new(-17, 8, -19) } do
+			decorado("CajaMuelle" .. i, MeshCatalog.CAJA, sitio, i * 24, adorno)
+		end
+
+		decorado("EdificioTaller", MeshCatalog.TALLER, Vector3.new(-50, 12, -38), 0, adorno)
+		-- La furgoneta aparcada en el taller ES el escaparate: enseña lo que
+		-- compras antes de que puedas pagarlo, que es la mitad del motivo para
+		-- hacer otro viaje.
+		decorado("FurgonetaEscaparate", MeshCatalog.FURGONETA, Vector3.new(-50, 5.5, -14), 90, adorno)
+	end)
+
+	return { almacen = almacen, salida = salida, taller = taller, destinos = destinos }
 end
 
 return WorldBuilder

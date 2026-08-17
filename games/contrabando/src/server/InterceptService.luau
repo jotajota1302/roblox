@@ -18,15 +18,17 @@
 
 local RunService = game:GetService("RunService")
 
+local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Intercept = require(game.ReplicatedStorage.Shared.Intercept)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
-local ROJO = Color3.fromRGB(220, 80, 80)
-local AMBAR = Color3.fromRGB(230, 180, 70)
+local ROJO = Palette.AVISO_MALO
+local AMBAR = Palette.AVISO_AGRESIVO
 
 local InterceptService = {}
 
@@ -69,27 +71,37 @@ local ultimaAlerta: { [Player]: number } = {}
 local ALERTA_CADA = 4
 
 function InterceptService.tick(ahora: number)
+	-- Los perfiles se arman UNA vez por jugador y por ciclo, no dentro del bucle
+	-- interno. Antes el de cada víctima se recalculaba una vez por atacante: con
+	-- 30 jugadores son 900 perfiles cinco veces por segundo, y este bucle es lo
+	-- único del juego que corre siempre. Además así todas las comparaciones de un
+	-- ciclo usan la misma foto del mundo: con el perfil recalculado a mitad de
+	-- ronda, un robo podía decidirse contra un estado que otro robo del mismo
+	-- ciclo ya había cambiado.
 	local jugadores = {}
+	local roots: { [Player]: BasePart } = {}
+	local perfiles: { [Player]: Intercept.Perfil } = {}
+
 	PlayerState.forEach(function(player)
-		table.insert(jugadores, player)
+		local root = raiz(player)
+		local p = perfil(player)
+		if root and p then
+			table.insert(jugadores, player)
+			roots[player] = root
+			perfiles[player] = p
+		end
 	end)
 
 	for _, atacante in jugadores do
-		local rootAtacante = raiz(atacante)
-		local perfilAtacante = perfil(atacante)
-		if not rootAtacante or not perfilAtacante then
-			continue
-		end
+		local rootAtacante = roots[atacante]
+		local perfilAtacante = perfiles[atacante]
 
 		for _, victima in jugadores do
 			if victima == atacante then
 				continue
 			end
-			local rootVictima = raiz(victima)
-			local perfilVictima = perfil(victima)
-			if not rootVictima or not perfilVictima then
-				continue
-			end
+			local rootVictima = roots[victima]
+			local perfilVictima = perfiles[victima]
 
 			local distancia = (rootAtacante.Position - rootVictima.Position).Magnitude
 
@@ -117,7 +129,7 @@ function InterceptService.tick(ahora: number)
 				estadoVictima.cajas,
 				Config.ROBO_FRACCION,
 				estadoAtacante.cajas,
-				Config.CAPACIDAD_A_PIE
+				Cargo.capacidad(estadoAtacante.vehiculo)
 			)
 
 			-- Un ladrón que ya va lleno no roba nada: no hay suceso que marcar,
@@ -134,6 +146,22 @@ function InterceptService.tick(ahora: number)
 
 			estadoAtacante.marcadoHasta = ahora + Config.MARCADO_SEGUNDOS
 
+			-- El ladrón hereda el encargo de la víctima si no traía el suyo. Sin
+			-- esto, el cazador que sale del almacén vacío por la roja -- que es
+			-- justo la jugada que la roja permite -- robaba y luego no tenía
+			-- ningún destino que le aceptase la entrega: su premio era caminar
+			-- 2.000 studs de vuelta. Ver Intercept.rutaTrasRobo.
+			estadoAtacante.ruta = Intercept.rutaTrasRobo(estadoAtacante.ruta, estadoVictima.ruta)
+
+			-- Los perfiles de este ciclo acaban de quedarse obsoletos, y la víctima
+			-- sigue en juego: el atacante ya no vuelve (rompe abajo), pero a ella
+			-- puede evaluarla OTRO atacante en este mismo ciclo, y su perfil
+			-- cacheado todavía apunta a la tabla de cajas anterior al robo. Sin
+			-- refrescarlo, el segundo ladrón se llevaría cajas que ella ya no
+			-- tiene: carga duplicada de la nada.
+			perfiles[victima] = perfil(victima) or perfilVictima
+			perfiles[atacante] = perfil(atacante) or perfilAtacante
+
 			CargoService.aplicarVelocidad(atacante)
 			CargoService.aplicarVelocidad(victima)
 			PlayerState.sync(atacante)
@@ -143,7 +171,20 @@ function InterceptService.tick(ahora: number)
 			-- inexplicable, y eso es rabia, no tensión. Los dos avisos usan el
 			-- MISMO número: el de cajas realmente transferidas.
 			avisar(victima, string.format("%s te ha robado %d cajas", atacante.DisplayName, #robadas), ROJO)
-			avisar(atacante, string.format("Has robado %d cajas. Estas marcado 60 s", #robadas), AMBAR)
+			-- Si acaba de heredar la ruta hay que DECÍRSELO: es la diferencia entre
+			-- saber adónde llevar el botín y volver andando al almacén a preguntar.
+			local heredada = perfilAtacante.ruta == nil and estadoAtacante.ruta ~= nil
+			avisar(
+				atacante,
+				if heredada
+					then string.format(
+						"Has robado %d cajas y su ruta (%s). Estas marcado 60 s",
+						#robadas,
+						tostring(estadoAtacante.ruta)
+					)
+					else string.format("Has robado %d cajas. Estas marcado 60 s", #robadas),
+				AMBAR
+			)
 			sonar(victima, "robo")
 			sonar(atacante, "robo")
 			Telemetry.evento(atacante, "robo", { robadas = #robadas, ruta = perfilVictima.ruta })

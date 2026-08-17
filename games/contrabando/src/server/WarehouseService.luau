@@ -63,7 +63,10 @@ function WarehouseService.reclamar(player: Player): number
 	local cogidas = 0
 	while estado.almacenCajas > 0 do
 		local caja = CargoService.nuevaCaja()
-		if not Cargo.cabe(estado.cajas, caja, Config.CAPACIDAD_A_PIE) then
+		-- La capacidad la manda el vehículo. Con la constante de ir a pie, el
+		-- almacén dejaba de llenar en 3 aunque la furgoneta admitiera 10: la
+		-- mejora que acabas de pagar no habría hecho nada visible.
+		if not Cargo.cabe(estado.cajas, caja, Cargo.capacidad(estado.vehiculo)) then
 			break
 		end
 		CargoService.recoger(player, caja)

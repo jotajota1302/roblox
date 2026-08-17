@@ -16,7 +16,7 @@ construida y sus reglas están probadas, pero **no se ha jugado entre dos person
 
 | | |
 |---|---|
-| Pruebas automáticas | **89**, todas en verde |
+| Pruebas automáticas | **133**, todas en verde |
 | Tareas del plan | 14 de 14, todas revisadas |
 | Defectos encontrados en revisión | 1 crítico, 2 importantes — los tres corregidos |
 | Sin comprobar | El robo entre dos jugadores reales, y si el bucle entretiene |
@@ -25,7 +25,7 @@ construida y sus reglas están probadas, pero **no se ha jugado entre dos person
 
 ## 1. Lo que está comprobado
 
-### Las reglas del juego: 89 pruebas
+### Las reglas del juego: 133 pruebas
 
 Toda la lógica de reglas vive en módulos **puros** de `src/shared/` que no tocan Roblox, así
 que se prueban en milisegundos. Se ejecutan dentro de Studio, porque Luau no corre fuera:
@@ -103,6 +103,33 @@ Y el bucle entero, jugado como lo jugaría una persona:
 | Cobra | **510 monedas** — salió una caja sellada (×50) |
 | Zurrón tras cobrar | vacío |
 
+### El sumidero: comprar la furgoneta
+
+Añadido después de la primera ronda, porque sin él el bucle se quedaba en dos pasos de
+cinco: se producía y se cobraba, pero el dinero no compraba nada y el número del HUD dejaba
+de significar algo al tercer viaje.
+
+Todo el recorrido, **andando** (`Humanoid:MoveTo`), sobre el servidor real:
+
+| Paso | Resultado |
+|---|---|
+| Sale del almacén y va al taller (zona nueva, x negativo) | llega en 3 s, sin caerse |
+| Intenta comprar con 0 monedas | rechazado — `sin_dinero` |
+| Compra con 1.500 | **capacidad 3 → 10**, velocidad 16 → **14,4** |
+| Intenta comprarla otra vez con 9.999 | rechazado — `ya_lo_tienes`, **no se le cobra** |
+| Vuelve al almacén y reclama | **8 cajas**, peso 10 = lleno; velocidad **9,9** |
+| Intenta comprar llevando carga, en el taller | rechazado — `con_carga` |
+| Elige ruta y recorre los 555 studs | **56 s andando, sin caerse** |
+| Cobra | **1.780 monedas**, zurrón vacío, ruta liberada, velocidad de vuelta a 14,4 |
+
+Las cifras de velocidad son la comprobación que importa: la furgoneta va **siempre más
+lenta** que ir a pie, vacía (14,4 < 16) y llena (9,9 < 11,8). Es la regla innegociable del
+diseño — capacidad y acceso, nunca potencia — y sin ella las rutas rojas pasan a ser dinero
+gratis y el PvP muere.
+
+Basura por la firma directa (`42`, `true`, `"camion_de_oro"`, `"a_pie"`, un objeto del
+mundo): los cinco rechazados con su motivo, sin cobrar nada y sin reventar.
+
 ### Un intento de exploit por cada remote
 
 Desde el **cliente**, que es desde donde ataca un exploit real, y con el personaje colocado
@@ -120,6 +147,11 @@ de sincronización.
 | Servidor | **vivo** |
 
 El servidor no cedió nada y ningún tipo inesperado lo tumbó.
+
+El remote de compra, que es el más nuevo, se atacó aparte: **520 llamadas** desde el cliente
+a 900 studs del taller, con ids válidos, inventados, vacíos, números, booleanos, tablas y un
+objeto del mundo, más llamadas sin argumento y con tres. Después: dinero **intacto**,
+vehículo **nil**, servidor **vivo**. Ni una compra a distancia.
 
 ### El arranque, sin publicar el juego
 

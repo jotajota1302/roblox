@@ -123,6 +123,28 @@ function Intercept.repartoConCapacidad(
 	return robadas, restantes
 end
 
+-- Con qué ruta se queda el ladrón después de robar.
+--
+-- ARREGLA UN EFECTO EMERGENTE QUE NADIE ELIGIÓ: la ruta roja permite robar a
+-- quien sale del almacén VACÍO, y salir vacío significa no haber elegido ruta en
+-- la salida. Ese cazador robaba, se llenaba... y ningún destino le aceptaba la
+-- entrega, porque entregaValida exige que la ruta elegida coincida con la del
+-- destino. Su premio era caminar 2.000 studs de vuelta. El robo era una jugada
+-- que sólo podía salir mal, así que nadie la haría dos veces.
+--
+-- Hereda la ruta de la víctima: le quitas el cargamento Y el encargo. Sólo si no
+-- tenías ya la tuya -- si ibas cargado por la ámbar y robas a alguien de la roja,
+-- sigues cobrando por la ámbar, que es la que te has jugado.
+function Intercept.rutaTrasRobo(rutaAtacante: string?, rutaVictima: string?): string?
+	if rutaAtacante ~= nil then
+		return rutaAtacante
+	end
+	if rutaVictima ~= nil and not Routes.existe(rutaVictima) then
+		return nil
+	end
+	return rutaVictima
+end
+
 -- ¿Hay que avisar a la víctima de que este jugador se le acerca? Se resuelve con las
 -- MISMAS reglas del robo, pasando distancia 0 para saltarse sólo el filtro de
 -- alcance: si alguien no podría robarte, avisar de que viene sería asustar por nada.

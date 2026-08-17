@@ -149,4 +149,12 @@ return function(kit)
 		"desde muy lejos no se avisa",
 		Intercept.esAmenaza(perfil("roja", {}), perfil("roja", { comun }), 500, AHORA)
 	)
+
+	-- Con que ruta se queda el ladron. Sin esto, el cazador que sale VACIO por la
+	-- roja robaba y luego no tenia ningun destino que le aceptase la entrega: su
+	-- premio era caminar 2.000 studs de vuelta.
+	kit.eq("el cazador vacio hereda el encargo de la victima", Intercept.rutaTrasRobo(nil, "roja"), "roja")
+	kit.eq("pero quien ya iba en ruta se queda con la suya", Intercept.rutaTrasRobo("ambar", "roja"), "ambar")
+	kit.eq("y sin ruta por ningun lado sigue sin haberla", Intercept.rutaTrasRobo(nil, nil), nil)
+	kit.eq("una ruta inventada no se hereda", Intercept.rutaTrasRobo(nil, "arcoiris"), nil)
 end

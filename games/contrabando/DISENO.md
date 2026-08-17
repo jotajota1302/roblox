@@ -110,6 +110,14 @@ potencia**. Ningún vehículo te hace inatrapable. Un novato en moto puede escap
 jugador del servidor. En el momento en que alguien se vuelve inalcanzable, el PvP muere y
 las rutas rojas pasan a ser dinero gratis.
 
+**Cada vehículo lleva su propia penalización por peso** (decidido al implementarlo). Con la
+penalización de ir a pie —1,4 studs/s por unidad, calibrada para una capacidad de 3—, una
+furgoneta con sus 10 cajas caería a 0,4 studs/s y la salvaría el suelo de velocidad: iría al
+mínimo **siempre**, su capacidad no valdría nada y no habría gradiente que decidir. Con 0,45
+el recorrido va de 14,4 (vacía) a 9,9 (a tope), siempre por debajo del equivalente a pie.
+En el prototipo la furgoneta cuesta **1.500** en vez de 5.000, para que la compra quepa
+dentro de la sesión que estamos midiendo.
+
 Los escudos y defensas son **consumibles de un solo uso**, no equipo permanente: un escudo
 permanente es escalado de poder disfrazado; uno de un solo uso es una decisión ("¿lo gasto
 ahora o me lo guardo para la roja?").
@@ -147,6 +155,13 @@ víctima recibe aviso de quién fue y hacia dónde va.
 
 Robar **no es un atajo: es empezar un viaje en desventaja.** Eso impide que interceptar sea
 trivialmente mejor que transportar, que es como degeneran estos sistemas.
+
+**El ladrón hereda el encargo de la víctima** si no traía ya el suyo. Añadido al construir
+el prototipo, porque el diseño original dejaba un agujero que nadie eligió: la ruta roja
+permite cazar saliendo del almacén **vacío**, y salir vacío significa no haber elegido ruta
+en la salida — así que ese cazador robaba y luego **ningún destino le aceptaba la entrega**.
+Su premio era caminar 2.000 studs de vuelta. Con la herencia, le quitas el cargamento y el
+encargo; quien ya iba en ruta conserva la suya, que es la que se ha jugado.
 
 ### Monetización (más adelante)
 

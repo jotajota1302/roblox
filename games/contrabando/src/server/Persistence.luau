@@ -14,6 +14,7 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local PlayerState = require(script.Parent.PlayerState)
 
 local NOMBRE_STORE = "ContrabandoV1"
@@ -58,6 +59,13 @@ function Persistence.cargar(player: Player)
 	estado.dinero = tonumber(datos.dinero) or estado.dinero
 	estado.almacenCajas = tonumber(datos.almacenCajas) or estado.almacenCajas
 	estado.almacenUltimaVisita = tonumber(datos.almacenUltimaVisita) or estado.almacenUltimaVisita
+	-- El vehículo se valida contra el catálogo antes de aceptarlo. Lo guardado
+	-- ayer puede ser un id que hoy ya no existe (se retira un vehículo, se
+	-- renombra), y Vehicles.get revienta ante un desconocido: sin este filtro,
+	-- un cambio de catálogo dejaría a esos jugadores sin poder entrar.
+	if Vehicles.existe(datos.vehiculo) then
+		estado.vehiculo = datos.vehiculo
+	end
 	PlayerState.sync(player)
 end
 
@@ -80,10 +88,14 @@ function Persistence.guardar(player: Player)
 	-- La carga que lleva encima NO se guarda a propósito: si la partida se corta a
 	-- mitad de viaje, el riesgo asumido se resuelve como una pérdida. Guardarla
 	-- convertiría desconectarse en un escudo perfecto contra el robo.
+	-- El vehículo SÍ se guarda, al contrario que la carga: es una compra, no un
+	-- riesgo asumido. Perder por una desconexión lo que has pagado con 1.500
+	-- monedas es la clase de agravio que hace desinstalar.
 	local datos = {
 		dinero = estado.dinero,
 		almacenCajas = estado.almacenCajas,
 		almacenUltimaVisita = os.time(),
+		vehiculo = estado.vehiculo,
 	}
 
 	local ok, err = pcall(function()

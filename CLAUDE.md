@@ -122,6 +122,12 @@ Avisos verificados:
   Llamarlo al cargar un módulo hace que el `require()` reviente y **mata el script entero**:
   juego sin mapa, sin personaje y sin pista del motivo. Todo lo que pueda lanzar va perezoso
   y dentro de `pcall`.
+- **`MeshPart.MeshId` NO se puede escribir en tiempo de ejecución.** `Instance.new("MeshPart")`
+  seguido de `m.MeshId = "rbxassetid://…"` falla con *"lacking capability NotAccessible"*:
+  MeshId sólo se escribe desde Studio o un plugin. En un servidor hay que pedir la pieza a
+  `AssetService:CreateMeshPartAsync(meshId)`; sobre el resultado, `TextureID` y `Size` sí se
+  asignan con normalidad. Y como esa llamada espera al servidor de assets, **nunca va en el
+  camino de arranque**: primero el mundo jugable, el decorado después en otro hilo.
 - **El personaje aparece antes de que tu código construya el mundo.** Si generas el mapa por
   código, usa `Players.CharacterAutoLoads = false` durante el arranque.
 - Un `require` que falla se propaga: protege los del punto de entrada.

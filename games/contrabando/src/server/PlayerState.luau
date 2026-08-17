@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 
 export type Estado = {
 	dinero: number,
@@ -19,6 +20,9 @@ export type Estado = {
 	marcadoHasta: number,
 	almacenCajas: number,
 	almacenUltimaVisita: number,
+	-- nil significa "a pie". Vehicles.deEstado es el único sitio que traduce ese
+	-- nil, para que ningún servicio tenga que acordarse de hacerlo.
+	vehiculo: string?,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -35,6 +39,7 @@ function PlayerState.get(player: Player): Estado
 			marcadoHasta = 0,
 			almacenCajas = 3, -- las tres cajas de los primeros cinco segundos
 			almacenUltimaVisita = os.time(),
+			vehiculo = nil,
 		}
 		estados[player] = estado
 	end
@@ -54,12 +59,22 @@ end
 
 function PlayerState.sync(player: Player)
 	local estado = PlayerState.get(player)
+	local vehiculo = Vehicles.deEstado(estado.vehiculo)
 	Remotes.event(Remotes.SYNC_STATE):FireClient(player, {
 		dinero = estado.dinero,
 		cajas = estado.cajas,
 		ruta = estado.ruta,
 		marcadoHasta = estado.marcadoHasta,
 		almacenCajas = estado.almacenCajas,
+		-- El cliente recibe el vehículo YA resuelto (nunca el nil crudo) y su
+		-- capacidad calculada: dibujar "2/10" no debe requerir que el cliente
+		-- sepa ninguna regla, porque el cliente no decide nada en este juego.
+		vehiculo = vehiculo.id,
+		vehiculoNombre = vehiculo.nombre,
+		capacidad = vehiculo.capacidad,
+		-- Lo que le queda por comprar, ya filtrado por su estado: el taller no
+		-- ofrece nada que no sea una mejora.
+		mejoras = Vehicles.mejorasPara(estado.vehiculo),
 	})
 end
 

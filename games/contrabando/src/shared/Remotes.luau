@@ -19,6 +19,7 @@ Remotes.PEDIR_ESTADO = "PedirEstado" -- cliente -> servidor: "acabo de entrar, p
 Remotes.ENTREGAR = "Entregar" -- cliente -> servidor: "quiero entregar aquí"
 Remotes.ELEGIR_RUTA = "ElegirRuta" -- cliente -> servidor: "salgo por esta ruta"
 Remotes.RECLAMAR = "Reclamar" -- cliente -> servidor: "cojo lo que ha producido el almacén"
+Remotes.COMPRAR = "Comprar" -- cliente -> servidor: "compro este vehículo"
 Remotes.AVISO = "Aviso" -- servidor -> cliente: mensaje corto en pantalla
 Remotes.SONIDO = "Sonido" -- servidor -> cliente: reproducir un efecto por su clave
 

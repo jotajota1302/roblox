@@ -54,10 +54,14 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	return true
 end
 
+-- No sincroniza: quien llame decide cuándo. Antes sí lo hacía, y una sola entrega
+-- disparaba TRES envíos del estado completo al cliente (vaciar, limpiar y el sync
+-- explícito de entregar), dos de ellos con un estado a medio actualizar que el
+-- HUD llegaba a dibujar. Con 30 jugadores entregando eso es tráfico y parpadeo
+-- gratis.
 function RouteService.limpiar(player: Player)
 	local estado = PlayerState.get(player)
 	estado.ruta = nil
-	PlayerState.sync(player)
 end
 
 function RouteService.start()

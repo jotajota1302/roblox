@@ -10,13 +10,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
-
-local COLORES = {
-	verde = Color3.fromRGB(60, 140, 70),
-	ambar = Color3.fromRGB(200, 150, 50),
-	roja = Color3.fromRGB(170, 60, 60),
-}
 
 local RoutePicker = {}
 local gui: ScreenGui? = nil
@@ -47,7 +42,7 @@ function RoutePicker.build(alElegir: (string) -> ())
 		local boton = Instance.new("TextButton")
 		boton.Name = ruta.id
 		boton.Size = UDim2.fromScale(0.3, 1)
-		boton.BackgroundColor3 = COLORES[ruta.id] or Color3.fromRGB(120, 120, 120)
+		boton.BackgroundColor3 = Palette.ruta(ruta.id)
 		boton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		boton.TextScaled = true
 		boton.Font = Enum.Font.GothamBold

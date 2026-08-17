@@ -25,6 +25,7 @@ local dineroLabel: TextLabel
 local cargaLabel: TextLabel
 local almacenLabel: TextLabel
 local avisoLabel: TextLabel
+local comprarBoton: TextButton
 
 function Hud.build()
 	local gui = Instance.new("ScreenGui")
@@ -115,6 +116,36 @@ function Hud.build()
 		Remotes.event(Remotes.RECLAMAR):FireServer()
 	end)
 
+	-- Botón de compra. Empieza oculto y sólo aparece cuando de verdad hay algo que
+	-- comprar: un botón permanentemente deshabilitado ocupa sitio en una pantalla
+	-- de móvil y no informa de nada.
+	comprarBoton = Instance.new("TextButton")
+	comprarBoton.Name = "Comprar"
+	comprarBoton.AnchorPoint = Vector2.new(1, 0.5)
+	comprarBoton.Position = UDim2.fromScale(0.97, 0.68)
+	comprarBoton.Size = UDim2.fromScale(0.22, 0.12)
+	comprarBoton.BackgroundColor3 = Color3.fromRGB(70, 90, 130)
+	comprarBoton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	comprarBoton.TextScaled = true
+	comprarBoton.Font = Enum.Font.GothamBold
+	comprarBoton.Text = ""
+	comprarBoton.Visible = false
+	comprarBoton.Parent = gui
+
+	local comprarSize = Instance.new("UISizeConstraint")
+	comprarSize.MinSize = Vector2.new(TOUCH_MIN * 2.5, TOUCH_MIN)
+	comprarSize.MaxSize = Vector2.new(240, 90)
+	comprarSize.Parent = comprarBoton
+
+	comprarBoton.Activated:Connect(function()
+		-- El id viaja como atributo del propio botón: es el servidor quien decidió
+		-- qué se ofrece (mejorasPara), y el cliente sólo devuelve lo que le dieron.
+		local id = comprarBoton:GetAttribute("vehiculo")
+		if typeof(id) == "string" then
+			Remotes.event(Remotes.COMPRAR):FireServer(id)
+		end
+	end)
+
 	avisoLabel = Instance.new("TextLabel")
 	avisoLabel.Name = "Aviso"
 	avisoLabel.AnchorPoint = Vector2.new(0.5, 0)
@@ -128,13 +159,45 @@ function Hud.build()
 	avisoLabel.Parent = gui
 end
 
-function Hud.update(estado: { dinero: number, cajas: { any }, almacenCajas: number? })
+export type EstadoHud = {
+	dinero: number,
+	cajas: { any },
+	almacenCajas: number?,
+	capacidad: number?,
+	vehiculoNombre: string?,
+	mejoras: { { id: string, nombre: string, coste: number, capacidad: number } }?,
+}
+
+function Hud.update(estado: EstadoHud)
 	if not dineroLabel then
 		return
 	end
 	dineroLabel.Text = string.format("Dinero: %d", estado.dinero)
-	cargaLabel.Text = string.format("Carga: %d cajas", #estado.cajas)
+	-- Carga sobre capacidad, no un número suelto: "2 cajas" no dice si te queda
+	-- sitio, y de ese hueco depende toda la decisión de qué te llevas.
+	local capacidad = estado.capacidad or Config.CAPACIDAD_A_PIE
+	cargaLabel.Text = string.format("Carga: %d/%d  %s", #estado.cajas, capacidad, estado.vehiculoNombre or "")
 	almacenLabel.Text = string.format("Almacen: %d/%d", estado.almacenCajas or 0, Config.ALMACEN_TOPE)
+
+	if not comprarBoton then
+		return
+	end
+	local mejoras = estado.mejoras
+	local siguiente = mejoras and mejoras[1]
+	if siguiente then
+		comprarBoton:SetAttribute("vehiculo", siguiente.id)
+		comprarBoton.Text = string.format("%s\n%d", siguiente.nombre, siguiente.coste)
+		comprarBoton.Visible = true
+		-- Apagado en gris cuando no llega el dinero: enseñar el precio que aún no
+		-- puedes pagar es la mitad del motivo para hacer otro viaje. Ocultarlo
+		-- dejaría el dinero sin destino visible, que es el problema que el taller
+		-- viene a resolver.
+		local alcanza = estado.dinero >= siguiente.coste
+		comprarBoton.BackgroundColor3 = if alcanza then Color3.fromRGB(70, 90, 130) else Color3.fromRGB(60, 60, 66)
+		comprarBoton.TextTransparency = if alcanza then 0 else 0.35
+	else
+		comprarBoton.Visible = false
+	end
 end
 
 local avisoId = 0

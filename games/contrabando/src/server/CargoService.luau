@@ -10,8 +10,8 @@
 local Players = game:GetService("Players")
 
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
-local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
@@ -29,7 +29,7 @@ local function aplicarVelocidad(player: Player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		humanoid.WalkSpeed = Cargo.velocidad(estado.cajas)
+		humanoid.WalkSpeed = Cargo.velocidad(estado.cajas, estado.vehiculo)
 	end
 end
 
@@ -47,7 +47,10 @@ end
 
 function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	local estado = PlayerState.get(player)
-	if not Cargo.cabe(estado.cajas, caja, Config.CAPACIDAD_A_PIE) then
+	-- La capacidad sale del vehículo, no de la constante de ir a pie: leer
+	-- Config.CAPACIDAD_A_PIE aquí dejaba el zurrón clavado en 3 aunque el jugador
+	-- hubiera pagado por una furgoneta de 10, y sin dar ningún error.
+	if not Cargo.cabe(estado.cajas, caja, Cargo.capacidad(estado.vehiculo)) then
 		return false
 	end
 	table.insert(estado.cajas, caja)
@@ -57,12 +60,19 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	return true
 end
 
-function CargoService.vaciar(player: Player): { Economy.Caja }
+-- `sincronizar = false` para quien vaya a seguir tocando el estado y prefiera
+-- mandar UNA foto ya coherente. Entregar es justo ese caso: vaciando con sync, el
+-- cliente recibía un estado con el zurrón ya vacío y el dinero todavía sin cobrar
+-- -- medio segundo en el que el HUD dice que has perdido la carga a cambio de
+-- nada. Por defecto sí sincroniza, que es lo que espera todo lo demás.
+function CargoService.vaciar(player: Player, sincronizar: boolean?): { Economy.Caja }
 	local estado = PlayerState.get(player)
 	local cajas = estado.cajas
 	estado.cajas = {}
 	aplicarVelocidad(player)
-	PlayerState.sync(player)
+	if sincronizar ~= false then
+		PlayerState.sync(player)
+	end
 	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
 	return cajas
 end
@@ -156,14 +166,17 @@ function CargoService.entregar(player: Player)
 			and Routes.entregaValida(estado.ruta, rutaDelDestino)
 		then
 			local multiplicador = Routes.get(rutaDelDestino).multiplicador
-			local cajas = CargoService.vaciar(player)
-			estado.dinero += Economy.valorEntrega(cajas, multiplicador)
+			-- Un solo sync al final, con el estado ya completo: zurrón vacío, dinero
+			-- cobrado y ruta liberada llegan juntos.
+			local cajas = CargoService.vaciar(player, false)
+			local cobrado = Economy.valorEntrega(cajas, multiplicador)
+			estado.dinero += cobrado
 			RouteService.limpiar(player)
 			PlayerState.sync(player)
 			Telemetry.evento(player, "entrega", {
 				ruta = rutaDelDestino,
 				cajas = #cajas,
-				valor = Economy.valorEntrega(cajas, multiplicador),
+				valor = cobrado,
 			})
 			Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 			return
@@ -207,7 +220,7 @@ function CargoService.start()
 		if #estado.cajas > 0 then
 			CargoService.vaciar(player)
 			Remotes.event(Remotes.AVISO)
-				:FireClient(player, "Al reaparecer pierdes la carga que llevabas encima", Color3.fromRGB(220, 80, 80))
+				:FireClient(player, "Al reaparecer pierdes la carga que llevabas encima", Palette.AVISO_MALO)
 		end
 
 		-- I1, parte 1: el haz de la legendaria no se reaplicaba aquí, sólo la
