@@ -71,6 +71,38 @@ Comprobado así, en el servidor real:
 La última importa más de lo que parece: si el bucle no distinguiera a la víctima del
 atacante, un jugador en solitario vería su carga desaparecer cada 200 ms sin explicación.
 
+### El bucle jugado andando, de principio a fin
+
+**Esta es la verificación que faltaba, y la que destapó que el mapa era injugable.** Todas
+las anteriores movían al personaje teletransportándolo, así que el suelo nunca se pisó: el
+juego pasaba todas las pruebas mientras la carretera no cubría siquiera el almacén.
+
+Un `Part` tiene un **tamaño máximo de 2.048 studs por eje**. La carretera pedía 2.600 y
+Roblox la recortó **en silencio**, dejándola centrada en la misma posición — así que el
+tramo del almacén y el de la salida se quedaron sin asfalto. Nada dio error. Sólo se ve
+caminando. Por eso el mundo se construye ahora en segmentos.
+
+Recorrido completo de la ruta roja **andando** (`Humanoid:MoveTo`, sin teletransportes):
+
+```
+25 58 90 122 154 186 218 251 ... 1891 1924 1955 1987 1999
+```
+
+Avance continuo, altura constante en 3, **ni una caída**, y el personaje llega vivo.
+
+Y el bucle entero, jugado como lo jugaría una persona:
+
+| Paso | Resultado |
+|---|---|
+| Aparece | a **6 studs del almacén** |
+| Vuelve al almacén andando desde 2.000 studs | llega |
+| El almacén **había producido** mientras caminaba | **10 cajas** |
+| Coge lo que le cabe | 2 (una pesaba doble) |
+| Velocidad cargado | **11,8** |
+| Elige ruta y recorre los 600 studs andando | llega vivo |
+| Cobra | **510 monedas** — salió una caja sellada (×50) |
+| Zurrón tras cobrar | vacío |
+
 ### Un intento de exploit por cada remote
 
 Desde el **cliente**, que es desde donde ataca un exploit real, y con el personaje colocado
