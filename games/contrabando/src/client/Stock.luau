@@ -20,6 +20,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Goods = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goods"))
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rarity"))
 
 -- Los tonos de los detalles. Van aquí y no repartidos por los `if` para que
@@ -51,7 +52,7 @@ end
 -- servidor. Se redibuja sólo cuando cambia la lista: reconstruir diez modelos
 -- cinco veces por segundo es tirar rendimiento en un juego que tiene que ir en un
 -- móvil de gama baja.
-function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
+function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto: string? } }?)
 	if not almacen then
 		return
 	end
@@ -61,7 +62,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 	-- sobre un dibujo viejo.
 	local huella = ""
 	for _, p in lote do
-		huella ..= p.rareza .. ","
+		huella ..= p.rareza .. ":" .. tostring(p.objeto) .. ","
 	end
 	if huella == dibujadas then
 		return
@@ -79,6 +80,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 	local lista = sitios(almacen)
 	for i = 1, math.min(#lote, #lista) do
 		local rareza = lote[i].rareza
+		local objeto = lote[i].objeto
 		local aspecto = Rarity.aspecto(rareza)
 
 		local caja = Instance.new("Part")
@@ -88,10 +90,17 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 		-- tapan al propio jugador, así que la pila deja de leerse como un contador.
 		-- Cada rareza deforma esa base con su escala: la urna sale alta y estrecha,
 		-- el maletín plano y ancho. Se distinguen de lejos, antes de leer nada.
-		caja.Size = Vector3.new(3, 3, 3) * aspecto.escala
+		-- La medida real del OBJETO, no una escala de la rareza: un sofá es ancho y
+		-- bajo, una estatua alta y estrecha, y una nevera no cabe donde cabe un
+		-- sobre. Que se vea que no cabe es el argumento de venta del vehículo.
+		-- A escala 1,6: un personaje mide 5 studs, así que a tamaño 1 un sobre de 0,4
+		-- era una mota en el suelo que no se veía ni de cerca. Con esto lo pequeño
+		-- sigue siendo pequeño y lo enorme ocupa media nave -- que es justo lo que
+		-- tiene que transmitir: que eso no lo mueves sin un vehículo.
+		caja.Size = Goods.medida(objeto, 1.6)
 		caja.Position = lista[i]
 		caja.Color = Rarity.color(rareza)
-		caja.Material = aspecto.material
+		caja.Material = Goods.aspecto(objeto).material
 		caja.Anchored = true
 		-- Atravesables: están en el muelle, que es justo por donde se anda. Una pila
 		-- sólida creciendo dentro de la nave acabaría encerrando al jugador en su
@@ -108,7 +117,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 		local aviso = Instance.new("ProximityPrompt")
 		aviso.Name = "PromptCaja"
 		aviso.ActionText = "Cargar"
-		aviso.ObjectText = Rarity.etiqueta(rareza)
+		aviso.ObjectText = Goods.etiqueta(objeto, rareza)
 		aviso.MaxActivationDistance = 9
 		aviso.HoldDuration = 0
 		aviso.RequiresLineOfSight = false
@@ -131,7 +140,8 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 		end
 
 		local lado = caja.Size
-		if aspecto.forma == "caja" then
+		local forma = (objeto and Goods.get(objeto) and (Goods.get(objeto) :: any).forma) or "cajon"
+		if forma == "cajon" or forma == "baul" then
 			-- Flejes cruzados: dos listones y el cubo pasa a ser un cajón.
 			adorno(
 				"Fleje1",
@@ -147,7 +157,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 				MADERA_OSCURA,
 				Enum.Material.Wood
 			)
-		elseif aspecto.forma == "maletin" then
+		elseif forma == "maletin" or forma == "joyero" then
 			-- Asa arriba y cierre delante: se lee como maletín al instante.
 			adorno(
 				"Asa",
@@ -163,7 +173,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 				METAL_OSCURO,
 				Enum.Material.Metal
 			)
-		elseif aspecto.forma == "estuche" then
+		elseif forma == "nevera" or forma == "television" then
 			-- Refuerzos en las esquinas: la silueta de algo blindado.
 			for k, e in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
 				adorno(
@@ -174,7 +184,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 					Enum.Material.Metal
 				)
 			end
-		elseif aspecto.forma == "urna" then
+		elseif forma == "urna" or forma == "estatua" then
 			-- Base y tapa: una urna es lo único que no debería parecer una caja.
 			adorno(
 				"Base",
@@ -211,7 +221,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 		texto.TextStrokeTransparency = 0.3
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = Rarity.etiqueta(rareza)
+		texto.Text = Goods.etiqueta(objeto, rareza)
 		texto.Parent = cartel
 	end
 end

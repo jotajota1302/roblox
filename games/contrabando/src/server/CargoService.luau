@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
+local Goods = require(game.ReplicatedStorage.Shared.Goods)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
@@ -20,6 +21,15 @@ local RouteService = require(script.Parent.RouteService)
 local Telemetry = require(script.Parent.Telemetry)
 
 local DISTANCIA_ENTREGA = 30 -- studs de margen alrededor del destino
+
+-- ARRIBA DEL TODO, antes que cualquiera que la use. Estaba declarada a mitad de
+-- fichero y en cuanto recoger() paso a necesitarla se habria resuelto como un
+-- global nil: reventaria justo al intentar avisar de que no te cabe algo, es
+-- decir en el unico caso en que hace falta. Este proyecto ya ha pagado ese mismo
+-- error cuatro veces (tieneLegendaria, suelo del decorado, perseguidos, rng).
+local function avisar(player: Player, texto: string, color: Color3)
+	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+end
 
 local CargoService = {}
 local destinos: { BasePart } = {}
@@ -50,7 +60,19 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	-- La capacidad sale del vehículo, no de la constante de ir a pie: leer
 	-- Config.CAPACIDAD_A_PIE aquí dejaba el zurrón clavado en 3 aunque el jugador
 	-- hubiera pagado por una furgoneta de 10, y sin dar ningún error.
-	if not Cargo.cabe(estado.cajas, caja, Cargo.capacidad(estado.vehiculo)) then
+	local puede, motivo = Cargo.cabe(estado.cajas, caja, Cargo.capacidad(estado.vehiculo), estado.vehiculo)
+	if not puede then
+		-- Se dice POR QUÉ, porque los dos motivos llevan a decisiones opuestas: uno
+		-- dice vacía el zurrón y el otro dice ve a comprarte un vehículo. Desde
+		-- dentro se ven igual --la pieza no se recoge-- y sin explicación el jugador
+		-- concluye que está roto.
+		if motivo == "vehiculo_insuficiente" and caja.objeto then
+			avisar(
+				player,
+				string.format("Necesitas un vehículo mayor: eso es %s", Goods.nombreTamano(caja.objeto)),
+				Palette.AVISO_MALO
+			)
+		end
 		return false
 	end
 	table.insert(estado.cajas, caja)
@@ -123,14 +145,14 @@ function CargoService.mostrarCarga(player: Player)
 		local caja = estado.cajas[i]
 		local fila = math.floor((i - 1) / 2)
 		local columna = (i - 1) % 2
-		local aspecto = Rarity.aspecto(caja.rareza)
+		local aspecto = Goods.aspecto(caja.objeto)
 
 		local p = Instance.new("Part")
 		p.Name = "Caja" .. i
 		-- Cada rareza con su forma y su material: un cajón, un maletín, un estuche
 		-- blindado, una urna. Antes eran seis cubos de madera idénticos y una
 		-- legendaria de x135 no se distinguía de una común salvo por el tono.
-		p.Size = Vector3.new(1.1, 1.1, 1.1) * aspecto.escala
+		p.Size = Goods.medida(caja.objeto, 0.55)
 		-- Del color de su rareza: una legendaria a la espalda se ve de lejos, que es
 		-- justo lo que el diseño quiere -- llevarla vale una fortuna Y te señala.
 		p.Color = Rarity.color(caja.rareza)
@@ -182,8 +204,8 @@ function CargoService.mostrarCarga(player: Player)
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
 	texto.Text = if #estado.cajas > 1
-		then string.format("%s  +%d", Rarity.etiqueta(mejor.rareza), #estado.cajas - 1)
-		else Rarity.etiqueta(mejor.rareza)
+		then string.format("%s  +%d", Goods.etiqueta(mejor.objeto, mejor.rareza), #estado.cajas - 1)
+		else Goods.etiqueta(mejor.objeto, mejor.rareza)
 	texto.Parent = cartel
 end
 
@@ -243,12 +265,14 @@ end
 -- de momento sirve para probar la mecánica de punta a punta.
 local rng = Random.new(os.clock() * 1000)
 
-function CargoService.nuevaCaja(): Economy.Caja
-	return { rareza = Rarity.tirada(rng) }
-end
-
-local function avisar(player: Player, texto: string, color: Color3)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+-- `nivelMaximo` limita lo que puede salir a lo que el jugador PUEDE mover. Sin
+-- ese tope, alguien a pie llenaría su almacén de sofás intocables y se quedaría
+-- sin juego -- lo contrario de lo buscado: lo grande tiene que asomar de vez en
+-- cuando como promesa, no ser todo lo que hay. Se deja un peldaño por encima de
+-- su vehículo, que es justo la promesa.
+function CargoService.nuevaCaja(nivelMaximo: number?): Economy.Caja
+	local objeto = Goods.tirada(rng, nivelMaximo)
+	return { rareza = objeto.rareza, objeto = objeto.id }
 end
 
 -- Punto de entrega. El multiplicador es el de la ruta elegida en la salida, y

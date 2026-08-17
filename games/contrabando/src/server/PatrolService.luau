@@ -24,6 +24,7 @@
 local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 
+local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
@@ -365,7 +366,23 @@ local function ajustar(player: Player)
 		end
 	end
 
-	local velocidad = Heat.velocidadPatrulla(nivel)
+	-- La velocidad de la patrulla NUNCA baja de la del perseguido más un margen.
+	--
+	-- El diseño tenía una regla tajante --"ningún vehículo te hace inatrapable: en
+	-- el momento en que alguien es inalcanzable, el PvP muere y las rutas rojas
+	-- pasan a ser dinero gratis"-- y la escalera de vehículos, que sí sube la
+	-- velocidad, la rompía por la letra: con la furgoneta a 22 y las patrullas a 22,
+	-- nadie te alcanza jamás.
+	--
+	-- Se conserva el ESPÍRITU en vez de la letra, y sale más barato que congelar la
+	-- progresión: el perseguidor escala contigo. Lo que sigue decidiendo la
+	-- persecución es lo de siempre -- él va más rápido pero atado a las calles, y tú
+	-- puedes cortar por parques. Comprar una moto te hace llegar antes, no
+	-- invisible.
+	local velocidad = math.max(
+		Heat.velocidadPatrulla(nivel),
+		Cargo.velocidad(PlayerState.get(player).cajas, PlayerState.get(player).vehiculo) + 3
+	)
 	for _, p in lista do
 		p.humanoid.WalkSpeed = velocidad
 	end

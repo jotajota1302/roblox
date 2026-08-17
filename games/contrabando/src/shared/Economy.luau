@@ -9,7 +9,12 @@
 
 local Config = require(script.Parent.Config)
 
-export type Caja = { rareza: string }
+-- `objeto` es el id del catálogo (Goods): qué cosa concreta es -- un sobre, un
+-- piano, una nevera. Es OPCIONAL a propósito y no obligatorio: hay partidas
+-- guardadas de antes de que existiera el catálogo, y una carga sin objeto tiene
+-- que seguir valiendo (cae a lo que diga su rareza). La rareza sigue mandando en
+-- el VALOR; el objeto manda en el tamaño y en qué vehículo hace falta.
+export type Caja = { rareza: string, objeto: string? }
 
 local Economy = {}
 

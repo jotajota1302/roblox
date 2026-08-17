@@ -30,6 +30,23 @@ Config.PENALIZACION_POR_CAJA = 1.4 -- studs/s menos por unidad de peso transport
 -- valdría nada y no habría gradiente que decidir. Con 0,45 el recorrido va de
 -- 14,4 (vacía) a 9,9 (a tope): siempre por debajo del equivalente a pie, que es
 -- lo que exige "capacidad contra exposición", pero con margen real de decisión.
+-- TAMAÑOS de la mercancía, y qué hace falta para moverla.
+--
+-- Es la regla que ata la progresión a lo que llevas, en vez de dejarla como un
+-- número suelto de capacidad: **no puedes llevar algo grande sin un vehículo para
+-- ello**. Con esto, ver en el almacén un objeto que paga x50 y no poder cogerlo es
+-- lo que le da destino al dinero -- el vehículo deja de ser "una caja más" y pasa
+-- a ser una LLAVE.
+--
+-- `huecos` es lo que ocupa de la capacidad; `nivel` es el listón que el vehículo
+-- tiene que alcanzar para admitirlo.
+Config.TAMANOS = {
+	{ id = "pequeno", nombre = "pequeño", nivel = 1, huecos = 1 },
+	{ id = "mediano", nombre = "mediano", nivel = 2, huecos = 2 },
+	{ id = "grande", nombre = "grande", nivel = 3, huecos = 4 },
+	{ id = "enorme", nombre = "enorme", nivel = 4, huecos = 8 },
+}
+
 Config.VEHICULOS = {
 	{
 		id = "a_pie",
@@ -37,15 +54,80 @@ Config.VEHICULOS = {
 		capacidad = Config.CAPACIDAD_A_PIE,
 		velocidadBase = Config.VELOCIDAD_BASE,
 		penalizacionPorPeso = Config.PENALIZACION_POR_CAJA,
+		tamanoMaximo = 1,
 		coste = 0,
+	},
+	{
+		id = "patines",
+		nombre = "Patines",
+		capacidad = 4,
+		velocidadBase = 17,
+		penalizacionPorPeso = 1.2,
+		tamanoMaximo = 1,
+		coste = 150,
+	},
+	{
+		id = "monopatin",
+		nombre = "Monopatín",
+		capacidad = 5,
+		velocidadBase = 18,
+		penalizacionPorPeso = 1.0,
+		tamanoMaximo = 2,
+		coste = 350,
+	},
+	{
+		id = "patinete",
+		nombre = "Patinete",
+		capacidad = 6,
+		velocidadBase = 18.5,
+		penalizacionPorPeso = 0.9,
+		tamanoMaximo = 2,
+		coste = 700,
+	},
+	{
+		id = "patinete_electrico",
+		nombre = "Patinete eléctrico",
+		capacidad = 7,
+		velocidadBase = 19.5,
+		penalizacionPorPeso = 0.8,
+		tamanoMaximo = 2,
+		coste = 1400,
+	},
+	{
+		id = "bicicleta",
+		nombre = "Bicicleta",
+		capacidad = 9,
+		velocidadBase = 20,
+		penalizacionPorPeso = 0.7,
+		tamanoMaximo = 3,
+		coste = 2500,
+	},
+	{
+		id = "moto",
+		nombre = "Moto",
+		capacidad = 12,
+		velocidadBase = 21,
+		penalizacionPorPeso = 0.55,
+		tamanoMaximo = 3,
+		coste = 4500,
+	},
+	{
+		id = "coche",
+		nombre = "Coche",
+		capacidad = 18,
+		velocidadBase = 21.5,
+		penalizacionPorPeso = 0.4,
+		tamanoMaximo = 4,
+		coste = 8000,
 	},
 	{
 		id = "furgoneta",
 		nombre = "Furgoneta",
-		capacidad = 10,
-		velocidadBase = Config.VELOCIDAD_BASE * 0.9, -- -10%, como el diseño
-		penalizacionPorPeso = 0.45,
-		coste = 1500, -- PROTOTIPO: 5000
+		capacidad = 26,
+		velocidadBase = 22,
+		penalizacionPorPeso = 0.28,
+		tamanoMaximo = 4,
+		coste = 15000,
 	},
 }
 

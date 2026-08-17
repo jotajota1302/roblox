@@ -11,6 +11,7 @@
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local CargoService = require(script.Parent.CargoService)
 local PlayerState = require(script.Parent.PlayerState)
@@ -49,8 +50,13 @@ local function actualizar(player: Player): number
 	if estado.almacen == nil then
 		estado.almacen = {}
 	end
+	-- Lo que se produce depende de lo que el jugador PUEDE mover, mas un peldaño
+	-- por encima. Ese peldaño extra es la promesa: ver de vez en cuando algo que no
+	-- te cabe es lo que le da destino al dinero. Sin tope, un jugador a pie
+	-- acabaria con el almacen lleno de sofas intocables y sin juego.
+	local nivel = math.min(4, (Vehicles.deEstado(estado.vehiculo).tamanoMaximo or 1) + 1)
 	while #estado.almacen < estado.almacenCajas do
-		table.insert(estado.almacen, CargoService.nuevaCaja())
+		table.insert(estado.almacen, CargoService.nuevaCaja(nivel))
 	end
 	-- Y si el contador bajó por cualquier vía, la lista le sigue: dos fuentes de
 	-- verdad sobre lo mismo acaban divergiendo, y la que divergiera aquí regalaría
@@ -96,7 +102,10 @@ function WarehouseService.reclamar(player: Player, indice: number?): number
 		-- La capacidad la manda el vehículo, no la constante de ir a pie: con
 		-- aquélla el almacén dejaba de llenar en 3 aunque la furgoneta admitiera 10,
 		-- y la mejora recién pagada no hacía nada visible.
-		if not Cargo.cabe(estado.cajas, caja, capacidad) then
+		local puede = Cargo.cabe(estado.cajas, caja, capacidad, estado.vehiculo)
+		if not puede then
+			-- CargoService.recoger explica el motivo al jugador; aquí sólo se corta.
+			CargoService.recoger(player, caja)
 			return 0
 		end
 		table.remove(estado.almacen, i)
@@ -109,7 +118,7 @@ function WarehouseService.reclamar(player: Player, indice: number?): number
 	local cogidas = 0
 	while estado.almacenCajas > 0 and #estado.almacen > 0 do
 		local caja = estado.almacen[1]
-		if not Cargo.cabe(estado.cajas, caja, capacidad) then
+		if not Cargo.cabe(estado.cajas, caja, capacidad, estado.vehiculo) then
 			break
 		end
 		table.remove(estado.almacen, 1)
