@@ -88,12 +88,12 @@ local function pintarPlano(ciudad: Instance, capa: Frame): Vector2
 		-- Edificios claros sobre calle oscura: es la convención de cualquier plano y
 		-- se lee sin explicación. El color real de la pieza no sirve -- media ciudad
 		-- es del mismo gris y el plano saldría plano.
-		-- El suelo se pinta MUY apagado y los edificios opacos. Con los dos a media
-		-- tinta el plano salía gris uniforme y las manzanas no se despegaban del
-		-- fondo: un plano en el que no se distingue lo que bloquea de lo que se
-		-- puede cruzar no responde a la única pregunta que se le hace.
-		r.BackgroundColor3 = if esEdificio then Color3.fromRGB(168, 172, 182) else Color3.fromRGB(38, 42, 50)
-		r.BackgroundTransparency = if esEdificio then 0 else 0.55
+		-- CALLES CLARAS SOBRE FONDO OSCURO, y los edificios en un tono medio encima.
+		-- Es la convención de cualquier plano nocturno y se lee sin explicación: lo
+		-- claro es por donde se pasa. Al revés --edificios claros, como estaba-- el
+		-- ojo se va a las manzanas, que son justo lo que NO se puede cruzar.
+		r.BackgroundColor3 = if esEdificio then Color3.fromRGB(66, 72, 86) else Color3.fromRGB(196, 198, 204)
+		r.BackgroundTransparency = if esEdificio then 0.1 else 0
 		r.ZIndex = if esEdificio then 2 else 1
 		r.Parent = capa
 		pintadas += 1
@@ -141,8 +141,16 @@ local function pintarPlano(ciudad: Instance, capa: Frame): Vector2
 		rectangulo(cf.Position.X, cf.Position.Z, size.X, size.Z, true)
 	end
 
-	-- Y el suelo: las losas planas y grandes (calles, césped, plazas). Van sueltas,
-	-- no agrupadas en modelos, así que éstas sí se leen pieza a pieza.
+	-- LAS CALLES, que es lo que faltaba. "No se ven las calles" (JJ), y tenía razón:
+	-- se estaban pintando todas las losas planas por igual --césped, tierra,
+	-- plazas, asfalto-- en el mismo gris apagado, así que la red viaria quedaba
+	-- disuelta entre el resto del suelo. Y la red viaria es LO ÚNICO que se mira en
+	-- un plano cuando te persiguen: por dónde se puede correr.
+	--
+	-- Se distinguen por el color: el asfalto de esta ciudad son 222 piezas grises
+	-- SIN saturación (rgb 99,95,98), mientras que el césped es verde y la tierra
+	-- marrón. Se comprueba que los tres canales estén juntos, no un RGB exacto: así
+	-- sigue funcionando si el mapa cambia de tono, y no cuela un césped oscuro.
 	for _, p in ciudad:GetDescendants() do
 		if pintadas > 1100 then
 			break
@@ -150,7 +158,16 @@ local function pintarPlano(ciudad: Instance, capa: Frame): Vector2
 		if not p:IsA("BasePart") or p.Size.Y > 8 then
 			continue
 		end
-		if p.Size.X < 40 or p.Size.Z < 40 then
+		if p.Size.X < 12 or p.Size.Z < 12 then
+			continue
+		end
+		local c = p.Color
+		local maximo = math.max(c.R, c.G, c.B)
+		local minimo = math.min(c.R, c.G, c.B)
+		local esGris = (maximo - minimo) < 0.06
+		if not esGris or maximo > 0.85 then
+			-- Césped, tierra y agua no se pintan: son el fondo. Pintarlos sólo
+			-- serviría para tapar las calles con más manchas del mismo tono.
 			continue
 		end
 		rectangulo(p.Position.X, p.Position.Z, p.Size.X, p.Size.Z, false)

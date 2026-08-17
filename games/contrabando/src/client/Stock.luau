@@ -22,6 +22,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rarity"))
 
+-- Los tonos de los detalles. Van aquí y no repartidos por los `if` para que
+-- cambiar el aspecto de la mercancía sea tocar cuatro líneas y no buscarlas.
+local MADERA_OSCURA = Color3.fromRGB(96, 72, 44)
+local METAL_OSCURO = Color3.fromRGB(58, 62, 70)
+local DORADO = Color3.fromRGB(212, 172, 82)
+
 local Stock = {}
 local carpeta: Folder? = nil
 local dibujadas = ""
@@ -96,6 +102,95 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string } }?)
 		-- ÉSTA y no otra.
 		caja:SetAttribute("indice", i)
 		caja.Parent = f
+
+		-- Y su aviso de recogida, en la pieza. Sustituye al botón fijo de la
+		-- esquina, que no decía cuál de las diez ibas a coger.
+		local aviso = Instance.new("ProximityPrompt")
+		aviso.Name = "PromptCaja"
+		aviso.ActionText = "Cargar"
+		aviso.ObjectText = Rarity.etiqueta(rareza)
+		aviso.MaxActivationDistance = 9
+		aviso.HoldDuration = 0
+		aviso.RequiresLineOfSight = false
+		aviso.Parent = caja
+
+		-- Los detalles que separan un objeto de un cubo. Son dos piezas por objeto y
+		-- cambian por completo lo que parece: "el tema objetos que se llevan, que
+		-- son todo cajas" (JJ). Van sin colisión y ancladas a la pieza madre.
+		local function adorno(nombre: string, tamano: Vector3, offset: Vector3, color: Color3, material: Enum.Material)
+			local d = Instance.new("Part")
+			d.Name = nombre
+			d.Size = tamano
+			d.Color = color
+			d.Material = material
+			d.Anchored = true
+			d.CanCollide = false
+			d.CFrame = caja.CFrame * CFrame.new(offset)
+			d.Parent = caja
+			return d
+		end
+
+		local lado = caja.Size
+		if aspecto.forma == "caja" then
+			-- Flejes cruzados: dos listones y el cubo pasa a ser un cajón.
+			adorno(
+				"Fleje1",
+				Vector3.new(lado.X + 0.1, 0.45, lado.Z + 0.1),
+				Vector3.new(0, lado.Y * 0.22, 0),
+				MADERA_OSCURA,
+				Enum.Material.Wood
+			)
+			adorno(
+				"Fleje2",
+				Vector3.new(lado.X + 0.1, 0.45, lado.Z + 0.1),
+				Vector3.new(0, -lado.Y * 0.22, 0),
+				MADERA_OSCURA,
+				Enum.Material.Wood
+			)
+		elseif aspecto.forma == "maletin" then
+			-- Asa arriba y cierre delante: se lee como maletín al instante.
+			adorno(
+				"Asa",
+				Vector3.new(lado.X * 0.4, 0.5, 0.5),
+				Vector3.new(0, lado.Y * 0.6, 0),
+				METAL_OSCURO,
+				Enum.Material.Metal
+			)
+			adorno(
+				"Cierre",
+				Vector3.new(lado.X * 0.9, 0.35, 0.2),
+				Vector3.new(0, 0, lado.Z * 0.5),
+				METAL_OSCURO,
+				Enum.Material.Metal
+			)
+		elseif aspecto.forma == "estuche" then
+			-- Refuerzos en las esquinas: la silueta de algo blindado.
+			for k, e in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
+				adorno(
+					"Refuerzo" .. k,
+					Vector3.new(0.6, lado.Y + 0.1, 0.6),
+					Vector3.new(e[1] * lado.X * 0.45, 0, e[2] * lado.Z * 0.45),
+					METAL_OSCURO,
+					Enum.Material.Metal
+				)
+			end
+		elseif aspecto.forma == "urna" then
+			-- Base y tapa: una urna es lo único que no debería parecer una caja.
+			adorno(
+				"Base",
+				Vector3.new(lado.X * 1.25, 0.5, lado.Z * 1.25),
+				Vector3.new(0, -lado.Y * 0.5, 0),
+				DORADO,
+				Enum.Material.Metal
+			)
+			adorno(
+				"Tapa",
+				Vector3.new(lado.X * 0.7, lado.Y * 0.25, lado.Z * 0.7),
+				Vector3.new(0, lado.Y * 0.6, 0),
+				DORADO,
+				Enum.Material.Metal
+			)
+		end
 
 		-- Qué es y cuánto multiplica, escrito encima. Es el dato de la decisión: sin
 		-- él, elegir entre la urna y tres cajones sería elegir por la forma, a

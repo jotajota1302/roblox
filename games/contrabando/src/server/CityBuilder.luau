@@ -116,6 +116,30 @@ local function losa(
 	return part(nombre, tamano, Vector3.new(centro.X, y + ALTO_LOSA / 2, centro.Z), color, padre)
 end
 
+-- Un aviso de "pulsa aquí" pegado a una pieza del mundo.
+--
+-- SUSTITUYE A LOS BOTONES FIJOS DE LA PANTALLA, y el motivo lo dio JJ jugando:
+-- "lo de entregar y recoger que sean botones es un poco extraño". Lo es. Un botón
+-- permanente en una esquina no dice DÓNDE se entrega ni CUÁNDO se puede: está ahí
+-- siempre, igual de encendido en mitad de la nada que encima del destino, así que
+-- el jugador tiene que aprenderse por su cuenta cuándo sirve.
+--
+-- ProximityPrompt es la pieza nativa de Roblox para esto y es lo que cualquier
+-- jugador de la plataforma ya sabe usar: aparece solo al acercarse a la cosa
+-- concreta, sale como tecla en el ordenador y como botón táctil en el móvil, y
+-- desaparece cuando te alejas. La acción deja de vivir en la interfaz y pasa a
+-- vivir en el sitio donde ocurre.
+local function prompt(pieza: BasePart, accion: string, objeto: string, distancia: number): ProximityPrompt
+	local p = Instance.new("ProximityPrompt")
+	p.ActionText = accion
+	p.ObjectText = objeto
+	p.MaxActivationDistance = distancia
+	p.HoldDuration = 0
+	p.RequiresLineOfSight = false -- si no, una farola delante lo apaga y parece roto
+	p.Parent = pieza
+	return p
+end
+
 local function iluminar()
 	local ok, err = pcall(function()
 		local luz = game:GetService("Lighting")
@@ -576,6 +600,7 @@ function CityBuilder.build(): Mundo
 	-- la mejora en un anuncio, pero está DENTRO de la zona segura, así que nadie
 	-- puede emboscar a quien compra.
 	local taller = losa(ciudad, "Taller", Vector3.new(40, ALTO_LOSA, 40), Config.TALLER_POS, Palette.TALLER, mundo)
+	prompt(taller, "Comprar vehículo", "Taller", 24).Name = "PromptTaller"
 
 	local destinos: { BasePart } = {}
 	local detectores: { BasePart } = {}
@@ -590,6 +615,10 @@ function CityBuilder.build(): Mundo
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
+		-- El aviso de entrega vive AQUÍ, en el destino, no en una esquina de la
+		-- pantalla: aparecer justo al pisar la losa es lo que enseña dónde se cobra
+		-- sin tener que explicarlo. El servidor valida la distancia igual.
+		prompt(destino, "Entregar carga", "Destino " .. string.upper(ruta.id), 26).Name = "PromptEntregar"
 
 		-- La baliza, visible desde el otro extremo del mapa. En la ciudad importa
 		-- MÁS que en la recta, no menos: allí bastaba con mirar al frente, y aquí

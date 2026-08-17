@@ -27,17 +27,10 @@ local cargaLabel: TextLabel
 local almacenLabel: TextLabel
 local calorLabel: TextLabel
 local calorFila: Frame
+local metaLabel: TextLabel
+local metaFila: Frame
 local avisoLabel: TextLabel
-local comprarBoton: TextButton
--- Los botones de acción, para poder apagarlos en bloque mientras hay una
--- pantalla modal delante. Medido en un Galaxy A06 (705x338): el selector de ruta
--- se superponía a los tres y asomaban por detrás, ilegibles y pulsables. Ocultar,
--- no sólo tapar: un botón invisible que sigue respondiendo es peor que uno visible.
-local accionBotones: { TextButton } = {}
 local modal = false
--- El borde del botón de comprar, guardado porque cambia de color cuando el
--- dinero alcanza: es la señal de "ya puedes" sin tener que leer la cifra.
-local comprarTrazo: UIStroke? = nil
 
 -- El acabado común de un botón: esquinas, borde del mismo color pero más oscuro
 -- (un borde negro se ve pegado encima; uno del mismo tono pertenece a la pieza),
@@ -135,93 +128,32 @@ function Hud.build()
 	calorLabel = linea("Calor", 4, "Calor")
 	calorFila = calorLabel.Parent :: Frame
 	calorFila.Visible = false
+
+	-- La meta: lo próximo que puedes comprar y su precio. También condicional --
+	-- desaparece cuando ya no queda nada que comprar, en vez de quedarse ocupando
+	-- sitio con una línea vacía.
+	metaLabel = linea("Meta", 5, "Meta")
+	metaFila = metaLabel.Parent :: Frame
+	metaFila.Visible = false
 	-- El dinero es el número que más se mira: se le da el color del oro para que
 	-- destaque entre los otros dos sin necesidad de leer la etiqueta.
 	dineroLabel.TextColor3 = Color3.fromRGB(238, 202, 122)
 
-	-- La columna de acciones: derecha, y con los tres repartidos entre 0,26 y 0,58
-	-- de la altura. No son cifras estéticas. MEDIDO en un Galaxy A06 (705x338): con
-	-- el de comprar en 0,68 su borde inferior caía en y=196 y el botón de SALTO de
-	-- Roblox empieza en y=190 -- seis píxeles de solape con un control del sistema
-	-- que no podemos mover y que el jugador va a pulsar sin mirar. La regla del
-	-- proyecto ("nada en las esquinas inferiores: son del joystick y del salto") no
-	-- se cumple sola: hay que comprobarla con las posiciones reales.
-	local entregar = Instance.new("TextButton")
-	entregar.Name = "Entregar"
-	entregar.AnchorPoint = Vector2.new(1, 0.5)
-	entregar.Position = UDim2.fromScale(0.97, 0.42)
-	entregar.Size = UDim2.fromScale(0.18, 0.12)
-	entregar.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
-	entregar.TextColor3 = Color3.fromRGB(255, 255, 255)
-	entregar.TextScaled = true
-	entregar.Font = Enum.Font.GothamBold
-	entregar.Text = "Entregar"
-	entregar.Parent = gui
-
-	local botonSize = Instance.new("UISizeConstraint")
-	botonSize.MinSize = Vector2.new(TOUCH_MIN * 2, TOUCH_MIN)
-	botonSize.MaxSize = Vector2.new(200, 90)
-	botonSize.Parent = entregar
-	acabado(entregar, entregar.BackgroundColor3)
-
-	entregar.Activated:Connect(function()
-		Remotes.event(Remotes.ENTREGAR):FireServer()
-	end)
-
-	local recoger = Instance.new("TextButton")
-	recoger.Name = "Recoger"
-	recoger.AnchorPoint = Vector2.new(1, 0.5)
-	recoger.Position = UDim2.fromScale(0.97, 0.26)
-	recoger.Size = UDim2.fromScale(0.18, 0.12)
-	recoger.BackgroundColor3 = Color3.fromRGB(120, 100, 60)
-	recoger.TextColor3 = Color3.fromRGB(255, 255, 255)
-	recoger.TextScaled = true
-	recoger.Font = Enum.Font.GothamBold
-	recoger.Text = "Recoger"
-	recoger.Parent = gui
-
-	local recogerSize = Instance.new("UISizeConstraint")
-	recogerSize.MinSize = Vector2.new(TOUCH_MIN * 2, TOUCH_MIN)
-	recogerSize.MaxSize = Vector2.new(200, 90)
-	recogerSize.Parent = recoger
-	acabado(recoger, recoger.BackgroundColor3)
-
-	recoger.Activated:Connect(function()
-		Remotes.event(Remotes.RECLAMAR):FireServer()
-	end)
-
-	-- Botón de compra. Empieza oculto y sólo aparece cuando de verdad hay algo que
-	-- comprar: un botón permanentemente deshabilitado ocupa sitio en una pantalla
-	-- de móvil y no informa de nada.
-	comprarBoton = Instance.new("TextButton")
-	comprarBoton.Name = "Comprar"
-	comprarBoton.AnchorPoint = Vector2.new(1, 0.5)
-	comprarBoton.Position = UDim2.fromScale(0.97, 0.58)
-	comprarBoton.Size = UDim2.fromScale(0.22, 0.12)
-	comprarBoton.BackgroundColor3 = Color3.fromRGB(70, 90, 130)
-	comprarBoton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	comprarBoton.TextScaled = true
-	comprarBoton.Font = Enum.Font.GothamBold
-	comprarBoton.Text = ""
-	comprarBoton.Visible = false
-	comprarBoton.Parent = gui
-
-	local comprarSize = Instance.new("UISizeConstraint")
-	comprarSize.MinSize = Vector2.new(TOUCH_MIN * 2.5, TOUCH_MIN)
-	comprarSize.MaxSize = Vector2.new(240, 90)
-	comprarSize.Parent = comprarBoton
-	comprarTrazo = acabado(comprarBoton, comprarBoton.BackgroundColor3)
-
-	comprarBoton.Activated:Connect(function()
-		-- El id viaja como atributo del propio botón: es el servidor quien decidió
-		-- qué se ofrece (mejorasPara), y el cliente sólo devuelve lo que le dieron.
-		local id = comprarBoton:GetAttribute("vehiculo")
-		if typeof(id) == "string" then
-			Remotes.event(Remotes.COMPRAR):FireServer(id)
-		end
-	end)
-
-	accionBotones = { entregar, recoger }
+	-- SIN BOTONES DE ACCIÓN. Los tenía --Recoger, Entregar, Comprar-- y los tres
+	-- se han ido al mundo como ProximityPrompt, que es la pieza nativa de Roblox
+	-- para esto y la que cualquier jugador de la plataforma ya sabe usar.
+	--
+	-- El motivo lo dio JJ jugando: "lo de entregar y recoger que sean botones es un
+	-- poco extraño". Lo es, y el problema de fondo es que un botón fijo en una
+	-- esquina no dice ni DÓNDE ni CUÁNDO sirve: está igual de encendido en mitad de
+	-- la nada que encima del destino, y con diez cajas en el muelle tampoco decía
+	-- cuál de ellas ibas a coger. El aviso pegado a la cosa responde las tres
+	-- preguntas sin una palabra de explicación.
+	--
+	-- Lo que queda en pantalla es sólo INFORMACIÓN: el panel de estado, la brújula
+	-- y el minimapa. Y de paso desaparece el problema que ya costó una ronda -- la
+	-- columna de botones peleándose por el sitio con el botón de salto de Roblox en
+	-- la esquina inferior derecha del móvil.
 
 	-- El aviso lleva su propio fondo. Antes era texto blanco suelto sobre el
 	-- mundo, y el mundo aquí es un cielo claro y un edificio claro: justo donde
@@ -305,45 +237,34 @@ function Hud.update(estado: EstadoHud)
 		then Color3.fromRGB(230, 180, 70)
 		else UiKit.PAPEL
 
-	if not comprarBoton then
-		return
-	end
+	-- El PRECIO de lo próximo que puedes comprar, en el propio panel. Antes vivía
+	-- en el botón de compra, y ese botón se ha ido al taller como aviso de mundo --
+	-- pero el precio NO puede irse con él: ver lo que aún no puedes pagar es la
+	-- mitad del motivo para hacer otro viaje, y el taller está en la otra punta del
+	-- mapa. Sin esta línea, el dinero se queda sin destino visible, que es
+	-- exactamente el problema que el taller venía a resolver.
 	local mejoras = estado.mejoras
 	local siguiente = mejoras and mejoras[1]
-	if siguiente and not modal then
-		comprarBoton:SetAttribute("vehiculo", siguiente.id)
-		comprarBoton.Text = string.format("%s\n%s", siguiente.nombre, UiKit.millares(siguiente.coste))
-		comprarBoton.Visible = true
-		-- Apagado en gris cuando no llega el dinero: enseñar el precio que aún no
-		-- puedes pagar es la mitad del motivo para hacer otro viaje. Ocultarlo
-		-- dejaría el dinero sin destino visible, que es el problema que el taller
-		-- viene a resolver.
-		local alcanza = estado.dinero >= siguiente.coste
-		local base = if alcanza then Color3.fromRGB(70, 90, 130) else Color3.fromRGB(58, 58, 64)
-		comprarBoton.BackgroundColor3 = base
-		comprarBoton.TextTransparency = if alcanza then 0 else 0.35
-		if comprarTrazo then
-			-- Cuando ya alcanza, el borde se enciende en oro: la señal de "puedes
-			-- comprarlo" tiene que verse de reojo, sin comparar dos cifras.
-			comprarTrazo.Color = if alcanza then Color3.fromRGB(238, 202, 122) else UiKit.oscurecer(base, 0.22)
-			comprarTrazo.Thickness = if alcanza then 2.5 else 2
+	if metaFila then
+		metaFila.Visible = siguiente ~= nil
+	end
+	if metaLabel and siguiente then
+		metaLabel.Text = UiKit.millares(siguiente.coste)
+		local etiqueta = metaLabel.Parent and metaLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
+		if etiqueta then
+			etiqueta.Text = siguiente.nombre
 		end
-	else
-		comprarBoton.Visible = false
+		-- En oro cuando ya alcanza: la señal de "puedes comprarlo" tiene que verse de
+		-- reojo, sin comparar dos cifras.
+		metaLabel.TextColor3 = if estado.dinero >= siguiente.coste then Color3.fromRGB(238, 202, 122) else UiKit.APAGADO
 	end
 end
 
--- Llamada por Main.client cuando aparece o desaparece el selector de ruta. El
--- botón de comprar no se reenciende aquí: tiene además su propia condición (que
--- quede algo que comprar), y de eso decide el siguiente Hud.update.
+-- Llamada por Main.client cuando aparece o desaparece el selector de ruta. Ya no
+-- tiene botones que esconder --se fueron al mundo como avisos de proximidad-- así
+-- que sólo le queda apartar el aviso de texto.
 function Hud.setModal(activo: boolean)
 	modal = activo
-	for _, boton in accionBotones do
-		boton.Visible = not activo
-	end
-	if activo and comprarBoton then
-		comprarBoton.Visible = false
-	end
 	-- El aviso también. Medido: su franja (y 43-74) cruza las tres tarjetas de
 	-- ruta (y 60-175), así que un aviso que llegara justo al abrir el selector se
 	-- leería encima de la decisión. Y no hace falta: el selector sólo aparece en

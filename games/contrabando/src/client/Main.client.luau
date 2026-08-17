@@ -8,6 +8,7 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -248,6 +249,38 @@ Remotes.event(Remotes.SONIDO).OnClientEvent:Connect(function(clave)
 	Sfx.reproducir(clave)
 end)
 
+-- Los avisos del mundo (ProximityPrompt) son ahora la forma de entregar y de
+-- comprar. Sustituyen a los botones fijos de la pantalla, que "eran un poco
+-- extraños" (JJ) y con razón: un botón permanente en una esquina no dice ni dónde
+-- ni cuándo sirve, así que está igual de encendido en mitad de la nada que encima
+-- del destino.
+--
+-- Se escuchan TODOS de una vez con PromptTriggered en vez de conectarse uno a uno:
+-- los destinos se crean al arrancar el mundo, pero las cajas del muelle aparecen y
+-- desaparecen constantemente, y una conexión por pieza sería una fuga de memoria
+-- lenta que nadie notaría hasta media hora de partida.
+ProximityPromptService.PromptTriggered:Connect(function(aviso, jugador)
+	if jugador ~= Players.LocalPlayer then
+		return
+	end
+	if aviso.Name == "PromptEntregar" then
+		Remotes.event(Remotes.ENTREGAR):FireServer()
+	elseif aviso.Name == "PromptTaller" then
+		-- El id del vehículo lo decide el servidor (mejorasPara) y el cliente sólo
+		-- devuelve lo que le dieron: aquí se manda el primero que quede por comprar.
+		local mejoras = ultimoEstado and ultimoEstado.mejoras
+		local siguiente = mejoras and mejoras[1]
+		if siguiente then
+			Remotes.event(Remotes.COMPRAR):FireServer(siguiente.id)
+		end
+	elseif aviso.Name == "PromptCaja" then
+		Remotes.event(Remotes.RECLAMAR):FireServer(aviso.Parent and aviso.Parent:GetAttribute("indice"))
+	end
+end)
+
+-- La tecla E se mantiene como atajo de entrega para quien juegue en ordenador y
+-- prefiera no acercarse al centro exacto de la losa. No estorba: el servidor
+-- rechaza la entrega si no estás donde hay que estar, y ahora además lo dice.
 ContextActionService:BindAction("Entregar", function(_, inputState)
 	if inputState == Enum.UserInputState.Begin then
 		Remotes.event(Remotes.ENTREGAR):FireServer()
