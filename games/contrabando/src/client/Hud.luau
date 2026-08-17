@@ -15,6 +15,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 
 local TOUCH_MIN = 48
@@ -133,7 +134,7 @@ function Hud.update(estado: { dinero: number, cajas: { any }, almacenCajas: numb
 	end
 	dineroLabel.Text = string.format("Dinero: %d", estado.dinero)
 	cargaLabel.Text = string.format("Carga: %d cajas", #estado.cajas)
-	almacenLabel.Text = string.format("Almacen: %d/%d", estado.almacenCajas or 0, 10)
+	almacenLabel.Text = string.format("Almacen: %d/%d", estado.almacenCajas or 0, Config.ALMACEN_TOPE)
 end
 
 local avisoId = 0

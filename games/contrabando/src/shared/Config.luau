@@ -46,6 +46,14 @@ Config.ROBO_FRACCION = 0.30
 Config.MARCADO_SEGUNDOS = 60
 Config.INTERCEPT_HZ = 5
 
+-- Zona segura alrededor del origen (el almacén se construye ahí, ver WorldBuilder):
+-- dentro de este radio no se roba a nadie, ni siquiera en la roja. Sin esto, un
+-- ladrón parado en la salida roba a todo el que elige ruta en el instante mismo de
+-- elegirla, antes de dar un paso -- no viola "el almacén no es asaltable" a la
+-- letra (su contenido sigue intocable), pero rompe el espíritu: la zona de partida
+-- tiene que ser segura.
+Config.ZONA_SEGURA_RADIO = 150
+
 -- Sonidos. Los efectos NO son decoración: son información. Que suene una alerta al
 -- acercarse un perseguidor es la diferencia entre persecución y emboscada injusta.
 -- Los ids se rellenan en la Tarea 11 buscándolos en la biblioteca de Roblox.

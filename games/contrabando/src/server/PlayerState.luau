@@ -41,6 +41,17 @@ function PlayerState.get(player: Player): Estado
 	return estado
 end
 
+-- Igual que get(), pero NUNCA crea estado: devuelve nil si el jugador no tiene uno.
+-- Existe para Persistence.guardar (C2): Main.server.luau arranca PlayerState antes
+-- que Persistence, así que sus dos manejadores de PlayerRemoving compiten sin orden
+-- garantizado por Roblox. Si PlayerState borra primero y Persistence llama a get()
+-- después, get() RECREA el estado con los valores por defecto (dinero 0) y eso es
+-- justo lo que se guarda en la nube: todo jugador que se desconecta pierde su
+-- dinero. peek() no puede envenenar el guardado porque no crea nada que guardar.
+function PlayerState.peek(player: Player): Estado?
+	return estados[player]
+end
+
 function PlayerState.sync(player: Player)
 	local estado = PlayerState.get(player)
 	Remotes.event(Remotes.SYNC_STATE):FireClient(player, {

@@ -177,16 +177,67 @@ function CargoService.registrarDestino(destino: BasePart)
 end
 
 function CargoService.start()
-	Remotes.event(Remotes.ENTREGAR).OnServerEvent:Connect(CargoService.entregar)
+	-- Envuelto en una función anónima que descarta los argumentos del cliente,
+	-- igual que los otros tres remotes del proyecto. Conectar el método
+	-- directamente (como estaba) expone su firma completa: hoy entregar() sólo
+	-- declara `player` y es inocuo, pero el día que alguien le añada un segundo
+	-- parámetro, ese parámetro pasaría a estar controlado por el cliente desde el
+	-- primer minuto sin que nada lo señale.
+	Remotes.event(Remotes.ENTREGAR).OnServerEvent:Connect(function(player)
+		CargoService.entregar(player)
+	end)
 
 	-- Al reaparecer, la velocidad vuelve al valor por defecto de Roblox:
 	-- hay que reimponer la que corresponde a lo que lleva encima.
-	Players.PlayerAdded:Connect(function(player)
+	local function alAparecer(player: Player)
+		task.wait(0.2)
+		aplicarVelocidad(player)
+
+		-- I1, parte 2: qué pasa con la carga al morir o pulsar Reset. El haz de la
+		-- legendaria se monta sobre el HumanoidRootPart, así que se destruye solo
+		-- con el personaje — pero la carga en sí sobrevivía intacta, y con el
+		-- botón estándar de Reset (sin ningún exploit) el jugador se quedaba con
+		-- una caja de x135 y sin el haz que lo hacía peligroso: vaciaba la
+		-- mecánica central del juego. Persistence.guardar ya razona la regla
+		-- gemela para la desconexión ("guardar la carga convertiría desconectarse
+		-- en un escudo perfecto contra el robo"): reaparecer es el mismo riesgo
+		-- por otra puerta, así que cuesta la carga igual. Se avisa por
+		-- Remotes.AVISO para que no sea una desaparición inexplicable.
+		local estado = PlayerState.get(player)
+		if #estado.cajas > 0 then
+			CargoService.vaciar(player)
+			Remotes.event(Remotes.AVISO)
+				:FireClient(player, "Al reaparecer pierdes la carga que llevabas encima", Color3.fromRGB(220, 80, 80))
+		end
+
+		-- I1, parte 1: el haz de la legendaria no se reaplicaba aquí, sólo la
+		-- velocidad. Se reimpone siempre, en paralelo a la velocidad, para que el
+		-- estado visible del personaje nuevo (con o sin haz) coincida con lo que
+		-- de verdad lleva encima — hoy siempre "sin haz" porque la carga se acaba
+		-- de vaciar arriba, pero queda correcto aunque esa regla cambie el día de
+		-- mañana.
+		CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
+	end
+
+	local function conectar(player: Player)
 		player.CharacterAdded:Connect(function()
-			task.wait(0.2)
-			aplicarVelocidad(player)
+			alAparecer(player)
 		end)
-	end)
+	end
+
+	-- Players.PlayerAdded NUNCA dispara para quien ya estuviera en Players antes de
+	-- esta línea (la misma carrera clásica de Roblox que Main.server.luau ya evita
+	-- para LoadCharacter, con el mismo barrido de GetPlayers() después de conectar).
+	-- Sin este barrido, cualquier jugador presente en el arranque del servidor se
+	-- queda SIN este manejador para siempre -- ni velocidad, ni haz, ni pérdida de
+	-- carga en ningún respawn futuro suyo -- porque el PlayerAdded que lo habría
+	-- conectado ya pasó. Detectado verificando I1 en Studio: la sonda que fuerza
+	-- LoadCharacter() sobre el jugador de la sesión de Play (ya presente cuando el
+	-- servidor arranca) no perdía la carga hasta añadir este barrido.
+	Players.PlayerAdded:Connect(conectar)
+	for _, player in Players:GetPlayers() do
+		conectar(player)
+	end
 end
 
 return CargoService

@@ -46,6 +46,11 @@ local function perfil(player: Player): Intercept.Perfil?
 		ruta = estado.ruta,
 		marcadoHasta = estado.marcadoHasta,
 		velocidad = root.AssemblyLinearVelocity.Magnitude,
+		-- El almacén se construye en el origen (WorldBuilder), así que la distancia
+		-- al (0,0,0) del mundo es la distancia a la zona segura (I4). Se calcula
+		-- para todos los jugadores por igual; Intercept.puedeRobar sólo la mira en
+		-- el perfil de la víctima.
+		distanciaOrigen = root.Position.Magnitude,
 	}
 end
 

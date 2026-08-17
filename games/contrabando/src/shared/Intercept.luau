@@ -22,6 +22,13 @@ export type Perfil = {
 	ruta: string?,
 	marcadoHasta: number,
 	velocidad: number,
+	-- Distancia de este jugador al origen (donde se construye el almacén). Opcional
+	-- y sólo se usa como perfil de VÍCTIMA: Intercept es un módulo puro y no conoce
+	-- posiciones del mundo, así que quien arma el perfil (InterceptService) es
+	-- quien mide la distancia real y se la pasa aquí. nil significa "no se sabe /
+	-- no aplica" y no activa la zona segura -- así los perfiles de prueba que no la
+	-- rellenan (o el del atacante, que no la necesita) siguen funcionando igual.
+	distanciaOrigen: number?,
 }
 
 local Intercept = {}
@@ -29,6 +36,12 @@ local Intercept = {}
 function Intercept.puedeRobar(atacante: Perfil, victima: Perfil, distancia: number, ahora: number): (boolean, string)
 	if distancia > Config.ROBO_DISTANCIA then
 		return false, "lejos"
+	end
+	-- Zona segura: nadie roba cerca del origen, ni siquiera en la roja. Antes de
+	-- cualquier otro motivo porque es una garantía espacial ("la zona de partida es
+	-- segura"), no una condición del estado de la víctima.
+	if victima.distanciaOrigen ~= nil and victima.distanciaOrigen <= Config.ZONA_SEGURA_RADIO then
+		return false, "zona_segura"
 	end
 	if #victima.cajas == 0 then
 		return false, "victima_sin_carga"

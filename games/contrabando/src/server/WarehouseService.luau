@@ -29,14 +29,17 @@ end
 local function actualizar(player: Player): number
 	local estado = PlayerState.get(player)
 	local ahora = os.time()
-	estado.almacenCajas = Warehouse.acumulado(
+	-- Warehouse.avanzar() sólo consume los periodos que de verdad dieron caja: si
+	-- aquí se pusiera almacenUltimaVisita = ahora sin más (como hacía antes), el
+	-- bucle de refresco de 5 s con un ritmo de 30 tiraría el resto en cada muestra
+	-- y el almacén no produciría NUNCA con el jugador conectado.
+	estado.almacenCajas, estado.almacenUltimaVisita = Warehouse.avanzar(
 		estado.almacenCajas,
 		estado.almacenUltimaVisita,
 		ahora,
 		Config.ALMACEN_RITMO,
 		Config.ALMACEN_TOPE
 	)
-	estado.almacenUltimaVisita = ahora
 	return estado.almacenCajas
 end
 

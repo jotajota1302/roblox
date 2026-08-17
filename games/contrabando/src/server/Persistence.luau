@@ -67,7 +67,16 @@ function Persistence.guardar(player: Player)
 		return
 	end
 
-	local estado = PlayerState.get(player)
+	-- peek(), NUNCA get(): Main.server.luau arranca PlayerState antes que
+	-- Persistence, así que sus dos manejadores de PlayerRemoving se disparan en ese
+	-- orden pero Roblox no lo garantiza. Si PlayerState.get(player) se llamara aquí
+	-- después de que PlayerState ya haya borrado el estado, RECREARÍA uno con los
+	-- valores por defecto (dinero 0) y eso es justo lo que se guardaría en la nube.
+	-- Sin estado que leer, no hay nada que guardar: se sale.
+	local estado = PlayerState.peek(player)
+	if not estado then
+		return
+	end
 	-- La carga que lleva encima NO se guarda a propósito: si la partida se corta a
 	-- mitad de viaje, el riesgo asumido se resuelve como una pérdida. Guardarla
 	-- convertiría desconectarse en un escudo perfecto contra el robo.
@@ -105,9 +114,27 @@ function Persistence.start()
 	end)
 
 	game:BindToClose(function()
-		for _, player in Players:GetPlayers() do
-			Persistence.guardar(player)
+		local jugadores = Players:GetPlayers()
+		local pendientes = #jugadores
+
+		-- En paralelo, no en serie: antes se guardaba jugador por jugador, y con un
+		-- servidor lleno eso son decenas de escrituras seguidas contra un
+		-- presupuesto de cierre limitado. task.spawn lanza todas a la vez.
+		for _, player in jugadores do
+			task.spawn(function()
+				Persistence.guardar(player)
+				pendientes -= 1
+			end)
 		end
+
+		-- Se espera activamente a que el contador llegue a cero, con un tope para
+		-- no comerse todo el presupuesto de cierre si alguna escritura se cuelga.
+		local limite = os.clock() + 25
+		while pendientes > 0 and os.clock() < limite do
+			task.wait(0.1)
+		end
+
+		-- El margen final que ya existía antes de paralelizar se conserva igual.
 		task.wait(2)
 	end)
 end

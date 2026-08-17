@@ -6,12 +6,13 @@ return function(kit)
 	local AHORA = 1000
 	local comun = { rareza = "comun" }
 
-	local function perfil(ruta, cajas, marcadoHasta, velocidad)
+	local function perfil(ruta, cajas, marcadoHasta, velocidad, distanciaOrigen)
 		return {
 			cajas = cajas or {},
 			ruta = ruta,
 			marcadoHasta = marcadoHasta or 0,
 			velocidad = velocidad or 16,
+			distanciaOrigen = distanciaOrigen,
 		}
 	end
 
@@ -98,6 +99,37 @@ return function(kit)
 	local roboLleno, quedaLleno = Intercept.repartoConCapacidad({ comun, comun, comun }, 0.30, { legendaria }, 3)
 	kit.eq("ladron lleno del todo no se lleva nada", #roboLleno, 0)
 	kit.eq("y la victima no pierde nada", #quedaLleno, 3)
+
+	-- I4: zona segura alrededor del origen (donde está el almacén). Un ladrón
+	-- parado en la salida no puede robar a nadie mientras siga dentro del radio,
+	-- ni siquiera en la roja -- ANTES de comprobar si la víctima lleva carga o
+	-- está en ruta, porque es una garantía espacial, no una condición de estado.
+	local okZona, motivoZona = Intercept.puedeRobar(
+		perfil("roja", {}),
+		perfil("roja", { comun }, 0, 16, Config.ZONA_SEGURA_RADIO - 1),
+		3,
+		AHORA
+	)
+	kit.falsy("dentro de la zona segura no se roba", okZona)
+	kit.eq("y se dice por que", motivoZona, "zona_segura")
+
+	kit.truthy(
+		"justo fuera de la zona segura si se roba",
+		Intercept.puedeRobar(
+			perfil("roja", {}),
+			perfil("roja", { comun }, 0, 16, Config.ZONA_SEGURA_RADIO + 1),
+			3,
+			AHORA
+		)
+	)
+
+	-- Sin distanciaOrigen (perfiles que no la conocen) la zona segura no se activa:
+	-- así los perfiles de prueba de arriba, que no la rellenan, siguen sin verse
+	-- afectados por este cambio.
+	kit.truthy(
+		"sin distancia al origen conocida, la zona segura no bloquea nada",
+		Intercept.puedeRobar(perfil("roja", {}), perfil("roja", { comun }), 3, AHORA)
+	)
 
 	-- Alerta de proximidad. Usa EXACTAMENTE las mismas reglas que el robo: si alguien
 	-- no puede robarte, avisar de que se acerca sería asustar por nada.
