@@ -1,0 +1,199 @@
+# Verificación del prototipo
+
+> 2026-08-17. Estado del prototipo de [`DISENO.md`](DISENO.md) al terminar las 14 tareas del
+> plan de implementación.
+>
+> Lo que este documento responde: **qué está comprobado, cómo, y qué sigue sin comprobar.**
+
+---
+
+## Resumen
+
+El prototipo está **completo y jugable en solitario**: produces mercancía mientras no estás,
+vuelves, cargas lo que te quepa, eliges por qué ruta ir y cobras según el riesgo que hayas
+asumido. La capa social —que otro jugador te alcance y te quite parte de la carga— está
+construida y sus reglas están probadas, pero **no se ha jugado entre dos personas**.
+
+| | |
+|---|---|
+| Pruebas automáticas | **89**, todas en verde |
+| Tareas del plan | 14 de 14, todas revisadas |
+| Defectos encontrados en revisión | 1 crítico, 2 importantes — los tres corregidos |
+| Sin comprobar | El robo entre dos jugadores reales, y si el bucle entretiene |
+
+---
+
+## 1. Lo que está comprobado
+
+### Las reglas del juego: 89 pruebas
+
+Toda la lógica de reglas vive en módulos **puros** de `src/shared/` que no tocan Roblox, así
+que se prueban en milisegundos. Se ejecutan dentro de Studio, porque Luau no corre fuera:
+
+```lua
+local clon = game.ReplicatedStorage.Shared:Clone()
+clon.Name = "SharedTestRun"
+clon.Parent = game.ReplicatedStorage
+local ok, resultado = pcall(function()
+	return require(clon.TestRunner).run()
+end)
+clon:Destroy()
+print(if ok then resultado else "LA TANDA REVENTO: " .. tostring(resultado))
+```
+
+El clon no es un adorno: `require` cachea por instancia, y sin él la segunda tanda devuelve
+el informe de la primera aunque el código haya cambiado. Eso ya produjo un falso resultado
+durante el desarrollo.
+
+Cubren: valor de una entrega (rareza × ruta se combinan), peso y penalización de velocidad,
+definición y validación de rutas, tirada de rarezas con semilla fija, producción del almacén
+con tope, y las reglas completas del robo.
+
+### El camino real, no el sandbox
+
+`require` dentro de las herramientas de inspección corre en un **entorno aparte** que no
+comparte estado con el servidor que está jugando. Verificar ahí prueba una copia, no el
+juego. Para probar el camino de verdad se planta un `Script` dentro del servidor —ése sí
+comparte sus módulos— y se actúa desde el cliente como lo haría un jugador.
+
+Comprobado así, en el servidor real:
+
+| Comprobación | Resultado |
+|---|---|
+| Velocidad con 3 cajas | 16 → **11,8** |
+| Entregar **lejos** del destino | **0 monedas** |
+| Entregar en el destino de la ruta elegida | paga el multiplicador correcto |
+| Elegir ruta roja y entregar en el destino verde | **0 monedas** |
+| Reclamar carga lejos del almacén | **nada** |
+| Reclamar en el almacén | la carga sube y el almacén baja |
+| Un jugador solo, con carga, en ruta roja, 40 ciclos del bucle de robo | **no pierde nada** |
+
+La última importa más de lo que parece: si el bucle no distinguiera a la víctima del
+atacante, un jugador en solitario vería su carga desaparecer cada 200 ms sin explicación.
+
+### Un intento de exploit por cada remote
+
+Desde el **cliente**, que es desde donde ataca un exploit real, y con el personaje colocado
+lejos del almacén, de la salida y de los tres destinos: **480 llamadas** con basura por los
+seis remotes — cobrar sin haber viajado, rutas inventadas, tipos absurdos (`nil`, números,
+tablas, un objeto del mundo), reclamar carga a 1.500 studs del almacén, e inundar el canal
+de sincronización.
+
+| Después del ataque | |
+|---|---|
+| Dinero | **0** |
+| Cajas | **0** |
+| Ruta | **nil** — nunca aceptó `"dorada"` ni `"roja"` lejos de la salida |
+| Almacén | **5**, intacto |
+| Servidor | **vivo** |
+
+El servidor no cedió nada y ningún tipo inesperado lo tumbó.
+
+### El arranque, sin publicar el juego
+
+`DataStoreService:GetDataStore()` **lanza una excepción** si el place no está publicado. En
+el piloto anterior de este repo se llamaba al cargar el módulo, así que el `require`
+reventaba y mataba el script entero: juego sin mapa, sin personaje y sin ninguna pista del
+motivo. Costó tres rondas de depuración.
+
+Comprobado que ya no ocurre: con el juego **sin publicar**, hay mundo, hay personaje, y ni
+guardar ni cargar revientan. El store se resuelve perezosamente y dentro de `pcall`.
+
+### La interfaz, en tres dispositivos
+
+| Dispositivo | Resolución | Problemas |
+|---|---|---|
+| Samsung Galaxy A06 | 705 × 338 | ninguno |
+| iPad Pro M5 13" | 1375 × 1032 | ninguno |
+| Portátil promedio | 1365 × 768 | ninguno |
+
+Dos detalles que hacen que la medición valga:
+
+- **El selector de ruta se encendió a mano para medirlo.** Sólo aparece cuando llevas carga
+  y no has elegido destino, así que en una medición normal ni se mira — y en el piloto, el
+  elemento que se salía de pantalla era justo el de una pantalla intermitente.
+- **El origen del área de interfaz está en `(0, −58)`**, no en el cero. Midiendo contra cero
+  salen elementos "fuera de pantalla" que están perfectamente colocados. Ese falso positivo
+  costó una investigación entera durante el desarrollo.
+
+Los únicos avisos son del chat y el joystick de Roblox, que no son parte del juego.
+
+---
+
+## 2. Lo que NO está comprobado
+
+### El robo entre dos jugadores reales
+
+**Es la laguna más importante.** Las herramientas de automatización no permiten lanzar dos
+clientes a la vez, así que el robo end-to-end entre dos personas no se ha ejecutado nunca.
+
+Lo que sí está cubierto:
+
+- Las **reglas** del robo, con 89 pruebas: quién puede robar en cada ruta, el marcado de 60
+  segundos, el reparto, la distancia, la velocidad imposible.
+- El **bucle del servidor**, ejercitado con un jugador simulado para los casos en los que el
+  robo se rechaza (ruta verde, cazador sin carga, demasiado lejos, ladrón lleno).
+- Que un jugador **no se roba a sí mismo**.
+
+Lo que falta es el caso positivo completo: dos personas, una alcanza a la otra, la carga
+cambia de manos, ambas reciben su aviso. **Es lo primero que hay que probar**, y coincide
+con lo que el diseño ya exigía: *"con 3 o 4 personas: ¿tensión o frustración?"*.
+
+### Si el bucle entretiene
+
+Ninguna prueba puede responderlo. El diseño fija el criterio: **si no aguantas diez minutos
+seguidos tú mismo, sin nadie más conectado, hay que rehacer el viaje antes de añadir nada.**
+
+Al jugarlo conviene anotar:
+
+- ¿En qué minuto aparece el primer momento de aburrimiento?
+- ¿Cuántos viajes completas y por qué rutas?
+- ¿Sale alguna caja rara? ¿Cambia lo que decides después?
+- ¿Vuelves al almacén por interés o por obligación?
+
+---
+
+## 3. Defectos encontrados durante el desarrollo
+
+Los tres los encontró la revisión, no las pruebas. Van aquí porque el patrón se repite:
+**ninguno lo habría detectado un compilador.**
+
+**El cliente se quedaba colgado para siempre.** Esperaba un RemoteEvent que el servidor sólo
+creaba al enviar el primer dato — y ese primer dato sólo llegaba si el cliente lo pedía,
+cosa que no hacía porque estaba bloqueado esperando. El HUD nunca se rellenaba. Arreglado
+creando los remotes al arrancar el servidor; el mismo patrón se aplicó preventivamente a los
+avisos y el sonido.
+
+**Las cajas robadas podían evaporarse.** El reparto calculaba el 30 % del botín sin saber
+cuánto le cabía al ladrón: se lo quitaba entero a la víctima, metía lo que cupiera y el
+resto desaparecía del juego. Ahora sólo se roba lo que quepa y el resto se queda con la
+víctima. De paso mejora el juego: salir de caza con el zurrón vacío pasa a ser una decisión.
+
+**Una función auxiliar declarada después de usarse.** En Lua se habría resuelto como variable
+global `nil` y habría reventado al recoger la primera caja. No lo detectan ni el formateador
+ni el compilador: sólo aparece jugando. Se corrigió antes de escribir el código.
+
+---
+
+## 4. Antes de publicar
+
+- [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de
+      caja rara, ritmo del almacén. Son deliberadamente generosos para poder medir en una
+      sesión lo que en producción tardaría horas.
+- [ ] Al revertir el tope del almacén, **corregir el HUD**: escribe `/10` a mano en vez de
+      leerlo de la configuración, así que mentiría en silencio.
+- [ ] Publicar el place, sin lo cual no hay guardado en la nube.
+- [ ] Jugar el robo con dos personas.
+- [ ] Aguantar diez minutos seguidos en solitario.
+
+## 5. Criterios para matarlo
+
+Escritos antes de empezar, a propósito, para que pivotar sea leer un número y no discutir
+una corazonada:
+
+| Momento | Comprobación | Si falla |
+|---|---|---|
+| Ahora | ¿Aguantas 10 minutos seguidos, sin PvP? | Rehacer el viaje. Sin esto no hay juego |
+| Con 3-4 personas | ¿Tensión o frustración? | Ajustar reparto y marcado |
+| Publicado | **D1 < 15 %** con 100+ jugadores | Pasar al target A (excavación) |
+| Publicado | Sesión media < 6 min | El bucle es demasiado corto |
