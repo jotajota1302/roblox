@@ -293,6 +293,47 @@ ni el compilador: sólo aparece jugando. Se corrigió antes de escribir el códi
 
 ---
 
+### La geometría, revisada superficie por superficie
+
+Pedido tras ver la furgoneta enterrada. Medido en el servidor, con el mundo ya construido:
+
+| Comprobación | Resultado |
+|---|---|
+| Puntos de suelo muestreados (5 líneas × todo el eje X) | **1.090**, ninguno sin suelo |
+| Alturas de suelo distintas | 3: asfalto `0,5`, losas `2,0`, punto de aparición `3,0` |
+| Escalón carretera → cualquier losa | **1,5 studs** (el límite para subir andando son 2) |
+| Piezas del decorado enterradas | **ninguna** |
+
+Y caminado de verdad, con `Humanoid:MoveTo`, contando despegues (saltos y caídas):
+
+```
+1. bajar del muelle al asfalto   y 5,0 -> 3,5    0 despegues
+2. subir a la losa del taller    y 3,5 -> 5,0    0 despegues
+3. volver al muelle              y 5,0 -> 6,0    0 despegues
+4. hasta la salida               y 6,0 -> 5,0    0 despegues
+5. hasta el destino verde        600 studs       0 despegues
+```
+
+**El fallo que lo motivó**: la furgoneta del decorado se colocó como si el suelo estuviera
+en `y = 0`, pero la losa del taller tiene su superficie en `y = 2`. Aparecía hundida hasta
+los ejes. Ahora cada pieza se coloca **apoyada** sobre la cota real de su superficie
+(`SUELO_CARRETERA = 0,5`, `SUELO_LOSA = 2`), no centrada en una altura calculada a ojo.
+
+### El personaje era invisible, y por la misma causa que los modelos
+
+Al dar a Play no se veía al jugador. Existía en servidor y cliente, con sus 16 partes,
+todas con `Transparency` 0, a trece studs de la cámara y en el centro exacto de la pantalla
+según `WorldToViewportPoint`, sin nada por delante. Andaba y chocaba. **Una marca de color
+puesta en su posición exacta sí se veía; él no.**
+
+La causa: un avatar R15 son ~15 `MeshPart` que Roblox descarga de `assetdelivery.roblox.com`
+— y con el place sin publicar no baja **ningún** mesh. Un fantasma que camina.
+
+La salida es el rig **R6**, hecho de `Part`, que no descarga nada
+(`Players:CreateHumanoidModelFromDescription`). Además tiene una ventaja que no es estética:
+en un juego de persecuciones, que todos midan lo mismo hace el PvP comparable. Al publicar,
+cada uno vuelve a llevar su avatar sin tocar una línea.
+
 ### Los modelos 3D no se ven hasta publicar
 
 Encontrado dando a Play en el place del proyecto: **`game.PlaceId == 0`** —sin publicar— y

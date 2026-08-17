@@ -12,12 +12,15 @@
 	  4. que no esté ya en ruta
 ]]
 
+local Config = require(game.ReplicatedStorage.Shared.Config)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
-local DISTANCIA_SALIDA = 40
+-- Compartida con el cliente (Config.DISTANCIA_SALIDA): el selector de ruta sólo
+-- aparece donde esta comprobación va a decir que sí.
+local DISTANCIA_SALIDA = Config.DISTANCIA_SALIDA
 
 local RouteService = {}
 local salida: BasePart? = nil

@@ -193,11 +193,22 @@ end
 -- No pretende ser bonito: pretende que el sitio se reconozca. Un almacén con
 -- paredes, tejado y una puerta se lee como un almacén; una losa plana no se lee
 -- como nada, y el jugador no sabe dónde está de pie.
+-- Alturas de las superficies sobre las que se apoya el decorado. La carretera es
+-- un Part en y=0 de 1 de alto (superficie 0,5) y todas las losas -- almacén,
+-- salida, taller, destinos -- están en y=1 con 2 de alto (superficie 2). Tenerlas
+-- con nombre evita el fallo que ya salió jugando: la furgoneta colocada como si
+-- el suelo fuese y=0 aparecía HUNDIDA dos studs dentro de la losa del taller.
+local SUELO_CARRETERA = 0.5
+local SUELO_LOSA = 2
+
 local function respaldo(adorno: Instance)
-	local CHAPA = Color3.fromRGB(150, 148, 140)
-	local CHAPA_OSCURA = Color3.fromRGB(112, 110, 104)
-	local MADERA = Color3.fromRGB(126, 96, 60)
+	local CHAPA = Color3.fromRGB(158, 156, 148)
+	local CHAPA_OSCURA = Color3.fromRGB(104, 102, 98)
+	local ZOCALO = Color3.fromRGB(78, 76, 72)
+	local MADERA = Color3.fromRGB(132, 100, 62)
+	local MADERA_OSCURA = Color3.fromRGB(94, 70, 42)
 	local PUERTA = Color3.fromRGB(72, 104, 78)
+	local CRISTAL = Color3.fromRGB(42, 50, 58)
 
 	local function bloque(nombre: string, tamano: Vector3, pos: Vector3, color: Color3, material: Enum.Material)
 		local p = part(nombre, tamano, pos, color, adorno)
@@ -211,143 +222,229 @@ local function respaldo(adorno: Instance)
 		return p
 	end
 
-	-- Almacén: nave detrás del muelle. Paredes, tejado y un portón que mira al
-	-- muelle, que es por donde se entra a recoger.
-	local zNave, anchoNave, largoNave, altoNave = -52, 52, 34, 26
-	bloque(
-		"NaveIzq",
-		Vector3.new(2, altoNave, largoNave),
-		Vector3.new(-anchoNave / 2, altoNave / 2, zNave),
-		CHAPA,
-		Enum.Material.Metal
+	-- APOYADO sobre el suelo, no centrado en una altura a ojo. `suelo` es la cota de
+	-- la superficie y la pieza se sienta encima: es la diferencia entre una
+	-- furgoneta aparcada y una furgoneta enterrada hasta los ejes.
+	local function apoyado(
+		nombre: string,
+		tamano: Vector3,
+		x: number,
+		z: number,
+		suelo: number,
+		color: Color3,
+		material: Enum.Material
 	)
-	bloque(
-		"NaveDer",
-		Vector3.new(2, altoNave, largoNave),
-		Vector3.new(anchoNave / 2, altoNave / 2, zNave),
-		CHAPA,
-		Enum.Material.Metal
-	)
-	bloque(
-		"NaveFondo",
-		Vector3.new(anchoNave, altoNave, 2),
-		Vector3.new(0, altoNave / 2, zNave - largoNave / 2),
-		CHAPA,
-		Enum.Material.Metal
-	)
-	bloque(
-		"NaveFrente",
-		Vector3.new(anchoNave, altoNave, 2),
-		Vector3.new(0, altoNave / 2, zNave + largoNave / 2),
-		CHAPA,
-		Enum.Material.Metal
-	)
-	bloque(
-		"NaveTejado",
-		Vector3.new(anchoNave + 4, 2, largoNave + 4),
-		Vector3.new(0, altoNave, zNave),
-		CHAPA_OSCURA,
-		Enum.Material.Metal
-	)
-	bloque(
-		"NavePorton",
-		Vector3.new(22, 16, 1),
-		Vector3.new(0, 8, zNave + largoNave / 2 + 0.6),
-		PUERTA,
-		Enum.Material.Metal
-	)
-	for i, x in { -18, 18 } do
-		bloque(
-			"NaveVentana" .. i,
-			Vector3.new(8, 5, 1),
-			Vector3.new(x, 18, zNave + largoNave / 2 + 0.6),
-			Color3.fromRGB(40, 46, 52),
-			Enum.Material.Glass
+		return bloque(nombre, tamano, Vector3.new(x, suelo + tamano.Y / 2, z), color, material)
+	end
+
+	-- ALMACÉN: nave detrás del muelle, sobre la carretera (el muelle sólo llega a
+	-- z = -30, y la nave empieza más allá).
+	local zNave, ancho, largo, alto = -52, 54, 34, 26
+	local suelo = SUELO_CARRETERA
+	local function pared(nombre: string, tamano: Vector3, x: number, z: number)
+		apoyado(nombre, tamano, x, z, suelo, CHAPA, Enum.Material.Metal)
+		-- Zócalo: una franja oscura abajo. Cuesta una pieza y es lo que hace que una
+		-- caja gris parezca un edificio en vez de un cubo.
+		apoyado(
+			nombre .. "Zocalo",
+			Vector3.new(tamano.X + 0.4, 3, tamano.Z + 0.4),
+			x,
+			z,
+			suelo,
+			ZOCALO,
+			Enum.Material.Concrete
 		)
 	end
 
-	-- Cajas apiladas en el muelle: mercancía visible donde el juego dice que hay
-	-- mercancía, que es lo que hace que el botón de recoger signifique algo.
-	for i, sitio in { Vector3.new(-20, 4, -18), Vector3.new(-14, 4, -20), Vector3.new(-17, 8, -19) } do
-		local caja = bloque("CajaMuelle" .. i, Vector3.new(5, 5, 5), sitio, MADERA, Enum.Material.WoodPlanks)
-		caja.CFrame = CFrame.new(sitio) * CFrame.Angles(0, math.rad(i * 22), 0)
+	pared("NaveIzq", Vector3.new(1.5, alto, largo), -ancho / 2, zNave)
+	pared("NaveDer", Vector3.new(1.5, alto, largo), ancho / 2, zNave)
+	pared("NaveFondo", Vector3.new(ancho, alto, 1.5), 0, zNave - largo / 2)
+	pared("NaveFrente", Vector3.new(ancho, alto, 1.5), 0, zNave + largo / 2)
+	apoyado(
+		"NaveTejado",
+		Vector3.new(ancho + 5, 1.5, largo + 5),
+		0,
+		zNave,
+		suelo + alto,
+		CHAPA_OSCURA,
+		Enum.Material.Metal
+	)
+	-- Alero: la sombra que proyecta es la mitad de lo que da volumen al edificio.
+	apoyado(
+		"NaveAlero",
+		Vector3.new(ancho + 7, 1, 3),
+		0,
+		zNave + largo / 2 + 2,
+		suelo + alto - 1.5,
+		CHAPA_OSCURA,
+		Enum.Material.Metal
+	)
+
+	local frenteZ = zNave + largo / 2 + 1
+	apoyado("NavePorton", Vector3.new(22, 16, 0.6), 0, frenteZ, suelo, PUERTA, Enum.Material.Metal)
+	apoyado("NavePortonMarco", Vector3.new(24, 17.5, 0.4), 0, frenteZ + 0.3, suelo, CHAPA_OSCURA, Enum.Material.Metal)
+	for i, x in { -19, 19 } do
+		apoyado("NaveVentana" .. i, Vector3.new(9, 5, 0.6), x, frenteZ, suelo + 14, CRISTAL, Enum.Material.Glass)
+		apoyado(
+			"NaveVentanaMarco" .. i,
+			Vector3.new(10, 6, 0.4),
+			x,
+			frenteZ + 0.3,
+			suelo + 13.5,
+			CHAPA_OSCURA,
+			Enum.Material.Metal
+		)
 	end
 
-	-- Taller: cobertizo abierto por delante, para que se vea la furgoneta dentro.
-	local zTaller, anchoTaller, largoTaller, altoTaller = -34, 34, 28, 18
-	bloque(
+	-- Cajas apiladas en el muelle. Sobre la LOSA, que es donde se anda, no sobre la
+	-- carretera: media caja enterrada se ve al instante.
+	local pila = {
+		{ x = -20, z = -18, lado = 5 },
+		{ x = -13.5, z = -20, lado = 5 },
+		{ x = -22, z = -12, lado = 4 },
+	}
+	for i, c in pila do
+		local caja = apoyado(
+			"CajaMuelle" .. i,
+			Vector3.new(c.lado, c.lado, c.lado),
+			c.x,
+			c.z,
+			SUELO_LOSA,
+			MADERA,
+			Enum.Material.WoodPlanks
+		)
+		caja.CFrame = caja.CFrame * CFrame.Angles(0, math.rad(i * 23), 0)
+		-- Flejes cruzados: dos piezas finas y la caja deja de ser un cubo marrón.
+		local fleje = bloque(
+			"CajaFleje" .. i,
+			Vector3.new(c.lado + 0.3, 0.6, c.lado + 0.3),
+			caja.Position,
+			MADERA_OSCURA,
+			Enum.Material.Wood
+		)
+		fleje.CFrame = caja.CFrame
+	end
+	-- Una encima, para que la pila tenga altura.
+	local cima =
+		apoyado("CajaMuelle4", Vector3.new(4.5, 4.5, 4.5), -17, -16.5, SUELO_LOSA + 5, MADERA, Enum.Material.WoodPlanks)
+	cima.CFrame = cima.CFrame * CFrame.Angles(0, math.rad(37), 0)
+
+	-- TALLER: cobertizo abierto por delante, para que se vea la furgoneta dentro.
+	-- Va sobre la carretera; la losa azul del taller sólo llega a z = -20.
+	local zTaller, anchoT, largoT, altoT = -36, 36, 30, 18
+	local xT = -50
+	apoyado(
 		"TallerIzq",
-		Vector3.new(2, altoTaller, largoTaller),
-		Vector3.new(-50 - anchoTaller / 2, altoTaller / 2, zTaller),
+		Vector3.new(1.5, altoT, largoT),
+		xT - anchoT / 2,
+		zTaller,
+		suelo,
 		CHAPA_OSCURA,
 		Enum.Material.Metal
 	)
-	bloque(
+	apoyado(
 		"TallerDer",
-		Vector3.new(2, altoTaller, largoTaller),
-		Vector3.new(-50 + anchoTaller / 2, altoTaller / 2, zTaller),
+		Vector3.new(1.5, altoT, largoT),
+		xT + anchoT / 2,
+		zTaller,
+		suelo,
 		CHAPA_OSCURA,
 		Enum.Material.Metal
 	)
-	bloque(
+	apoyado(
 		"TallerFondo",
-		Vector3.new(anchoTaller, altoTaller, 2),
-		Vector3.new(-50, altoTaller / 2, zTaller - largoTaller / 2),
+		Vector3.new(anchoT, altoT, 1.5),
+		xT,
+		zTaller - largoT / 2,
+		suelo,
 		CHAPA_OSCURA,
 		Enum.Material.Metal
 	)
-	bloque(
+	apoyado(
 		"TallerTejado",
-		Vector3.new(anchoTaller + 4, 2, largoTaller + 4),
-		Vector3.new(-50, altoTaller, zTaller),
+		Vector3.new(anchoT + 5, 1.5, largoT + 5),
+		xT,
+		zTaller,
+		suelo + altoT,
+		Palette.TALLER,
+		Enum.Material.Metal
+	)
+	-- Dintel sobre la boca abierta: sin él, el cobertizo son dos paredes sueltas.
+	apoyado(
+		"TallerDintel",
+		Vector3.new(anchoT + 5, 3, 2),
+		xT,
+		zTaller + largoT / 2,
+		suelo + altoT - 4.5,
 		Palette.TALLER,
 		Enum.Material.Metal
 	)
 
 	-- La furgoneta aparcada ES el escaparate: enseña lo que compras antes de que
-	-- puedas pagarlo, y eso es la mitad del motivo para hacer otro viaje.
-	local base = Vector3.new(-50, 0, -18)
-	bloque(
+	-- puedas pagarlo, y eso es la mitad del motivo para hacer otro viaje. DENTRO
+	-- del cobertizo y APOYADA en el suelo: colocada a ojo salía enterrada.
+	local fx, fz = xT, zTaller - 2
+	apoyado(
+		"FurgoChasis",
+		Vector3.new(9, 1.6, 17),
+		fx,
+		fz,
+		suelo + 1.6,
+		Color3.fromRGB(52, 56, 66),
+		Enum.Material.Metal
+	)
+	apoyado(
 		"FurgoCaja",
-		Vector3.new(8, 7, 11),
-		base + Vector3.new(0, 5.5, -2),
+		Vector3.new(9.4, 7.5, 11),
+		fx,
+		fz - 3,
+		suelo + 3.2,
 		Palette.TALLER,
 		Enum.Material.SmoothPlastic
 	)
-	bloque(
+	apoyado(
 		"FurgoCabina",
-		Vector3.new(7.4, 5, 5),
-		base + Vector3.new(0, 4.5, 5),
+		Vector3.new(9, 5.4, 6),
+		fx,
+		fz + 5.5,
+		suelo + 3.2,
 		Color3.fromRGB(96, 116, 156),
 		Enum.Material.SmoothPlastic
 	)
-	bloque(
-		"FurgoParabrisas",
-		Vector3.new(6.6, 2.6, 0.6),
-		base + Vector3.new(0, 5.6, 7.4),
-		Color3.fromRGB(40, 46, 52),
-		Enum.Material.Glass
+	apoyado("FurgoParabrisas", Vector3.new(8, 3, 0.6), fx, fz + 8.4, suelo + 4.6, CRISTAL, Enum.Material.Glass)
+	apoyado(
+		"FurgoMorro",
+		Vector3.new(9, 2.6, 2.5),
+		fx,
+		fz + 9.4,
+		suelo + 1.6,
+		Color3.fromRGB(96, 116, 156),
+		Enum.Material.SmoothPlastic
 	)
-	for i, sitio in
-		{
-			Vector3.new(-4, 1.6, 4.5),
-			Vector3.new(4, 1.6, 4.5),
-			Vector3.new(-4, 1.6, -5),
-			Vector3.new(4, 1.6, -5),
-		}
-	do
-		local rueda = bloque(
+	for i, r in { { x = -4.6, z = 5 }, { x = 4.6, z = 5 }, { x = -4.6, z = -6 }, { x = 4.6, z = -6 } } do
+		local rueda = apoyado(
 			"FurgoRueda" .. i,
-			Vector3.new(1.2, 3.2, 3.2),
-			base + sitio,
-			Color3.fromRGB(32, 32, 36),
+			Vector3.new(1.4, 3.4, 3.4),
+			fx + r.x,
+			fz + r.z,
+			suelo,
+			Color3.fromRGB(30, 30, 34),
 			Enum.Material.SmoothPlastic
 		)
+		-- SIN rotarla: el eje de un Part cilíndrico ya va a lo largo de su X local,
+		-- que es justo el eje sobre el que gira una rueda en una furgoneta que
+		-- mira hacia +Z. Girarla 90° la dejaría tumbada como un plato.
 		rueda.Shape = Enum.PartType.Cylinder
 	end
 end
 
-function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, taller: BasePart, destinos: { BasePart } }
+function WorldBuilder.build(): {
+	almacen: BasePart,
+	salida: BasePart,
+	taller: BasePart,
+	aparicion: BasePart,
+	destinos: { BasePart },
+}
 	iluminar()
 
 	local mundo = Instance.new("Folder")
@@ -496,7 +593,10 @@ function WorldBuilder.build(): { almacen: BasePart, salida: BasePart, taller: Ba
 		decorado("FurgonetaEscaparate", MeshCatalog.FURGONETA, Vector3.new(-50, 5.5, -14), 90, adorno)
 	end)
 
-	return { almacen = almacen, salida = salida, taller = taller, destinos = destinos }
+	-- `aparicion` se devuelve porque Avatar.luau construye los personajes a mano
+	-- (ver su cabecera) y necesita saber donde dejarlos: con CharacterAutoLoads
+	-- apagado, Roblox ya no usa el SpawnLocation por su cuenta.
+	return { almacen = almacen, salida = salida, taller = taller, aparicion = spawn, destinos = destinos }
 end
 
 return WorldBuilder

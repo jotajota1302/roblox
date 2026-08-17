@@ -72,6 +72,13 @@ Config.RUTAS = {
 Config.ALMACEN_RITMO = 30 -- PROTOTIPO: 180 (1 caja cada 3 min)
 Config.ALMACEN_TOPE = 10
 
+-- Radio alrededor de la salida en el que se puede elegir ruta. Vive aquí, y no
+-- en RouteService, porque el CLIENTE también lo necesita: el selector de ruta
+-- sólo debe aparecer donde el servidor va a aceptar la elección. Con dos copias
+-- del número, el día que una cambie el jugador vería una pantalla que al pulsar
+-- no hace nada -- y un botón que no responde se lee como un juego roto.
+Config.DISTANCIA_SALIDA = 40
+
 -- Intercepción
 Config.ROBO_DISTANCIA = 5 -- studs
 Config.ALERTA_DISTANCIA = 60 -- a esta distancia ya se avisa: "te vienen detrás"

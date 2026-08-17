@@ -17,7 +17,7 @@ local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiK
 local RoutePicker = {}
 local gui: ScreenGui? = nil
 
-function RoutePicker.build(alElegir: (string) -> ())
+function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	local pantalla = Instance.new("ScreenGui")
 	pantalla.Name = "SelectorRuta"
 	pantalla.ResetOnSpawn = false
@@ -25,16 +25,16 @@ function RoutePicker.build(alElegir: (string) -> ())
 	pantalla.Enabled = false
 	pantalla.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-	-- Velo oscuro a pantalla completa. Elegir ruta es la decisión central del
-	-- juego y merece ser modal: sin el velo, en un móvil pequeño el selector se
-	-- superponía a los botones del HUD y todo se leía a la vez, que es la manera
-	-- más segura de que no se lea nada.
+	-- Velo, para que las tarjetas se lean sobre cualquier fondo. A 0,45 dejaba la
+	-- pantalla casi negra y el jugador no veía ni su propio personaje: parecía que
+	-- había desaparecido. A 0,72 se sigue viendo el mundo -- y sobre todo se ve
+	-- DÓNDE estás, que es parte de lo que se decide aquí.
 	local velo = Instance.new("Frame")
 	velo.Name = "Velo"
 	velo.Size = UDim2.fromScale(1, 1)
 	velo.Position = UDim2.fromScale(0, 0)
 	velo.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	velo.BackgroundTransparency = 0.45
+	velo.BackgroundTransparency = 0.72
 	velo.BorderSizePixel = 0
 	velo.ZIndex = 0
 	velo.Parent = pantalla
@@ -154,6 +154,38 @@ function RoutePicker.build(alElegir: (string) -> ())
 			RoutePicker.ocultar()
 		end)
 	end
+
+	-- Se puede cerrar sin elegir. Parece un detalle y no lo es: hasta ahora esta
+	-- pantalla no tenía salida, así que llegar a la salida con carga te obligaba a
+	-- irte de viaje aunque hubieras venido a otra cosa -- a mirar el mapa, a
+	-- pensártelo, o a volver al taller. Una decisión que no se puede posponer deja
+	-- de ser una decisión.
+	local cerrar = Instance.new("TextButton")
+	cerrar.Name = "Cerrar"
+	cerrar.AnchorPoint = Vector2.new(0.5, 0)
+	cerrar.Position = UDim2.fromScale(0.5, 0.76)
+	cerrar.Size = UDim2.fromScale(0.24, 0.13)
+	cerrar.BackgroundColor3 = Color3.fromRGB(52, 52, 58)
+	cerrar.TextColor3 = UiKit.APAGADO
+	cerrar.TextScaled = true
+	cerrar.Font = Enum.Font.GothamMedium
+	cerrar.Text = "Ahora no"
+	cerrar.AutoButtonColor = true
+	cerrar.ZIndex = 2
+	cerrar.Parent = pantalla
+	UiKit.redondear(cerrar, 8)
+	UiKit.borde(cerrar, Color3.fromRGB(86, 86, 94), 2)
+	UiKit.margen(cerrar, 6)
+
+	local cerrarSize = Instance.new("UISizeConstraint")
+	cerrarSize.MinSize = Vector2.new(120, 44)
+	cerrarSize.MaxSize = Vector2.new(200, 56)
+	cerrarSize.Parent = cerrar
+
+	cerrar.Activated:Connect(function()
+		RoutePicker.ocultar()
+		alCerrar()
+	end)
 
 	gui = pantalla
 end

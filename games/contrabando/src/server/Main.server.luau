@@ -48,6 +48,7 @@ local GarageService = safeRequire("GarageService")
 local InterceptService = safeRequire("InterceptService")
 local Persistence = safeRequire("Persistence")
 local Telemetry = safeRequire("Telemetry")
+local Avatar = safeRequire("Avatar")
 
 -- El mundo primero: sin suelo no puede entrar nadie.
 local mundo = nil
@@ -97,16 +98,29 @@ if mundo then
 	end
 end
 
-local function colocar(player: Player)
-	player:LoadCharacter()
-end
-
-Players.PlayerAdded:Connect(colocar)
-Players.CharacterAutoLoads = true
-
-for _, player in Players:GetPlayers() do
-	if not player.Character then
-		task.spawn(colocar, player)
+-- Los personajes, al final del todo y por su propio módulo. Antes se hacía aquí
+-- con un LoadCharacter suelto, y con el place sin publicar eso da un avatar R15
+-- cuyas mallas no se pueden descargar: un personaje invisible que camina. Ver la
+-- cabecera de Avatar.luau, que cuenta la investigación entera.
+if Avatar then
+	if mundo then
+		Avatar.registrarAparicion(mundo.aparicion)
+	end
+	safeStart("Avatar", Avatar)
+else
+	-- Sin el módulo, mejor un avatar invisible que ningún personaje: al menos se
+	-- puede andar y el resto del juego responde.
+	warn("[Contrabando] sin modulo Avatar: se cargan personajes por defecto")
+	Players.CharacterAutoLoads = true
+	Players.PlayerAdded:Connect(function(player)
+		player:LoadCharacter()
+	end)
+	for _, player in Players:GetPlayers() do
+		if not player.Character then
+			task.spawn(function()
+				player:LoadCharacter()
+			end)
+		end
 	end
 end
 

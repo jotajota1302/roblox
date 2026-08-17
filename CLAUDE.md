@@ -64,6 +64,19 @@ al reabrir, desaparecen. Es la misma trampa que el DataStore.
 Consecuencia práctica: **todo lo que dependa de un mesh necesita un respaldo construido con
 `Part`**, y el juego tiene que quedar reconocible sin ellos. El decorado de `contrabando`
 lo hace: intenta un mesh, y si falla monta el edificio con piezas.
+
+**Y el AVATAR también es un mesh.** Un personaje R15 moderno son ~15 `MeshPart` que Roblox
+baja de `assetdelivery.roblox.com`. Sin publicar, el jugador aparece **invisible**: existe,
+anda y colisiona, pero no tiene con qué dibujarse. El síntoma es desconcertante —
+`WorldToViewportPoint` lo sitúa en el centro de la pantalla, `Transparency` es 0 en todas
+sus partes y no hay nada por delante— y sólo se cierra el diagnóstico poniendo una marca de
+color en su posición exacta: la marca se ve, el personaje no. La salida es el rig **R6**
+(hecho de `Part`), vía `Players:CreateHumanoidModelFromDescription(desc, R6)`. Ver
+`games/contrabando/src/server/Avatar.luau`.
+
+**Para ver la experiencia real hay que publicar el place** (puede ser en privado): es lo
+único que activa meshes, avatar y DataStore a la vez. Publicar crea contenido en la cuenta
+del usuario, así que **lo hace él**, no nosotros: *File → Publish to Roblox As…*
 | **Materiales / texturas de superficie** | `generate_material` (MCP) | Genera MaterialVariant nativos |
 | **Modelos paramétricos ajustables** | `generate_procedural_model` (MCP) | Primitivas con atributos editables sin regenerar |
 | **Miniatura e icono del juego** | **MiniMax** (`image-01`) | Es 2D y es **marketing**: decide el CTR en el Discover, que es el cuello de botella real del proyecto. Estilo saturado y llamativo, no arte de portada |

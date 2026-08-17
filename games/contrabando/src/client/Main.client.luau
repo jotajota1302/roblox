@@ -7,12 +7,20 @@
 ]]
 
 local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+
+-- La carpeta del mundo la crea el servidor al arrancar, así que puede no existir
+-- todavía cuando este script empieza. Se espera con un tope: sin ella el juego
+-- sigue funcionando (sólo que el selector no aparecería), y colgarse para siempre
+-- esperando algo que quizá no llega es peor que seguir sin ello.
+local mundo = workspace:WaitForChild("Mundo", 20) :: Instance?
 
 -- Cada pantalla se construye por su cuenta y protegida, igual que los servicios
 -- del servidor. LA RAZÓN, pagada: una excepción a mitad de Hud.build() (un
@@ -28,26 +36,85 @@ local function construir(nombre: string, fn: () -> ())
 	return ok
 end
 
+-- Estado del selector de ruta. Se recalcula tanto cuando llega estado nuevo del
+-- servidor como cuando el jugador se mueve, porque depende de las dos cosas.
+--
+-- Declaradas ANTES de construir el selector, que es quien captura `cerradoAMano`
+-- en su callback: en Lua un nombre usado antes de existir como local se resuelve
+-- como global, así que el botón "Ahora no" escribiría en una variable distinta de
+-- la que lee refrescarSelector y no cerraría nada. Este proyecto ya pagó ese
+-- mismo error una vez, en CargoService.
+local ultimoEstado: any = nil
+local cerradoAMano = false
+
 construir("Hud", Hud.build)
 
 construir("RoutePicker", function()
 	RoutePicker.build(function(rutaId)
 		Remotes.event(Remotes.ELEGIR_RUTA):FireServer(rutaId)
+	end, function()
+		cerradoAMano = true
 	end)
 end)
 
-Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
-	-- El selector aparece cuando llevas carga y aún no has elegido por dónde vas.
-	-- Es modal: mientras esté, los botones de acción se apagan. El orden importa
-	-- -- setModal ANTES de update -- porque update es quien decide si el botón de
-	-- comprar vuelve a encenderse, y necesita saber ya si hay algo delante.
-	local eligiendo = #estado.cajas > 0 and estado.ruta == nil
-	Hud.setModal(eligiendo)
-	Hud.update(estado)
-	if eligiendo then
+-- CUÁNDO aparece el selector. La versión anterior sólo miraba "llevas carga y no
+-- has elegido ruta", y eso lo abría NADA MÁS RECOGER, dentro del almacén. Dos
+-- consecuencias, las dos malas:
+--
+--   · Ahí el servidor RECHAZA la elección (exige estar en la salida), así que
+--     era una pantalla cuyos tres botones no hacían nada.
+--   · Y al ser modal, tapaba el mundo entero -- incluido tu propio personaje --
+--     y escondía los botones, incluido el de comprar la furgoneta. Recogías
+--     cajas y te quedabas encerrado en una pantalla oscura sin salida.
+--
+-- Ahora aparece donde sirve: en la salida, con carga y sin ruta elegida. Y se
+-- puede cerrar; al alejarse y volver, vuelve a ofrecerse.
+local function debeElegir(): boolean
+	if ultimoEstado == nil or #ultimoEstado.cajas == 0 or ultimoEstado.ruta ~= nil then
+		return false
+	end
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
+	if not root or not salida then
+		return false
+	end
+	return (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA
+end
+
+local function refrescarSelector()
+	local eligiendo = debeElegir()
+	if not eligiendo then
+		-- Al salir de la zona se olvida el cierre manual: volver a la salida es
+		-- justamente decir "ahora sí quiero elegir".
+		cerradoAMano = false
+	end
+	local mostrar = eligiendo and not cerradoAMano
+	-- setModal ANTES de update: update decide si el botón de comprar se enciende,
+	-- y necesita saber ya si hay algo delante.
+	Hud.setModal(mostrar)
+	if ultimoEstado then
+		Hud.update(ultimoEstado)
+	end
+	if mostrar then
 		RoutePicker.mostrar()
 	else
 		RoutePicker.ocultar()
+	end
+end
+
+Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
+	ultimoEstado = estado
+	refrescarSelector()
+end)
+
+-- Y también al moverse: el estado no cambia por caminar, pero la respuesta a
+-- "¿estoy en la salida?" sí. Cuatro veces por segundo basta y de sobra para algo
+-- que el jugador alcanza andando a 10-16 studs/s.
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		pcall(refrescarSelector)
 	end
 end)
 
