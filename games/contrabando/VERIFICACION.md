@@ -349,6 +349,25 @@ saber dónde estás de pie. Al publicar el place entran los meshes solos, sin to
 El mundo jugable nunca dependió de esto: las losas, las distancias y las reglas son las
 mismas con meshes y sin ellos.
 
+### El ritmo, medido con un cronómetro
+
+Lo que destapó la primera partida jugada de verdad: **cargado se va a 11,8 studs/s**. Con las
+distancias del diseño, un viaje de ida y vuelta costaba:
+
+| Ruta | Ida y vuelta (diseño) | Ida y vuelta (prototipo) |
+|---|---|---|
+| Verde | 1,7 min | 0,8 min |
+| Ámbar | 3,4 min | 1,7 min |
+| Roja | **5,7 min** | **2,8 min** |
+
+En la sesión de diez minutos que decide si el proyecto sigue, las distancias originales dan
+**menos de dos viajes rojos**: se estaría midiendo la caminata, no el bucle. A la mitad caben
+unos cuatro, con las mismas proporciones y las mismas decisiones.
+
+Medido después del cambio, por la roja: **3 cajas → 300 monedas en 85 s**. Con eso la
+furgoneta (1.500) cae sobre el quinto viaje, unos siete minutos — dentro de la sesión, que es
+justo donde tiene que estar el primer sumidero.
+
 ## 4. Antes de publicar
 
 - [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de
