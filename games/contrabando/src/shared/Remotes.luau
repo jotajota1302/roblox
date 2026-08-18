@@ -24,6 +24,8 @@ Remotes.COMPRAR = "Comprar" -- cliente -> servidor: "compro este vehículo"
 Remotes.SACAR = "Sacar" -- cliente -> servidor: "saco este vehículo del garaje"
 Remotes.MONTAR = "Montar" -- cliente -> servidor: "me subo o me bajo del vehículo"
 Remotes.MEJORAR_NAVE = "MejorarNave" -- cliente -> servidor: "pago la siguiente mejora de la nave"
+Remotes.COMPRAR_HABILIDAD = "ComprarHabilidad" -- cliente -> servidor: "compro este peldaño"
+Remotes.USAR_SENUELO = "UsarSenuelo" -- cliente -> servidor: "suelto el cebo aquí"
 Remotes.AVISO = "Aviso" -- servidor -> cliente: mensaje corto en pantalla
 Remotes.SONIDO = "Sonido" -- servidor -> cliente: reproducir un efecto por su clave
 

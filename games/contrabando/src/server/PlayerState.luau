@@ -12,6 +12,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 
@@ -45,6 +46,17 @@ export type Estado = {
 	-- Levels.nivelDe. Guardar los dos es garantizar que algún día no cuadren, y el
 	-- que no cuadrase sería el que ve el jugador.
 	xp: number,
+	-- La moneda de las habilidades. Se recoge por el camino y SÓLO se gasta en
+	-- ellas: no compra vehículos ni mejoras de nave, y por eso no puede
+	-- desequilibrar una economía que ya está medida.
+	contactos: number,
+	-- Peldaño comprado de cada habilidad. Lo normaliza Skills en cada carga: un
+	-- valor guardado mal valdría para siempre.
+	habilidades: { [string]: number },
+	-- Cuántos contactos llevas recogidos EN ESTE VIAJE. De aquí sale la racha de
+	-- velocidad. NO SE PERSISTE, por lo mismo que el calor: es del viaje, y volver
+	-- con la racha de ayer sería premio por desconectarse.
+	recogidos: number,
 	-- La carga de VUELTA que te espera en el destino donde acabas de entregar, y
 	-- de qué zona viene (de ahí sale lo que te pagan por ella). Se vacía al
 	-- recogerla o al salir otra vez del almacén: es una oferta del momento, no un
@@ -87,6 +99,9 @@ function PlayerState.get(player: Player): Estado
 			vehiculo = nil,
 			calor = 0,
 			xp = 0,
+			contactos = 0,
+			habilidades = Skills.normalizar(nil),
+			recogidos = 0,
 			retorno = {},
 			retornoZona = nil,
 			montado = true,
@@ -128,6 +143,11 @@ function PlayerState.sync(player: Player)
 		almacen = estado.almacen,
 		calor = estado.calor or 0,
 		xp = estado.xp or 0,
+		contactos = estado.contactos or 0,
+		habilidades = estado.habilidades or {},
+		-- La racha viaja calculada, como el nivel: el cliente dibuja "+2,0" y no
+		-- aplica ninguna regla.
+		recogidos = estado.recogidos or 0,
 		retorno = estado.retorno or {},
 		retornoZona = estado.retornoZona,
 		montado = estado.montado ~= false,

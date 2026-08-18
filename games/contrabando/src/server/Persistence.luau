@@ -14,6 +14,7 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 
+local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local PlayerState = require(script.Parent.PlayerState)
@@ -63,6 +64,12 @@ function Persistence.cargar(player: Player)
 	-- perder: el dinero se recupera con un par de viajes y el nivel no. Se acepta
 	-- con math.max(0, ...) para que un dato corrupto no deje a nadie en negativo.
 	estado.xp = math.max(0, tonumber(datos.xp) or estado.xp or 0)
+	-- Los contactos y las habilidades, por el mismo motivo que la experiencia: se
+	-- ganan jugando y no se pueden recomprar. Skills.normalizar es la aduana --
+	-- recorta lo que venga guardado mal, porque un peldaño inflado una vez valdría
+	-- para siempre.
+	estado.contactos = math.max(0, math.floor(tonumber(datos.contactos) or estado.contactos or 0))
+	estado.habilidades = Skills.normalizar(datos.habilidades)
 	estado.almacenCajas = tonumber(datos.almacenCajas) or estado.almacenCajas
 	estado.almacenUltimaVisita = tonumber(datos.almacenUltimaVisita) or estado.almacenUltimaVisita
 	-- El vehículo se valida contra el catálogo antes de aceptarlo. Lo guardado
@@ -118,6 +125,10 @@ function Persistence.guardar(player: Player)
 	local datos = {
 		dinero = estado.dinero,
 		xp = estado.xp or 0,
+		contactos = estado.contactos or 0,
+		habilidades = estado.habilidades or {},
+		-- `recogidos` NO se guarda: la racha es del viaje, y volver con la de ayer
+		-- sería premio por desconectarse. Misma regla que el calor.
 		almacenCajas = estado.almacenCajas,
 		almacenUltimaVisita = os.time(),
 		vehiculo = estado.vehiculo,
