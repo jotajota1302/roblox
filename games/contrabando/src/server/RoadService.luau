@@ -235,7 +235,27 @@ local function paso(player: Player)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		local cuenta = Roads.vehiculoQueCuenta(estado.vehiculo, estado.montado ~= false)
-		humanoid.WalkSpeed = Cargo.velocidad(estado.cajas, cuenta)
+		local velocidad = Cargo.velocidad(estado.cajas, cuenta)
+		humanoid.WalkSpeed = velocidad
+
+		-- Y EL MOTOR SUBE DE TONO CON LA VELOCIDAD. Es lo que separa un ruido de
+		-- fondo de una respuesta: cargado hasta arriba el motor se oye ahogado, y
+		-- vacío por una recta se oye cómo tira. El bucle ya está sonando (lo monta
+		-- Ride); aquí sólo se le mueve el tono.
+		local ruido = root:FindFirstChild("RuidoVehiculo") :: Sound?
+		local def = Config.SONIDOS_VEHICULO[cuenta or ""]
+		if ruido and def then
+			local nominal = Cargo.velocidad({}, cuenta)
+			-- Entre el 82 % y el 100 % del tono según lo cargado que vayas. Poco
+			-- margen a propósito: un motor que cambia de tono a lo bruto suena a
+			-- juguete estropeado.
+			local proporcion = if nominal > 0 then math.clamp(velocidad / nominal, 0.55, 1) else 1
+			ruido.PlaybackSpeed = def.tono * (0.82 + 0.18 * proporcion)
+			-- Y se calla si el jugador está parado: un motor a tope con el personaje
+			-- quieto es lo que hace que un juego suene barato.
+			local quieto = humanoid.MoveDirection.Magnitude < 0.1
+			ruido.Volume = if quieto then def.volumen * 0.35 else def.volumen
+		end
 	end
 end
 

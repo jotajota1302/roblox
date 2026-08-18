@@ -372,6 +372,38 @@ Config.RECINTO_ALTO = 26
 -- Un id vacío no reproduce nada y no rompe: el juego funciona igual, sólo más mudo.
 -- El tipo explícito no es adorno: sin él, indexar con una clave variable
 -- (Config.SONIDOS[clave]) es un error de tipo en --!strict.
+-- EL RUIDO DE CADA VEHÍCULO. "Aunque vayas en vehículo suenan los pasos del
+-- personaje" (JJ): callarlos era la mitad del arreglo, y ésta es la otra.
+--
+-- SON DE LA BIBLIOTECA DE ROBLOX, no generados. Se valoró generarlos con MiniMax
+-- y no compensa: un audio propio hay que subirlo a la cuenta y pasar moderación,
+-- mientras que estos son de ProSoundEffects --la misma casa que la sirena que ya
+-- usamos-- y se comprobó que los cuatro cargan y suenan (27 s, 34,9 s, 10,4 s y
+-- 9,7 s de duración medida).
+--
+-- TRES SAMPLES PARA NUEVE VEHÍCULOS, no nueve: lo que distingue una furgoneta de
+-- una moto es sobre todo el TONO, así que el mismo motor a 0,72 y a 1,15 da dos
+-- vehículos distintos sin descargar nada más. Menos assets, menos que puede
+-- fallar, y arranca antes.
+--
+-- El `tono` es también la escala del juego hecha sonido: cuanto más grave, más
+-- grande. Se oye quién viene antes de verlo, que en un juego de robar es
+-- información y no adorno.
+Config.SONIDO_MOTOR = "rbxassetid://9112787430" -- "Go Kart Engine Constant 1" (ProSoundEffects)
+Config.SONIDO_RUEDAS = "rbxassetid://9125955680" -- "Skateboard Constant Rolling" (ProSoundEffects)
+Config.SONIDO_PEDALES = "rbxassetid://7453582428" -- "Bicycle Pedalling"
+
+Config.SONIDOS_VEHICULO = {
+	patines = { sonido = Config.SONIDO_RUEDAS, tono = 1.25, volumen = 0.35 },
+	monopatin = { sonido = Config.SONIDO_RUEDAS, tono = 1.1, volumen = 0.4 },
+	patinete = { sonido = Config.SONIDO_RUEDAS, tono = 1.0, volumen = 0.4 },
+	patinete_electrico = { sonido = Config.SONIDO_MOTOR, tono = 1.35, volumen = 0.3 },
+	bicicleta = { sonido = Config.SONIDO_PEDALES, tono = 1.0, volumen = 0.45 },
+	moto = { sonido = Config.SONIDO_MOTOR, tono = 1.15, volumen = 0.55 },
+	coche = { sonido = Config.SONIDO_MOTOR, tono = 0.85, volumen = 0.5 },
+	furgoneta = { sonido = Config.SONIDO_MOTOR, tono = 0.72, volumen = 0.55 },
+} :: { [string]: { sonido: string, tono: number, volumen: number } }
+
 Config.SONIDOS = {
 	cobro = "rbxassetid://1319346243", -- "Money,Coins,Drop In Cash Register" (codes4breakfast)
 	robo = "rbxassetid://98330897555423", -- "punch2" (GRISAlLLE)

@@ -22,6 +22,7 @@
 
 local AssetService = game:GetService("AssetService")
 
+local Config = require(game.ReplicatedStorage.Shared.Config)
 local RideCatalog = require(game.ReplicatedStorage.Shared.RideCatalog)
 
 local Ride = {}
@@ -238,6 +239,14 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 	if viejo then
 		viejo:Destroy()
 	end
+	-- Y el ruido, que NO vive en esa carpeta sino en el HumanoidRootPart (tiene que
+	-- ser espacial, para que lo oigan los demás). Sin esto, bajarse de la moto
+	-- dejaría el motor sonando para siempre, y montar otra añadiría un segundo
+	-- motor encima del primero.
+	local ruidoViejo = root:FindFirstChild("RuidoVehiculo")
+	if ruidoViejo then
+		ruidoViejo:Destroy()
+	end
 
 	-- A QUÉ ALTURA PISA ESTE PERSONAJE. No es una constante: depende del rig, y el
 	-- juego ha vivido con los dos -- R6 mientras el place no estaba publicado (los
@@ -268,6 +277,30 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "VehiculoVisible"
 	carpeta.Parent = character
+
+	-- EL RUIDO, en el HumanoidRootPart y por tanto ESPACIAL: lo oyen los demás
+	-- jugadores, y eso es información de juego -- oír llegar una furgoneta por la
+	-- calle de al lado es lo que convierte un encuentro en una decisión.
+	--
+	-- Va en el servidor, como el modelo y la carga, por el mismo motivo: un ruido
+	-- que sólo oye su dueño no avisa a nadie.
+	local def = Config.SONIDOS_VEHICULO[vehiculoId :: string]
+	if def and root then
+		local sonido = Instance.new("Sound")
+		sonido.Name = "RuidoVehiculo"
+		sonido.SoundId = def.sonido
+		sonido.Looped = true
+		sonido.Volume = def.volumen
+		-- El tono ES la escala del juego hecha sonido: cuanto más grave, más
+		-- grande. Un mismo motor a 0,72 y a 1,15 son dos vehículos distintos.
+		sonido.PlaybackSpeed = def.tono
+		-- Se oye a media manzana, no a un barrio entero: con 200 studs de alcance,
+		-- diez jugadores en la ciudad serían diez motores sonando siempre.
+		sonido.RollOffMaxDistance = 90
+		sonido.RollOffMode = Enum.RollOffMode.InverseTapered
+		sonido.Parent = root
+		sonido:Play()
+	end
 
 	-- PRIMERO EL MODELO 3D, si hay uno para este vehículo y la sesión puede
 	-- descargarlo. Las piezas de abajo son el respaldo, no la primera opción: una
