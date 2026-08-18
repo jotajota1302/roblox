@@ -182,7 +182,11 @@ local function misionActual(estado: any): (string, Color3)
 		return "Compra " .. siguiente.nombre .. " en el taller", Palette.TALLER
 	end
 	if (estado.almacenCajas or 0) > 0 then
-		return "Carga mercancía en el muelle", Palette.ALMACEN
+		-- "En el almacén", no "en el muelle". Muelle es como lo llamamos NOSOTROS
+		-- en el código (la losa donde se apilan las piezas); el jugador lo que ve es
+		-- un almacén, y el letrero de la nave dice ALMACÉN. Un juego que llama a la
+		-- misma cosa de dos maneras hace dudar de si son dos sitios.
+		return "Carga mercancía en el almacén", Palette.ALMACEN
 	end
 	-- Y el hueco que no tenía respuesta: almacén vacío y zurrón vacío. Sin esta
 	-- línea, el jugador se queda mirando un muelle pelado sin saber si el juego se
