@@ -178,7 +178,7 @@ function Compass.refrescar()
 	local plano = Vector3.new(haciaAlla.X, 0, haciaAlla.Z)
 	if plano.Magnitude < 1 then
 		if distancia then
-			distancia.Text = "aquí"
+			distancia.Text = "here"
 		end
 		return
 	end

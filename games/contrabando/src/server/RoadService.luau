@@ -213,7 +213,7 @@ local function guardarAparcado(player: Player, vehiculo: string, donde: Vector3)
 	texto.TextStrokeTransparency = 0.3
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "aquí dejaste tu vehículo"
+	texto.Text = "you parked here"
 	texto.Parent = cartel
 
 	aparcados[player] = { vehiculo = vehiculo, modelo = modelo }
@@ -245,7 +245,7 @@ function RoadService.alternar(player: Player)
 	end
 	local vehiculo = estado.vehiculo
 	if vehiculo == nil or vehiculo == Config.VEHICULO_INICIAL then
-		avisar(player, "No tienes vehículo todavía", Color3.fromRGB(232, 176, 64))
+		avisar(player, "You do not have a vehicle yet", Color3.fromRGB(232, 176, 64))
 		return
 	end
 
@@ -259,9 +259,7 @@ function RoadService.alternar(player: Player)
 		local dejadas = descargarEnElVehiculo(player, estado)
 		avisar(
 			player,
-			if dejadas > 0
-				then string.format("Dejas el vehículo aquí con %d bultos dentro", dejadas)
-				else "Dejas el vehículo aquí",
+			if dejadas > 0 then string.format("You park it here with %d items inside", dejadas) else "You park it here",
 			Color3.fromRGB(232, 176, 64)
 		)
 		PlayerState.sync(player)
@@ -281,7 +279,7 @@ function RoadService.alternar(player: Player)
 	local donde = guardado.modelo:GetPivot().Position
 	local cerca = (root.Position - donde).Magnitude
 	if cerca > DISTANCIA_RECOGIDA then
-		avisar(player, string.format("Tu vehículo está a %d m", math.floor(cerca)), Color3.fromRGB(232, 176, 64))
+		avisar(player, string.format("Your vehicle is %dm away", math.floor(cerca)), Color3.fromRGB(232, 176, 64))
 		return
 	end
 
@@ -291,7 +289,7 @@ function RoadService.alternar(player: Player)
 	Ride.montar(character, vehiculo)
 	local recuperadas = recuperarDelVehiculo(player, estado)
 	if recuperadas > 0 then
-		avisar(player, string.format("Recoges tus %d bultos", recuperadas), Color3.fromRGB(150, 220, 160))
+		avisar(player, string.format("You pick your %d items back up", recuperadas), Color3.fromRGB(150, 220, 160))
 	end
 	PlayerState.sync(player)
 end
@@ -341,7 +339,7 @@ local function paso(player: Player)
 		-- sitio donde se cambia de vehículo.
 		recoger(player)
 		bajadoAProposito[player] = nil
-		avisar(player, "Tu vehículo ha vuelto al taller", Color3.fromRGB(150, 220, 160))
+		avisar(player, "Your vehicle went back to the workshop", Color3.fromRGB(150, 220, 160))
 		PlayerState.sync(player)
 	elseif montado and Roads.exigeCalzada(vehiculo) and not enCalzada then
 		-- SE BAJA, y el vehículo se queda en el último asfalto que pisó: dejarlo
@@ -353,8 +351,8 @@ local function paso(player: Player)
 		avisar(
 			player,
 			if dejadas > 0
-				then string.format("Te bajas: %d bultos se quedan en el vehículo", dejadas)
-				else "Te bajas: aquí no se puede rodar",
+				then string.format("You get off: %d items stay in the vehicle", dejadas)
+				else "You get off: no driving here",
 			Color3.fromRGB(232, 176, 64)
 		)
 		PlayerState.sync(player)
@@ -374,9 +372,7 @@ local function paso(player: Player)
 			local recuperadas = recuperarDelVehiculo(player, estado)
 			avisar(
 				player,
-				if recuperadas > 0
-					then string.format("De vuelta al volante con tus %d bultos", recuperadas)
-					else "De vuelta al volante",
+				if recuperadas > 0 then string.format("Back on it, with your %d items", recuperadas) else "Back on it",
 				Color3.fromRGB(150, 220, 160)
 			)
 			PlayerState.sync(player)

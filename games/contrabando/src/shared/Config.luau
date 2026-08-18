@@ -55,10 +55,10 @@ Config.PENALIZACION_POR_CAJA = 1.4 -- studs/s menos por unidad de peso transport
 -- inversión tiene que devolverla. La progresión sigue siendo por capacidad y
 -- acceso, no por potencia.
 Config.TAMANOS = {
-	{ id = "pequeno", nombre = "pequeño", nivel = 1, huecos = 1, bono = 1 },
-	{ id = "mediano", nombre = "mediano", nivel = 2, huecos = 2, bono = 1.6 },
-	{ id = "grande", nombre = "grande", nivel = 3, huecos = 4, bono = 2 },
-	{ id = "enorme", nombre = "enorme", nivel = 4, huecos = 8, bono = 2.6 },
+	{ id = "pequeno", nombre = "small", nivel = 1, huecos = 1, bono = 1 },
+	{ id = "mediano", nombre = "medium", nivel = 2, huecos = 2, bono = 1.6 },
+	{ id = "grande", nombre = "large", nivel = 3, huecos = 4, bono = 2 },
+	{ id = "enorme", nombre = "huge", nivel = 4, huecos = 8, bono = 2.6 },
 }
 
 -- `soloCalzada` marca los que NO pueden salirse del asfalto (ver Roads.luau). Es
@@ -100,7 +100,7 @@ Config.TAMANOS = {
 Config.VEHICULOS = {
 	{
 		id = "a_pie",
-		nombre = "A pie",
+		nombre = "On foot",
 		capacidad = Config.CAPACIDAD_A_PIE,
 		velocidadBase = Config.VELOCIDAD_BASE,
 		penalizacionPorPeso = Config.PENALIZACION_POR_CAJA,
@@ -120,7 +120,7 @@ Config.VEHICULOS = {
 	-- primeros viajes o el dinero no significa nada al empezar.
 	{
 		id = "monopatin",
-		nombre = "Monopatín",
+		nombre = "Skateboard",
 		capacidad = 5,
 		velocidadBase = 19,
 		penalizacionPorPeso = 1.0,
@@ -132,7 +132,7 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "patinete",
-		nombre = "Patinete",
+		nombre = "Scooter",
 		capacidad = 6,
 		velocidadBase = 20,
 		penalizacionPorPeso = 0.9,
@@ -144,7 +144,7 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "patinete_electrico",
-		nombre = "Patinete eléctrico",
+		nombre = "E-Scooter",
 		capacidad = 7,
 		velocidadBase = 24,
 		penalizacionPorPeso = 0.8,
@@ -157,7 +157,7 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "bicicleta",
-		nombre = "Bicicleta",
+		nombre = "Bike",
 		capacidad = 9,
 		velocidadBase = 26,
 		penalizacionPorPeso = 0.7,
@@ -170,7 +170,7 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "moto",
-		nombre = "Moto",
+		nombre = "Motorbike",
 		capacidad = 12,
 		velocidadBase = 32,
 		penalizacionPorPeso = 0.55,
@@ -183,7 +183,7 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "coche",
-		nombre = "Coche",
+		nombre = "Car",
 		capacidad = 18,
 		velocidadBase = 34,
 		penalizacionPorPeso = 0.4,
@@ -196,7 +196,7 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "furgoneta",
-		nombre = "Furgoneta",
+		nombre = "Van",
 		capacidad = 26,
 		velocidadBase = 30,
 		penalizacionPorPeso = 0.28,
@@ -333,6 +333,7 @@ Config.RUTAS = {
 	-- entre 200 y 350 studs; si sale rojo, es esta coordenada la que hay que mover.
 	{
 		id = "barrio",
+		nombre = "LOCAL",
 		multiplicador = 0.4,
 		nivel = 1,
 		destino = Vector3.new(-428, 19.2, 623),
@@ -342,6 +343,7 @@ Config.RUTAS = {
 	},
 	{
 		id = "verde",
+		nombre = "GREEN",
 		multiplicador = 1,
 		nivel = 1,
 		destino = Vector3.new(-180, 19, 540),
@@ -350,6 +352,7 @@ Config.RUTAS = {
 	},
 	{
 		id = "ambar",
+		nombre = "AMBER",
 		multiplicador = 3,
 		nivel = 3,
 		destino = Vector3.new(240, 14.8, 420),
@@ -358,6 +361,7 @@ Config.RUTAS = {
 	},
 	{
 		id = "roja",
+		nombre = "RED",
 		multiplicador = 10,
 		nivel = 8,
 		-- Y ADEMÁS PIDE VEHÍCULO DE MOTOR. Es la única ruta con dos requisitos, y
@@ -738,11 +742,11 @@ Config.SENUELO_RADIO = 120 -- a quién despista
 -- `abre` es una LLAVE: la ruta verde no existe hasta el primer hito. Por eso el
 -- servidor lo comprueba y no se fía del selector.
 Config.HITOS = {
-	{ id = "primera", texto = "Entrega tu primer paquete", entregas = 1, monedas = 50, abre = "verde" },
-	{ id = "tres", texto = "Entrega 3 paquetes", entregas = 3, monedas = 250 },
-	{ id = "ambar", texto = "Sube a nivel 3 para la ruta ambar", nivel = 3 },
-	{ id = "ocho", texto = "Entrega 8 paquetes", entregas = 8, monedas = 1000 },
-	{ id = "roja", texto = "Nivel 8 y un vehiculo de motor para la roja", nivel = 8, exigeMotor = true },
+	{ id = "primera", texto = "Deliver your first package", entregas = 1, monedas = 50, abre = "verde" },
+	{ id = "tres", texto = "Deliver 3 packages", entregas = 3, monedas = 250 },
+	{ id = "ambar", texto = "Reach level 3 to unlock the AMBER route", nivel = 3 },
+	{ id = "ocho", texto = "Deliver 8 packages", entregas = 8, monedas = 1000 },
+	{ id = "roja", texto = "Level 8 and a road vehicle for the RED route", nivel = 8, exigeMotor = true },
 }
 
 return Config

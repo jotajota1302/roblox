@@ -71,25 +71,25 @@ export type Aspecto = {
 
 local ASPECTOS: { [string]: Aspecto } = {
 	comun = {
-		nombre = "Cajón",
+		nombre = "Crate",
 		forma = "caja",
 		material = Enum.Material.WoodPlanks,
 		escala = Vector3.new(1, 1, 1),
 	},
 	marcada = {
-		nombre = "Maletín",
+		nombre = "Briefcase",
 		forma = "maletin",
 		material = Enum.Material.Metal,
 		escala = Vector3.new(1.15, 0.42, 0.85),
 	},
 	sellada = {
-		nombre = "Estuche sellado",
+		nombre = "Sealed case",
 		forma = "estuche",
 		material = Enum.Material.DiamondPlate,
 		escala = Vector3.new(1.05, 0.8, 1.05),
 	},
 	legendaria = {
-		nombre = "Urna",
+		nombre = "Urn",
 		forma = "urna",
 		material = Enum.Material.Foil,
 		escala = Vector3.new(0.85, 1.25, 0.85),

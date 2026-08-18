@@ -1203,7 +1203,7 @@ local function nave(base: Part, padre: Instance, frente: number)
 	texto.TextStrokeTransparency = 0.2
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "TU ALMACÉN"
+	texto.Text = "YOUR WAREHOUSE"
 	texto.Parent = rotulo
 end
 
@@ -1304,7 +1304,7 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBlack
-		texto.Text = "VEHÍCULOS"
+		texto.Text = "VEHICLES"
 		texto.Parent = cartel
 	end
 
@@ -1379,7 +1379,7 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		-- más barato que te falte, que estaba bien cuando la escalera era una fila
 		-- de mejoras; con el garaje hay que poder elegir CUÁL, porque un patinete
 		-- teniendo furgoneta ya no es un capricho sino la llave de los atajos.
-		local compra = prompt(bulto, "Comprar " .. vehiculo.nombre, string.format("%d", vehiculo.coste), 22)
+		local compra = prompt(bulto, "Buy " .. vehiculo.nombre, string.format("%d", vehiculo.coste), 22)
 		compra.Name = "PromptComprar"
 		compra:SetAttribute("vehiculo", vehiculo.id)
 
@@ -1409,7 +1409,7 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 			vehiculo.nombre,
 			vehiculo.coste,
 			if (vehiculo :: any).nivel and (vehiculo :: any).nivel > 1
-				then string.format("  ·  nivel %d", (vehiculo :: any).nivel)
+				then string.format("  ·  level %d", (vehiculo :: any).nivel)
 				else ""
 		)
 		texto.Parent = etiqueta
@@ -1710,7 +1710,7 @@ local function refugio(
 	texto.TextStrokeTransparency = 0.2
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "COMISARÍA"
+	texto.Text = "POLICE"
 	texto.Parent = cartel
 
 	return losa
@@ -1778,7 +1778,7 @@ function CityBuilder.build(): Mundo
 	-- DEJAR CARGA, en la propia losa del almacén. El muelle sólo daba y nunca
 	-- recibía ("no puedo dejar paquetes en el almacén", JJ), así que elegir mal lo
 	-- que cargabas no tenía marcha atrás.
-	prompt(almacen, "Dejar carga aquí", "Almacén", 30).Name = "PromptDevolver"
+	prompt(almacen, "Drop cargo here", "Warehouse", 30).Name = "PromptDevolver"
 
 	-- LA OFICINA: donde se paga la mejora de la nave (ver Config.NAVE_MEJORAS).
 	--
@@ -1802,7 +1802,7 @@ function CityBuilder.build(): Mundo
 		)
 		oficina.Material = Enum.Material.WoodPlanks
 		oficina:SetAttribute("rodable", true)
-		prompt(oficina, "Mejorar nave", "Oficina", 18).Name = "PromptMejorar"
+		prompt(oficina, "Upgrade warehouse", "Oficina", 18).Name = "PromptMejorar"
 
 		local cartel = Instance.new("BillboardGui")
 		cartel.Name = "Rotulo"
@@ -1898,7 +1898,7 @@ function CityBuilder.build(): Mundo
 	textoSalida.TextStrokeTransparency = 0.2
 	textoSalida.TextScaled = true
 	textoSalida.Font = Enum.Font.GothamBold
-	textoSalida.Text = "SALIDA  ·  elige destino"
+	textoSalida.Text = "EXIT  ·  pick a route"
 	textoSalida.Parent = cartelSalida
 
 	-- El taller, al otro lado: pasar por delante de la tienda al salir convertiría
@@ -1938,7 +1938,7 @@ function CityBuilder.build(): Mundo
 
 	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
 	local taller = losa(ciudad, "Taller", Vector3.new(96, ALTO_LOSA, 60), Config.TALLER_POS, Palette.TALLER, mundo)
-	prompt(taller, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
+	prompt(taller, "Buy vehicle", "Concesionario", 26).Name = "PromptTaller"
 	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
 
@@ -2072,7 +2072,7 @@ function CityBuilder.build(): Mundo
 				despejar(ciudad, sitio, 110, 45)
 				local tallerZona =
 					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(96, ALTO_LOSA, 60), sitio, Palette.TALLER, mundo)
-				prompt(tallerZona, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
+				prompt(tallerZona, "Buy vehicle", "Concesionario", 26).Name = "PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.
 				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
 				-- La calle es la que se encontró al elegir el sitio: buscarla otra vez
@@ -2129,7 +2129,7 @@ function CityBuilder.build(): Mundo
 		texto.TextStrokeTransparency = 0.2
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = string.format("%s  x%d", string.upper(ruta.id), ruta.multiplicador)
+		texto.Text = string.format("%s  %s", Routes.nombre(ruta.id), Routes.paga(ruta.id))
 		texto.Parent = cartel
 
 		table.insert(destinos, destino)

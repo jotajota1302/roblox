@@ -72,7 +72,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	titulo.TextScaled = true
 	titulo.Font = Enum.Font.GothamBold
 	titulo.TextStrokeTransparency = 0.5
-	titulo.Text = "Por donde sales?"
+	titulo.Text = "Which way out?"
 	titulo.ZIndex = 2
 	titulo.Parent = pantalla
 
@@ -170,8 +170,8 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 			return t
 		end
 
-		texto("Nombre", 1, 0.24, string.upper(ruta.id), Enum.Font.GothamMedium, 0.15)
-		texto("Multiplicador", 2, 0.5, string.format("x%d", ruta.multiplicador), Enum.Font.GothamBlack, 0)
+		texto("Nombre", 1, 0.24, Routes.nombre(ruta.id), Enum.Font.GothamMedium, 0.15)
+		texto("Multiplicador", 2, 0.5, Routes.paga(ruta.id), Enum.Font.GothamBlack, 0)
 		-- Distancia Y vigilancia. La distancia sola bastaba cuando las tres rutas
 		-- eran la misma recta: elegir era decidir cuánto andabas. Con zonas de
 		-- verdad, lo que separa la roja de la verde es CUÁNTA POLICÍA hay, y sin
@@ -190,7 +190,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 			"Detalle",
 			3,
 			0.2,
-			string.format("%d m  ·  %d esquinas  ·  %d guaridas", Routes.distancia(ruta.id), fichadas, madrigueras),
+			string.format("%dm  ·  %d hotspots  ·  %d dens", Routes.distancia(ruta.id), fichadas, madrigueras),
 			Enum.Font.GothamMedium,
 			0.35
 		)
@@ -224,7 +224,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	cerrar.TextColor3 = UiKit.APAGADO
 	cerrar.TextScaled = true
 	cerrar.Font = Enum.Font.GothamMedium
-	cerrar.Text = "Ahora no"
+	cerrar.Text = "Not now"
 	cerrar.AutoButtonColor = true
 	cerrar.ZIndex = 2
 	cerrar.Parent = pantalla
@@ -272,12 +272,7 @@ function RoutePicker.actualizar(estado: any)
 			local fichadas = (Routes.amenazas(id))
 			local madrigueras = guaridasDe(id)
 			detalle.Text = if puede
-				then string.format(
-					"%d m  ·  %d esquinas  ·  %d guaridas",
-					Routes.distancia(id),
-					fichadas,
-					madrigueras
-				)
+				then string.format("%dm  ·  %d hotspots  ·  %d dens", Routes.distancia(id), fichadas, madrigueras)
 				-- Lo que falta DE VERDAD, sabiendo lo que ya tiene: una vez hecho el
 				-- hito, lo que falta vuelve a ser el nivel. Sin esto, la verde diría
 				-- "entrega tu primer paquete" para siempre.

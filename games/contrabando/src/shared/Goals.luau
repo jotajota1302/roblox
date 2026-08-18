@@ -129,10 +129,10 @@ end
 -- progreso, un objetivo es una orden; con progreso, es una cuenta atrás.
 function Goals.progreso(hito: Hito, entregas: number, nivel: number): string
 	if hito.entregas then
-		return string.format("%d de %d entregas", math.min(entregas, hito.entregas), hito.entregas)
+		return string.format("%d of %d deliveries", math.min(entregas, hito.entregas), hito.entregas)
 	end
 	if hito.nivel then
-		return string.format("nivel %d de %d", math.min(nivel, hito.nivel), hito.nivel)
+		return string.format("level %d of %d", math.min(nivel, hito.nivel), hito.nivel)
 	end
 	return ""
 end

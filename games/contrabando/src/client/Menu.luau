@@ -145,20 +145,20 @@ local function pintarHabilidades()
 	local habilidades = Skills.normalizar(estado.habilidades)
 	local contactos = estado.contactos or 0
 	if titulo then
-		titulo.Text = string.format("Habilidades  ·  %d contactos", contactos)
+		titulo.Text = string.format("Skills  ·  %d contacts", contactos)
 	end
 
 	for i, d in Skills.CATALOGO do
 		local peldano = habilidades[d.id] or 0
 		local coste = Skills.coste(habilidades, d.id)
 		local detalle = if coste
-			then string.format("%s  ·  nivel %d de %d", d.descripcion, peldano, #d.costes)
-			else d.descripcion .. "  ·  al maximo"
+			then string.format("%s  ·  level %d of %d", d.descripcion, peldano, #d.costes)
+			else d.descripcion .. "  ·  maxed"
 
 		-- El precio va a secas, sin simbolo: los emojis y los signos raros salen como
 		-- cuadrados en un TextLabel de Roblox. Lo que dice que son contactos y no
 		-- monedas es la cabecera, que lleva el saldo al lado del titulo.
-		local precio = if coste then tostring(coste) else "Hecho"
+		local precio = if coste then tostring(coste) else "Done"
 		-- El botón sólo responde si de verdad se puede pagar. Un botón que acepta y
 		-- luego el servidor rechaza es la forma más rápida de que el jugador crea
 		-- que el juego está roto.
@@ -183,22 +183,22 @@ local function pintarNave()
 	local siguiente = estado.naveSiguiente
 
 	ficha(
-		string.format("Nave, nivel %d", estado.naveNivel or 1),
-		if nave then string.format("guarda %d  ·  produce cada %d s", nave.tope, nave.ritmo) else "tu almacen",
+		string.format("Warehouse, level %d", estado.naveNivel or 1),
+		if nave then string.format("holds %d  ·  produces every %ds", nave.tope, nave.ritmo) else "your warehouse",
 		nil,
 		nil,
 		1
 	)
 
 	if not siguiente then
-		ficha("Al maximo", "no queda nada que mejorar", nil, nil, 2)
+		ficha("Maxed", "nothing left to upgrade", nil, nil, 2)
 		return
 	end
 
 	local puede = (estado.dinero or 0) >= siguiente.coste
 	ficha(
-		string.format("Nivel %d", (estado.naveNivel or 1) + 1),
-		string.format("guarda %d  ·  produce cada %d s", siguiente.tope, siguiente.ritmo),
+		string.format("Level %d", (estado.naveNivel or 1) + 1),
+		string.format("holds %d  ·  produces every %ds", siguiente.tope, siguiente.ritmo),
 		UiKit.millares(siguiente.coste),
 		if puede
 			then function()
@@ -214,13 +214,13 @@ local function pintarTaller()
 	local mejoras = estado.mejoras or {}
 
 	if #mejoras == 0 then
-		ficha("Nada que comprar", "los tienes todos", nil, nil, 1)
+		ficha("Nothing to buy", "you own them all", nil, nil, 1)
 	end
 
 	for i, v in mejoras do
-		local detalle = string.format("carga %d  ·  %d studs/s", v.capacidad, v.velocidadBase)
+		local detalle = string.format("carries %d  ·  %d studs/s", v.capacidad, v.velocidadBase)
 		if v.bloqueado then
-			ficha(v.nombre, detalle .. string.format("  ·  pide nivel %d", v.nivel), "Bloqueado", nil, i)
+			ficha(v.nombre, detalle .. string.format("  ·  needs level %d", v.nivel), "Locked", nil, i)
 		else
 			local puede = (estado.dinero or 0) >= v.coste
 			ficha(
@@ -240,7 +240,7 @@ local function pintarTaller()
 	-- Y SE DICE POR QUÉ no se puede sacar desde aquí. Sin esta línea, el jugador
 	-- que compra una moto y no la ve puesta cree que el juego se ha comido su
 	-- dinero.
-	ficha("Sacar del garaje", "eso sigue siendo en el taller: cual te llevas es la decision del viaje", nil, nil, 99)
+	ficha("Take out of garage", "still at the workshop: which one you take is the run's decision", nil, nil, 99)
 end
 
 local function abrir(cual: string)
@@ -252,9 +252,9 @@ local function abrir(cual: string)
 	titulo.Text = cual
 	limpiar()
 
-	if cual == "Habilidades" then
+	if cual == "Skills" then
 		pintarHabilidades()
-	elseif cual == "Nave" then
+	elseif cual == "Warehouse" then
 		pintarNave()
 	else
 		pintarTaller()
@@ -296,32 +296,32 @@ function Menu.build()
 	lista.Padding = UDim.new(0, 6)
 	lista.Parent = columna
 
-	boton(columna, "Habilidades", 2, Color3.fromRGB(58, 62, 82)).Activated:Connect(function()
-		if abierto == "Habilidades" then
+	boton(columna, "Skills", 2, Color3.fromRGB(58, 62, 82)).Activated:Connect(function()
+		if abierto == "Skills" then
 			cerrar()
 		else
-			abrir("Habilidades")
+			abrir("Skills")
 		end
 	end)
-	boton(columna, "Nave", 3, Color3.fromRGB(52, 66, 60)).Activated:Connect(function()
-		if abierto == "Nave" then
+	boton(columna, "Warehouse", 3, Color3.fromRGB(52, 66, 60)).Activated:Connect(function()
+		if abierto == "Warehouse" then
 			cerrar()
 		else
-			abrir("Nave")
+			abrir("Warehouse")
 		end
 	end)
-	boton(columna, "Taller", 4, Color3.fromRGB(70, 58, 52)).Activated:Connect(function()
-		if abierto == "Taller" then
+	boton(columna, "Workshop", 4, Color3.fromRGB(70, 58, 52)).Activated:Connect(function()
+		if abierto == "Workshop" then
 			cerrar()
 		else
-			abrir("Taller")
+			abrir("Workshop")
 		end
 	end)
 
 	-- EL SEÑUELO va arriba del todo y en rojo, porque no es una tienda: es la única
 	-- cosa que se pulsa MIENTRAS corres, y buscarla entre tres botones iguales con
 	-- un ladrón detrás sería perderla.
-	local cebo = boton(columna, "Senuelo", 1, Color3.fromRGB(120, 54, 54))
+	local cebo = boton(columna, "Decoy", 1, Color3.fromRGB(120, 54, 54))
 	cebo.Visible = false
 	cebo.Activated:Connect(function()
 		Remotes.event(Remotes.USAR_SENUELO):FireServer()
@@ -416,11 +416,11 @@ function Menu.tick()
 	end
 	local queda = senueloListoEn - os.clock()
 	if queda > 0 then
-		botonSenuelo.Text = string.format("Senuelo %ds", math.ceil(queda))
+		botonSenuelo.Text = string.format("Decoy %ds", math.ceil(queda))
 		botonSenuelo.BackgroundColor3 = Color3.fromRGB(70, 60, 60)
 		botonSenuelo.AutoButtonColor = false
 	else
-		botonSenuelo.Text = "Senuelo"
+		botonSenuelo.Text = "Decoy"
 		botonSenuelo.BackgroundColor3 = Color3.fromRGB(120, 54, 54)
 		botonSenuelo.AutoButtonColor = true
 	end

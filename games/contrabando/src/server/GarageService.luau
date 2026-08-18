@@ -44,18 +44,18 @@ local ROJO = Palette.AVISO_MALO
 -- Por qué falló la compra, en palabras que le sirvan a quien ha pulsado el botón.
 -- Un botón que no hace nada y no dice nada es indistinguible de un juego roto.
 local EXPLICACION: { [string]: string } = {
-	sin_dinero = "No te llega el dinero",
-	ya_lo_tienes = "Ya tienes ese vehiculo",
-	ya_tienes_uno_mejor = "El tuyo es mejor",
-	no_esta_a_la_venta = "Eso no se vende",
-	vehiculo_desconocido = "Ese vehiculo no existe",
-	lejos = "Tienes que estar en el taller",
-	con_carga = "Descarga antes de cambiar de vehiculo",
-	no_cabe_la_carga = "Ahi no te cabe lo que llevas: descarga primero",
-	carga_demasiado_grande = "Lo que llevas no entra en ese vehiculo",
-	no_es_tuyo = "Ese vehiculo no es tuyo",
-	ya_lo_llevas = "Ya lo llevas puesto",
-	nivel_insuficiente = "Te falta nivel para ese vehiculo",
+	sin_dinero = "Not enough money",
+	ya_lo_tienes = "You already own that vehicle",
+	ya_tienes_uno_mejor = "Yours is better",
+	no_esta_a_la_venta = "That is not for sale",
+	vehiculo_desconocido = "That vehicle does not exist",
+	lejos = "You have to be at a workshop",
+	con_carga = "Unload before switching vehicles",
+	no_cabe_la_carga = "Your cargo does not fit in there: unload first",
+	carga_demasiado_grande = "What you carry does not fit in that vehicle",
+	no_es_tuyo = "That vehicle is not yours",
+	ya_lo_llevas = "You are already using it",
+	nivel_insuficiente = "Your level is too low for that vehicle",
 }
 
 local GarageService = {}
@@ -149,8 +149,8 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	Remotes.event(Remotes.AVISO):FireClient(
 		player,
 		if loSaca
-			then string.format("%s: llevas %d huecos y cosas mas grandes", def.nombre, def.capacidad)
-			else string.format("%s guardado en el garaje: sacalo al descargar", def.nombre),
+			then string.format("%s: you carry %d slots and bigger items", def.nombre, def.capacidad)
+			else string.format("%s parked in your garage: take it out once unloaded", def.nombre),
 		VERDE
 	)
 	-- Y CÓMO SE USA, justo después de pagarlo. Es el único instante en que el
@@ -159,7 +159,7 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	-- hace", JJ). Va con retraso para no pisar el aviso de la compra.
 	if loSaca then
 		task.delay(2.2, function()
-			Remotes.event(Remotes.AVISO):FireClient(player, "Pulsa V para bajarte o subirte", VERDE)
+			Remotes.event(Remotes.AVISO):FireClient(player, "Press V to get on or off", VERDE)
 		end)
 	end
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
@@ -207,7 +207,7 @@ function GarageService.sacar(player: Player, vehiculoId: string?): (boolean, str
 	PlayerState.sync(player)
 
 	Telemetry.evento(player, "saca_vehiculo", { vehiculo = def.id })
-	Remotes.event(Remotes.AVISO):FireClient(player, "Sacas " .. def.nombre, VERDE)
+	Remotes.event(Remotes.AVISO):FireClient(player, "You take out " .. def.nombre, VERDE)
 	return true, "ok"
 end
 
@@ -218,7 +218,7 @@ function GarageService.start()
 			-- Sólo se explica al que está en el taller. Fuera de él, el aviso sería
 			-- ruido provocable por cualquiera que inunde el remote.
 			if GarageService.enElTaller(player) then
-				Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "No se puede comprar", ROJO)
+				Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "You cannot buy that", ROJO)
 			end
 		end
 	end)
@@ -226,7 +226,7 @@ function GarageService.start()
 	Remotes.event(Remotes.SACAR).OnServerEvent:Connect(function(player, vehiculoId)
 		local ok, motivo = GarageService.sacar(player, vehiculoId)
 		if not ok and GarageService.enElTaller(player) then
-			Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "No se puede sacar", ROJO)
+			Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "You cannot take that out", ROJO)
 		end
 	end)
 

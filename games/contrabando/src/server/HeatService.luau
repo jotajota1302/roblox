@@ -114,7 +114,7 @@ local function muestra(player: Player, ahora: number): boolean
 	if (root.Position - Config.ALMACEN_POS).Magnitude <= Config.ZONA_SEGURA_RADIO then
 		if nivelAntes > 0 then
 			calor[player] = Heat.aSalvo(antes)
-			avisar(player, "A salvo en tu almacén", Palette.AVISO_BUENO)
+			avisar(player, "Safe at your warehouse", Palette.AVISO_BUENO)
 			publicar(player)
 			return true
 		end
@@ -158,7 +158,7 @@ local function muestra(player: Player, ahora: number): boolean
 		if subio then
 			avisar(
 				player,
-				string.format("Te han fichado  ·  peligro %d/%d", estado.nivel, Config.CALOR_MAXIMO),
+				string.format("You have been spotted  ·  heat %d/%d", estado.nivel, Config.CALOR_MAXIMO),
 				Palette.AVISO_MALO
 			)
 			Telemetry.evento(player, "calor_sube", { nivel = estado.nivel, detector = id })
@@ -180,7 +180,7 @@ local function muestra(player: Player, ahora: number): boolean
 
 	if estado.nivel ~= nivelAntes then
 		if estado.nivel < nivelAntes and estado.nivel == 0 then
-			avisar(player, "Ya nadie te sigue", Palette.AVISO_BUENO)
+			avisar(player, "Nobody is chasing you", Palette.AVISO_BUENO)
 		end
 		publicar(player)
 		return true
@@ -223,7 +223,7 @@ function HeatService.transferir(victima: Player, ladron: Player)
 		calor[ladron] = { nivel = heredado, ultimoDescenso = os.time(), disparos = {} }
 		avisar(
 			ladron,
-			string.format("Te llevas su carga y su peligro  ·  %d/%d", heredado, Config.CALOR_MAXIMO),
+			string.format("You take their cargo and their heat  ·  %d/%d", heredado, Config.CALOR_MAXIMO),
 			Palette.AVISO_AGRESIVO
 		)
 		publicar(ladron)

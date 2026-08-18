@@ -34,26 +34,26 @@ export type Definicion = {
 Skills.CATALOGO = {
 	{
 		id = "camuflaje",
-		nombre = "Camuflaje",
-		descripcion = "Las esquinas fichadas te ven desde menos lejos",
+		nombre = "Camouflage",
+		descripcion = "Hotspots spot you from closer",
 		costes = { 20, 60, 150 },
 	},
 	{
 		id = "aguante",
-		nombre = "Aguante",
-		descripcion = "Pierdes menos carga cuando te alcanzan",
+		nombre = "Grit",
+		descripcion = "You lose less cargo when they catch you",
 		costes = { 20, 60, 150 },
 	},
 	{
 		id = "vista",
-		nombre = "Vista",
-		descripcion = "Ves guaridas y ladrones desde más lejos en el mapa",
+		nombre = "Eyes",
+		descripcion = "See dens and thieves from further away",
 		costes = { 20, 60, 150 },
 	},
 	{
 		id = "senuelo",
-		nombre = "Señuelo",
-		descripcion = "Sueltas un cebo: los ladrones van a él y no a ti",
+		nombre = "Decoy",
+		descripcion = "Drop a lure: thieves go for it, not you",
 		costes = { 80 },
 	},
 } :: { Definicion }
@@ -102,15 +102,15 @@ function Skills.comprar(habilidades: Habilidades, contactos: number, id: string)
 
 	local d = definicion(id)
 	if not d then
-		return false, "Esa habilidad no existe", copia, contactos
+		return false, "That skill does not exist", copia, contactos
 	end
 
 	local coste = Skills.coste(copia, id)
 	if not coste then
-		return false, "Ya está al máximo", copia, contactos
+		return false, "Already maxed", copia, contactos
 	end
 	if contactos < coste then
-		return false, "Te faltan contactos", copia, contactos
+		return false, "Not enough contacts", copia, contactos
 	end
 
 	copia[id] = (copia[id] or 0) + 1

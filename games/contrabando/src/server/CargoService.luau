@@ -111,7 +111,7 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 				quejaTamano[player] = os.clock()
 				avisar(
 					player,
-					string.format("Necesitas un vehículo mayor: eso es %s", Goods.nombreTamano(caja.objeto)),
+					string.format("You need a bigger vehicle: that one is %s", Goods.nombreTamano(caja.objeto)),
 					Palette.AVISO_MALO
 				)
 			end
@@ -482,7 +482,7 @@ local function cobrar(player: Player, destino: BasePart)
 		estado.retornoZona = rutaDelDestino
 		if subidas > 0 then
 			task.delay(0.8, function()
-				avisar(player, string.format("Cargas %d bultos de vuelta al almacén", subidas), Palette.AVISO_BUENO)
+				avisar(player, string.format("You load %d items to take back", subidas), Palette.AVISO_BUENO)
 			end)
 		end
 	end
@@ -506,13 +506,13 @@ local function cobrar(player: Player, destino: BasePart)
 	-- El cobro también se dice con palabras, no sólo cambiando una cifra en una
 	-- esquina. Es el único momento en que el juego te da algo, y una cifra que
 	-- salta de 0 a 300 sin más se pierde entre lo demás.
-	avisar(player, string.format("+%d por %d cosas en la %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
+	avisar(player, string.format("+%d for %d items on %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
 
 	-- Subir de nivel se dice aparte y DESPUÉS del cobro: son dos buenas noticias y
 	-- juntas en una línea se pisan. La segunda es la que se recuerda.
 	if nivelAhora > nivelAntes then
 		task.delay(1.6, function()
-			avisar(player, string.format("¡Nivel %d!", nivelAhora), Palette.AVISO_BUENO)
+			avisar(player, string.format("Level %d!", nivelAhora), Palette.AVISO_BUENO)
 			Nameplates.refrescar(player)
 		end)
 	end
@@ -584,13 +584,13 @@ function CargoService.entregar(player: Player)
 	end
 
 	if motivo == "sin_carga" then
-		avisar(player, "No llevas nada que entregar", Palette.AVISO_MALO)
+		avisar(player, "You are not carrying anything", Palette.AVISO_MALO)
 	elseif motivo == "sin_ruta_lejos" then
-		avisar(player, "Saliste sin destino elegido: vuelve a la salida del almacén", Palette.AVISO_MALO)
+		avisar(player, "You left with no route: go back to the warehouse exit", Palette.AVISO_MALO)
 	elseif motivo == "no_has_llegado" then
-		avisar(player, "Todavía no has llegado: sigue la baliza " .. tostring(estado.ruta), Palette.AVISO_MALO)
+		avisar(player, "Not there yet: follow the beacon " .. tostring(estado.ruta), Palette.AVISO_MALO)
 	elseif motivo == "sin_ruta" then
-		avisar(player, "Saliste sin destino elegido, así que esta carga no vale aquí", Palette.AVISO_MALO)
+		avisar(player, "You left with no route, so this cargo is worthless here", Palette.AVISO_MALO)
 	elseif motivo == "destino_equivocado" then
 		local rutaDelDestino = "?"
 		for _, d in destinos do
@@ -600,7 +600,7 @@ function CargoService.entregar(player: Player)
 		end
 		avisar(
 			player,
-			string.format("Este es el destino %s y tu destino es la %s", rutaDelDestino, tostring(estado.ruta)),
+			string.format("This is the %s drop and yours is %s", rutaDelDestino, tostring(estado.ruta)),
 			Palette.AVISO_MALO
 		)
 	end
@@ -650,7 +650,7 @@ function CargoService.start()
 		if #estado.cajas > 0 then
 			CargoService.vaciar(player)
 			Remotes.event(Remotes.AVISO)
-				:FireClient(player, "Al reaparecer pierdes lo que llevabas encima", Palette.AVISO_MALO)
+				:FireClient(player, "You lost what you were carrying when you respawned", Palette.AVISO_MALO)
 		end
 
 		-- I1, parte 1: el haz de la legendaria no se reaplicaba aquí, sólo la

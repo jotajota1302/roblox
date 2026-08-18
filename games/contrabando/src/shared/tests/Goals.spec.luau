@@ -12,8 +12,8 @@ return function(kit)
 	local primero = Goals.actual(0, 1, ninguno)
 	kit.truthy("hay un hito al empezar", primero ~= nil)
 	kit.eq("y es la primera entrega", (primero :: any).id, "primera")
-	kit.eq("con su progreso", Goals.progreso(primero :: any, 0, 1), "0 de 1 entregas")
-	kit.eq("que avanza", Goals.progreso(Goals.actual(1, 1, { primera = true }) :: any, 1, 1), "1 de 3 entregas")
+	kit.eq("con su progreso", Goals.progreso(primero :: any, 0, 1), "0 of 1 deliveries")
+	kit.eq("que avanza", Goals.progreso(Goals.actual(1, 1, { primera = true }) :: any, 1, 1), "1 of 3 deliveries")
 
 	-- Al cumplirlo aparece, y sólo una vez.
 	kit.eq("con 0 entregas no se cumple nada", #Goals.cumplidos(0, 1, nil, ninguno), 0)

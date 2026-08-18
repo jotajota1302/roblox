@@ -26,7 +26,7 @@ local almacen: BasePart? = nil
 -- Por qué no se puede mejorar, en palabras. Cada motivo dice algo que el jugador
 -- puede hacer al respecto -- que es lo único que distingue una regla de un fallo.
 local EXPLICACION: { [string]: string } = {
-	lejos = "Tienes que estar en la nave",
+	lejos = "You have to be at the warehouse",
 	sin_dinero = "No te llega el dinero",
 	al_maximo = "Tu nave ya esta al maximo",
 }
@@ -34,7 +34,7 @@ local EXPLICACION: { [string]: string } = {
 -- Y por qué no se puede dejar la carga. "sin_carga" no está: pulsar con las manos
 -- vacías no es un error del que haya que avisar, es no hacer nada.
 local EXPLICACION_DEVOLVER: { [string]: string } = {
-	lejos = "Acercate a la nave para dejarlo",
+	lejos = "Get closer to the warehouse to drop it",
 	ya_en_ruta = "Ya has elegido ruta: esto se entrega en su destino",
 }
 
@@ -134,7 +134,12 @@ function WarehouseService.mejorar(player: Player): (boolean, string)
 	Telemetry.evento(player, "mejora_nave", { nivel = siguienteNivel, coste = siguiente.coste })
 	Remotes.event(Remotes.AVISO):FireClient(
 		player,
-		string.format("Nave nivel %d: guarda %d y produce cada %d s", siguienteNivel, siguiente.tope, siguiente.ritmo),
+		string.format(
+			"Warehouse level %d: holds %d, produces every %ds",
+			siguienteNivel,
+			siguiente.tope,
+			siguiente.ritmo
+		),
 		Palette.AVISO_BUENO
 	)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
@@ -161,8 +166,8 @@ function WarehouseService.bienvenida(player: Player)
 
 	local nave = Warehouse.mejora(estado.naveNivel)
 	local texto = if ahora >= nave.tope
-		then string.format("Mientras no estabas: %d piezas. La nave esta LLENA y ha dejado de producir", producidas)
-		else string.format("Mientras no estabas: %d piezas esperandote", producidas)
+		then string.format("While you were away: %d items. The warehouse is FULL and stopped producing", producidas)
+		else string.format("While you were away: %d items waiting", producidas)
 	-- Y el aviso de que está llena importa más que el de las piezas: al tope deja
 	-- de producir, así que cada minuto de más es tiempo tirado. Es literalmente el
 	-- motivo de volver, y hasta ahora no se decía en ninguna parte.
@@ -314,7 +319,7 @@ function WarehouseService.devolver(player: Player): (boolean, string)
 	CargoService.mostrarCarga(player)
 	PlayerState.sync(player)
 	Remotes.event(Remotes.AVISO)
-		:FireClient(player, string.format("Dejas %d cosas en el almacén", cuantas), Color3.fromRGB(150, 220, 160))
+		:FireClient(player, string.format("You drop %d items at the warehouse", cuantas), Color3.fromRGB(150, 220, 160))
 	return true, "ok"
 end
 
@@ -331,7 +336,7 @@ function WarehouseService.start()
 		-- pagó esa lección con el botón de entregar.
 		if not resultado and motivo ~= "sin_carga" then
 			Remotes.event(Remotes.AVISO)
-				:FireClient(player, EXPLICACION_DEVOLVER[motivo] or "Aqui no puedes dejar la carga", Palette.AVISO_MALO)
+				:FireClient(player, EXPLICACION_DEVOLVER[motivo] or "You cannot drop cargo here", Palette.AVISO_MALO)
 		end
 	end)
 

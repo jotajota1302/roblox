@@ -251,7 +251,7 @@ local function vestir(modelo: Model)
 		texto.TextStrokeTransparency = 0.3
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = "LADRÓN"
+		texto.Text = "THIEF"
 		texto.Parent = placa
 	end
 end
@@ -442,8 +442,7 @@ local function alcanzar(player: Player)
 
 	Remotes.event(Remotes.AVISO):FireClient(
 		player,
-		cuantas > 0 and string.format("Te han asaltado: se llevan %d cosas", cuantas)
-			or "Te han asaltado, pero ibas de vacío",
+		cuantas > 0 and string.format("Robbed! They take %d items", cuantas) or "Robbed, but you were empty",
 		Palette.AVISO_MALO
 	)
 	Telemetry.evento(player, "ladron_alcanza", { cajas = cuantas })
@@ -604,7 +603,7 @@ local function ajustar(player: Player)
 
 	if quieren == 0 then
 		if escoltas[player] then
-			Remotes.event(Remotes.AVISO):FireClient(player, "Los has despistado", Palette.AVISO_BUENO)
+			Remotes.event(Remotes.AVISO):FireClient(player, "You lost them", Palette.AVISO_BUENO)
 			retirar(player)
 		end
 		-- Y la señal se apaga SIEMPRE, no sólo cuando había escoltas que retirar.
@@ -684,7 +683,7 @@ local function ajustar(player: Player)
 		table.insert(lista, nueva)
 		perseguir(nueva, player)
 		if #lista == 1 then
-			Remotes.event(Remotes.AVISO):FireClient(player, "Te siguen", Palette.AVISO_MALO)
+			Remotes.event(Remotes.AVISO):FireClient(player, "They are on you", Palette.AVISO_MALO)
 		end
 	end
 end

@@ -29,8 +29,8 @@ local RouteService = {}
 -- del nivel se compone con Routes.requisito para que no haya dos sitios diciendo
 -- qué hace falta: el día que cambie el nivel pedido, esto cambia solo.
 local EXPLICACION: { [string]: string } = {
-	necesitas_motor = "Esa ruta pide un vehiculo de motor",
-	ruta_desconocida = "Esa ruta no existe",
+	necesitas_motor = "That route needs a road vehicle",
+	ruta_desconocida = "That route does not exist",
 }
 
 local function avisar(player: Player, texto: string)
@@ -59,7 +59,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 
 	local estado = PlayerState.get(player)
 	if estado.ruta ~= nil then
-		avisar(player, "Ya vas de camino: entrega antes de elegir otra")
+		avisar(player, "You are already on a run: deliver first")
 		return false
 	end
 	-- SIN NADA QUE LLEVAR NO HAY VIAJE, y hay que decirlo. Jugando salió así: con
@@ -67,7 +67,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- desde dentro eso no se distingue de un juego roto. Es exactamente la lección
 	-- que este proyecto ya pagó con el botón de entregar.
 	if #estado.cajas == 0 then
-		avisar(player, "Coge algo en la nave antes de salir")
+		avisar(player, "Pick something up at the warehouse first")
 		return false
 	end
 
@@ -85,7 +85,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- La regla que importa sigue en pie: fuera del recinto no se elige, así que no
 	-- se cambia de ruta a mitad de viaje.
 	if not Perimeter.dentro(root.Position, 25) then
-		avisar(player, "La ruta se elige en tu poligono, no a mitad de viaje")
+		avisar(player, "Routes are picked at your yard, not mid-run")
 		return false
 	end
 
@@ -104,14 +104,14 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 		-- un solo valor lo que devuelve una función.
 		local texto
 		if motivo == "nivel_insuficiente" then
-			texto = string.format("Te falta nivel: %s", Routes.requisito(rutaId))
+			texto = string.format("Level too low: %s", Routes.requisito(rutaId))
 		elseif motivo == "hito_pendiente" then
 			-- El hito se dice TAL CUAL, sin "te falta": ya es una frase que dice qué
 			-- hacer ("Entrega tu primer paquete"), y anteponerle una excusa la
 			-- convierte en un reproche.
 			texto = Routes.requisitoPara(rutaId, estado.hitos)
 		else
-			texto = EXPLICACION[motivo] or "Por ahi no puedes salir"
+			texto = EXPLICACION[motivo] or "You cannot leave that way"
 		end
 		avisar(player, texto)
 		return false

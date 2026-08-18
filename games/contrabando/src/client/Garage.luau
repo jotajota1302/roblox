@@ -9,7 +9,7 @@
 
 	POR QUÉ EXISTE. Hasta ahora comprar SUSTITUÍA: te quedabas siempre con el
 	último y el anterior desaparecía. Eso tenía sentido cuando un vehículo era sólo
-	"más capacidad" -- el nuevo era mejor en todo. Con la regla de la calzada dejó
+	"more capacity" -- el nuevo era mejor en todo. Con la regla de la calzada dejó
 	de serlo: la furgoneta lleva un piano pero no puede salirse del asfalto, y el
 	patinete entra en cualquier callejón. Ya no hay un mejor, hay un mejor PARA
 	ESTE VIAJE, y para que eso sea una decisión hay que poder verlos y elegir.
@@ -219,9 +219,9 @@ function Garage.actualizar(mundo: Instance?, estado: any)
 			texto.Text = string.format(
 				"%s%s\n%d huecos  ·  %s",
 				def.nombre,
-				if esActivo then "  (fuera)" else "",
+				if esActivo then "  (out)" else "",
 				def.capacidad,
-				if Roads.exigeCalzada(id) then "sólo calle" else "por todas partes"
+				if Roads.exigeCalzada(id) then "road only" else "goes anywhere"
 			)
 			texto.Parent = cartel
 

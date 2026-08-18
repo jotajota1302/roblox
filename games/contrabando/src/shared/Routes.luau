@@ -16,6 +16,10 @@ local Roads = require(script.Parent.Roads)
 
 export type Ruta = {
 	id: string,
+	-- Lo que se ENSEÑA. El id es una clave -- vive en Palette, en los atributos de
+	-- las piezas, en CONTACTOS_POR_RUTA y en el DataStore -- así que no puede
+	-- traducirse ni cambiarse; esto sí.
+	nombre: string?,
 	multiplicador: number,
 	destino: Vector3,
 	detectores: number,
@@ -133,6 +137,25 @@ function Routes.disponible(id: string, nivel: number, vehiculoId: string?, hitos
 	return true, "ok"
 end
 
+-- El nombre que se enseña. Si a una ruta se le olvida, se cae a su id en
+-- mayúsculas, que es lo que se hacía antes: peor, pero nunca vacío.
+function Routes.nombre(id: string): string
+	local ruta = Routes.get(id)
+	return ruta.nombre or string.upper(id)
+end
+
+-- El multiplicador, EN TEXTO. Existe porque se pintaba con "%d" en dos sitios y
+-- el barrio paga ×0,4: con %d, Lua trunca y el cartel anunciaba "x0" -- una ruta
+-- que según su propio letrero no paga nada.
+function Routes.paga(id: string): string
+	local m = Routes.get(id).multiplicador
+	if m == math.floor(m) then
+		return string.format("x%d", m)
+	end
+	-- Sin ceros de más: "x0.4", no "x0.40".
+	return "x" .. tostring(m)
+end
+
 -- Lo que le falta al jugador para esta ruta, en palabras. Vive aquí y no en el
 -- selector por lo mismo que Routes.vigilancia: es una regla del juego, no una
 -- etiqueta, y el día que se toque el nivel pedido lo que se lee tiene que cambiar
@@ -147,9 +170,9 @@ function Routes.requisito(id: string): string
 	end
 	local nivel, motor = Routes.licencia(id)
 	if motor then
-		return string.format("Nivel %d y vehículo de motor", nivel)
+		return string.format("Level %d and a road vehicle", nivel)
 	end
-	return string.format("Nivel %d", nivel)
+	return string.format("Level %d", nivel)
 end
 
 -- Igual que requisito, pero sabiendo lo que el jugador YA tiene: una vez cumplido
@@ -164,9 +187,9 @@ function Routes.requisitoPara(id: string, hitos: any): string
 	end
 	local nivel, motor = Routes.licencia(id)
 	if motor then
-		return string.format("Nivel %d y vehículo de motor", nivel)
+		return string.format("Level %d and a road vehicle", nivel)
 	end
-	return string.format("Nivel %d", nivel)
+	return string.format("Level %d", nivel)
 end
 
 -- Lo que te vas a encontrar por el camino, en números. Vive aquí y no en el

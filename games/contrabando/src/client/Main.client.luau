@@ -96,7 +96,7 @@ local function refrescarValla(root: BasePart?): boolean
 	end
 	local cerrada = Perimeter.debeCerrar(ultimoEstado, root.Position)
 	if Gate.mostrar(cerrada) and cerrada then
-		Hud.aviso("Con carga no se sale sin destino elegido", Color3.fromRGB(232, 176, 64))
+		Hud.aviso("You cannot leave with cargo and no route", Color3.fromRGB(232, 176, 64))
 	end
 	return cerrada
 end
@@ -151,7 +151,7 @@ local function vigilarSalidaSinRuta(eligiendo: boolean)
 	-- Sólo cuenta como "salir" si de verdad llevas algo: cruzar la salida de
 	-- vacío es lo que se hace al volver a por más, y avisar ahí sería ruido.
 	if ultimoEstado and #ultimoEstado.cajas > 0 and ultimoEstado.ruta == nil then
-		Hud.aviso("Sales sin destino elegido: no podrás cobrar", Color3.fromRGB(230, 180, 70))
+		Hud.aviso("Leaving with no route: you will not get paid", Color3.fromRGB(230, 180, 70))
 	end
 end
 
@@ -176,20 +176,20 @@ local function misionActual(estado: any): (string, Color3)
 	end
 	if estado.retornoZona ~= nil then
 		if #estado.cajas > 0 then
-			return "Lleva la carga al almacén", Palette.ALMACEN
+			return "Take the cargo to your warehouse", Palette.ALMACEN
 		end
-		return "Recoge la carga de vuelta", Palette.ruta(estado.retornoZona)
+		return "Pick up the return cargo", Palette.ruta(estado.retornoZona)
 	end
 	if estado.ruta ~= nil then
-		return "Entrega en " .. string.upper(estado.ruta), Palette.ruta(estado.ruta)
+		return "Deliver in " .. Routes.nombre(estado.ruta), Palette.ruta(estado.ruta)
 	end
 	if #estado.cajas > 0 then
-		return "Elige destino en la salida", Palette.SALIDA
+		return "Pick a route at the exit", Palette.SALIDA
 	end
 	-- Con el zurrón vacío pero carga esperando en el vehículo, lo que toca es ir a
 	-- por él: si no, el jugador se vuelve al almacén creyendo que lo ha perdido.
 	if #(estado.cajasEnVehiculo or {}) > 0 then
-		return "Vuelve a por tu vehículo cargado", Palette.TALLER
+		return "Go back for your loaded vehicle", Palette.TALLER
 	end
 	-- Con dinero suficiente, lo primero es gastarlo. "No sé dónde se compran los
 	-- vehículos" (JJ) tenía dos mitades: el taller no se veía --ya es un
@@ -197,19 +197,19 @@ local function misionActual(estado: any): (string, Color3)
 	-- permitirte algo. El HUD enseña el precio; esto dice qué hacer con él.
 	local siguiente = estado.mejoras and estado.mejoras[1]
 	if siguiente and estado.dinero >= siguiente.coste then
-		return "Compra " .. siguiente.nombre .. " en el taller", Palette.TALLER
+		return "Buy the " .. siguiente.nombre .. " at the workshop", Palette.TALLER
 	end
 	if (estado.almacenCajas or 0) > 0 then
 		-- "En el almacén", no "en el muelle". Muelle es como lo llamamos NOSOTROS
 		-- en el código (la losa donde se apilan las piezas); el jugador lo que ve es
 		-- un almacén, y el letrero de la nave dice ALMACÉN. Un juego que llama a la
 		-- misma cosa de dos maneras hace dudar de si son dos sitios.
-		return "Carga mercancía en el almacén", Palette.ALMACEN
+		return "Load goods at the warehouse", Palette.ALMACEN
 	end
 	-- Y el hueco que no tenía respuesta: almacén vacío y zurrón vacío. Sin esta
 	-- línea, el jugador se queda mirando un muelle pelado sin saber si el juego se
 	-- ha roto o hay que esperar.
-	return "El almacén está produciendo: espera", Palette.ALMACEN
+	return "The warehouse is producing: wait", Palette.ALMACEN
 end
 
 -- EL RUIDO DE LO QUE ESTÁS HACIENDO. "Aunque vayas en vehículo suenan los pasos
@@ -325,7 +325,7 @@ local function accionesActuales(estado: any): { Hud.Accion }
 	if estado.vehiculo ~= nil and estado.vehiculo ~= "a_pie" then
 		table.insert(lista, {
 			tecla = etiqueta("V", "Y"),
-			accion = if estado.montado == false then "subirte al vehículo" else "bajarte del vehículo",
+			accion = if estado.montado == false then "get on the vehicle" else "get off the vehicle",
 		})
 	end
 	if #estado.cajas > 0 and (estado.ruta ~= nil or estado.retornoZona ~= nil) then
@@ -399,13 +399,13 @@ local function apuntarBrujula(estado: any)
 	-- olvidarlo dejaría al jugador con la flecha señalando el sitio del que acaba
 	-- de salir.
 	if estado.retornoZona ~= nil and #estado.cajas > 0 then
-		Compass.apuntar(Config.ALMACEN_POS, "De vuelta al almacén", Palette.ALMACEN)
+		Compass.apuntar(Config.ALMACEN_POS, "Back to the warehouse", Palette.ALMACEN)
 		return
 	end
 	if estado.retornoZona ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.retornoZona)
 		if ok and ruta then
-			Compass.apuntar(ruta.destino, "Carga de vuelta ahí", Palette.ruta(ruta.id))
+			Compass.apuntar(ruta.destino, "Return cargo there", Palette.ruta(ruta.id))
 			return
 		end
 	end
@@ -413,16 +413,16 @@ local function apuntarBrujula(estado: any)
 	if estado.ruta ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.ruta)
 		if ok and ruta then
-			Compass.apuntar(ruta.destino, "Destino " .. string.upper(ruta.id), Palette.ruta(ruta.id))
+			Compass.apuntar(ruta.destino, Routes.nombre(ruta.id) .. " drop", Palette.ruta(ruta.id))
 			return
 		end
 	end
 	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
 	if #estado.cajas > 0 and salida then
-		Compass.apuntar(salida.Position, "Elige destino en la salida", Palette.SALIDA)
+		Compass.apuntar(salida.Position, "Pick a route at the exit", Palette.SALIDA)
 		return
 	end
-	Compass.apuntar(Config.ALMACEN_POS, "Tu almacén", Palette.ALMACEN)
+	Compass.apuntar(Config.ALMACEN_POS, "Your warehouse", Palette.ALMACEN)
 end
 
 -- Como `construir`, pero para lo que corre en cada actualización de estado: cada
@@ -482,11 +482,11 @@ Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 		end
 		local siguiente = e and e.naveSiguiente
 		if siguiente then
-			aviso.ActionText = string.format("Mejorar nave  ·  %d", siguiente.coste)
-			aviso.ObjectText = string.format("Guarda %d  ·  cada %d s", siguiente.tope, siguiente.ritmo)
+			aviso.ActionText = string.format("Upgrade warehouse  ·  %d", siguiente.coste)
+			aviso.ObjectText = string.format("Holds %d  ·  every %ds", siguiente.tope, siguiente.ritmo)
 			aviso.Enabled = true
 		else
-			aviso.ActionText = "Nave al maximo"
+			aviso.ActionText = "Warehouse maxed"
 			aviso.ObjectText = "Oficina"
 		end
 	end, estado)

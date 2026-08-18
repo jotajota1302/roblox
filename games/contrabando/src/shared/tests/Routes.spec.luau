@@ -89,9 +89,9 @@ return function(kit)
 	)
 
 	-- Y el texto de lo que falta cambia con lo que ya tienes.
-	kit.eq("sin el hito, se pide el hito", Routes.requisitoPara("verde", sinHitos), "Entrega tu primer paquete")
-	kit.eq("con el hito, se pide el nivel", Routes.requisitoPara("verde", { primera = true }), "Nivel 1")
-	kit.eq("y la roja pide sus dos cosas", Routes.requisitoPara("roja", sinHitos), "Nivel 8 y vehículo de motor")
+	kit.eq("sin el hito, se pide el hito", Routes.requisitoPara("verde", sinHitos), "Deliver your first package")
+	kit.eq("con el hito, se pide el nivel", Routes.requisitoPara("verde", { primera = true }), "Level 1")
+	kit.eq("y la roja pide sus dos cosas", Routes.requisitoPara("roja", sinHitos), "Level 8 and a road vehicle")
 
 	-- Lo que se lee en el selector sale de la regla, no de un texto a mano.
 	kit.truthy("el requisito de la roja menciona el vehiculo", string.find(Routes.requisito("roja"), "motor") ~= nil)

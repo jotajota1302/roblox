@@ -196,7 +196,7 @@ function Stock.actualizarRetorno(piezas: { { rareza: string, objeto: string? } }
 
 		local aviso = Instance.new("ProximityPrompt")
 		aviso.Name = "PromptCaja"
-		aviso.ActionText = "Cargar de vuelta"
+		aviso.ActionText = "Load return cargo"
 		aviso.ObjectText = Goods.etiqueta(pieza.objeto, pieza.rareza)
 		aviso.MaxActivationDistance = 9
 		aviso.HoldDuration = 0

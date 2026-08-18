@@ -75,7 +75,7 @@ function Gate.build()
 			texto.TextStrokeTransparency = 0.25
 			texto.TextScaled = true
 			texto.Font = Enum.Font.GothamBold
-			texto.Text = "ELIGE DESTINO PARA SALIR"
+			texto.Text = "PICK A ROUTE TO LEAVE"
 			texto.Parent = cartel
 		end
 	end

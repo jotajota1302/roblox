@@ -47,46 +47,46 @@ local CATALOGO: { Objeto } = {
 	-- Pequeños: caben andando. El pan de cada día.
 	{
 		id = "sobre",
-		nombre = "Sobre lacrado",
+		nombre = "Sealed envelope",
 		rareza = "marcada",
 		tamano = "pequeno",
 		frecuencia = 10,
 		forma = "sobre",
 	},
-	{ id = "joyero", nombre = "Joyero", rareza = "sellada", tamano = "pequeno", frecuencia = 3, forma = "joyero" },
-	{ id = "frasco", nombre = "Frasco", rareza = "comun", tamano = "pequeno", frecuencia = 22, forma = "frasco" },
-	{ id = "libro", nombre = "Libro antiguo", rareza = "comun", tamano = "pequeno", frecuencia = 18, forma = "libro" },
+	{ id = "joyero", nombre = "Jewel box", rareza = "sellada", tamano = "pequeno", frecuencia = 3, forma = "joyero" },
+	{ id = "frasco", nombre = "Vial", rareza = "comun", tamano = "pequeno", frecuencia = 22, forma = "frasco" },
+	{ id = "libro", nombre = "Old book", rareza = "comun", tamano = "pequeno", frecuencia = 18, forma = "libro" },
 
 	-- Medianos: a partir del monopatín.
-	{ id = "maletin", nombre = "Maletín", rareza = "marcada", tamano = "mediano", frecuencia = 9, forma = "maletin" },
+	{ id = "maletin", nombre = "Briefcase", rareza = "marcada", tamano = "mediano", frecuencia = 9, forma = "maletin" },
 	{
 		id = "cajon",
-		nombre = "Cajón de fruta",
+		nombre = "Fruit crate",
 		rareza = "comun",
 		tamano = "mediano",
 		frecuencia = 16,
 		forma = "cajon",
 	},
-	{ id = "maceta", nombre = "Maceta", rareza = "comun", tamano = "mediano", frecuencia = 10, forma = "maceta" },
-	{ id = "urna", nombre = "Urna", rareza = "sellada", tamano = "mediano", frecuencia = 4, forma = "urna" },
+	{ id = "maceta", nombre = "Flower pot", rareza = "comun", tamano = "mediano", frecuencia = 10, forma = "maceta" },
+	{ id = "urna", nombre = "Urn", rareza = "sellada", tamano = "mediano", frecuencia = 4, forma = "urna" },
 
 	-- Grandes: bicicleta o moto.
 	{
 		id = "television",
-		nombre = "Televisor",
+		nombre = "TV set",
 		rareza = "marcada",
 		tamano = "grande",
 		frecuencia = 6,
 		forma = "television",
 	},
-	{ id = "baul", nombre = "Baúl", rareza = "sellada", tamano = "grande", frecuencia = 4, forma = "baul" },
-	{ id = "barril", nombre = "Barril", rareza = "comun", tamano = "grande", frecuencia = 7, forma = "barril" },
+	{ id = "baul", nombre = "Trunk", rareza = "sellada", tamano = "grande", frecuencia = 4, forma = "baul" },
+	{ id = "barril", nombre = "Barrel", rareza = "comun", tamano = "grande", frecuencia = 7, forma = "barril" },
 
 	-- Enormes: coche o furgoneta, y sólo por eso ya son un objetivo a medio plazo.
-	{ id = "nevera", nombre = "Nevera", rareza = "marcada", tamano = "enorme", frecuencia = 3, forma = "nevera" },
-	{ id = "sofa", nombre = "Sofá", rareza = "comun", tamano = "enorme", frecuencia = 4, forma = "sofa" },
+	{ id = "nevera", nombre = "Fridge", rareza = "marcada", tamano = "enorme", frecuencia = 3, forma = "nevera" },
+	{ id = "sofa", nombre = "Sofa", rareza = "comun", tamano = "enorme", frecuencia = 4, forma = "sofa" },
 	{ id = "piano", nombre = "Piano", rareza = "sellada", tamano = "enorme", frecuencia = 2, forma = "piano" },
-	{ id = "estatua", nombre = "Estatua", rareza = "legendaria", tamano = "enorme", frecuencia = 1, forma = "estatua" },
+	{ id = "estatua", nombre = "Statue", rareza = "legendaria", tamano = "enorme", frecuencia = 1, forma = "estatua" },
 }
 
 -- Cómo se dibuja cada forma: proporciones y material. El COLOR no está aquí --

@@ -181,7 +181,15 @@ local function comprar(player: Player, id: any)
 	-- los dos los leen sus servicios en el momento, así que no hay nada que
 	-- refrescar salvo lo que ve el jugador.
 	PlayerState.sync(player)
-	avisar(player, "Has aprendido: " .. id, true)
+	-- El NOMBRE, no el id: "Learned: camuflaje" enseña la clave interna, que es
+	-- justo lo que el jugador no tiene por qué ver nunca.
+	local comoSeLlama = id
+	for _, d in Skills.CATALOGO do
+		if d.id == id then
+			comoSeLlama = d.nombre
+		end
+	end
+	avisar(player, "Learned: " .. comoSeLlama, true)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 end
 
@@ -194,14 +202,14 @@ local function soltarSenuelo(player: Player)
 		return
 	end
 	if not Skills.tieneSenuelo(estado.habilidades) then
-		avisar(player, "Todavia no tienes senuelo")
+		avisar(player, "You do not have the decoy yet")
 		return
 	end
 
 	local ahora = os.clock()
 	local libre = senueloLibre[player] or 0
 	if ahora < libre then
-		avisar(player, string.format("Senuelo listo en %d s", math.ceil(libre - ahora)))
+		avisar(player, string.format("Decoy ready in %ds", math.ceil(libre - ahora)))
 		return
 	end
 
@@ -212,7 +220,7 @@ local function soltarSenuelo(player: Player)
 
 	senueloLibre[player] = ahora + Config.SENUELO_RECARGA
 	PatrolService.senuelo(player, root.Position, ahora + Config.SENUELO_DURACION)
-	avisar(player, "Senuelo soltado", true)
+	avisar(player, "Decoy dropped", true)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "alerta")
 end
 

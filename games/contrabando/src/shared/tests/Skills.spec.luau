@@ -19,7 +19,7 @@ return function(kit)
 	-- Comprar sin contactos suficientes no cambia nada.
 	local ok, motivo, tras, saldo = Skills.comprar(vacias, 5, "camuflaje")
 	kit.falsy("no se compra sin contactos", ok)
-	kit.eq("y lo dice", motivo, "Te faltan contactos")
+	kit.eq("y lo dice", motivo, "Not enough contacts")
 	kit.eq("el saldo no se toca", saldo, 5)
 	kit.eq("la habilidad tampoco", tras.camuflaje, 0)
 
@@ -35,12 +35,12 @@ return function(kit)
 	kit.eq("al máximo no hay coste", Skills.coste(topeCamuflaje, "camuflaje"), nil)
 	local ok3, motivo3 = Skills.comprar(topeCamuflaje, 9999, "camuflaje")
 	kit.falsy("al máximo no se compra más", ok3)
-	kit.eq("y lo dice", motivo3, "Ya está al máximo")
+	kit.eq("y lo dice", motivo3, "Already maxed")
 
 	-- Una habilidad inventada por un cliente manipulado no se compra.
 	local ok4, motivo4 = Skills.comprar(vacias, 9999, "volar")
 	kit.falsy("no se compra lo que no existe", ok4)
-	kit.eq("y lo dice", motivo4, "Esa habilidad no existe")
+	kit.eq("y lo dice", motivo4, "That skill does not exist")
 
 	-- Los factores: mejoran, y en la dirección correcta.
 	kit.eq("sin camuflaje, el bulto no cambia", Skills.factorBulto(vacias), 1)
