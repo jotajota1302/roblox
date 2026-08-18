@@ -141,6 +141,35 @@ function WarehouseService.mejorar(player: Player): (boolean, string)
 	return true, "ok"
 end
 
+-- LA BIENVENIDA: qué ha pasado mientras no estabas.
+--
+-- La nave produce sin ti y ésa es la razón declarada para volver mañana, pero al
+-- entrar nadie te lo contaba: veías un contador más alto y ya está. Un número que
+-- sube solo no se lee como un premio -- se lee como que el juego empieza así.
+--
+-- Sólo habla si de verdad ha producido algo. Un "mientras no estabas: 0 piezas"
+-- es peor que el silencio: convierte la promesa en un recordatorio de que no ha
+-- pasado nada.
+function WarehouseService.bienvenida(player: Player)
+	local estado = PlayerState.get(player)
+	local antes = estado.almacenCajas or 0
+	local ahora = actualizar(player)
+	local producidas = ahora - antes
+	if producidas <= 0 then
+		return
+	end
+
+	local nave = Warehouse.mejora(estado.naveNivel)
+	local texto = if ahora >= nave.tope
+		then string.format("Mientras no estabas: %d piezas. La nave esta LLENA y ha dejado de producir", producidas)
+		else string.format("Mientras no estabas: %d piezas esperandote", producidas)
+	-- Y el aviso de que está llena importa más que el de las piezas: al tope deja
+	-- de producir, así que cada minuto de más es tiempo tirado. Es literalmente el
+	-- motivo de volver, y hasta ahora no se decía en ninguna parte.
+	Remotes.event(Remotes.AVISO):FireClient(player, texto, Palette.AVISO_BUENO)
+	PlayerState.sync(player)
+end
+
 function WarehouseService.disponibles(player: Player): number
 	return actualizar(player)
 end

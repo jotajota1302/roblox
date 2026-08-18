@@ -78,6 +78,11 @@ local function tieneLegendaria(cajas: { Economy.Caja }): boolean
 	return false
 end
 
+-- Cuándo se le dijo por última vez a cada uno que eso no le cabe, para no
+-- repetírselo en bucle (ver dentro de recoger).
+local quejaTamano: { [Player]: number } = {}
+local SILENCIO_QUEJA = 6
+
 function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	local estado = PlayerState.get(player)
 	-- La capacidad sale del vehículo, no de la constante de ir a pie: leer
@@ -90,11 +95,20 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 		-- dentro se ven igual --la pieza no se recoge-- y sin explicación el jugador
 		-- concluye que está roto.
 		if motivo == "vehiculo_insuficiente" and caja.objeto then
-			avisar(
-				player,
-				string.format("Necesitas un vehículo mayor: eso es %s", Goods.nombreTamano(caja.objeto)),
-				Palette.AVISO_MALO
-			)
+			-- UNA VEZ CADA TANTO, NO EN CADA INTENTO. El cliente recoge solo lo que
+			-- tiene a diez studs, así que quedarse de pie junto a una pieza que no te
+			-- cabe dispara el intento una y otra vez: medido, cuarenta avisos
+			-- idénticos seguidos. Un mensaje que se repite sin parar deja de leerse y
+			-- encima tapa los que sí importan.
+			local ultimo = quejaTamano[player] or 0
+			if os.clock() - ultimo >= SILENCIO_QUEJA then
+				quejaTamano[player] = os.clock()
+				avisar(
+					player,
+					string.format("Necesitas un vehículo mayor: eso es %s", Goods.nombreTamano(caja.objeto)),
+					Palette.AVISO_MALO
+				)
+			end
 		end
 		return false
 	end
@@ -554,6 +568,13 @@ function CargoService.start()
 	-- primer minuto sin que nada lo señale.
 	Remotes.event(Remotes.ENTREGAR).OnServerEvent:Connect(function(player)
 		CargoService.entregar(player)
+	end)
+
+	-- Y se limpia el reloj de la queja al irse: una tabla indexada por Player que
+	-- nadie vacía es una fuga lenta, de las que no se notan hasta la hora de
+	-- partida.
+	game:GetService("Players").PlayerRemoving:Connect(function(player)
+		quejaTamano[player] = nil
 	end)
 
 	CargoService.arrancarEntregaAutomatica()

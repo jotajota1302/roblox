@@ -17,6 +17,7 @@ local Players = game:GetService("Players")
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local PlayerState = require(script.Parent.PlayerState)
+local WarehouseService = require(script.Parent.WarehouseService)
 
 local NOMBRE_STORE = "ContrabandoV1"
 
@@ -82,6 +83,14 @@ function Persistence.cargar(player: Player)
 	-- guarda tiene que estar sano también, o al volver a guardar se propaga.
 	estado.naveNivel = math.clamp(math.floor(tonumber(datos.naveNivel) or 1), 1, Warehouse.maximo())
 	PlayerState.sync(player)
+
+	-- Y AHORA, no antes: la bienvenida cuenta lo que ha producido la nave mientras
+	-- no estabas, y eso sólo se puede calcular con la hora de la última visita ya
+	-- cargada. Va protegida porque es un adorno: que falle no puede impedir entrar.
+	local okBienvenida, err = pcall(WarehouseService.bienvenida, player)
+	if not okBienvenida then
+		warn("[Contrabando] fallo en la bienvenida: " .. tostring(err))
+	end
 end
 
 function Persistence.guardar(player: Player)

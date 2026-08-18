@@ -183,6 +183,11 @@ monedas (267.200 en total), que suben las dos cosas a la vez:
 | 6 | 38 | 10 s | 70.000 |
 | 7 | 48 | 8 s | 150.000 |
 
+Al entrar, si ha producido mientras no estabas, la nave te lo cuenta — y si está llena, lo
+dice con todas las letras: al tope **deja de producir**, así que cada minuto de más es
+tiempo tirado. Es literalmente el motivo de volver, y hasta ahora no se decía en ningún
+sitio.
+
 Es el sumidero que no se acaba, y hace lo que el garaje no puede: **alarga tu ventana de
 ausencia**. De paso arregla el techo de la capacidad — con la nave de partida un almacén
 lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no servía de nada.
