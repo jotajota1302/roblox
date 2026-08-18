@@ -464,7 +464,12 @@ end
 --
 -- Piezas simples a propósito: cuatro paredes, un tejado y un portón bastan para
 -- que el ojo lo lea. Los modelos bonitos vienen cuando el bucle esté medido.
-local function nave(base: Part, padre: Instance)
+-- `frente` dice hacia qué lado del eje Z se abre la boca: -1 hacia el norte, +1
+-- hacia el sur. NO es un capricho de parámetro -- la nave estaba abierta hacia el
+-- muro del polígono ("está orientado el almacén y el taller hacia fuera en vez de
+-- hacia dentro", JJ), y un almacén que da la espalda a la puerta obliga a
+-- rodearlo entero cada vez que entras a cargar.
+local function nave(base: Part, padre: Instance, frente: number)
 	local CHAPA = Color3.fromRGB(158, 156, 148)
 	local CHAPA_OSCURA = Color3.fromRGB(104, 102, 98)
 	local PORTON = Color3.fromRGB(72, 104, 78)
@@ -476,13 +481,13 @@ local function nave(base: Part, padre: Instance)
 	-- dentro del almacén, están sueltas por el mapa". Con la nave fuera no había
 	-- ningún sitio que fuera "el almacén", sólo una caseta cerrada y unas cajas al
 	-- lado. Ahora hay un interior en el que se entra, y la mercancía está dentro.
-	local centro = base.Position + Vector3.new(0, 0, -base.Size.Z / 2 + largo / 2 + 4)
+	local centro = base.Position + Vector3.new(0, 0, frente * (-base.Size.Z / 2 + largo / 2 + 4))
 
 	local function pieza(nombre: string, tamano: Vector3, offset: Vector3, color: Color3)
 		local p = part(
 			nombre,
 			tamano,
-			centro + Vector3.new(offset.X, suelo - base.Position.Y + offset.Y, offset.Z),
+			centro + Vector3.new(offset.X, suelo - base.Position.Y + offset.Y, offset.Z * frente),
 			color,
 			padre
 		)
@@ -556,19 +561,20 @@ end
 -- dibuja el cliente, porque el contador del almacén es de cada jugador y una pila
 -- compartida mentiría a todos menos a uno. Aquí sólo se publican las posiciones,
 -- para que las dos mitades no tengan cada una su copia de las coordenadas.
-local function muelle(base: Part)
+local function muelle(base: Part, frente: number)
 	local sitios: { Vector3 } = {}
 	local suelo = base.Position.Y + base.Size.Y / 2
 	-- DENTRO de la nave, contra el fondo. Las mismas coordenadas que usa nave() para
 	-- colocarse: el centro de la nave cae a `-base.Size.Z/2 + largo/2 + 4` y mide 34
 	-- de fondo, así que estas dos filas quedan holgadamente en su interior.
-	local zNave = -base.Size.Z / 2 + 34 / 2 + 4
+	local zNave = frente * (-base.Size.Z / 2 + 34 / 2 + 4)
 	for i = 0, Config.ALMACEN_TOPE - 1 do
 		local fila = math.floor(i / 5)
 		local columna = i % 5
 		table.insert(
 			sitios,
-			base.Position + Vector3.new(-16 + columna * 8, suelo - base.Position.Y + 1.6, zNave - 8 + fila * 8)
+			base.Position
+				+ Vector3.new(-16 + columna * 8, suelo - base.Position.Y + 1.6, zNave + frente * (-8 + fila * 8))
 		)
 	end
 	-- Viajan como atributos de la losa: el cliente los lee sin necesitar un remote
@@ -602,14 +608,20 @@ end
 --
 -- Todo con Part y a propósito: los meshes del catálogo de vehículos no cargan
 -- mientras el place no esté publicado, y un escaparate vacío no vendería nada.
-local function concesionario(base: Part, padre: Instance)
+local function concesionario(base: Part, padre: Instance, frente: number)
 	local CHAPA = Color3.fromRGB(214, 206, 186)
 	local MARCO = Color3.fromRGB(120, 96, 52)
 	local suelo = base.Position.Y + base.Size.Y / 2
 	local ancho, largo, alto = 40, 26, 15
 
 	local function pieza(nombre: string, tamano: Vector3, offset: Vector3, color: Color3): Part
-		local p = part(nombre, tamano, Vector3.new(base.Position.X, suelo, base.Position.Z) + offset, color, padre)
+		local p = part(
+			nombre,
+			tamano,
+			Vector3.new(base.Position.X, suelo, base.Position.Z) + Vector3.new(offset.X, offset.Y, offset.Z * frente),
+			color,
+			padre
+		)
 		p.Material = Enum.Material.SmoothPlastic
 		return p
 	end
@@ -700,7 +712,7 @@ local function concesionario(base: Part, padre: Instance)
 	for i = 1, plazas do
 		base:SetAttribute(
 			"plaza" .. i,
-			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 13)
+			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 13 * frente)
 		)
 	end
 	base:SetAttribute("plazas", plazas)
@@ -876,8 +888,10 @@ function CityBuilder.build(): Mundo
 	-- el resultado fue que el polígono no se construía y nadie se enteraba.
 	poligono(mundo)
 	local almacen = losa(ciudad, "Almacen", Vector3.new(90, ALTO_LOSA, 90), Config.ALMACEN_POS, Palette.ALMACEN, mundo)
-	nave(almacen, mundo)
-	muelle(almacen)
+	-- La boca mira a la SALIDA: es de donde vienes y a donde vas cada viaje.
+	local frenteCasa = if Config.POLIGONO_SALIDA.Z < Config.ALMACEN_POS.Z then -1 else 1
+	nave(almacen, mundo, frenteCasa)
+	muelle(almacen, frenteCasa)
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "AparicionAlmacen"
@@ -920,14 +934,19 @@ function CityBuilder.build(): Mundo
 	-- (60 studs frente a 300) porque se busca desde dentro del recinto, no desde
 	-- el otro extremo del mapa.
 	local balizaSalida =
-		part("Baliza_Salida", Vector3.new(6, 110, 6), salida.Position + Vector3.new(0, 55, 0), Palette.SALIDA, mundo)
+		part("Baliza_Salida", Vector3.new(5, 55, 5), salida.Position + Vector3.new(0, 27, 0), Palette.SALIDA, mundo)
 	balizaSalida.CanCollide = false
 	balizaSalida.Material = Enum.Material.Neon
+	-- Más baja y menos encendida que antes (110 studs y opaca). Tenía que gritar
+	-- cuando la salida era una losa perdida entre edificios; ahora está en la boca
+	-- de un polígono cerrado por muros, y un pilar de cien studs en mitad del patio
+	-- tapaba la vista de la propia base.
+	balizaSalida.Transparency = 0.35
 
 	local cartelSalida = Instance.new("BillboardGui")
 	cartelSalida.Name = "Cartel"
 	cartelSalida.Size = UDim2.fromScale(30, 8)
-	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 66, 0)
+	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 34, 0)
 	-- POR ENCIMA DE TODO, al contrario que los carteles de los destinos. Los de
 	-- fuera se ocultan tras los edificios a propósito (esconderse tiene que servir
 	-- de algo), pero éste está dentro de tu propio recinto y su único trabajo es
@@ -985,7 +1004,7 @@ function CityBuilder.build(): Mundo
 	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
 	local taller = losa(ciudad, "Taller", Vector3.new(46, ALTO_LOSA, 46), Config.TALLER_POS, Palette.TALLER, mundo)
 	prompt(taller, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
-	concesionario(taller, mundo)
+	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
 
 	local destinos: { BasePart } = {}
@@ -1030,7 +1049,8 @@ function CityBuilder.build(): Mundo
 				local tallerZona =
 					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(46, ALTO_LOSA, 46), sitio, Palette.TALLER, mundo)
 				prompt(tallerZona, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
-				concesionario(tallerZona, mundo)
+				-- Y los de las zonas miran a su destino, que es donde está la acción.
+				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
 				table.insert(talleres, tallerZona)
 			end
 		end
