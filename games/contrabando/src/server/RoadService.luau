@@ -55,6 +55,12 @@ local aparcados: { [Player]: Aparcado } = {}
 -- NUNCA. Un vehículo de 4.500 monedas perdido por cruzar un seto.
 local ultimaCalzada: { [Player]: Vector3 } = {}
 
+-- Quien se acaba de bajar A PROPÓSITO no se vuelve a subir solo. Sin esto, el
+-- botón de bajarse no sirve para nada: te bajas, y como sigues a dos pasos del
+-- vehículo, la vuelta siguiente del bucle te monta otra vez. Se olvida en cuanto
+-- te alejas, que es la forma de decir "ya no lo quiero aquí".
+local bajadoAProposito: { [Player]: boolean } = {}
+
 local function contenedor(): Folder
 	local f = workspace:FindFirstChild("VehiculosAparcados")
 	if f then
@@ -177,6 +183,62 @@ local function recoger(player: Player)
 	aparcados[player] = nil
 end
 
+-- BAJARSE Y SUBIRSE A VOLUNTAD, que es lo que faltaba: hasta ahora sólo te bajabas
+-- saliéndote del asfalto, así que con un coche no había forma de ir a pie a
+-- ninguna parte -- "¿cómo te bajas del coche? porque no puedo" (JJ).
+--
+-- Es UNA sola acción y no dos (subir/bajar) a propósito: el jugador pulsa lo
+-- mismo siempre y el juego decide qué toca. Dos botones para dos estados que se
+-- excluyen son un botón apagado la mitad del tiempo.
+function RoadService.alternar(player: Player)
+	local estado = PlayerState.peek(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if estado == nil or root == nil then
+		return
+	end
+	local vehiculo = estado.vehiculo
+	if vehiculo == nil or vehiculo == Config.VEHICULO_INICIAL then
+		avisar(player, "No tienes vehículo todavía", Color3.fromRGB(232, 176, 64))
+		return
+	end
+
+	if estado.montado ~= false then
+		-- Se baja AQUÍ MISMO, no en la última calzada: bajarse a propósito es
+		-- decir "lo dejo en este sitio", y moverlo a otro sería desobedecer.
+		estado.montado = false
+		bajadoAProposito[player] = true
+		Ride.montar(character, nil)
+		guardarAparcado(player, vehiculo, root.Position)
+		avisar(player, "Dejas el vehículo aquí", Color3.fromRGB(232, 176, 64))
+		PlayerState.sync(player)
+		return
+	end
+
+	local guardado = aparcados[player]
+	if guardado == nil then
+		-- No debería pasar, pero si el vehículo se perdió por lo que sea, no se
+		-- deja al jugador a pie para siempre: se le devuelve.
+		estado.montado = true
+		Ride.montar(character, vehiculo)
+		PlayerState.sync(player)
+		return
+	end
+
+	local donde = guardado.modelo:GetPivot().Position
+	local cerca = (root.Position - donde).Magnitude
+	if cerca > DISTANCIA_RECOGIDA then
+		avisar(player, string.format("Tu vehículo está a %d m", math.floor(cerca)), Color3.fromRGB(232, 176, 64))
+		return
+	end
+
+	estado.montado = true
+	bajadoAProposito[player] = nil
+	recoger(player)
+	Ride.montar(character, vehiculo)
+	PlayerState.sync(player)
+end
+
 function RoadService.aparcarDe(player: Player): Vector3?
 	local guardado = aparcados[player]
 	return guardado and guardado.modelo:GetPivot().Position or nil
@@ -186,6 +248,8 @@ end
 -- una moto aparcada de alguien que ya no está sólo estorba.
 function RoadService.olvidar(player: Player)
 	recoger(player)
+	bajadoAProposito[player] = nil
+	ultimaCalzada[player] = nil
 end
 
 local function paso(player: Player)
@@ -218,9 +282,13 @@ local function paso(player: Player)
 		PlayerState.sync(player)
 	elseif not montado and guardado ~= nil then
 		local cerca = (root.Position - guardado.modelo:GetPivot().Position).Magnitude
+		if cerca > DISTANCIA_RECOGIDA then
+			-- Te has alejado: si te bajaste a propósito, ya no cuenta.
+			bajadoAProposito[player] = nil
+		end
 		-- SIN exigir estar en asfalto para recogerlo: te acercas por donde te
 		-- acerques. Exigirlo era la otra mitad del vehículo irrecuperable.
-		if cerca <= DISTANCIA_RECOGIDA then
+		if cerca <= DISTANCIA_RECOGIDA and not bajadoAProposito[player] then
 			-- Y SE SUBE, sin pulsar nada: llegar hasta tu vehículo ES la intención.
 			estado.montado = true
 			recoger(player)
@@ -261,6 +329,13 @@ end
 
 function RoadService.start()
 	Players.PlayerRemoving:Connect(RoadService.olvidar)
+
+	Remotes.event(Remotes.MONTAR).OnServerEvent:Connect(function(player)
+		local ok, err = pcall(RoadService.alternar, player)
+		if not ok then
+			warn("[Contrabando] fallo al montar/bajar: " .. tostring(err))
+		end
+	end)
 
 	task.spawn(function()
 		while true do

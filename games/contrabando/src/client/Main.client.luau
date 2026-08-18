@@ -227,6 +227,46 @@ local function ajustarSonidoDePasos(estado: any)
 	end
 end
 
+-- SUBIRSE Y BAJARSE DEL VEHÍCULO. Faltaba entero: sólo te bajabas saliéndote del
+-- asfalto, así que con un coche no había manera de ir a pie a ningún sitio --
+-- "¿cómo te bajas del coche? porque no puedo" (JJ).
+--
+-- Con `createTouchButton` en true, ContextActionService da LAS DOS COSAS de una
+-- vez: la tecla para quien juega en ordenador y un botón de verdad en el móvil.
+-- Escribir el botón a mano habría sido otra pieza de interfaz que colocar, medir
+-- en tres pantallas y mantener; ésta la coloca y la dimensiona Roblox, y sale
+-- donde el jugador de móvil ya espera encontrarla.
+--
+-- Se enlaza y se desenlaza según tengas vehículo o no: un botón que no hace nada
+-- es peor que ningún botón, porque el jugador lo prueba, no pasa nada, y aprende
+-- a no mirarlo.
+local mandoPuesto = false
+
+local function mandoDeVehiculo(estado: any)
+	local tiene = estado ~= nil and estado.vehiculo ~= nil and estado.vehiculo ~= "a_pie"
+	if tiene == mandoPuesto then
+		return
+	end
+	mandoPuesto = tiene
+	if not tiene then
+		ContextActionService:UnbindAction("Vehiculo")
+		return
+	end
+	ContextActionService:BindAction("Vehiculo", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			Remotes.event(Remotes.MONTAR):FireServer()
+		end
+		return Enum.ContextActionResult.Pass
+	end, true, Enum.KeyCode.V)
+	-- El título dice la tecla, no la acción: la acción cambia (subir/bajar) y el
+	-- botón es el mismo, así que poner "Bajar" lo dejaría mintiendo la mitad del
+	-- tiempo.
+	ContextActionService:SetTitle("Vehiculo", "V")
+	-- A media altura por la derecha: las dos esquinas de abajo son del joystick y
+	-- del salto de Roblox, y ésa es una regla del proyecto que ya costó una ronda.
+	ContextActionService:SetPosition("Vehiculo", UDim2.fromScale(0.86, 0.42))
+end
+
 local function refrescarSelector()
 	local root = raizDelJugador()
 	local vallaCerrada = refrescarValla(root)
@@ -245,6 +285,7 @@ local function refrescarSelector()
 		Hud.update(ultimoEstado)
 	end
 	Hud.mision(misionActual(ultimoEstado))
+	mandoDeVehiculo(ultimoEstado)
 	-- Aquí y no sólo al sincronizar: los sonidos los crea Roblox cuando le parece
 	-- (al reaparecer, al cambiar de estado), así que hay que volver a callarlos.
 	ajustarSonidoDePasos(ultimoEstado)
