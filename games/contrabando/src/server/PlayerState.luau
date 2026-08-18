@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
+local Goals = require(game.ReplicatedStorage.Shared.Goals)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
@@ -57,6 +58,13 @@ export type Estado = {
 	-- velocidad. NO SE PERSISTE, por lo mismo que el calor: es del viaje, y volver
 	-- con la racha de ayer sería premio por desconectarse.
 	recogidos: number,
+	-- Entregas hechas en toda la partida. Es lo que mueve los hitos de abajo, y se
+	-- cuenta aquí y no se deduce del dinero: dos jugadores con la misma cartera
+	-- pueden llevar uno diez entregas y otro una con suerte.
+	entregas: number,
+	-- Qué hitos se han cobrado ya. Sanearlo no es cosmético: uno de ellos abre la
+	-- ruta verde, así que una clave inventada sería una llave falsificada.
+	hitos: { [string]: boolean },
 	-- La carga de VUELTA que te espera en el destino donde acabas de entregar, y
 	-- de qué zona viene (de ahí sale lo que te pagan por ella). Se vacía al
 	-- recogerla o al salir otra vez del almacén: es una oferta del momento, no un
@@ -102,6 +110,8 @@ function PlayerState.get(player: Player): Estado
 			contactos = 0,
 			habilidades = Skills.normalizar(nil),
 			recogidos = 0,
+			entregas = 0,
+			hitos = {},
 			retorno = {},
 			retornoZona = nil,
 			montado = true,
@@ -148,6 +158,12 @@ function PlayerState.sync(player: Player)
 		-- La racha viaja calculada, como el nivel: el cliente dibuja "+2,0" y no
 		-- aplica ninguna regla.
 		recogidos = estado.recogidos or 0,
+		entregas = estado.entregas or 0,
+		hitos = estado.hitos or {},
+		-- El hito actual viaja YA RESUELTO, como el nivel: el cliente lo dibuja y no
+		-- aplica ninguna regla, que es lo que evita que su idea de qué toca hacer
+		-- pueda discrepar de la del servidor.
+		hito = Goals.actual(estado.entregas or 0, Levels.nivelDe(estado.xp or 0), estado.hitos),
 		retorno = estado.retorno or {},
 		retornoZona = estado.retornoZona,
 		montado = estado.montado ~= false,

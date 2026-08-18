@@ -14,6 +14,7 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 
+local Goals = require(game.ReplicatedStorage.Shared.Goals)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
@@ -70,6 +71,10 @@ function Persistence.cargar(player: Player)
 	-- para siempre.
 	estado.contactos = math.max(0, math.floor(tonumber(datos.contactos) or estado.contactos or 0))
 	estado.habilidades = Skills.normalizar(datos.habilidades)
+	estado.entregas = math.max(0, math.floor(tonumber(datos.entregas) or estado.entregas or 0))
+	-- Goals.sanear es la aduana, y aquí importa más que en ningún otro campo: un
+	-- hito guardado que hoy no existe (o inventado) abriría una ruta.
+	estado.hitos = Goals.sanear(datos.hitos)
 	estado.almacenCajas = tonumber(datos.almacenCajas) or estado.almacenCajas
 	estado.almacenUltimaVisita = tonumber(datos.almacenUltimaVisita) or estado.almacenUltimaVisita
 	-- El vehículo se valida contra el catálogo antes de aceptarlo. Lo guardado
@@ -127,6 +132,8 @@ function Persistence.guardar(player: Player)
 		xp = estado.xp or 0,
 		contactos = estado.contactos or 0,
 		habilidades = estado.habilidades or {},
+		entregas = estado.entregas or 0,
+		hitos = estado.hitos or {},
 		-- `recogidos` NO se guarda: la racha es del viaje, y volver con la de ayer
 		-- sería premio por desconectarse. Misma regla que el calor.
 		almacenCajas = estado.almacenCajas,

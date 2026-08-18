@@ -166,6 +166,14 @@ local function misionActual(estado: any): (string, Color3)
 	if estado == nil then
 		return "", Palette.ALMACEN
 	end
+	-- EL HITO MANDA CUANDO NO HAY NADA EMPEZADO. Con el zurrón vacío y sin ruta, la
+	-- pregunta del jugador no es "¿dónde voy?" sino "¿qué se supone que tengo que
+	-- hacer?", y hasta ahora la respuesta era ir descubriendo. En cuanto hay un
+	-- viaje en marcha, las líneas de abajo vuelven a mandar: entonces lo urgente es
+	-- lo urgente.
+	if estado.hito and #estado.cajas == 0 and estado.ruta == nil and estado.retornoZona == nil then
+		return estado.hito.texto, Palette.SALIDA
+	end
 	if estado.retornoZona ~= nil then
 		if #estado.cajas > 0 then
 			return "Lleva la carga al almacén", Palette.ALMACEN

@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Contacts = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Contacts"))
+local Goals = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goals"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 
@@ -33,6 +34,8 @@ local metaLabel: TextLabel
 local metaFila: Frame
 local contactosLabel: TextLabel
 local contactosFila: Frame
+local objetivoLabel: TextLabel
+local objetivoFila: Frame
 local dineroObjetivo = 0
 local dineroMostrado: number? = nil
 local avisoLabel: TextLabel
@@ -110,7 +113,11 @@ function Hud.build()
 
 	local panelSize = Instance.new("UISizeConstraint")
 	panelSize.MinSize = Vector2.new(140, 78)
-	panelSize.MaxSize = Vector2.new(280, 110)
+	-- El tope sube con las líneas nuevas. El panel se dimensiona para TRES (las
+	-- fijas) y se estira con el layout; con contactos y objetivo puestos son cinco,
+	-- y a 110 px cada una se quedaba en veintidós -- legible en un portátil y no en
+	-- un móvil.
+	panelSize.MaxSize = Vector2.new(280, 150)
 	panelSize.Parent = panel
 
 	local layout = Instance.new("UIListLayout")
@@ -184,6 +191,18 @@ function Hud.build()
 	contactosFila = contactosLabel.Parent :: Frame
 	contactosFila.Visible = false
 	contactosLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+
+	-- EL OBJETIVO. Es la línea que responde "¿y esto para qué?", que es distinta de
+	-- la misión de abajo -- ésa dice qué hacer AHORA (ve a la salida, entrega
+	-- aquí) y ésta a qué aspiras. Sin ella, la licencia por nivel sólo se descubría
+	-- chocando: pulsabas la ámbar y te decía que no.
+	--
+	-- Condicional como las otras dos: cuando no queda ningún hito, desaparece en
+	-- vez de quedarse diciendo algo vacío.
+	objetivoLabel = linea("Objetivo", 7, "Objetivo")
+	objetivoFila = objetivoLabel.Parent :: Frame
+	objetivoFila.Visible = false
+	objetivoLabel.TextColor3 = Color3.fromRGB(150, 205, 235)
 	-- El dinero es el número que más se mira: se le da el color del oro para que
 	-- destaque entre los otros dos sin necesidad de leer la etiqueta.
 	dineroLabel.TextColor3 = Color3.fromRGB(238, 202, 122)
@@ -412,6 +431,9 @@ export type EstadoHud = {
 	cajasEnVehiculo: { any }?,
 	contactos: number?,
 	recogidos: number?,
+	entregas: number?,
+	nivel: number?,
+	hito: any?,
 }
 
 function Hud.update(estado: EstadoHud)
@@ -478,6 +500,21 @@ function Hud.update(estado: EstadoHud)
 	if contactosLabel then
 		local racha = Contacts.racha(recogidos)
 		contactosLabel.Text = if racha > 0 then string.format("%d  (+%.1f)", contactos, racha) else tostring(contactos)
+	end
+
+	-- El objetivo, con su progreso. El hito viaja YA RESUELTO desde el servidor
+	-- (PlayerState.sync): el cliente lo dibuja y no aplica ninguna regla, que es lo
+	-- que impide que su idea de qué toca hacer discrepe de la del servidor.
+	local hito = estado.hito
+	if objetivoFila then
+		objetivoFila.Visible = hito ~= nil
+	end
+	if objetivoLabel and hito then
+		objetivoLabel.Text = Goals.progreso(hito, estado.entregas or 0, estado.nivel or 1)
+		local etiqueta = objetivoLabel.Parent and objetivoLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
+		if etiqueta then
+			etiqueta.Text = "Objetivo"
+		end
 	end
 
 	-- El zurrón lleno se pinta en ámbar: es la señal de "ya no te cabe más, vete",

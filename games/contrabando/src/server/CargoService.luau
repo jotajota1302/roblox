@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
+local Goals = require(game.ReplicatedStorage.Shared.Goals)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
@@ -411,6 +412,28 @@ local function cobrar(player: Player, destino: BasePart)
 	estado.dinero += cobrado
 	-- Y se acabó el viaje: la racha no viaja de una entrega a la siguiente.
 	estado.recogidos = 0
+
+	-- LOS HITOS SE COBRAN AQUÍ, y no en un servicio aparte: éste es el único sitio
+	-- del juego donde una entrega ocurre de verdad, y separarlo obligaría a que dos
+	-- módulos se pusieran de acuerdo sobre cuándo cuenta una.
+	--
+	-- Se cobran TODOS los que se cumplan de golpe: quien entrega ocho de una
+	-- sentada se ha ganado los tres peldaños de entregas, y pagarle sólo el último
+	-- sería quedarse con su dinero.
+	estado.entregas = (estado.entregas or 0) + 1
+	estado.hitos = estado.hitos or {}
+	local nivelAhora = Levels.nivelDe(estado.xp or 0)
+	for _, hito in Goals.cumplidos(estado.entregas, nivelAhora, estado.vehiculo, estado.hitos) do
+		estado.hitos[hito.id] = true
+		if hito.monedas then
+			estado.dinero += hito.monedas
+		end
+		avisar(
+			player,
+			if hito.monedas then string.format("%s  (+%d)", hito.texto, hito.monedas) else hito.texto,
+			Palette.AVISO_BUENO
+		)
+	end
 
 	-- Y experiencia, que es lo único que no se puede gastar. El dinero se va en
 	-- vehículos; el nivel se queda, y por eso es lo que sirve para saber quién
