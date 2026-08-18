@@ -36,7 +36,12 @@ portada se decide en un vistazo de Discover y ahí el idioma es la primera barre
 bajo *ahora* —los textos son pocos y están centralizados— y sube cada semana que se añade
 contenido.
 
-**Esto lo decide JJ. Todo lo de abajo está en los dos idiomas para que se pueda elegir.**
+> **DECIDIDO (18/08): inglés.** La interfaz del juego ya está traducida — unos 130 textos, de
+> los avisos a los nombres de las mercancías. Los comentarios, los logs y las pruebas siguen
+> en español, y los ids internos no se tocaron (son claves del DataStore). Queda sin verificar
+> en Studio.
+
+**Lo de abajo se queda en los dos idiomas por si algún día se localiza.**
 
 ---
 
@@ -163,7 +168,7 @@ los primeros treinta segundos — que es donde se pierde la retención D1.
 
 ## 6. Orden de trabajo
 
-1. **Decidir el idioma.** Todo lo demás depende de eso.
+1. ~~**Decidir el idioma.**~~ **Hecho: inglés**, y la interfaz ya está traducida.
 2. Elegir nombre y escribir la descripción definitiva.
 3. Generar icono y miniatura con MiniMax, y **la segunda miniatura con gameplay real** —
    necesita el juego a mano, así que va después de la partida de prueba.

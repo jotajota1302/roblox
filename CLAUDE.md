@@ -91,6 +91,16 @@ responder a la única pregunta que importa.
 
 - **Comentarios en español** en este proyecto (a diferencia del RPG narrativo, que van en
   inglés): el código es también material de aprendizaje. Identificadores en inglés.
+- **TEXTOS DEL JUEGO EN INGLÉS** (decidido 2026-08-18). Todo lo que lee el JUGADOR va en
+  inglés: avisos, carteles, prompts, HUD, menús, y los nombres de vehículos, mercancías,
+  rarezas y habilidades. La masa de Roblox está en inglés y la portada se decide en un vistazo
+  de Discover, donde el idioma es la primera barrera.
+  **Lo que NO se traduce**: los comentarios, los `warn()` de consola, `SelfCheck` y los
+  nombres de las pruebas — los lee el desarrollador.
+  **Y los IDS NUNCA se traducen**: `"verde"`, `"ambar"`, `"roja"`, `"barrio"`, `"camuflaje"`,
+  `"furgoneta"` son claves que viven en `Palette`, en atributos de piezas, en
+  `CONTACTOS_POR_RUTA` y en el DataStore. Para lo que se enseña hay un campo aparte
+  (`Routes.nombre`, `def.nombre`).
 - Sin dependencias externas salvo necesidad clara.
 - El mundo y la interfaz **se generan por código**, no a mano en Studio. Así todo vive en
   git y es revisable en un diff; el `.rbxl` es un artefacto desechable.
