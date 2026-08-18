@@ -10,6 +10,7 @@
 local Players = game:GetService("Players")
 
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
+local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
@@ -62,7 +63,11 @@ local function aplicarVelocidad(player: Player)
 		-- -- dos sitios escribiendo la misma propiedad con reglas distintas, que es
 		-- la receta de un fallo imposible de reproducir.
 		local cuenta = Roads.vehiculoQueCuenta(estado.vehiculo, estado.montado ~= false)
-		humanoid.WalkSpeed = Cargo.velocidad(estado.cajas, cuenta)
+		-- Y LA RACHA ENCIMA: cada contacto recogido en este viaje acelera. Va aquí y
+		-- no dentro de Cargo.velocidad a propósito -- la carga y el viaje son cosas
+		-- distintas, y mezclarlas obligaría a que todo el que pregunta por el peso
+		-- supiera de contactos. Contacts recorta la suma por debajo del antitrampas.
+		humanoid.WalkSpeed = Contacts.velocidadConRacha(Cargo.velocidad(estado.cajas, cuenta), estado.recogidos or 0)
 	end
 end
 
@@ -136,6 +141,22 @@ function CargoService.vaciar(player: Player, sincronizar: boolean?): { Economy.C
 	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
 	CargoService.mostrarCarga(player)
 	return cajas
+end
+
+-- LA RACHA SE PIERDE ENTERA, y lo llaman tres sitios: al elegir ruta (empieza un
+-- viaje nuevo), al entregar (se acabó) y al ser alcanzado (el paso en falso).
+--
+-- Vive aquí y no en ContactService para no montar un ciclo de require: quien la
+-- pierde ya está llamando a este módulo para reescribir la velocidad, y meter el
+-- camino de vuelta convertiría dos módulos en uno mal cortado.
+function CargoService.reiniciarRacha(player: Player)
+	local estado = PlayerState.peek(player)
+	if not estado or (estado.recogidos or 0) == 0 then
+		return
+	end
+	estado.recogidos = 0
+	CargoService.aplicarVelocidad(player)
+	PlayerState.sync(player)
 end
 
 function CargoService.aplicarVelocidad(player: Player)
@@ -388,6 +409,8 @@ local function cobrar(player: Player, destino: BasePart)
 	local cajas = CargoService.vaciar(player, false)
 	local cobrado = Economy.valorEntrega(cajas, multiplicador)
 	estado.dinero += cobrado
+	-- Y se acabó el viaje: la racha no viaja de una entrega a la siguiente.
+	estado.recogidos = 0
 
 	-- Y experiencia, que es lo único que no se puede gastar. El dinero se va en
 	-- vehículos; el nivel se queda, y por eso es lo que sirve para saber quién
@@ -441,6 +464,11 @@ local function cobrar(player: Player, destino: BasePart)
 		end
 	end
 
+	-- La velocidad, con el zurrón ya en su sitio y la racha a cero. Va aquí y no
+	-- antes porque `vaciar` la escribió cuando la racha todavía contaba: sin este
+	-- repintado, entregar y quedarte quieto te dejaba corriendo lo que corrías
+	-- cuando llegaste.
+	aplicarVelocidad(player)
 	PlayerState.sync(player)
 	-- La carga de vuelta se acaba de subir al zurrón DESPUÉS de vaciarlo, así que
 	-- el cuerpo sigue pintado vacío: sin este repintado, el jugador vería el mismo

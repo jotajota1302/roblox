@@ -1,9 +1,13 @@
 --!strict
 -- Pruebas del reparto de contactos. Lo que se comprueba aquí no es "que salgan":
--- es que quien recorre la ruta LOS ENCUENTRE. La lección de los detectores (quince
--- acabaron en azoteas y medio sistema de vigilancia era decorado sin que nada
--- reventara) vale igual aquí: si el desvío típico supera el radio de recogida, el
--- sistema no existe aunque el código esté escrito.
+-- es que quien recorre la ruta LOS ENCUENTRE.
+--
+-- Esa distinción no es teórica: la primera versión repartía sobre la recta entre
+-- casa y destino y, medida contra el camino real del pathfinder, ponía en el
+-- camino el 0 % de la ruta verde. Treinta y ocho piezas plantadas y ninguna al
+-- alcance de nadie -- la misma firma que los quince detectores en las azoteas.
+-- De ahí que el reparto trabaje sobre una POLILÍNEA y que la prueba de la ele
+-- exista.
 
 local Config = require(script.Parent.Parent.Config)
 local Contacts = require(script.Parent.Parent.Contacts)
@@ -11,15 +15,19 @@ local Contacts = require(script.Parent.Parent.Contacts)
 return function(kit)
 	local origen = Vector3.new(0, 0, 0)
 	local destino = Vector3.new(0, 0, 600)
+	local recta = { origen, destino }
 
-	local sueltos = Contacts.sueltos(origen, destino, 6)
+	local sueltos = Contacts.sueltos(recta, 6)
 	kit.eq("siembra los sueltos que se le piden", #sueltos, 6)
 	kit.eq("un suelto vale 1", sueltos[1].valor, Config.CONTACTO_VALOR_SUELTO)
 	kit.eq("un suelto es de tipo suelto", sueltos[1].tipo, "suelto")
 
-	-- SOBRE el camino: el que va en línea recta los pisa todos.
-	local pisados = Contacts.recogidosEnLineaRecta(sueltos, origen, destino, Config.CONTACTO_RADIO)
-	kit.eq("quien va en línea recta pisa todos los sueltos", pisados, 6)
+	-- SOBRE el camino: el que lo recorre los pisa todos.
+	kit.eq(
+		"quien recorre el camino pisa todos los sueltos",
+		Contacts.cercaDelCamino(sueltos, recta, Config.CONTACTO_RADIO),
+		6
+	)
 
 	-- Ninguno dentro de la zona segura: un contacto a la puerta de casa es gratis.
 	local dentro = 0
@@ -30,34 +38,62 @@ return function(kit)
 	end
 	kit.eq("ningún suelto cae dentro de la zona segura", dentro, 0)
 
-	-- Los racimos se apartan, y por eso NO se pisan yendo recto: son un rodeo.
-	local peligros = { Vector3.new(0, 0, 200), Vector3.new(0, 0, 400) }
-	local racimos = Contacts.racimos(origen, destino, peligros, 2)
+	-- LA PRUEBA DE LA ELE, que es la que habría cazado el fallo: un camino que
+	-- dobla en ángulo recto. Los contactos tienen que seguir la ele, no la
+	-- diagonal, o repiten exactamente el error de repartir sobre la recta.
+	local ele = { Vector3.new(0, 0, 0), Vector3.new(0, 0, 500), Vector3.new(500, 0, 500) }
+	local porLaEle = Contacts.sueltos(ele, 8)
+	kit.eq("en un camino en ele siembra los que se le piden", #porLaEle, 8)
+	kit.eq("y TODOS caen sobre la ele", Contacts.cercaDelCamino(porLaEle, ele, Config.CONTACTO_RADIO), 8)
+	kit.truthy(
+		"que no es lo mismo que la recta entre los extremos",
+		Contacts.cercaDelCamino(porLaEle, { ele[1], ele[3] }, Config.CONTACTO_RADIO) < 8
+	)
+	-- Y hay contactos en los DOS brazos: si el reparto se quedara en el primero,
+	-- media ruta iría sin nada.
+	local primerBrazo, segundoBrazo = 0, 0
+	for _, c in porLaEle do
+		if c.pos.X < 10 then
+			primerBrazo += 1
+		else
+			segundoBrazo += 1
+		end
+	end
+	kit.truthy("hay contactos en el primer brazo", primerBrazo > 0)
+	kit.truthy("y en el segundo", segundoBrazo > 0)
+
+	-- Los racimos se apartan, y por eso NO se pisan yendo por el camino: son un
+	-- rodeo.
+	local peligros = { Vector3.new(80, 0, 200), Vector3.new(-80, 0, 400) }
+	local racimos = Contacts.racimos(recta, peligros, 2)
 	kit.eq("siembra los racimos que se le piden", #racimos, 2)
 	kit.eq("un racimo vale 5", racimos[1].valor, Config.CONTACTO_VALOR_RACIMO)
 	kit.eq(
-		"un racimo no se pisa yendo recto",
-		Contacts.recogidosEnLineaRecta(racimos, origen, destino, Config.CONTACTO_RADIO),
+		"un racimo no se pisa yendo por el camino",
+		Contacts.cercaDelCamino(racimos, recta, Config.CONTACTO_RADIO),
 		0
 	)
 
-	-- Pero tampoco tan lejos que ir a por él sea una expedición.
+	-- Y cae ENTRE el camino y su peligro, no al otro lado: ir a por él tiene que
+	-- ser acercarse al riesgo, que es toda su gracia.
 	for i, c in racimos do
-		local d = (Vector3.new(c.pos.X, 0, c.pos.Z) - Vector3.new(peligros[i].X, 0, peligros[i].Z)).Magnitude
-		kit.truthy("el racimo " .. i .. " está junto a su peligro (<= 60)", d <= 60)
+		local haciaPeligro = Vector3.new(peligros[i].X, 0, peligros[i].Z)
+		local haciaRacimo = Vector3.new(c.pos.X, 0, c.pos.Z)
+		kit.truthy("el racimo " .. i .. " está del lado de su peligro", haciaRacimo.X * haciaPeligro.X > 0)
+		kit.truthy("y no más lejos que él", math.abs(haciaRacimo.X) <= math.abs(haciaPeligro.X) + 1)
 	end
 
 	-- Sin peligros que usar de ancla, no inventa racimos sueltos por ahí.
-	kit.eq("sin peligros no hay racimos", #Contacts.racimos(origen, destino, {}, 3), 0)
+	kit.eq("sin peligros no hay racimos", #Contacts.racimos(recta, {}, 3), 0)
 
 	-- La ruta entera, por su id.
-	local ruta = Contacts.deRuta("verde", origen, destino, peligros)
-	kit.eq("la verde reparte 6 sueltos y 1 racimo", #ruta, 7)
-	kit.eq("una ruta desconocida no revienta, devuelve vacío", #Contacts.deRuta("gris", origen, destino, peligros), 0)
+	kit.eq("la verde reparte 6 sueltos y 1 racimo", #Contacts.deRuta("verde", recta, peligros), 7)
+	kit.eq("una ruta desconocida no revienta, devuelve vacío", #Contacts.deRuta("gris", recta, peligros), 0)
 
-	-- Una ruta tan corta que no cabe nada fuera de la zona segura: mejor ninguno
+	-- Un camino tan corto que no cabe nada fuera de la zona segura: mejor ninguno
 	-- que uno mal puesto (misma regla que Lairs).
-	kit.eq("ruta demasiado corta, sin contactos", #Contacts.sueltos(origen, Vector3.new(0, 0, 120), 6), 0)
+	kit.eq("camino demasiado corto, sin contactos", #Contacts.sueltos({ origen, Vector3.new(0, 0, 120) }, 6), 0)
+	kit.eq("un camino de un solo punto no revienta", #Contacts.sueltos({ origen }, 6), 0)
 
 	-- LA RACHA. Acelera, tiene tope, y NUNCA deja al jugador fuera de alcance.
 	kit.eq("sin recoger nada, no hay racha", Contacts.racha(0), 0)

@@ -20,6 +20,9 @@
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
+local PathfindingService = game:GetService("PathfindingService")
+
+local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
 -- Ride, para poner el vehículo de verdad en el escaparate en vez de una caja.
 local Ride = require(script.Parent.Ride)
@@ -992,6 +995,116 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 	return puestos
 end
 
+-- EL CAMINO REAL de una ruta: por dónde se va de verdad, no la recta.
+--
+-- Existe porque los contactos repartidos sobre la recta caían en el camino el
+-- 0 % de las veces en la ruta verde (medido contra esto mismo). Una ciudad con
+-- manzanas no se parece a una recta, y un contacto que no se pisa es decorado.
+--
+-- Si el pathfinder no encuentra camino se devuelve la recta: mejor un reparto
+-- imperfecto que ninguno, y el aviso queda en la consola para que se vea.
+local function caminoDeRuta(ruta: Routes.Ruta): { Vector3 }
+	local recta = { Config.ALMACEN_POS, ruta.destino }
+
+	-- Un peatón: radio y altura de persona, y SIN saltar. Un camino que sólo
+	-- existe saltando un bordillo no es el camino por el que va la gente.
+	local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
+	local ok = pcall(function()
+		path:ComputeAsync(Config.POLIGONO_SALIDA, ruta.destino)
+	end)
+	if not ok or path.Status ~= Enum.PathStatus.Success then
+		warn("[Contrabando] sin camino para los contactos de " .. ruta.id .. ", se reparten en recta")
+		return recta
+	end
+
+	local puntos: { Vector3 } = { Config.ALMACEN_POS }
+	for _, w in path:GetWaypoints() do
+		table.insert(puntos, w.Position)
+	end
+	if #puntos < 2 then
+		return recta
+	end
+	return puntos
+end
+
+-- LOS CONTACTOS de una ruta, plantados sobre su corredor.
+--
+-- Se siembran AQUÍ y no en su servicio por una razón que este fichero ya pagó
+-- cara: bajar algo al suelo de una ciudad ajena es donde se equivoca uno. Un rayo
+-- desde arriba devuelve tejados y copas de árbol, y quince detectores acabaron en
+-- las azoteas sin que nada reventara. `sueloTransitable` es la maquinaria que lo
+-- resuelve y vive en este fichero, así que el sitio de plantar es éste; las
+-- reglas (quién recoge, cuándo cuenta) son de ContactService.
+--
+-- Son FIJOS, como los detectores y las guaridas: el reparto sale del trazado y no
+-- de un dado, para que el jugador que repite la ruta sepa dónde están.
+local function sembrarContactos(
+	ciudad: Instance?,
+	ruta: Routes.Ruta,
+	camino: { Vector3 },
+	anclas: { Vector3 },
+	padre: Instance
+): { BasePart }
+	local piezas: { BasePart } = {}
+
+	for i, contacto in Contacts.deRuta(ruta.id, camino, anclas) do
+		local x, z = contacto.pos.X, contacto.pos.Z
+
+		-- Suelo de CALLE, y NUNCA el de `sueloDeLaCiudad` como red: ése devuelve lo
+		-- primero que toca el rayo, o sea el tejado. Medido con la primera versión
+		-- de esto: 7 de 38 contactos acabaron a 42, 110 y hasta 178 studs de altura
+		-- --los detectores, que son la referencia buena, van de 14 a 32-- y ninguno
+		-- reventó. Es la misma trampa que dejó quince postes en las azoteas.
+		--
+		-- Así que aquí sólo hay dos salidas: calle, o nada. Un contacto que no se
+		-- pisa es peor que un contacto que no existe, porque encima decora.
+		local y, cx, cz = sueloTransitable(ciudad, x, z)
+		if y == nil then
+			continue
+		end
+
+		-- Y la calle tiene que estar CERCA. Al suelto se le da poco margen porque su
+		-- trabajo es estar en el camino; al racimo un poco más, porque el suyo es
+		-- estar apartado. Pasado eso, no hay sitio: mejor ninguno que uno lejos.
+		local desplazado = math.sqrt((cx - x) ^ 2 + (cz - z) ^ 2)
+		local margen = if contacto.tipo == "racimo" then 60 else 40
+		if desplazado > margen then
+			continue
+		end
+		x, z = cx, cz
+
+		local esRacimo = contacto.tipo == "racimo"
+		local lado = if esRacimo then 3.4 else 2.2
+		local pieza = part(
+			string.format("Contacto_%s_%d", ruta.id, i),
+			Vector3.new(lado, lado, 0.7),
+			Vector3.new(x, (y :: number) + 3.2, z),
+			if esRacimo then Color3.fromRGB(255, 196, 84) else Color3.fromRGB(236, 226, 196),
+			padre
+		)
+		pieza.Material = Enum.Material.Neon
+		pieza.CanCollide = false
+		pieza.Orientation = Vector3.new(0, 0, 0)
+		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo
+		-- que hay plantado. Si algún día el reparto cambia, no hay dos versiones.
+		pieza:SetAttribute("ruta", ruta.id)
+		pieza:SetAttribute("valor", contacto.valor)
+		pieza:SetAttribute("tipo", contacto.tipo)
+
+		-- Se tienen que VER desde la calle, o son decorado. El racimo alumbra más
+		-- porque su gracia es que lo veas desde el camino y decidas si te desvías.
+		local luz = Instance.new("PointLight")
+		luz.Color = Color3.fromRGB(255, 214, 130)
+		luz.Range = if esRacimo then 34 else 18
+		luz.Brightness = if esRacimo then 2.2 else 1.2
+		luz.Parent = pieza
+
+		table.insert(piezas, pieza)
+	end
+
+	return piezas
+end
+
 -- Una nave sencilla detrás de la losa, para que el almacén SE LEA como un almacén.
 --
 -- Lo dijo JJ probándolo: "el almacén no se ve". Una losa de color no es un sitio;
@@ -1614,6 +1727,9 @@ export type Mundo = {
 	-- necesita saber dónde están, y pasar las piezas invitaría a que alguien
 	-- empezara a leerles propiedades y a depender de cómo están dibujados.
 	refugios: { Vector3 },
+	-- Las PIEZAS, no las posiciones: ContactService las apaga y las vuelve a
+	-- encender al recogerlas, así que necesita el objeto.
+	contactos: { BasePart },
 }
 
 function CityBuilder.build(): Mundo
@@ -2043,12 +2159,26 @@ function CityBuilder.build(): Mundo
 	-- después en importancia: son el peligro que se puede ver venir, y sin ellas
 	-- los refugios no tienen de qué salvarte.
 	local guaridas: { Vector3 } = {}
+	-- Y agrupadas por ruta, porque los contactos las usan de ancla: el racimo va
+	-- junto a un peligro DE SU RUTA, no junto a cualquiera del mapa.
+	local guaridasDeRuta: { [string]: { Vector3 } } = {}
 	for _, ruta in Routes.todas() do
+		guaridasDeRuta[ruta.id] = {}
 		for _, sitio in Lairs.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.GUARIDAS_POR_RUTA) do
 			local pieza = guarida(ciudad, #guaridas + 1, ruta.id, sitio, mundo, guaridas)
 			if pieza then
 				table.insert(guaridas, pieza.Position)
+				table.insert(guaridasDeRuta[ruta.id], pieza.Position)
 			end
+		end
+	end
+
+	-- LOS CONTACTOS, después de las guaridas porque se anclan a ellas.
+	local contactos: { BasePart } = {}
+	for _, ruta in Routes.todas() do
+		local camino = caminoDeRuta(ruta)
+		for _, pieza in sembrarContactos(ciudad, ruta, camino, guaridasDeRuta[ruta.id] or {}, mundo) do
+			table.insert(contactos, pieza)
 		end
 	end
 
@@ -2074,6 +2204,7 @@ function CityBuilder.build(): Mundo
 		detectores = detectores,
 		refugios = refugios,
 		guaridas = guaridas,
+		contactos = contactos,
 	}
 end
 

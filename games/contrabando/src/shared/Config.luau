@@ -642,6 +642,12 @@ Config.CONTACTO_VALOR_RACIMO = 5
 -- que ir a por uno sea un rodeo y no una expedición.
 Config.CONTACTO_RACIMO_DESVIO = 55
 
+-- Al recogerlo se apaga y vuelve. NO se destruye: son parte del trazado, y una
+-- ciudad que se queda sin contactos tras el primer viaje deja de tener camino que
+-- aprender. La espera es más corta que un viaje entero para que el de vuelta no
+-- pase por una calle apagada.
+Config.CONTACTO_RECARGA = 45
+
 -- Cuántos por ruta. Escalan con el peligro, como todo lo demás.
 Config.CONTACTOS_POR_RUTA = {
 	verde = { sueltos = 6, racimos = 1 },

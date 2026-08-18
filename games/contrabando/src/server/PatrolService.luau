@@ -411,6 +411,12 @@ local function alcanzar(player: Player)
 	)
 	Telemetry.evento(player, "ladron_alcanza", { cajas = cuantas })
 
+	-- Y LA RACHA, ENTERA. Es el paso en falso: pierdes la carga y pierdes la
+	-- velocidad que habías acumulado recogiendo. Que las dos cosas se vayan en el
+	-- mismo golpe es lo que convierte el robo en un momento, y no hace falta
+	-- explicarlo -- se nota en el paso siguiente.
+	CargoService.reiniciarRacha(player)
+
 	-- El calor a cero y las patrullas fuera. Si siguieran encima, el jugador
 	-- perdería la otra mitad tres segundos después y el mensaje que se llevaría es
 	-- que no hay nada que hacer -- que es justo cuando se cierra el juego.

@@ -162,6 +162,11 @@ function InterceptService.tick(ahora: number)
 				table.insert(estadoAtacante.cajas, caja)
 			end
 
+			-- La víctima pierde también la racha: mismo golpe, las dos cosas. El
+			-- atacante NO la gana -- la racha se recoge del suelo, no se roba, o
+			-- robar sería además la forma más rápida de acelerar.
+			CargoService.reiniciarRacha(victima)
+
 			estadoAtacante.marcadoHasta = ahora + Config.MARCADO_SEGUNDOS
 
 			-- El ladrón hereda el encargo de la víctima si no traía el suyo. Sin

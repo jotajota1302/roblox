@@ -18,6 +18,18 @@
 
 	FIJOS Y APRENDIBLES, como los detectores y las guaridas: el reparto sale del
 	trazado, no de un dado. El jugador que repite la ruta sabe dónde están.
+
+	Y SE REPARTEN SOBRE EL CAMINO REAL, no sobre la recta entre casa y destino.
+	Esto no es un detalle: la primera versión los repartía sobre la recta y, medido
+	contra el camino que calcula el pathfinder, **caían en el camino el 0 % de la
+	ruta verde, el 8 % de la ámbar y el 5 % de la roja**. Treinta y ocho piezas
+	plantadas, alumbradas y con sus atributos, y ninguna al alcance de nadie. Es la
+	misma firma que los quince detectores en las azoteas: nada revienta y el
+	sistema simplemente no existe.
+
+	Por eso la entrada de este módulo es una POLILÍNEA y no un par origen-destino.
+	Un par de puntos sigue valiendo (es una polilínea de dos), pero quien tenga el
+	camino de verdad debe pasarlo.
 ]]
 
 local Config = require(script.Parent.Config)
@@ -26,41 +38,76 @@ export type Contacto = { pos: Vector3, valor: number, tipo: string }
 
 local Contacts = {}
 
--- El tramo útil del corredor, en fracción del trayecto. Empieza pasada la zona
--- segura y termina antes del destino, por lo mismo que en Lairs: un contacto a la
--- puerta de casa es gratis, y uno pegado a la entrega llega cuando ya no hay
--- viaje. Se mide EN STUDS, no en fracción -- una fracción dice lo mismo para una
--- ruta de 420 studs que para una de 1.400, y no es lo mismo.
-local function tramo(largo: number): (number, number)
-	local tMin = (Config.ZONA_SEGURA_RADIO + 40) / largo
-	local tMax = 1 - 60 / largo
-	return tMin, tMax
+-- Longitud de cada tramo de la polilínea, MEDIDA EN EL PLANO. Las cuestas de la
+-- ciudad no cuentan como distancia recorrida para esto: lo que importa es dónde
+-- pisa el jugador, no cuánto sube.
+local function tramos(camino: { Vector3 }): ({ number }, number)
+	local largos: { number } = {}
+	local total = 0
+	for i = 1, #camino - 1 do
+		local a, b = camino[i], camino[i + 1]
+		local d = math.sqrt((b.X - a.X) ^ 2 + (b.Z - a.Z) ^ 2)
+		largos[i] = d
+		total += d
+	end
+	return largos, total
 end
 
-function Contacts.sueltos(origen: Vector3, destino: Vector3, cuantos: number): { Contacto }
+-- El punto del camino que está a `distancia` studs del principio.
+local function puntoA(camino: { Vector3 }, largos: { number }, distancia: number): Vector3
+	local recorrido = 0
+	for i = 1, #largos do
+		if recorrido + largos[i] >= distancia then
+			local t = if largos[i] > 0 then (distancia - recorrido) / largos[i] else 0
+			return camino[i]:Lerp(camino[i + 1], t)
+		end
+		recorrido += largos[i]
+	end
+	return camino[#camino]
+end
+
+-- La dirección del camino en ese punto, en el plano. La usan los racimos para
+-- saber hacia qué lado apartarse; con la dirección global (casa -> destino) un
+-- racimo de una curva se apartaba hacia dentro de la manzana.
+local function direccionEn(camino: { Vector3 }, largos: { number }, distancia: number): Vector3
+	local recorrido = 0
+	for i = 1, #largos do
+		if recorrido + largos[i] >= distancia or i == #largos then
+			local a, b = camino[i], camino[i + 1]
+			local plano = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+			if plano.Magnitude > 0.01 then
+				return plano.Unit
+			end
+		end
+		recorrido += largos[i]
+	end
+	return Vector3.new(0, 0, 1)
+end
+
+-- El tramo útil del camino, EN STUDS. Empieza pasada la zona segura y termina
+-- antes del destino, por lo mismo que en Lairs: un contacto a la puerta de casa
+-- es gratis, y uno pegado a la entrega llega cuando ya no hay viaje.
+local MARGEN_FINAL = 60
+
+function Contacts.sueltos(camino: { Vector3 }, cuantos: number): { Contacto }
 	local salida: { Contacto } = {}
-	if cuantos <= 0 then
+	if cuantos <= 0 or #camino < 2 then
 		return salida
 	end
 
-	local direccion = destino - origen
-	local plano = Vector3.new(direccion.X, 0, direccion.Z)
-	local largo = plano.Magnitude
-	if largo < 1 then
-		return salida
-	end
-
-	local tMin, tMax = tramo(largo)
-	if tMax <= tMin then
-		-- Ruta tan corta que no hay tramo donde ponerlos sin pisar la casa o el
+	local largos, total = tramos(camino)
+	local desde = Config.ZONA_SEGURA_RADIO + 40
+	local hasta = total - MARGEN_FINAL
+	if hasta <= desde then
+		-- Camino tan corto que no hay tramo donde ponerlos sin pisar la casa o el
 		-- destino. Ninguno es mejor que uno mal puesto.
 		return salida
 	end
 
 	for i = 1, cuantos do
-		local t = tMin + (tMax - tMin) * ((i - 0.5) / cuantos)
+		local d = desde + (hasta - desde) * ((i - 0.5) / cuantos)
 		table.insert(salida, {
-			pos = origen:Lerp(destino, t),
+			pos = puntoA(camino, largos, d),
 			valor = Config.CONTACTO_VALOR_SUELTO,
 			tipo = "suelto",
 		})
@@ -69,28 +116,49 @@ function Contacts.sueltos(origen: Vector3, destino: Vector3, cuantos: number): {
 	return salida
 end
 
--- Un racimo por peligro, apartado hacia el lado del corredor. Sin peligros no hay
--- racimos: su razón de ser es estar junto a uno, así que uno suelto en mitad de
--- ninguna parte sería un premio sin apuesta.
-function Contacts.racimos(origen: Vector3, destino: Vector3, peligros: { Vector3 }, cuantos: number): { Contacto }
+-- Un racimo por peligro, apartado del camino a la altura de ese peligro. Sin
+-- peligros no hay racimos: su razón de ser es estar junto a uno, así que uno
+-- suelto en mitad de ninguna parte sería un premio sin apuesta.
+function Contacts.racimos(camino: { Vector3 }, peligros: { Vector3 }, cuantos: number): { Contacto }
 	local salida: { Contacto } = {}
-	if cuantos <= 0 or #peligros == 0 then
+	if cuantos <= 0 or #peligros == 0 or #camino < 2 then
 		return salida
 	end
 
-	local direccion = destino - origen
-	local plano = Vector3.new(direccion.X, 0, direccion.Z)
-	if plano.Magnitude < 1 then
-		return salida
-	end
-	-- Perpendicular en el plano: girar 90° es (z, -x).
-	local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
+	local largos, total = tramos(camino)
 
 	for i = 1, math.min(cuantos, #peligros) do
 		local ancla = peligros[i]
-		local signo = if i % 2 == 1 then 1 else -1
+		-- ¿A qué altura del camino queda este peligro? De ahí sale hacia dónde
+		-- apartarse, para que el racimo caiga ENTRE el camino y la guarida.
+		local mejor, mejorD = 0, math.huge
+		local recorrido = 0
+		for j = 1, #largos do
+			local a, b = camino[j], camino[j + 1]
+			local ab = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+			if ab.Magnitude > 0.01 then
+				local ap = Vector3.new(ancla.X - a.X, 0, ancla.Z - a.Z)
+				local t = math.clamp(ap:Dot(ab.Unit), 0, ab.Magnitude)
+				local d = (ap - ab.Unit * t).Magnitude
+				if d < mejorD then
+					mejorD = d
+					mejor = recorrido + t
+				end
+			end
+			recorrido += largos[j]
+		end
+
+		local enElCamino = puntoA(camino, largos, math.clamp(mejor, 0, total))
+		local hacia = ancla - enElCamino
+		local plano = Vector3.new(hacia.X, 0, hacia.Z)
+		-- Si la guarida está justo encima del camino, se aparta perpendicular: un
+		-- racimo en mitad de la calzada no sería un rodeo.
+		local desvio = if plano.Magnitude > 1
+			then plano.Unit
+			else Vector3.new(direccionEn(camino, largos, mejor).Z, 0, -direccionEn(camino, largos, mejor).X)
+
 		table.insert(salida, {
-			pos = ancla + lado * (Config.CONTACTO_RACIMO_DESVIO * signo),
+			pos = enElCamino + desvio * Config.CONTACTO_RACIMO_DESVIO,
 			valor = Config.CONTACTO_VALOR_RACIMO,
 			tipo = "racimo",
 		})
@@ -99,50 +167,48 @@ function Contacts.racimos(origen: Vector3, destino: Vector3, peligros: { Vector3
 	return salida
 end
 
-function Contacts.deRuta(rutaId: string, origen: Vector3, destino: Vector3, peligros: { Vector3 }): { Contacto }
+function Contacts.deRuta(rutaId: string, camino: { Vector3 }, peligros: { Vector3 }): { Contacto }
 	local cuantos = Config.CONTACTOS_POR_RUTA[rutaId]
 	if not cuantos then
 		return {}
 	end
 
-	local salida = Contacts.sueltos(origen, destino, cuantos.sueltos)
-	for _, c in Contacts.racimos(origen, destino, peligros, cuantos.racimos) do
+	local salida = Contacts.sueltos(camino, cuantos.sueltos)
+	for _, c in Contacts.racimos(camino, peligros, cuantos.racimos) do
 		table.insert(salida, c)
 	end
 	return salida
 end
 
--- LA MEDIDA QUE IMPORTA: cuántos recoge de verdad quien va en línea recta.
+-- LA MEDIDA QUE IMPORTA: cuántos recoge de verdad quien recorre el camino.
 --
--- Es la misma comprobación que Detectors.disparadosEnLineaRecta, y existe por lo
--- mismo: quince detectores acabaron en las azoteas y nada reventó. Un contacto
--- que el jugador no pisa es decorado, no sistema.
-function Contacts.recogidosEnLineaRecta(
-	contactos: { Contacto },
-	origen: Vector3,
-	destino: Vector3,
-	radio: number
-): number
-	local direccion = destino - origen
-	local plano = Vector3.new(direccion.X, 0, direccion.Z)
-	local largo = plano.Magnitude
-	if largo < 1 then
+-- Es la misma comprobación que Detectors.disparadosEnLineaRecta y existe por lo
+-- mismo, sólo que aquí ya cazó su fallo: con el reparto sobre la recta, esto daba
+-- 0 de 7 en la ruta verde. Un contacto que el jugador no pisa es decorado.
+function Contacts.cercaDelCamino(contactos: { Contacto }, camino: { Vector3 }, radio: number): number
+	if #camino < 2 then
 		return 0
 	end
-	local unidad = plano.Unit
 
 	local cuenta = 0
 	for _, c in contactos do
-		local rel = Vector3.new(c.pos.X - origen.X, 0, c.pos.Z - origen.Z)
-		local avance = rel:Dot(unidad)
-		if avance < 0 or avance > largo then
-			continue
+		local mejor = math.huge
+		for i = 1, #camino - 1 do
+			local a, b = camino[i], camino[i + 1]
+			local ab = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+			if ab.Magnitude < 0.01 then
+				continue
+			end
+			-- EN EL PLANO. Medir en 3D convirtió una vez 83 studs de altura en "83
+			-- studs de desviación".
+			local ap = Vector3.new(c.pos.X - a.X, 0, c.pos.Z - a.Z)
+			local t = math.clamp(ap:Dot(ab.Unit), 0, ab.Magnitude)
+			local d = (ap - ab.Unit * t).Magnitude
+			if d < mejor then
+				mejor = d
+			end
 		end
-		-- La desviación se mide EN EL PLANO. Medirla en 3D fue lo que hizo pasar
-		-- por "83 studs de desviación" un detector cuya desviación real era 0: los
-		-- 83 eran altura.
-		local desvio = (rel - unidad * avance).Magnitude
-		if desvio <= radio then
+		if mejor <= radio then
 			cuenta += 1
 		end
 	end

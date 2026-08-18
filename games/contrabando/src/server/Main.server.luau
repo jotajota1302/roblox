@@ -46,6 +46,7 @@ local MapBuilder = safeRequire("MapBuilder")
 local PlayerState = safeRequire("PlayerState")
 local CargoService = safeRequire("CargoService")
 local RouteService = safeRequire("RouteService")
+local ContactService = safeRequire("ContactService")
 local WarehouseService = safeRequire("WarehouseService")
 local GarageService = safeRequire("GarageService")
 local InterceptService = safeRequire("InterceptService")
@@ -116,6 +117,7 @@ safeStart("InterceptService", InterceptService)
 safeStart("HeatService", HeatService)
 safeStart("PatrolService", PatrolService)
 safeStart("RoadService", RoadService)
+safeStart("ContactService", ContactService)
 safeStart("Telemetry", Telemetry)
 safeStart("Persistence", Persistence)
 safeStart("Nameplates", Nameplates)
@@ -153,6 +155,12 @@ if mundo then
 		-- qué cuenta como guarida.
 		if PatrolService and (PatrolService :: any).registrarGuaridas then
 			(PatrolService :: any).registrarGuaridas(mundo.guaridas or {})
+		end
+		-- Y los contactos a su servicio, por lo mismo: las piezas las planta
+		-- CityBuilder (que es quien sabe bajar algo al suelo de una ciudad ajena sin
+		-- dejarlo en un tejado) y las reglas de quién recoge son de ContactService.
+		if ContactService then
+			ContactService.registrar(mundo.contactos or {})
 		end
 	end
 end

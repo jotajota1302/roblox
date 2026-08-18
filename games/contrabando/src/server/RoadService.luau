@@ -19,6 +19,7 @@
 local Players = game:GetService("Players")
 
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
+local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
@@ -387,7 +388,10 @@ local function paso(player: Player)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		local cuenta = Roads.vehiculoQueCuenta(estado.vehiculo, estado.montado ~= false)
-		local velocidad = Cargo.velocidad(estado.cajas, cuenta)
+		-- Con la racha del viaje encima (ver CargoService.aplicarVelocidad): los dos
+		-- sitios que escriben WalkSpeed tienen que decir lo mismo, o bajarse del
+		-- vehículo borraría lo que has acelerado.
+		local velocidad = Contacts.velocidadConRacha(Cargo.velocidad(estado.cajas, cuenta), estado.recogidos or 0)
 		humanoid.WalkSpeed = velocidad
 
 		-- Y EL MOTOR SUBE DE TONO CON LA VELOCIDAD. Es lo que separa un ruido de

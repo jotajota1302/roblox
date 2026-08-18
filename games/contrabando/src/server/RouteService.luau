@@ -109,6 +109,10 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	end
 
 	estado.ruta = rutaId
+	-- La racha a cero la pone ContactService al ver que la ruta ha cambiado. NO se
+	-- llama desde aquí: CargoService ya requiere a este módulo, y pedirle algo de
+	-- vuelta monta un ciclo de require que mata los dos ("Requested module
+	-- experienced an error while loading", y el juego arranca sin carga ni rutas).
 	PlayerState.sync(player)
 	Telemetry.evento(player, "ruta_elegida", { ruta = rutaId, cajas = #estado.cajas })
 	return true
