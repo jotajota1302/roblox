@@ -34,6 +34,17 @@ local CityBuilder = {}
 -- Es el mismo fallo que ya salió jugando con la furgoneta del taller.
 local ALTO_LOSA = 2
 
+-- Lado de la losa de la salida. Es una constante y no un número suelto porque la
+-- carretera de acceso ARRANCA en su borde: si un día crece la losa y la carretera
+-- sigue naciendo donde nacía, entre las dos queda un escalón.
+local LADO_SALIDA = 30
+
+-- La vía de acceso: cuánto sobresale por encima del suelo que pisa, y su grosor.
+-- El resalte es lo justo para que no se la coma un desnivel y lo bastante poco
+-- para subirse de un paso.
+local RESALTE_VIA = 1.6
+local GROSOR_VIA = 2.4
+
 local function part(nombre: string, tamano: Vector3, posicion: Vector3, color: Color3, padre: Instance): Part
 	local p = Instance.new("Part")
 	p.Name = nombre
@@ -180,14 +191,49 @@ local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: 
 	return quitadas
 end
 
--- EL POLÍGONO: el suelo que construimos nosotros, fuera de la ciudad.
+-- La cota del suelo bajo un punto del trazado, tomando el PUNTO MÁS ALTO de una
+-- cruz pequeña alrededor en vez de un solo rayo.
 --
--- Aquí no se despeja nada porque no hay nada que despejar: es terreno virgen
--- detrás del borde del mapa. Todo lo del juego --almacén, taller, salida-- vive
--- encima, y una carretera lo cose a la ciudad.
---
--- Se marca RODABLE entero: es una explanada de asfalto, y además es la zona
--- segura, así que bajarse del vehículo aquí no tendría ningún sentido.
+-- MEDIDO: con un rayo por tramo, el acceso del polígono a la ciudad se quedaba en
+-- veinticuatro pasos rodables de veinticinco -- un jirón de césped asomaba 1,2
+-- studs por encima del asfalto justo antes de enganchar con la calle. El rayo
+-- caía a nueve studs de la loma y no la veía. Un solo rayo mide un solo punto del
+-- terreno; la vereda tiene veintiséis studs de ancho.
+local function cotaDelTrazado(ciudad: Instance?, punto: Vector3, direccion: Vector3, ancho: number): number?
+	-- DENTRO DEL POLÍGONO manda su cota, como en losa() y por lo mismo: la boca cae
+	-- justo sobre el borde del mapa y ahí el rayo todavía encuentra suelo de la
+	-- ciudad diez studs más abajo. Sin esto, el primer tramo del acceso nace hundido
+	-- en su propia explanada.
+	local function suelo(p: Vector3): number?
+		if Perimeter.dentro(p, 6) then
+			return Config.POLIGONO_CENTRO.Y
+		end
+		return sueloDeLaCiudad(ciudad, p.X, p.Z)
+	end
+
+	-- El rayo del CENTRO manda: es el que va por donde de verdad pasa la vía.
+	local centro = suelo(punto)
+	if centro == nil then
+		return nil
+	end
+
+	local lado = Vector3.new(-direccion.Z, 0, direccion.X)
+	local alto = centro
+	for _, desplazamiento in { lado * (ancho / 3), lado * -(ancho / 3), direccion * 3, direccion * -3 } do
+		local y = suelo(punto + desplazamiento)
+		-- CON TOPE, y este tope es la mitad de la función. Sin él, un rayo de al lado
+		-- que caiga sobre un tejado --y en una ciudad eso pasa, es lo mismo que dejó
+		-- quince detectores plantados en las azoteas-- levanta la junta entera: el
+		-- último tramo del acceso verde salió TRECE STUDS por encima de la calle,
+		-- convertido en una rampa hacia un balcón. Cuatro studs es un bordillo alto o
+		-- una loma; más que eso ya es un edificio y no un desnivel del camino.
+		if y ~= nil and y > alto and y - centro <= 4 then
+			alto = y
+		end
+	end
+	return alto
+end
+
 -- UN ACCESO RODADO entre dos puntos. Lo usa el polígono para engancharse a la
 -- ciudad y, sobre todo, cada DESTINO para engancharse a la calle más cercana.
 --
@@ -207,7 +253,9 @@ local function acceso(
 	desde: Vector3,
 	hasta: Vector3,
 	ancho: number,
-	padre: Instance
+	padre: Instance,
+	cotaInicial: number?,
+	cotaFinal: number?
 ): number
 	local plano = Vector3.new(hasta.X - desde.X, 0, hasta.Z - desde.Z)
 	local largo = plano.Magnitude
@@ -216,31 +264,75 @@ local function acceso(
 		return 0
 	end
 
-	-- POR SEGMENTOS, SIGUIENDO EL SUELO. La primera versión era una sola losa a la
-	-- cota del destino, y el resultado se midió: el acceso a la ruta ámbar quedó
-	-- ENTERRADO bajo el césped en la mitad de su recorrido, porque el terreno sube
-	-- por el camino. Una vía que no se pisa no es una vía.
+	-- POR TRAMOS INCLINADOS, SIGUIENDO EL SUELO. Hubo dos versiones antes de esta y
+	-- las dos se midieron:
 	--
-	-- Cada tramo se planta sobre el suelo que tenga debajo, así que la carretera
-	-- sube y baja con el relieve en vez de atravesarlo.
-	local tramos = math.max(2, math.ceil(largo / 18))
+	--   1. una sola losa a la cota del destino -- el acceso a la ruta ámbar quedó
+	--      ENTERRADO bajo el césped en la mitad de su recorrido, porque el terreno
+	--      sube por el camino;
+	--   2. tramos horizontales, cada uno a la cota de su centro -- mejor, pero
+	--      entre dos tramos con distinta altura queda un escalón, y por ese escalón
+	--      asomaba el césped.
+	--
+	-- Ahora cada tramo va de junta a junta INCLINADO: su cota de salida es la de
+	-- llegada del anterior, así que la carretera es continua y sube con el relieve
+	-- en vez de atravesarlo a saltos.
+	local tramos = math.max(2, math.ceil(largo / 10))
 	local direccion = plano.Unit
+
+	-- Las cotas de las juntas se calculan ANTES, y una sola vez: la junta entre dos
+	-- tramos es la misma para los dos, y calcularla dos veces es la manera de que
+	-- un día no coincidan. Lo que se guarda es la COTA DE RODADURA --por dónde pisa
+	-- el jugador-- y no el suelo de debajo: es la que tiene que casar con la losa
+	-- de la que sale la vía, y hacer esa cuenta en dos sitios distintos es cómo
+	-- aparecen los escalones.
+	local cotas: { number } = {}
+	for i = 0, tramos do
+		local p = desde:Lerp(hasta, i / tramos)
+		cotas[i] = (cotaDelTrazado(ciudad, p, direccion, ancho) or p.Y) + RESALTE_VIA
+	end
+
+	-- LOS DOS EXTREMOS SE IMPONEN, porque de los dos sabemos la respuesta sin
+	-- medirla: la vía sale de una losa nuestra (sé a qué altura la puse) y termina
+	-- en una calle que calleMasCercana ya localizó y midió. Medirlos otra vez con un
+	-- rayo desde el cielo es darle a la ciudad la ocasión de contestar con un
+	-- tejado.
+	if cotaInicial ~= nil then
+		cotas[0] = cotaInicial
+	end
+	if cotaFinal ~= nil then
+		cotas[tramos] = cotaFinal
+	end
+
+	-- Y LAS JUNTAS DE ENMEDIO, SUJETAS A LA CUERDA entre los dos extremos. Esto es
+	-- lo que impide que la carretera se suba a un edificio: el último tramo del
+	-- acceso verde salió TRECE STUDS por encima de la calle --una rampa a un
+	-- balcón-- porque el rayo de su junta cayó sobre una azotea. Ocho studs de
+	-- libertad admiten cualquier cuesta real de esta ciudad; un piso entero, no.
+	local LIBERTAD = 8
+	for i = 1, tramos - 1 do
+		local cuerda = cotas[0] + (cotas[tramos] - cotas[0]) * (i / tramos)
+		cotas[i] = math.clamp(cotas[i], cuerda - LIBERTAD, cuerda + LIBERTAD)
+	end
+
 	local puestos = 0
 	for i = 1, tramos do
-		local t = (i - 0.5) / tramos
-		local centro = desde:Lerp(hasta, t)
-		local y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
+		local p0 = desde:Lerp(hasta, (i - 1) / tramos)
+		local p1 = desde:Lerp(hasta, i / tramos)
+		local a = Vector3.new(p0.X, cotas[i - 1] - GROSOR_VIA / 2, p0.Z)
+		local b = Vector3.new(p1.X, cotas[i] - GROSOR_VIA / 2, p1.Z)
+		local centro = (a + b) / 2
 		local tramo = part(
 			string.format("%s_%d", nombre, i),
-			-- Un poco más largo que su parte proporcional, para que dos tramos
-			-- seguidos se solapen y no quede una junta de césped entre ellos.
-			Vector3.new(ancho, 2.4, largo / tramos + 6),
-			Vector3.new(centro.X, y + 0.4, centro.Z),
+			-- Un poco más largo que el hueco que cubre, para que dos tramos seguidos
+			-- se solapen y no quede una junta de césped entre ellos.
+			Vector3.new(ancho, GROSOR_VIA, (b - a).Magnitude + 6),
+			centro,
 			Color3.fromRGB(96, 96, 102),
 			padre
 		)
 		tramo.Material = Enum.Material.Asphalt
-		tramo.CFrame = CFrame.lookAt(tramo.Position, tramo.Position + direccion)
+		tramo.CFrame = CFrame.lookAt(centro, b)
 		-- RODABLE explícito y no por color: el asfalto se reconoce por gris (ver
 		-- Roads.esCalzada), y una vía nuestra que un día se pinte de otro color
 		-- dejaría de contar sin que nadie tocara esta línea.
@@ -259,13 +351,24 @@ local function calleMasCercana(ciudad: Instance?, centro: Vector3, alcance: numb
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { ciudad }
+	-- A LA ALTURA DE UNO, y no sólo gris. El color dice de qué está hecho, no a qué
+	-- altura está: en esta ciudad hay azoteas y pasarelas grises, y la de la ruta
+	-- verde estaba VEINTE STUDS por encima del destino. Se dio por buena, se le
+	-- construyó una carretera de acceso hasta allí, y el último tramo quedó
+	-- convertido en una rampa a un balcón. Doce studs admiten una cuesta y una acera
+	-- alta; un piso, no.
+	local DESNIVEL_MAXIMO = 12
 	for radio = 30, alcance, 10 do
 		for k = 0, 17 do
 			local angulo = k * math.pi / 9
 			local x = centro.X + math.cos(angulo) * radio
 			local z = centro.Z + math.sin(angulo) * radio
 			local golpe = workspace:Raycast(Vector3.new(x, centro.Y + 120, z), Vector3.new(0, -300, 0), params)
-			if golpe ~= nil and Roads.esCalzada(golpe.Instance.Color) then
+			if
+				golpe ~= nil
+				and Roads.esCalzada(golpe.Instance.Color)
+				and math.abs(golpe.Position.Y - centro.Y) <= DESNIVEL_MAXIMO
+			then
 				return golpe.Position
 			end
 		end
@@ -273,6 +376,14 @@ local function calleMasCercana(ciudad: Instance?, centro: Vector3, alcance: numb
 	return nil
 end
 
+-- EL POLÍGONO: el suelo que construimos nosotros, fuera de la ciudad.
+--
+-- Aquí no se despeja nada porque no hay nada que despejar: es terreno virgen
+-- detrás del borde del mapa. Todo lo del juego --almacén, taller, salida-- vive
+-- encima, y una carretera lo cose a la ciudad.
+--
+-- Se marca RODABLE entero: es una explanada de asfalto, y además es la zona
+-- segura, así que bajarse del vehículo aquí no tendría ningún sentido.
 local function poligono(ciudad: Instance?, padre: Instance)
 	local centro = Config.POLIGONO_CENTRO
 	local medida = Config.POLIGONO_TAMANO
@@ -307,13 +418,20 @@ local function poligono(ciudad: Instance?, padre: Instance)
 	-- sueloDeLaCiudad devuelve nil donde la ciudad no llega, y ahí el tramo se
 	-- queda en la cota que le damos. Medido: sin esto, los últimos metros antes de
 	-- enganchar con la calle quedaban por debajo del césped.
+	-- ARRANCA EN EL BORDE EXTERIOR DE LA LOSA DE LA SALIDA, no en la boca: la losa
+	-- ocupa los quince primeros studs del camino, así que una vía que naciera en la
+	-- boca quedaría enterrada debajo de ella y volvería a asomar --dos studs y medio
+	-- más abajo-- justo donde la losa se acaba. Ese escalón se midió.
+	local bordeSalida = Config.POLIGONO_SALIDA.Z - LADO_SALIDA / 2
 	acceso(
 		ciudad,
 		"PoligonoAcceso",
-		Vector3.new(Config.POLIGONO_SALIDA.X, cota, Config.POLIGONO_SALIDA.Z),
+		Vector3.new(Config.POLIGONO_SALIDA.X, cota, bordeSalida),
 		Vector3.new(Config.POLIGONO_ENGANCHE.X, cota, Config.POLIGONO_ENGANCHE.Z),
 		26,
-		padre
+		padre,
+		-- Al ras de la losa: su cara de arriba, que es por donde se viene pisando.
+		cota + ALTO_LOSA
 	)
 
 	-- Muro perimetral bajo en tres lados: cierra el recinto sin encerrar (la valla
@@ -1099,7 +1217,7 @@ function CityBuilder.build(): Mundo
 	local salida = losa(
 		ciudad,
 		"Salida",
-		Vector3.new(30, ALTO_LOSA, 30),
+		Vector3.new(LADO_SALIDA, ALTO_LOSA, LADO_SALIDA),
 		Vector3.new(salidaPos.X, Config.ALMACEN_POS.Y, salidaPos.Z),
 		Palette.SALIDA,
 		mundo
@@ -1205,7 +1323,17 @@ function CityBuilder.build(): Mundo
 		-- llegar hasta la losa.
 		local calle = calleMasCercana(ciudad, destino.Position, 220)
 		if calle ~= nil then
-			acceso(ciudad, "Acceso_" .. ruta.id, destino.Position, Vector3.new(calle.X, calle.Y, calle.Z), 20, mundo)
+			acceso(
+				ciudad,
+				"Acceso_" .. ruta.id,
+				destino.Position,
+				Vector3.new(calle.X, calle.Y, calle.Z),
+				20,
+				mundo,
+				-- Sale al ras de la losa del destino y muere al ras de la calle.
+				destino.Position.Y + ALTO_LOSA / 2,
+				calle.Y + 0.2
+			)
 		else
 			warn("[Contrabando] el destino " .. ruta.id .. " no tiene calle a menos de 220 studs")
 		end
@@ -1219,18 +1347,31 @@ function CityBuilder.build(): Mundo
 		-- primero que esté LIMPIO: plantarlo a ciegas a una distancia fija es como
 		-- acabó el primero encima de una pista de baloncesto.
 		do
-			local sitio = nil
+			-- CON CALLE, no sólo despejado. Es el segundo requisito y llegó midiendo:
+			-- el taller de la ámbar cayó en un descampado a sesenta studs por debajo
+			-- de la ciudad, sin una calzada a doscientos studs a la redonda. Estaba
+			-- limpio, sí -- limpio como un solar al que no llega ningún coche, y un
+			-- concesionario al que no se puede llegar en coche no es un sitio, es un
+			-- adorno.
+			local sitio, calleTaller = nil, nil
 			for vuelta = 0, 11 do
 				local angulo = vuelta * math.pi / 6
 				local candidato = ruta.destino + Vector3.new(math.cos(angulo) * 58, 0, math.sin(angulo) * 58)
 				local y = sueloDeLaCiudad(ciudad, candidato.X, candidato.Z)
 				if y ~= nil then
-					local libre = despejarCuenta(ciudad, Vector3.new(candidato.X, y, candidato.Z), 110)
+					local centro = Vector3.new(candidato.X, y, candidato.Z)
+					local libre = despejarCuenta(ciudad, centro, 110)
 					if libre == 0 then
-						sitio = Vector3.new(candidato.X, y, candidato.Z)
-						break
+						local calle = calleMasCercana(ciudad, centro, 200)
+						if calle ~= nil then
+							sitio, calleTaller = centro, calle
+							break
+						end
 					end
 				end
+			end
+			if sitio == nil then
+				warn("[Contrabando] la zona " .. ruta.id .. " no tiene sitio despejado con calle: se queda sin taller")
 			end
 			if sitio ~= nil then
 				despejar(ciudad, sitio, 110, 45)
@@ -1239,7 +1380,9 @@ function CityBuilder.build(): Mundo
 				prompt(tallerZona, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.
 				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
-				local calleTaller = calleMasCercana(ciudad, tallerZona.Position, 200)
+				-- La calle es la que se encontró al elegir el sitio: buscarla otra vez
+				-- desde la losa ya construida es darle la ocasión de contestar otra
+				-- cosa, y entonces el taller y su carretera dejan de casar.
 				if calleTaller ~= nil then
 					acceso(
 						ciudad,
@@ -1247,7 +1390,9 @@ function CityBuilder.build(): Mundo
 						tallerZona.Position,
 						Vector3.new(calleTaller.X, calleTaller.Y, calleTaller.Z),
 						18,
-						mundo
+						mundo,
+						tallerZona.Position.Y + ALTO_LOSA / 2,
+						calleTaller.Y + 0.2
 					)
 				end
 				table.insert(talleres, tallerZona)
