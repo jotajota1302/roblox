@@ -26,6 +26,7 @@ local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
+local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 
 local CityBuilder = {}
 
@@ -791,13 +792,17 @@ local function muelle(base: Part, frente: number)
 	-- colocarse: el centro de la nave cae a `-base.Size.Z/2 + largo/2 + 4` y mide 34
 	-- de fondo, así que estas dos filas quedan holgadamente en su interior.
 	local zNave = frente * (-base.Size.Z / 2 + 34 / 2 + 4)
-	for i = 0, Config.ALMACEN_TOPE - 1 do
-		local fila = math.floor(i / 5)
-		local columna = i % 5
+	-- SITIOS PARA LA NAVE MÁS GRANDE QUE SE PUEDE COMPRAR, no para la de partida:
+	-- el muelle se construye una vez y la nave se mejora después, así que con
+	-- ALMACEN_TOPE las piezas de más no tendrían dónde dibujarse.
+	local plazas = Warehouse.mejora(Warehouse.maximo()).tope
+	for i = 0, plazas - 1 do
+		local fila = math.floor(i / 8)
+		local columna = i % 8
 		table.insert(
 			sitios,
 			base.Position
-				+ Vector3.new(-16 + columna * 8, suelo - base.Position.Y + 1.6, zNave + frente * (-8 + fila * 8))
+				+ Vector3.new(-28 + columna * 8, suelo - base.Position.Y + 1.6, zNave + frente * (-10 + fila * 7))
 		)
 	end
 	-- Viajan como atributos de la losa: el cliente los lee sin necesitar un remote

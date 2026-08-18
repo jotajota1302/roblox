@@ -308,7 +308,10 @@ function Hud.update(estado: EstadoHud)
 	if etiquetaCarga then
 		etiquetaCarga.Text = estado.vehiculoNombre or "Carga"
 	end
-	almacenLabel.Text = string.format("%d/%d", estado.almacenCajas or 0, Config.ALMACEN_TOPE)
+	-- El tope que se enseña es el de TU nave, no el de partida: si no, quien la
+	-- mejora ve "12/10" y no entiende nada.
+	local topeNave = (estado.nave and estado.nave.tope) or Config.ALMACEN_TOPE
+	almacenLabel.Text = string.format("%d/%d", estado.almacenCajas or 0, topeNave)
 
 	-- El calor. La línea sólo aparece cuando hay algo que decir: en frío ocuparía
 	-- un cuarto de un panel de tres líneas para poner un cero, y en un móvil ese
@@ -332,7 +335,7 @@ function Hud.update(estado: EstadoHud)
 	cargaLabel.TextColor3 = if #estado.cajas >= capacidad then Color3.fromRGB(230, 180, 70) else UiKit.PAPEL
 	-- Y el almacén al tope, también: a partir de ahí deja de producir y cada
 	-- minuto fuera es tiempo tirado.
-	almacenLabel.TextColor3 = if (estado.almacenCajas or 0) >= Config.ALMACEN_TOPE
+	almacenLabel.TextColor3 = if (estado.almacenCajas or 0) >= topeNave
 		then Color3.fromRGB(230, 180, 70)
 		else UiKit.PAPEL
 

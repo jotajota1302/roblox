@@ -33,6 +33,10 @@ local EXPLICACION: { [string]: string } = {
 	ruta_desconocida = "Esa ruta no existe",
 }
 
+local function avisar(player: Player, texto: string)
+	Remotes.event(Remotes.AVISO):FireClient(player, texto, Palette.AVISO_MALO)
+end
+
 -- La losa de salida sigue siendo el sitio donde el juego INVITA a elegir (allí se
 -- abre el selector solo), pero ya no es donde se valida: eso lo hace el recinto
 -- entero, unos pasos más allá. Se guarda igual porque el mundo la registra al
@@ -55,9 +59,15 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 
 	local estado = PlayerState.get(player)
 	if estado.ruta ~= nil then
+		avisar(player, "Ya vas de camino: entrega antes de elegir otra")
 		return false
 	end
+	-- SIN NADA QUE LLEVAR NO HAY VIAJE, y hay que decirlo. Jugando salió así: con
+	-- la bolsa vacía, pulsar un destino no hacía nada -- ni salía ni avisaba-- y
+	-- desde dentro eso no se distingue de un juego roto. Es exactamente la lección
+	-- que este proyecto ya pagó con el botón de entregar.
 	if #estado.cajas == 0 then
+		avisar(player, "Coge algo en la nave antes de salir")
 		return false
 	end
 
@@ -75,6 +85,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- La regla que importa sigue en pie: fuera del recinto no se elige, así que no
 	-- se cambia de ruta a mitad de viaje.
 	if not Perimeter.dentro(root.Position, 25) then
+		avisar(player, "La ruta se elige en tu poligono, no a mitad de viaje")
 		return false
 	end
 
@@ -88,10 +99,12 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 		-- Y SE DICE POR QUÉ. Cuatro motivos distintos por los que no se sale se ven
 		-- todos igual desde dentro --no pasa nada al pulsar-- y eso se lee como un
 		-- juego roto, no como una regla.
-		local texto = if motivo == "nivel_insuficiente"
-			then string.format("Te falta nivel: %s", Routes.requisito(rutaId))
-			else EXPLICACION[motivo] or "Por ahi no puedes salir"
-		Remotes.event(Remotes.AVISO):FireClient(player, texto, Palette.AVISO_MALO)
+		avisar(
+			player,
+			if motivo == "nivel_insuficiente"
+				then string.format("Te falta nivel: %s", Routes.requisito(rutaId))
+				else EXPLICACION[motivo] or "Por ahi no puedes salir"
+		)
 		return false
 	end
 

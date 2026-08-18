@@ -31,6 +31,13 @@ local EXPLICACION: { [string]: string } = {
 	al_maximo = "Tu nave ya esta al maximo",
 }
 
+-- Y por qué no se puede dejar la carga. "sin_carga" no está: pulsar con las manos
+-- vacías no es un error del que haya que avisar, es no hacer nada.
+local EXPLICACION_DEVOLVER: { [string]: string } = {
+	lejos = "Acercate a la nave para dejarlo",
+	ya_en_ruta = "Ya has elegido ruta: esto se entrega en su destino",
+}
+
 function WarehouseService.registrarAlmacen(part: BasePart)
 	almacen = part
 end
@@ -269,7 +276,11 @@ function WarehouseService.devolver(player: Player): (boolean, string)
 
 	local cuantas = #estado.cajas
 	estado.cajas = {}
-	estado.almacenCajas = math.min(Config.ALMACEN_TOPE, (estado.almacenCajas or 0) + cuantas)
+	-- EL TOPE ES EL DE TU NAVE, no el de partida. Con la constante, quien pagaba
+	-- 1.200 monedas por subir a tope 14 seguía sin poder dejar más de 10: la mejora
+	-- se cobraba y no hacía nada por este lado. Es el mismo fallo que se evitó en
+	-- la producción, y aquí se coló.
+	estado.almacenCajas = math.min(Warehouse.mejora(estado.naveNivel).tope, (estado.almacenCajas or 0) + cuantas)
 	CargoService.aplicarVelocidad(player)
 	CargoService.mostrarCarga(player)
 	PlayerState.sync(player)
@@ -280,9 +291,18 @@ end
 
 function WarehouseService.start()
 	Remotes.event(Remotes.DEVOLVER).OnServerEvent:Connect(function(player)
-		local ok, motivo = pcall(WarehouseService.devolver, player)
-		if not ok then
-			warn("[Contrabando] fallo al devolver carga: " .. tostring(motivo))
+		local vivo, resultado, motivo = pcall(WarehouseService.devolver, player)
+		if not vivo then
+			warn("[Contrabando] fallo al devolver carga: " .. tostring(resultado))
+			return
+		end
+		-- Y SI NO SE PUEDE, SE DICE. Jugando salió esto: con una ruta ya elegida,
+		-- pulsar "dejar carga" no hacía absolutamente nada -- ni pasaba ni avisaba.
+		-- Desde dentro eso no se distingue de un juego roto, y este proyecto ya
+		-- pagó esa lección con el botón de entregar.
+		if not resultado and motivo ~= "sin_carga" then
+			Remotes.event(Remotes.AVISO)
+				:FireClient(player, EXPLICACION_DEVOLVER[motivo] or "Aqui no puedes dejar la carga", Palette.AVISO_MALO)
 		end
 	end)
 
