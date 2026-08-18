@@ -20,6 +20,7 @@ local Compass = require(script.Parent:WaitForChild("Compass"))
 local Garage = require(script.Parent:WaitForChild("Garage"))
 local Gate = require(script.Parent:WaitForChild("Gate"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
+local Menu = require(script.Parent:WaitForChild("Menu"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
@@ -60,6 +61,7 @@ construir("Hud", Hud.build)
 construir("Gate", Gate.build)
 construir("Compass", Compass.build)
 construir("Minimap", Minimap.build)
+construir("Menu", Menu.build)
 
 construir("RoutePicker", function()
 	RoutePicker.build(function(rutaId)
@@ -341,8 +343,10 @@ local function refrescarSelector()
 	-- setModal ANTES de update y de mision: las dos miran si hay algo delante para
 	-- decidir si se dibujan.
 	Hud.setModal(mostrar)
+	pcall(Menu.setModal, mostrar)
 	if ultimoEstado then
 		Hud.update(ultimoEstado)
+		pcall(Menu.actualizar, ultimoEstado)
 	end
 	Hud.mision(misionActual(ultimoEstado))
 	mandoDeVehiculo(ultimoEstado)
@@ -544,6 +548,10 @@ task.spawn(function()
 		task.wait(0.25)
 		pcall(refrescarSelector)
 		pcall(recogerSiEstasEncima)
+		-- La cuenta atrás del señuelo va aquí y no en RenderStepped: es
+		-- información, y con la ventana sin foco RenderStepped da cero llamadas por
+		-- segundo -- el botón se quedaría congelado en su cuenta atrás.
+		pcall(Menu.tick)
 	end
 end)
 

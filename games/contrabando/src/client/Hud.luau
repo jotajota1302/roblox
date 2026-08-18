@@ -16,6 +16,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Contacts = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Contacts"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 
@@ -29,6 +30,8 @@ local calorLabel: TextLabel
 local calorFila: Frame
 local metaLabel: TextLabel
 local metaFila: Frame
+local contactosLabel: TextLabel
+local contactosFila: Frame
 local avisoLabel: TextLabel
 local misionLabel: TextLabel
 local accionesPanel: Frame
@@ -139,6 +142,17 @@ function Hud.build()
 	metaLabel = linea("Meta", 5, "Meta")
 	metaFila = metaLabel.Parent :: Frame
 	metaFila.Visible = false
+
+	-- LOS CONTACTOS, y la racha entre paréntesis. También condicional: hasta que se
+	-- recoge el primero no hay nada que contar, y un cero fijo en un panel de tres
+	-- líneas es sitio caro tirado en un móvil.
+	--
+	-- Van juntos porque son la misma cosa vista de dos maneras: lo que has
+	-- recogido en este viaje es lo que estás corriendo de más.
+	contactosLabel = linea("Contactos", 6, "Contactos")
+	contactosFila = contactosLabel.Parent :: Frame
+	contactosFila.Visible = false
+	contactosLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 	-- El dinero es el número que más se mira: se le da el color del oro para que
 	-- destaque entre los otros dos sin necesidad de leer la etiqueta.
 	dineroLabel.TextColor3 = Color3.fromRGB(238, 202, 122)
@@ -363,6 +377,8 @@ export type EstadoHud = {
 	vehiculoNombre: string?,
 	mejoras: { { id: string, nombre: string, coste: number, capacidad: number } }?,
 	cajasEnVehiculo: { any }?,
+	contactos: number?,
+	recogidos: number?,
 }
 
 function Hud.update(estado: EstadoHud)
@@ -407,6 +423,18 @@ function Hud.update(estado: EstadoHud)
 			then Color3.fromRGB(235, 75, 70)
 			elseif nivel == 2 then Color3.fromRGB(235, 140, 60)
 			else Color3.fromRGB(230, 190, 80)
+	end
+
+	-- Los contactos, con la racha al lado cuando la hay. "12  (+2,0)" dice a la vez
+	-- lo que llevas ahorrado y lo que estás corriendo de más por haberlo recogido.
+	local contactos = estado.contactos or 0
+	local recogidos = estado.recogidos or 0
+	if contactosFila then
+		contactosFila.Visible = contactos > 0 or recogidos > 0
+	end
+	if contactosLabel then
+		local racha = Contacts.racha(recogidos)
+		contactosLabel.Text = if racha > 0 then string.format("%d  (+%.1f)", contactos, racha) else tostring(contactos)
 	end
 
 	-- El zurrón lleno se pinta en ámbar: es la señal de "ya no te cabe más, vete",
