@@ -206,9 +206,14 @@ arregla.
    su radio, las guaridas con su alcance y los ladrones con su aura, todo en el minimapa; y
    el selector anuncia lo que compras. Los ladrones salen de guaridas fijas: medido, entre
    el 62 % y el 66 % del trayecto tiene una a distancia útil (antes: 0 %, salían del aire).
-6. **Ladrones que crecen con lo que llevas** (§3.B).
-7. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
-8. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
+6. ~~**El viaje deja de estar vacío**~~ — **hecho el 18/08**. Contactos por el camino que se
+   gastan en cuatro habilidades (camuflaje, aguante, vista, señuelo), racha de velocidad que
+   se pierde al entregar y al ser alcanzado, y menú 2D para las tres tiendas. Spec y plan en
+   `docs/specs/` y `docs/plans/` del 18/08. Nació de comparar el juego con *+1 Speed Keyboard
+   Escape*: allí cada paso da algo y aquí los 54-100 s de viaje no daban nada.
+7. **Ladrones que crecen con lo que llevas** (§3.B).
+8. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
+9. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
 
 Y sólo entonces publicar y mirar los números. Lo de después —Redada, precios rotativos,
 monetización, mapa procedural— **no significa nada hasta que haya gente**.

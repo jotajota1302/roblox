@@ -28,13 +28,14 @@ habilita.
    ▼
 [DECISIÓN]  qué te llevas (cabe poco) y por qué ruta sales (verde ×1 / ámbar ×3 / roja ×10)
    ▼
-[VIAJE]     te ven pasar → sube el peligro → aparecen ladrones → te refugias o corres
+[VIAJE]     recoges CONTACTOS por el camino (y aceleras con cada uno) mientras
+            te ven pasar → sube el peligro → aparecen ladrones → te refugias o corres
    ▼
 [ENTREGA]   cobras, subes de nivel, y el destino te ofrece CARGA DE VUELTA
    ▼
 [VUELTA]    con la carga de vuelta encima, que también se puede perder
    ▼
-[INVERSIÓN] vehículos en el taller ─────────────────────────────────────┘
+[INVERSIÓN] vehículos, nave y HABILIDADES, desde el menú ───────────────┘
 ```
 
 La vuelta no es tiempo muerto: se paga al 60 % de la ida y también te la pueden robar.
@@ -210,6 +211,43 @@ Es el sumidero que no se acaba, y hace lo que el garaje no puede: **alarga tu ve
 ausencia**. De paso arregla el techo de la capacidad — con la nave de partida un almacén
 lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no servía de nada.
 
+### Los contactos y las habilidades
+
+**El viaje ya no es solo peligro.** Antes, toda la experiencia del juego se otorgaba en una
+sola línea de código —al entregar—, así que durante los 54-100 segundos de camino el jugador
+no ganaba nada y solo podía perder. Ahora hay algo bueno **dentro** del viaje.
+
+| | |
+|---|---|
+| Qué son | Fichas que **no ocupan hueco** y **no se pueden robar**. Solo se gastan en habilidades |
+| Cuándo cuentan | Solo con misión activa (carga + ruta). Pasar sin nada no da nada |
+| Sueltos | Sobre el camino, valor 1. Dan el **ritmo** |
+| Racimos | Apartados 55 studs hacia una guarida, valor 5. Dan la **decisión** |
+| Por ruta | verde 6+1 · ámbar 10+2 · roja 16+3 |
+
+Y **se reparten sobre el camino real** que calcula el pathfinder, no sobre la recta
+casa-destino. No es un detalle: con la recta, medidos contra el camino de verdad, caían en él
+el 0 % de la ruta verde. Treinta y ocho piezas plantadas y ninguna al alcance de nadie.
+
+**La racha.** Cada contacto recogido da **+0,5 studs/s** hasta un tope de **+4**, y se pierde
+entera al entregar y al ser alcanzado. La velocidad es **del viaje, no tuya** — la permanente
+está descartada porque nadie puede volverse inalcanzable. Los ladrones escalan con tu
+velocidad actual, racha incluida.
+
+**Las habilidades**, pagadas con contactos:
+
+| | Qué hace | Peldaños | Coste |
+|---|---|---|---|
+| **Camuflaje** | te fichan desde menos lejos (35 → 26 studs) | −8 / −16 / −25 % | 20 / 60 / 150 |
+| **Aguante** | pierdes menos carga al ser alcanzado | −10 / −20 / −30 % | 20 / 60 / 150 |
+| **Vista** | ves guaridas y ladrones desde más lejos | +25 / +50 / +75 % | 20 / 60 / 150 |
+| **Señuelo** | sueltas un cebo: los ladrones van a él 6 s (recarga 45 s) | — | 80 |
+
+Ninguna da velocidad y ninguna anula: son factores sobre números que ya se calculaban. El
+robo tiene **suelo del 10 %** — con todo comprado siguen llevándose el 21 % ante un jugador y
+el 35 % ante un PNJ. Que ninguna combinación deje a nadie fuera de alcance está comprobado en
+la batería, no confiado a un comentario.
+
 ## 4. El mundo
 
 - **El polígono**: 360 × 250 studs de explanada propia **fuera de la ciudad**, con muro en
@@ -226,7 +264,13 @@ lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no serví
 ## 5. Lo que ve el jugador
 
 - **HUD**: dinero, nivel y barra de XP, carga (con lo que espera en el vehículo), peligro,
-  la misión en curso y una línea de acciones con las teclas.
+  **contactos con la racha al lado** ("12 (+2,0)"), la misión en curso y una línea de
+  acciones con las teclas.
+- **Menú 2D** en el borde derecho: Señuelo, Habilidades, Nave y Taller. Los edificios se
+  quedan y siguen funcionando -- el menú es una segunda puerta, no una demolición. La única
+  excepción: **comprar** un vehículo se puede desde cualquier sitio, **sacarlo** del garaje
+  sigue pidiendo estar en un taller, o "cuál me llevo a este viaje" deja de ser una
+  decisión.
 - **Brújula** hacia lo que toca ahora, y **minimapa con los peligros**: las esquinas
   fichadas con su radio real, las guaridas con su alcance, y los ladrones activos con la
   zona a la que ya te avisan — los que se salen del recuadro se pegan al borde en vez de
@@ -238,10 +282,11 @@ lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no serví
 
 ## 6. Lo que está guardado
 
-En DataStore, por jugador: dinero, XP, vehículos del garaje, vehículo activo, **cuántas
-piezas** tiene la nave y la hora de la última visita — de ahí sale la producción offline.
+En DataStore, por jugador: dinero, XP, **contactos y habilidades**, vehículos del garaje,
+vehículo activo, **cuántas piezas** tiene la nave y la hora de la última visita — de ahí sale la producción offline.
 **El peligro no se guarda** a propósito: es del viaje, y volver con 3 heredado sería un
-castigo por desconectarse.
+castigo por desconectarse. **La racha tampoco**, por lo mismo al revés: volver con la de ayer
+sería premio por desconectarse.
 
 ## 7. Lo que NO está en el juego
 
