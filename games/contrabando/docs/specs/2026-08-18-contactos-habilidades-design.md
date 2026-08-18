@@ -84,6 +84,35 @@ sueltos van **sobre** el camino, no al lado.
 
 Los números son de partida y están para calibrarse con una partida real, no para defenderse.
 
+### La racha: cada contacto te acelera
+
+Petición de JJ al ver el juego de referencia: *"eso debería hacer que cada vez vayas más
+rápido"*. Y es la mitad de por qué aquel juego engancha — pero **la velocidad permanente
+está descartada desde el principio**, y lo dice la cabecera de `Levels.luau`: chocaría con
+la regla de que nadie puede volverse inalcanzable, y sin alcance no hay PvP.
+
+La salida es la que usa el propio juego de referencia: **la velocidad es del intento, no
+tuya**. Corres, aceleras, y un paso en falso te devuelve al principio.
+
+| | |
+|---|---|
+| Cada contacto recogido | **+0,5 studs/s** mientras dure el viaje |
+| Tope de la racha | **+4 studs/s** (el coche, el más rápido, queda en 38 con el antitrampas en 40) |
+| Se pierde entera | al **entregar** y al **ser alcanzado** |
+| Los ladrones | escalan con tu velocidad **actual**, racha incluida |
+
+Esa última línea es la que sostiene la regla de oro: el ladrón ya hereda el vehículo del
+perseguido (`vehiculoDelPerseguidor`), y ahora hereda también la racha. Aceleras de verdad,
+lo notas de verdad, y no te vuelves inalcanzable.
+
+Y encaja con la tensión que el juego ya tiene: la racha convierte cada robo en una pérdida
+doble —la carga y la velocidad— sin añadir ninguna regla que explicar.
+
+**Dónde vive:** la racha se calcula en `Contacts` (puro) y se aplica donde ya se escribe
+`WalkSpeed` (`CargoService`, `RoadService`). **No se toca `Cargo.velocidad`**: la carga y la
+racha son cosas distintas, y mezclarlas obligaría a que todo el que pregunta por el peso
+supiera del viaje.
+
 ---
 
 ## 4. Las habilidades
@@ -93,8 +122,8 @@ ya se calcula. Ninguna crea un sistema nuevo y **ninguna da velocidad**.
 
 | Habilidad | Qué hace | Sobre qué | Peldaños |
 |---|---|---|---|
-| **Camuflaje** | te fichan desde menos lejos | resta studs al `bulto` del vehículo | −3 / −6 / −10 studs |
-| **Aguante** | pierdes menos carga al ser alcanzado | modifica `expone`, **con suelo de 1** | −1 caja por peldaño |
+| **Camuflaje** | te fichan desde menos lejos | factor sobre el `bulto` del vehículo | −8 % / −16 % / −25 % |
+| **Aguante** | pierdes menos carga al ser alcanzado | factor sobre la fracción robada, **con suelo del 10 %** | −10 % / −20 % / −30 % |
 | **Vista** | ves guaridas y ladrones desde más lejos | alcance del minimapa | +25 % / +50 % / +75 % |
 | **Señuelo** *(activo)* | los ladrones a menos de 120 studs van a un punto, no a ti | objetivo de `PatrolService` | dura 6 s, recarga 45 s |
 
@@ -114,9 +143,10 @@ inmunidad al robo. Camuflaje y aguante mitigan; el señuelo **retrasa**, no anul
 recarga. Una prueba pura comprobará que ninguna combinación deja al jugador fuera del
 alcance de un ladrón.
 
-El **suelo de 1 caja** en Aguante existe por esto: la furgoneta ya pierde solo 2 de cada 10,
-y tres peldaños sin suelo la dejarían en **cero** — inmunidad al robo por la puerta de
-atrás, que es exactamente lo que el diseño prohíbe.
+El **suelo del 10 %** en Aguante existe por esto: `expone` y `bulto` son multiplicadores, no
+cantidades, así que apilar factores sin suelo acabaría llevando la fracción robada a cero —
+inmunidad al robo por la puerta de atrás, que es exactamente lo que el diseño prohíbe. Con
+todo comprado, un jugador todavía pierde el 21 % ante otro jugador y el 35 % ante un PNJ.
 
 ---
 

@@ -621,4 +621,43 @@ Config.SONIDOS = {
 -- Anticheat: nadie corre más que esto ni en el mejor de los casos.
 Config.VELOCIDAD_MAXIMA_PLAUSIBLE = 40
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- LOS CONTACTOS: la moneda de las habilidades, que se recoge por el camino.
+--
+-- POR QUÉ EXISTEN. Toda la experiencia del juego se otorgaba en UNA línea
+-- (CargoService, al entregar): durante los 54-100 segundos de viaje el jugador no
+-- ganaba nada y sólo podía perder. El viaje era un impuesto entre dos momentos
+-- buenos. Los contactos ponen algo bueno DENTRO del viaje.
+--
+-- No ocupan hueco del zurrón y NO SE PUEDEN ROBAR, a propósito: la economía de
+-- monedas y el eje de riesgo ya están equilibrados, y una moneda paralela que no
+-- los toca no puede desequilibrarlos.
+Config.CONTACTO_RADIO = 10 -- studs de recogida, por proximidad: no hay que pulsar
+Config.CONTACTO_VALOR_SUELTO = 1
+Config.CONTACTO_VALOR_RACIMO = 5
+
+-- Los sueltos van SOBRE el camino y dan el ritmo (algo pasa cada 3-5 segundos).
+-- Los racimos van apartados, pegados a un peligro, y son la decisión: el premio
+-- está donde está el riesgo. El desvío es menor que el de una guarida (70) para
+-- que ir a por uno sea un rodeo y no una expedición.
+Config.CONTACTO_RACIMO_DESVIO = 55
+
+-- Cuántos por ruta. Escalan con el peligro, como todo lo demás.
+Config.CONTACTOS_POR_RUTA = {
+	verde = { sueltos = 6, racimos = 1 },
+	ambar = { sueltos = 10, racimos = 2 },
+	roja = { sueltos = 16, racimos = 3 },
+} :: { [string]: { sueltos: number, racimos: number } }
+
+-- LA RACHA: cada contacto recogido te acelera, y la velocidad es DEL VIAJE, no
+-- tuya. La velocidad permanente está descartada desde el principio (ver la
+-- cabecera de Levels.luau): chocaría con la regla de que nadie puede volverse
+-- inalcanzable, y sin alcance no hay PvP.
+--
+-- Así se puede acelerar de verdad sin romperla: se pierde entera al entregar y al
+-- ser alcanzado, y los ladrones escalan con la velocidad ACTUAL del perseguido,
+-- racha incluida.
+Config.RACHA_POR_CONTACTO = 0.5
+Config.RACHA_MAXIMA = 4 -- el coche (34) queda en 38, con el antitrampas en 40
+
 return Config
