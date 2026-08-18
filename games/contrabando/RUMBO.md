@@ -50,9 +50,9 @@ no cuesta nada, y pierde. Es el fallo que hace que el juego se termine en una ho
 
 ---
 
-## 3. El rumbo: tres piezas que encajan entre sí
+## 3. El rumbo: cuatro piezas que encajan entre sí
 
-No son tres ideas sueltas: cada una tapa el agujero que dejan las otras.
+No son cuatro ideas sueltas: cada una tapa el agujero que dejan las otras.
 
 ### A. El nivel es la licencia
 
@@ -104,6 +104,35 @@ sea, literalmente el motivo de volver mañana. Tres mejoras, todas con coste cre
 | **Seguro** | pierdes menos al ser robado | mitiga el mal día sin quitar la tensión |
 
 Con esto el dinero deja de agotarse: el garaje es el escalón 1 y la nave es la escalera.
+
+### D. Se tiene que poder PLANEAR el viaje mirando el mapa
+
+Petición de JJ, jugando: *"no ves en el mapa dónde están los ladrones y su zona de
+influencia, te aparecen de repente; deberías poder mirar el mapa y planear por dónde ir"*.
+
+Tiene razón y además señala el agujero exacto entre lo que el diseño prometía y lo que hay.
+El rediseño de la ciudad decía que la habilidad del juego sería **reconocer el cruce malo y
+rodearlo**. Hoy eso es imposible de aprender salvo perdiendo: las esquinas fichadas están
+en sitios fijos —bien— pero **no se ven en ningún sitio**, y los ladrones **aparecen de la
+nada a 90-140 studs de ti** (`PatrolService`, `APARICION_MIN/MAX`). Un peligro que no se
+puede anticipar no es tensión: es un impuesto.
+
+Cuatro cambios, y los dos primeros son los que arreglan el fondo:
+
+1. **Las esquinas fichadas, en el mapa, con su radio.** Están en posiciones fijas y con
+   semilla por ruta; el jugador es un repartidor que se conoce su ciudad. Que se vean
+   convierte el viaje en **una decisión antes de salir** en vez de una sorpresa a mitad.
+2. **Los ladrones vienen de algún sitio: guaridas.** Hoy aparecen de la nada, y por eso
+   "aparecen de repente" — literalmente. Que salgan de **guaridas fijas y marcadas en el
+   mapa** hace tres cosas a la vez: se pueden rodear, explican de dónde viene el que te
+   persigue, y dan a las zonas un carácter más allá del color.
+3. **Los ladrones activos, en el mapa, en vivo**, como puntos con su radio de persecución.
+   Ver al que te sigue es lo que convierte huir en decidir por dónde.
+4. **El selector de ruta enseña lo que compras**: "la ámbar tiene 9 esquinas fichadas y 2
+   guaridas". Elegir ruta hoy es elegir un multiplicador a ciegas.
+
+Encaja con §3.B: si los ladrones crecen con lo que llevas, el jugador tiene que poder
+**ver** ese coste antes de cargarse la legendaria a la espalda.
 
 ---
 
@@ -163,9 +192,11 @@ arregla.
 3. **Lo grande tiene que pagar más por hueco** ([`V1.md`](V1.md) §1) — medio catálogo es
    hoy decoración cara.
 4. **Recuperar el eje de exposición de los vehículos** (§2) — gratis, devuelve una decisión.
-5. **Ladrones que crecen con lo que llevas** (§3.B).
-6. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
-7. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
+5. **El mapa que deja planear** (§3.D) — esquinas fichadas y guaridas visibles. Es lo que
+   convierte el viaje en una decisión y hoy no existe.
+6. **Ladrones que crecen con lo que llevas** (§3.B).
+7. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
+8. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
 
 Y sólo entonces publicar y mirar los números. Lo de después —Redada, precios rotativos,
 monetización, mapa procedural— **no significa nada hasta que haya gente**.
