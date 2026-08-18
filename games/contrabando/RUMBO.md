@@ -211,9 +211,14 @@ arregla.
    se pierde al entregar y al ser alcanzado, y menú 2D para las tres tiendas. Spec y plan en
    `docs/specs/` y `docs/plans/` del 18/08. Nació de comparar el juego con *+1 Speed Keyboard
    Escape*: allí cada paso da algo y aquí los 54-100 s de viaje no daban nada.
-7. **Ladrones que crecen con lo que llevas** (§3.B).
-8. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
-9. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
+7. **El primer bucle** — *en marcha, 18/08*. Numeritos flotantes al cobrar, hitos con
+   objetivo visible, y la ruta de **barrio** (×0,5, ~250 studs) que se abre por entregas.
+   Spec y plan del 18/08 en `docs/`. **Pendiente de verificar en Studio**: el destino del
+   barrio está estimado, no medido, y falta cronometrar la primera entrega (objetivo ≤50 s
+   frente a los ~100 de hoy).
+8. **Ladrones que crecen con lo que llevas** (§3.B).
+9. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
+10. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
 
 Y sólo entonces publicar y mirar los números. Lo de después —Redada, precios rotativos,
 monetización, mapa procedural— **no significa nada hasta que haya gente**.

@@ -81,6 +81,7 @@ pie. Ésa es la razón de ser del dinero — el vehículo no es "una caja más",
 
 | Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Distancia recta |
 |---|---|---|---|---|---|
+| ⬜ Barrio | ×0,5 | — | 1 | ninguno | ~250 desde la salida |
 | 🟢 Verde | ×1 | — | 3 | ninguno | ~420 studs |
 | 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | ~848 |
 | 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | ~1.399 |
@@ -211,6 +212,29 @@ Es el sumidero que no se acaba, y hace lo que el garaje no puede: **alarga tu ve
 ausencia**. De paso arregla el techo de la capacidad — con la nave de partida un almacén
 lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no servía de nada.
 
+### Los hitos: qué toca hacer ahora
+
+**El primer minuto no pagaba.** Medido: la primera recompensa llegaba a los ~100 s, y en el
+juego que inspiró esta tanda llega a los 3. Y la licencia por nivel existía pero sólo se
+descubría chocando: pulsabas la ámbar y te decía que no.
+
+| Hito | Condición | Qué da |
+|---|---|---|
+| 1 | 1 entrega | Abre la **ruta verde** + 50 monedas |
+| 2 | 3 entregas | 250 monedas |
+| 3 | nivel 3 | La ámbar *(ya existía; ahora se anuncia)* |
+| 4 | 8 entregas | 1.000 monedas |
+| 5 | nivel 8 + vehículo de motor | La roja *(ya existía)* |
+
+Los de abajo cuentan **entregas y no nivel**: el nivel sube con el dinero cobrado, así que su
+ritmo depende de qué llevabas encima. Las entregas miden lo que el jugador hace.
+
+El objetivo actual va en su propia línea del HUD, separada de la misión: la misión dice qué
+hacer **ahora** (ve a la salida, entrega aquí) y el objetivo **a qué aspiras**.
+
+Y **cobrar se nota**: número flotante sobre el personaje al entregar y al recoger un
+contacto, y el dinero del HUD contando hacia arriba en vez de saltar.
+
 ### Los contactos y las habilidades
 
 **El viaje ya no es solo peligro.** Antes, toda la experiencia del juego se otorgaba en una
@@ -296,7 +320,8 @@ Para que nadie lo dé por hecho leyendo los documentos viejos:
 - **No hay evento global** ("Redada"): sin masa de jugadores no significa nada.
 - **No hay rotación de precios**: los multiplicadores son fijos.
 - **No hay tutorial explícito**: todo se aprende con el mundo (la valla que te frena, la
-  baliza que se ve desde lejos, el aviso de "te vienen detrás").
+  baliza que se ve desde lejos, el aviso de "te vienen detrás") y con los hitos, que dicen
+  qué toca sin explicar cómo.
 - **El robo entre dos jugadores reales no se ha probado nunca.** Está implementado y sus
   reglas tienen pruebas puras, pero nadie lo ha jugado con dos personas.
 
