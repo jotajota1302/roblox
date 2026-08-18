@@ -1,0 +1,171 @@
+# Rumbo: de dónde venimos, dónde estamos, a dónde vamos
+
+> 2026-08-18. Escrito porque **hemos divergido del plan original** y conviene decidir qué
+> divergencias se quedan. Contrasta [`DISENO.md`](DISENO.md) (el plan) con
+> [`JUEGO.md`](JUEGO.md) (lo que hay), y propone la espina dorsal que hoy falta.
+>
+> El criterio no cambia (`TARGETS.md`): **retención D1**. Todo lo de aquí se justifica por
+> ahí o no se justifica.
+
+---
+
+## 1. El plan original, en una tabla
+
+| Pilar | Cómo se sostenía |
+|---|---|
+| La decisión | Qué llevo, a dónde, por qué ruta — riesgo contra recompensa |
+| La tensión | En las rutas que pagan, **cualquiera puede alcanzarte** |
+| El sumidero | Almacén (mejora), vehículos, consumibles |
+| **Volver mañana** | (a) el almacén produce con tope y **deja de producir** al llenarse; (b) los precios **rotan**; (c) evento global **Redada** |
+| La regla de oro | La progresión va por capacidad y acceso, **nunca por potencia** |
+
+## 2. En qué hemos divergido
+
+### Divergencias buenas — se quedan
+
+| | Por qué se quedan |
+|---|---|
+| **El viaje pasó de una recta a una ciudad** con peligro, esquinas fichadas y ladrones | El plan original falló su propio criterio de kill: el trayecto era tiempo muerto. Esto es el rediseño, no un capricho |
+| **Policía → ladrones; refugios → comisarías** | Había dos amenazas idénticas y narrativamente opuestas. Ahora el PNJ es el tutorial del jugador humano |
+| **Carga de vuelta** | La vuelta era la mitad del ciclo sin juego |
+| **Catálogo con tamaños** (un piano no se lleva a pie) | Es lo que le da destino al dinero: el vehículo deja de ser "una caja más" y pasa a ser una llave |
+| **Regla de la calzada + garaje** | Convierte "el último vehículo es el mejor" en "cuál me llevo a este viaje" |
+| **El polígono como casa** | Salir de casa significa algo cuando hay una casa |
+
+### Divergencias que hay que corregir
+
+| | Qué pasó | Qué hacer |
+|---|---|---|
+| **Los tres motivos para volver mañana** | Ninguno de los tres está implementado. El almacén produce y tiene tope, sí, pero **no se puede mejorar**; los precios no rotan; la Redada no existe | Es el agujero grande. Ver §3 |
+| **El eje "exposición" de los vehículos** | El plan daba a cada vehículo una consecuencia distinta al ser alcanzado (sueltas todo / pierdes 30 % / aguanta dos toques). Hoy **todos pierden lo mismo**: el eje desapareció sin que nadie lo decidiera | Recuperarlo: es gratis y devuelve una decisión |
+| **Cuatro vehículos se volvieron ocho** | Más escalones, pero el último cuesta 15.000 y sólo da ×2,15 sobre ir a pie | No añadir más. Ver §3 |
+| **Nivel y XP** | Se añadieron sin estar en el plan, y hoy **no hacen nada**: son un número que sube | Darles el trabajo que falta: ser la licencia |
+
+### Y lo que el plan no vio venir
+
+**La ruta multiplica ×10 gratis lo que el garaje cobra a 31.950.** Medido hoy: el garaje
+entero se paga con **siete viajes rojos a pie**. El sumidero compite contra una palanca que
+no cuesta nada, y pierde. Es el fallo que hace que el juego se termine en una hora
+(detalle y cifras en [`V1.md`](V1.md) §1).
+
+---
+
+## 3. El rumbo: tres piezas que encajan entre sí
+
+No son tres ideas sueltas: cada una tapa el agujero que dejan las otras.
+
+### A. El nivel es la licencia
+
+Hoy subir de nivel no cambia nada. Que el nivel **abra rutas y tiers de vehículo**:
+
+| Nivel | Qué se abre |
+|---|---|
+| 1 | Verde |
+| 3 | Ámbar, y el primer vehículo de calzada |
+| 6 | Roja |
+
+Tres cosas a la vez, con un cambio pequeño:
+
+1. **el ×10 deja de ser gratis** y pasa a estar detrás de jugar, que es exactamente donde
+   tenía que estar;
+2. **la XP empieza a significar algo** sin inventar un sistema nuevo;
+3. **la primera sesión tiene un arco**: viajes verdes → nivel 3 → "acabo de desbloquear la
+   ámbar", que es el momento que hace que alguien vuelva.
+
+Y no rompe la regla de oro: sigue siendo **acceso**, no potencia.
+
+### B. Los ladrones crecen — pero con lo que llevas, no con lo que eres
+
+Tu idea, afinada. Que salgan más ladrones *porque has subido de nivel* castiga progresar:
+el jugador aprende que mejorar le hace la vida peor. Que salgan más **porque llevas una
+fortuna encima** hace lo contrario — es una decisión suya, y es justo la tensión que el
+diseño buscaba desde el principio ("una legendaria por la roja vale 13.500, pero tu haz de
+luz se ve desde el otro extremo del mapa").
+
+Propuesta concreta:
+
+- **Cuántos**: los que ya manda el peligro (0/1/2/3) **+1 si llevas sellada o legendaria**.
+  Lo caro atrae, y eso ya se ve —la legendaria tiene su haz— así que no hay que explicarlo.
+- **Cómo de buenos**: su velocidad sube **despacio con tu nivel** (digamos +1 stud/s cada
+  tres niveles) con un tope por debajo de la velocidad cargada del vehículo de tu tier. Así
+  el mundo no se queda de juguete cuando progresas, pero **nunca te pillan por ser bueno**.
+- **La recompensa sube más deprisa que el riesgo.** Es la condición que no se puede
+  romper: si un tramo de la progresión da más peligro que dinero, ahí se abandona.
+
+### C. El sumidero que no se acaba: la nave
+
+Está en el plan original y nunca se hizo. Es lo que **alarga tu ventana de ausencia**, o
+sea, literalmente el motivo de volver mañana. Tres mejoras, todas con coste creciente:
+
+| Mejora | Qué hace | Por qué importa |
+|---|---|---|
+| **Ritmo** | produce más deprisa | menos espera muerta en sesión |
+| **Tope** | almacena más | puedes ausentarte más tiempo sin desperdiciar |
+| **Seguro** | pierdes menos al ser robado | mitiga el mal día sin quitar la tensión |
+
+Con esto el dinero deja de agotarse: el garaje es el escalón 1 y la nave es la escalera.
+
+---
+
+## 4. Monetización
+
+**Regla de tiempo: no se monetiza antes de tener retención.** Monetizar un juego que no
+retiene es gastarse el tráfico. Pero se diseña ahora para no atornillarla después.
+
+**Regla de contenido: nada que dé velocidad ni que proteja del robo.** Rompería la única
+regla innegociable del diseño — que nadie sea inatrapable — y convertiría las rutas rojas
+en dinero gratis para quien pague.
+
+Lo que sí encaja, por orden de "cuánto convierte" contra "cuánto daña":
+
+| | Tipo | Qué da | Riesgo |
+|---|---|---|---|
+| **Nave grande** | Gamepass | +tope y +ritmo de producción | Ninguno: es comodidad, y ataca justo la fricción que más se nota |
+| **Doble monedas** | Gamepass | ×2 al cobrar | Infla la economía; aceptable porque el dinero no compra poder en el viaje |
+| **Cargamento urgente** | Producto (consumible) | llena la nave al instante | Ninguno |
+| **Pintura y placas** | Gamepass / producto | cosmético del vehículo | Ninguno, y es lo que mejor envejece |
+| ~~Zona VIP que paga ×5~~ | — | — | **No**: es pagar por saltarse la decisión, que es el juego |
+
+Y una fuente que no es monetización pero se cobra igual: **Premium Payouts** — Roblox paga
+por el tiempo que los miembros Premium pasan dentro. No requiere vender nada, sólo que la
+sesión dure. Es una razón más para que el objetivo sea la sesión media, no la conversión.
+
+De lo que entra, al desarrollador le llega **entre el 21 % y el 27 %** (`RESEARCH.md`). Con
+eso en la cabeza, el orden correcto sigue siendo retención → tráfico → monetización.
+
+---
+
+## 5. Los objetivos, y cómo se miden
+
+`Telemetry.luau` ya registra los eventos que hacen falta (`entrega`, `ruta_elegida`,
+`compra_vehiculo`, `robo`, `robado`, `ladron_alcanza`, `calor_sube`). No hay que construir
+nada nuevo para medir esto:
+
+| Objetivo | Umbral | De dónde sale |
+|---|---|---|
+| **D1** | ≥ 20 % (por debajo de 15 %, pivotar) | Roblox, a partir de 100 jugadores/día |
+| **Sesión media** | ≥ 8 min | Roblox / `Telemetry` |
+| Primera compra | ≤ 3 min desde que entra | `compra_vehiculo` menos hora de entrada |
+| Elige ámbar o roja en la sesión 1 | ≥ 60 % | `ruta_elegida` |
+| Sesiones con al menos un robo | ≥ 1 por sesión | `ladron_alcanza`, `robo` |
+| Abandono por fase | ninguna fase se lleva > 40 % | dónde se corta la secuencia de eventos |
+
+**El dato que más vale no es cuánta gente entra, sino dónde abandona.** Si todos se van
+durante el primer viaje, el problema es el viaje, y ninguna cantidad de contenido lo
+arregla.
+
+---
+
+## 6. Orden de trabajo propuesto
+
+1. **El nivel como licencia** (§3.A) — es el que arregla la economía, y es pequeño.
+2. **La nave mejorable** (§3.C) — el sumidero que no se acaba.
+3. **Lo grande tiene que pagar más por hueco** ([`V1.md`](V1.md) §1) — medio catálogo es
+   hoy decoración cara.
+4. **Recuperar el eje de exposición de los vehículos** (§2) — gratis, devuelve una decisión.
+5. **Ladrones que crecen con lo que llevas** (§3.B).
+6. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
+7. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
+
+Y sólo entonces publicar y mirar los números. Lo de después —Redada, precios rotativos,
+monetización, mapa procedural— **no significa nada hasta que haya gente**.
