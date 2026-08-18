@@ -48,14 +48,6 @@ type Pieza = {
 -- está a unos 3 studs del suelo en un rig R6, así que todo lo que va "en el suelo"
 -- cae sobre -2,6.
 local FORMAS: { [string]: { Pieza } } = {
-	patines = {
-		{ tamano = Vector3.new(1.1, 0.35, 2.2), offset = Vector3.new(-0.65, -2.7, 0), color = METAL },
-		{ tamano = Vector3.new(1.1, 0.35, 2.2), offset = Vector3.new(0.65, -2.7, 0), color = METAL },
-		{ tamano = Vector3.new(0.35, 0.7, 0.7), offset = Vector3.new(-0.65, -2.95, -0.7), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(0.35, 0.7, 0.7), offset = Vector3.new(-0.65, -2.95, 0.7), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(0.35, 0.7, 0.7), offset = Vector3.new(0.65, -2.95, -0.7), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(0.35, 0.7, 0.7), offset = Vector3.new(0.65, -2.95, 0.7), color = GOMA, rueda = true },
-	},
 	monopatin = {
 		{ tamano = Vector3.new(1.8, 0.3, 4.4), offset = Vector3.new(0, -2.8, 0), color = ACENTO },
 		{ tamano = Vector3.new(0.4, 0.8, 0.8), offset = Vector3.new(-0.8, -3.1, -1.5), color = GOMA, rueda = true },
@@ -115,7 +107,7 @@ local FORMAS: { [string]: { Pieza } } = {
 	},
 }
 
--- En cuáles vas SENTADO. En los otros vas de pie encima (patines, monopatín,
+-- En cuáles vas SENTADO. En los otros vas de pie encima (monopatín,
 -- patinete), que es como se va de verdad y además no necesita postura ninguna.
 local SENTADO: { [string]: boolean } = {
 	bicicleta = true,
@@ -308,7 +300,7 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		sonido.SoundId = def.sonido
 		sonido.Looped = true
 		-- Arranca CALLADO si no tiene motor: RoadService le pone el volumen en la
-		-- vuelta siguiente según te muevas o no. Sin esto, montarse en unos patines
+		-- vuelta siguiente según te muevas o no. Sin esto, subirse a un monopatín
 		-- suelta un siseo antes de dar un paso.
 		sonido.Volume = if def.motor then def.volumen * 0.3 else 0
 		-- El tono ES la escala del juego hecha sonido: cuanto más grave, más
@@ -365,10 +357,10 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 			local nativo = m.Size
 			-- LA ESCALA, limitada por el LARGO Y POR EL ALTO a la vez.
 			--
-			-- Escalar sólo por el lado mayor infla lo pequeño: los patines vienen casi
-			-- cúbicos, así que estirarlos hasta medir 2,6 de largo los dejaba también
-			-- de 2,6 de ALTO -- por la rodilla de un personaje que mide cinco. "El
-			-- personaje con los patines se ve fatal" (JJ).
+			-- Escalar sólo por el lado mayor infla lo pequeño: los patines (ya
+			-- retirados) venían casi cúbicos, y estirarlos hasta medir 2,6 de largo
+			-- los dejaba también de 2,6 de ALTO, por la rodilla de un personaje que
+			-- mide cinco. El siguiente modelo cúbico que entre tendrá el mismo vicio.
 			--
 			-- Y el alto se mide DESPUÉS de girar: en una malla volteada (la bicicleta)
 			-- la altura no está en su eje Y.
@@ -412,22 +404,6 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 			weld.Parent = m
 			return m
 		end)
-		-- LOS PATINES VAN DE DOS EN DOS. Es una sola malla, y centrada bajo el
-		-- personaje parecía un monopatín gordo en vez de un par de patines: se clona
-		-- y se separa a la anchura de los pies.
-		if ok and malla and modelo.doble then
-			local separacion = 0.62
-			malla.CFrame = malla.CFrame * CFrame.new(-separacion, 0, 0)
-			local gemelo = malla:Clone()
-			gemelo.Name = "ModeloDerecho"
-			gemelo.CFrame = malla.CFrame * CFrame.new(separacion * 2, 0, 0)
-			gemelo.Parent = carpeta
-			local weldGemelo = Instance.new("WeldConstraint")
-			weldGemelo.Part0 = root
-			weldGemelo.Part1 = gemelo
-			weldGemelo.Parent = gemelo
-		end
-
 		if ok and malla then
 			return -- con el modelo puesto, las piezas sobran
 		end

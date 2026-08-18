@@ -674,6 +674,90 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		)
 		bulto.Material = Enum.Material.Metal
 
+		-- SE COMPRA ESTE, no "el primero de la lista". El aviso de la losa compra lo
+		-- más barato que te falte, que estaba bien cuando la escalera era una fila
+		-- de mejoras; con el garaje hay que poder elegir CUÁL, porque un patinete
+		-- teniendo furgoneta ya no es un capricho sino la llave de los atajos.
+		local compra = prompt(bulto, "Comprar " .. vehiculo.nombre, string.format("%d", vehiculo.coste), 22)
+		compra.Name = "PromptComprar"
+		compra:SetAttribute("vehiculo", vehiculo.id)
+
+		local etiqueta = Instance.new("BillboardGui")
+		etiqueta.Name = "Precio"
+		etiqueta.Size = UDim2.fromScale(9, 2.6)
+		etiqueta.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
+		etiqueta.AlwaysOnTop = false
+		etiqueta.MaxDistance = 160
+		etiqueta.Adornee = bulto
+		etiqueta.Parent = bulto
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
+		texto.TextStrokeTransparency = 0.35
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = string.format("%s  ·  %d", vehiculo.nombre, vehiculo.coste)
+		texto.Parent = etiqueta
+		podio.Material = Enum.Material.Concrete
+	end
+
+	-- Luz de escaparate: sin ella, bajo el techo los tres expositores son bultos
+	-- negros y el edificio parece cerrado.
+	local plafon =
+		pieza("TallerLuz", Vector3.new(10, 0.5, 2), Vector3.new(0, alto - 1.5, 0), Color3.fromRGB(240, 232, 210))
+	plafon.CanCollide = false
+	local luz = Instance.new("PointLight")
+	luz.Color = Color3.fromRGB(255, 236, 200)
+	luz.Range = 42
+	luz.Brightness = 1.6
+	luz.Parent = plafon
+
+	-- LAS PLAZAS DEL GARAJE, publicadas como atributos igual que el muelle del
+	-- almacén. Los vehículos que hay en ellas NO se construyen aquí: son los de
+	-- CADA jugador, así que los dibuja el cliente. Un garaje construido en el
+	-- servidor enseñaría la moto de otro.
+	-- UNA PLAZA POR VEHÍCULO COMPRABLE: si el garaje tuviera menos sitios que
+	-- vehículos, comprar el noveno haría desaparecer a otro de la vista sin decir
+	-- nada.
+	local plazas = #Config.VEHICULOS - 1
+	for i = 1, plazas do
+		base:SetAttribute(
+			"plaza" .. i,
+			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 17 * frente)
+		)
+	end
+	base:SetAttribute("plazas", plazas)
+
+	-- Tres expositores con los vehículos de la escalera, del más barato al más
+	-- caro, cada uno con su nombre y su precio. Es el escaparate: enseñar lo que
+	-- todavía no puedes pagar es lo que le da destino al dinero.
+	local escaparate = { Config.VEHICULOS[2], Config.VEHICULOS[5], Config.VEHICULOS[7], Config.VEHICULOS[9] }
+	for i, vehiculo in escaparate do
+		if vehiculo == nil then
+			continue
+		end
+		local x = (i - 2.5) * 16
+		local podio = pieza("Podio" .. i, Vector3.new(9, 1.2, 9), Vector3.new(x, 0.6, -2), Color3.fromRGB(88, 86, 92))
+		-- Una silueta tosca basta: lo que vende es el nombre y el precio de debajo,
+		-- y una caja de color se lee como "aquí hay algo" desde la calle.
+		local bulto = pieza(
+			"Expuesto" .. i,
+			Vector3.new(5.5, 3 + i, 8),
+			Vector3.new(x, 1.2 + (3 + i) / 2, -2),
+			Palette.ruta(if i == 1 then "verde" elseif i == 2 then "ambar" else "roja")
+		)
+		bulto.Material = Enum.Material.Metal
+
+		-- SE COMPRA ESTE, no "el primero de la lista". El aviso de la losa compra lo
+		-- más barato que te falte, que estaba bien cuando la escalera era una fila
+		-- de mejoras; con el garaje hay que poder elegir CUÁL, porque un patinete
+		-- teniendo furgoneta ya no es un capricho sino la llave de los atajos.
+		local compra = prompt(bulto, "Comprar " .. vehiculo.nombre, string.format("%d", vehiculo.coste), 22)
+		compra.Name = "PromptComprar"
+		compra:SetAttribute("vehiculo", vehiculo.id)
+
 		local etiqueta = Instance.new("BillboardGui")
 		etiqueta.Name = "Precio"
 		etiqueta.Size = UDim2.fromScale(9, 2.6)

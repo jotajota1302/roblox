@@ -30,7 +30,11 @@ local Ride = require(script.Parent.Ride)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
-local DISTANCIA_TALLER = 35
+-- 60 y no 35: el taller creció a 96x60 studs (escaparate + garaje) y con el radio
+-- viejo, estar de pie en las plazas del fondo YA CONTABA COMO ESTAR FUERA -- se
+-- pulsaba comprar y no pasaba nada. "Intento comprar un vehículo y no funciona"
+-- (JJ). Cualquier radio menor que la propia losa es un fallo esperando.
+local DISTANCIA_TALLER = 60
 
 local VERDE = Palette.AVISO_BUENO
 local ROJO = Palette.AVISO_MALO
@@ -92,10 +96,15 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	if not GarageService.enElTaller(player) then
 		return false, "lejos"
 	end
-	if #estado.cajas > 0 then
-		return false, "con_carga"
-	end
 
+	-- CON CARGA SÍ SE PUEDE COMPRAR. Antes no, y era una regla heredada de cuando
+	-- comprar SUSTITUÍA el vehículo: cambiar de montura con el zurrón lleno abría
+	-- la pregunta de dónde va lo que ya no cabe. Con el garaje eso ya no pasa --
+	-- lo comprado se guarda-- y la regla sólo servía para que JJ pulsara comprar,
+	-- no pasara nada, y sólo se enterase por un aviso de tres segundos.
+	--
+	-- Lo que sí se respeta es no cambiar de vehículo a mitad de viaje: con carga
+	-- encima, la compra va al garaje y sigues con el que llevas puesto.
 	local puede, motivo = Vehicles.puedeComprar(estado.garaje, vehiculoId, estado.dinero)
 	if not puede then
 		return false, motivo
@@ -109,19 +118,40 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	-- espera quien acaba de pagar.
 	estado.garaje = Vehicles.garajeDe(estado.garaje, estado.vehiculo)
 	table.insert(estado.garaje, def.id)
-	estado.vehiculo = def.id
-	estado.montado = true
+	-- Se saca al momento SÓLO si vas de vacío: con carga encima cambiar de
+	-- vehículo cambiaría tu capacidad a mitad de viaje.
+	local loSaca = #estado.cajas == 0
+	if loSaca then
+		estado.vehiculo = def.id
+		estado.montado = true
+	end
 
 	CargoService.aplicarVelocidad(player)
 	-- Y se VE al instante. Sin esto, pagar 4.500 por una moto cambia dos numeros en
 	-- un panel y el jugador sigue siendo el mismo muneco andando -- que es la forma
 	-- mas rapida de que una compra no se sienta como una compra.
-	Ride.montar(player.Character, def.id)
+	if loSaca then
+		Ride.montar(player.Character, def.id)
+	end
 	PlayerState.sync(player)
 
 	Telemetry.evento(player, "compra_vehiculo", { vehiculo = def.id, coste = def.coste })
-	Remotes.event(Remotes.AVISO)
-		:FireClient(player, string.format("%s: llevas %d huecos y cosas mas grandes", def.nombre, def.capacidad), VERDE)
+	Remotes.event(Remotes.AVISO):FireClient(
+		player,
+		if loSaca
+			then string.format("%s: llevas %d huecos y cosas mas grandes", def.nombre, def.capacidad)
+			else string.format("%s guardado en el garaje: sacalo al descargar", def.nombre),
+		VERDE
+	)
+	-- Y CÓMO SE USA, justo después de pagarlo. Es el único instante en que el
+	-- jugador está seguro de estar mirando la pantalla por este motivo, y hasta
+	-- ahora la tecla para bajarse no se decía en ningún sitio ("no se sabe cómo se
+	-- hace", JJ). Va con retraso para no pisar el aviso de la compra.
+	if loSaca then
+		task.delay(2.2, function()
+			Remotes.event(Remotes.AVISO):FireClient(player, "Pulsa V para bajarte o subirte", VERDE)
+		end)
+	end
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 
 	return true, "ok"

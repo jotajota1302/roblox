@@ -31,6 +31,7 @@ local metaLabel: TextLabel
 local metaFila: Frame
 local avisoLabel: TextLabel
 local misionLabel: TextLabel
+local accionesLabel: TextLabel
 local modal = false
 
 -- El acabado común de un botón: esquinas, borde del mismo color pero más oscuro
@@ -212,10 +213,53 @@ function Hud.build()
 	UiKit.margen(misionLabel, 8)
 	UiKit.borde(misionLabel, Color3.fromRGB(90, 88, 96), 1.5, 0.35)
 
+	-- LO QUE PUEDES HACER AHORA MISMO, debajo de la misión.
+	--
+	-- La primera versión de esta ayuda era un letrero en la pared del taller, y JJ
+	-- la mandó aquí: "que salga no un letrero en el taller sino como una leyenda a
+	-- la izquierda donde pone lo de 'elige destino'". Tiene razón -- un cartel sólo
+	-- se lee si estás delante, y la pregunta "¿cómo me bajo?" se te ocurre
+	-- conduciendo, a media ciudad de allí.
+	--
+	-- Va en gris y más pequeña que la misión: la misión dice QUÉ hacer, esto sólo
+	-- recuerda CON QUÉ. Si compitieran por la atención, la misión perdería.
+	accionesLabel = Instance.new("TextLabel")
+	accionesLabel.Name = "Acciones"
+	accionesLabel.AnchorPoint = Vector2.new(0, 0)
+	accionesLabel.Position = UDim2.fromScale(0.02, 0.295)
+	accionesLabel.Size = UDim2.fromScale(0.34, 0.04)
+	accionesLabel.BackgroundColor3 = UiKit.TINTA
+	accionesLabel.BackgroundTransparency = 0.35
+	accionesLabel.TextColor3 = UiKit.APAGADO
+	accionesLabel.TextScaled = true
+	accionesLabel.Font = Enum.Font.GothamMedium
+	accionesLabel.TextXAlignment = Enum.TextXAlignment.Left
+	accionesLabel.TextStrokeTransparency = 0.7
+	accionesLabel.Text = ""
+	accionesLabel.Visible = false
+	accionesLabel.Parent = gui
+	UiKit.redondear(accionesLabel, 6)
+	UiKit.margen(accionesLabel, 8)
+
+	local accionesSize = Instance.new("UISizeConstraint")
+	accionesSize.MinSize = Vector2.new(150, 20)
+	accionesSize.MaxSize = Vector2.new(300, 28)
+	accionesSize.Parent = accionesLabel
+
 	local misionSize = Instance.new("UISizeConstraint")
 	misionSize.MinSize = Vector2.new(150, 26)
 	misionSize.MaxSize = Vector2.new(300, 38)
 	misionSize.Parent = misionLabel
+end
+
+-- Las teclas que sirven ahora mismo. Vacío = no hay ninguna, y entonces la línea
+-- desaparece en vez de quedarse ocupando sitio.
+function Hud.acciones(texto: string)
+	if not accionesLabel then
+		return
+	end
+	accionesLabel.Text = texto
+	accionesLabel.Visible = texto ~= "" and not modal
 end
 
 -- Lo que hay que hacer ahora, en una línea. La escribe Main.client, que es quien
@@ -327,6 +371,9 @@ function Hud.setModal(activo: boolean)
 	-- Y la línea de misión con él: el selector ES la misión mientras está abierto.
 	if misionLabel then
 		misionLabel.Visible = not activo and misionLabel.Text ~= ""
+	end
+	if accionesLabel then
+		accionesLabel.Visible = not activo and accionesLabel.Text ~= ""
 	end
 end
 

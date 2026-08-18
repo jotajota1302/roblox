@@ -39,7 +39,7 @@ end
 -- Dos condiciones, y la segunda es la regla que puso JJ: **no puedes llevar algo
 -- grande sin un vehículo para ello**.
 --
--- No es lo mismo que quedarse sin hueco. Un piano NO entra en unos patines por
+-- No es lo mismo que quedarse sin hueco. Un piano NO entra en un monopatín por
 -- mucho sitio libre que quede, y esa diferencia es justo lo que convierte al
 -- vehículo en una llave en vez de en un número: ver mercancía que no puedes tocar
 -- es lo que le da destino al dinero.

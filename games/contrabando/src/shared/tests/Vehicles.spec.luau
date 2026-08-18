@@ -59,12 +59,12 @@ return function(kit)
 	-- COMPRAR HACIA ABAJO YA VALE, y es el cambio que hace que el garaje signifique
 	-- algo: teniendo furgoneta, un patinete no es un desperdicio sino la llave de
 	-- los atajos, porque la furgoneta no puede salirse del asfalto.
-	local baratoConFurgo = Vehicles.puedeComprar({ "furgoneta" }, "patines", 999999)
-	kit.truthy("con furgoneta se puede comprar unos patines", baratoConFurgo)
+	local baratoConFurgo = Vehicles.puedeComprar({ "furgoneta" }, "monopatin", 999999)
+	kit.truthy("con furgoneta se puede comprar un monopatin", baratoConFurgo)
 
 	-- EL GARAJE.
 	kit.truthy("ir a pie lo tiene todo el mundo siempre", Vehicles.posee(nil, "a_pie"))
-	kit.truthy("lo comprado esta en el garaje", Vehicles.posee({ "moto", "patines" }, "moto"))
+	kit.truthy("lo comprado esta en el garaje", Vehicles.posee({ "moto", "monopatin" }, "moto"))
 	kit.falsy("lo no comprado no", Vehicles.posee({ "moto" }, "furgoneta"))
 	kit.falsy("y con el garaje vacio, nada", Vehicles.posee({}, "moto"))
 
@@ -82,12 +82,24 @@ return function(kit)
 	kit.eq("y es el suyo", migrado[1], "furgoneta")
 	kit.eq("ir a pie no ocupa plaza", #Vehicles.garajeDe(nil, "a_pie"), 0)
 	kit.eq("un id retirado del catalogo se cae solo", #Vehicles.garajeDe({ "trineo" }, nil), 0)
+	-- Y esto no es hipotético: los patines EXISTIERON y se retiraron. Quien los
+	-- tuviera guardados no puede quedarse sin poder entrar.
+	kit.eq("los patines retirados desaparecen del garaje", #Vehicles.garajeDe({ "patines" }, "patines"), 0)
+	kit.eq("pero lo demas del garaje sobrevive", #Vehicles.garajeDe({ "patines", "moto" }, "patines"), 1)
 	kit.eq("y no se duplica lo que ya estaba", #Vehicles.garajeDe({ "moto" }, "moto"), 1)
 
 	-- A pie está TODA la escalera por delante: es lo que hace que siempre haya algo
 	-- cerca que comprar, en vez del único salto de 1.500 que había antes y que
 	-- dejaba los cinco primeros viajes sin ninguna meta a la vista.
-	kit.truthy("con el garaje vacio queda toda la escalera", #Vehicles.mejorasPara(nil) >= 8)
+	-- Contra el catálogo, no contra un número escrito a mano: al retirar los
+	-- patines esta prueba se puso roja por decir "8" en vez de "todos".
+	local comprables = 0
+	for _, v in Config.VEHICULOS do
+		if v.coste > 0 then
+			comprables += 1
+		end
+	end
+	kit.eq("con el garaje vacio queda toda la escalera", #Vehicles.mejorasPara(nil), comprables)
 	-- Y la primera oferta es la más barata: la tienda enseña el siguiente peldaño,
 	-- no el último.
 	local primeras = Vehicles.mejorasPara(nil)

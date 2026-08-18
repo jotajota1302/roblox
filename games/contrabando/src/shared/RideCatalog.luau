@@ -38,9 +38,6 @@ export type Modelo = {
 	-- menor de los dos factores (largo y alto), para que una malla casi cúbica no
 	-- acabe midiendo lo mismo de alto que de largo.
 	tamano: Vector3,
-	-- `doble` para lo que va de dos en dos: los patines son una sola malla y hay
-	-- que clonarla, uno por pie.
-	doble: boolean?,
 	-- Desplazamiento respecto al centro del personaje y giro en grados. Cada autor
 	-- modela mirando hacia donde le parece, y sin esto la mitad van de lado.
 	offset: Vector3,
@@ -62,14 +59,6 @@ RideCatalog.MODELOS = {
 	-- código, pasan la moderación solos y son de la cuenta de JJ. Es la vía que
 	-- este proyecto debería preferir siempre que el resultado valga -- y aquí
 	-- valió, porque no había mallas limpias decentes de patines ni de patinete.
-	patines = {
-		mesh = "rbxassetid://85333403995294",
-		textura = "rbxassetid://121874462881181",
-		tamano = Vector3.new(1.1, 1.0, 2.0),
-		doble = true,
-		offset = Vector3.new(0, -2.6, 0),
-		giroY = 0,
-	},
 	monopatin = {
 		mesh = "rbxassetid://136682752722782",
 		textura = "rbxassetid://85379852016686",

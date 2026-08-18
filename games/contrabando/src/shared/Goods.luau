@@ -9,7 +9,7 @@
 	La pieza que lo arregla es la regla que puso JJ: **no puedes llevar algo grande
 	sin un vehículo para ello**. Con ella, el catálogo deja de ser decoración y pasa
 	a ser el motor del juego: ves un piano que paga x50 en tu almacén, no te cabe en
-	los patines, y ya sabes exactamente para qué es el dinero. El vehículo deja de
+	el monopatín, y ya sabes exactamente para qué es el dinero. El vehículo deja de
 	ser "una caja más" y se convierte en UNA LLAVE.
 
 	Cada objeto lleva su tamaño Y su valor juntos y a mano, no sorteados por

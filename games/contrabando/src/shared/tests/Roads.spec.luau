@@ -21,8 +21,7 @@ return function(kit)
 	-- baratos van por todas partes, los de motor van deprisa pero atados a la
 	-- calle.
 	kit.falsy("ir a pie no depende de la calzada", Roads.exigeCalzada("a_pie"))
-	kit.falsy("los patines van por donde sea", Roads.exigeCalzada("patines"))
-	kit.falsy("el monopatin tambien", Roads.exigeCalzada("monopatin"))
+	kit.falsy("el monopatin va por donde sea", Roads.exigeCalzada("monopatin"))
 	kit.falsy("y el patinete", Roads.exigeCalzada("patinete"))
 	kit.truthy("la moto necesita calle", Roads.exigeCalzada("moto"))
 	kit.truthy("el coche tambien", Roads.exigeCalzada("coche"))

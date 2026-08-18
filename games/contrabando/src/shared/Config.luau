@@ -67,15 +67,14 @@ Config.VEHICULOS = {
 		tamanoMaximo = 1,
 		coste = 0,
 	},
-	{
-		id = "patines",
-		nombre = "Patines",
-		capacidad = 4,
-		velocidadBase = 18,
-		penalizacionPorPeso = 1.2,
-		tamanoMaximo = 1,
-		coste = 150,
-	},
+	-- EL PRIMER PELDAÑO. Antes eran los patines (150) y se quitaron enteros a
+	-- petición de JJ: van en los PIES, y eso pelea con la animación de andar --
+	-- un personaje que camina con los patines puestos se ve mal se ponga donde se
+	-- ponga. El monopatín hace el mismo papel (barato, va por todas partes) y
+	-- además va DEBAJO del personaje, que es un sitio sin conflictos.
+	--
+	-- Hereda su precio, no el suyo: la primera compra tiene que caer en los
+	-- primeros viajes o el dinero no significa nada al empezar.
 	{
 		id = "monopatin",
 		nombre = "Monopatín",
@@ -83,7 +82,7 @@ Config.VEHICULOS = {
 		velocidadBase = 19,
 		penalizacionPorPeso = 1.0,
 		tamanoMaximo = 2,
-		coste = 350,
+		coste = 150,
 	},
 	{
 		id = "patinete",
@@ -92,7 +91,7 @@ Config.VEHICULOS = {
 		velocidadBase = 20,
 		penalizacionPorPeso = 0.9,
 		tamanoMaximo = 2,
-		coste = 700,
+		coste = 400,
 	},
 	{
 		id = "patinete_electrico",
@@ -427,7 +426,7 @@ Config.SONIDO_PEDALES = "rbxassetid://7453582428" -- "Bicycle Pedalling"
 -- `motor` separa dos cosas que suenan MUY distinto: un motor tiene ralentí --se
 -- oye parado-- y una rueda no hace absolutamente ningún ruido si no te mueves.
 --
--- La primera versión trataba a los patines como a una moto: rodadura constante,
+-- La primera versión trataba una tabla como a una moto: rodadura constante,
 -- también quieto, y a tono agudo. El resultado, en palabras de JJ: "el sonido de
 -- los patines es insoportable". Lo era: un siseo agudo que no paraba nunca y que
 -- además no correspondía a nada de lo que estabas haciendo.
@@ -435,7 +434,6 @@ Config.SONIDO_PEDALES = "rbxassetid://7453582428" -- "Bicycle Pedalling"
 -- Ahora lo que no tiene motor CALLA al pararse y suena discreto al rodar, con el
 -- tono bajado: la rodadura es un detalle de fondo, no un instrumento.
 Config.SONIDOS_VEHICULO = {
-	patines = { sonido = Config.SONIDO_RUEDAS, tono = 0.85, volumen = 0.12, motor = false },
 	monopatin = { sonido = Config.SONIDO_RUEDAS, tono = 0.8, volumen = 0.13, motor = false },
 	patinete = { sonido = Config.SONIDO_RUEDAS, tono = 0.75, volumen = 0.14, motor = false },
 	patinete_electrico = { sonido = Config.SONIDO_MOTOR, tono = 1.2, volumen = 0.22, motor = true },

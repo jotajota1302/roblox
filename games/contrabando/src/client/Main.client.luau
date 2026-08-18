@@ -268,6 +268,23 @@ local function mandoDeVehiculo(estado: any)
 	ContextActionService:SetPosition("Vehiculo", UDim2.fromScale(0.86, 0.42))
 end
 
+-- QUÉ TECLAS SIRVEN AHORA. Se calcula del estado, igual que la misión, y sólo
+-- aparece lo que de verdad hace algo en este momento: una lista fija de teclas se
+-- convierte en decorado que el jugador deja de leer al segundo minuto.
+local function accionesActuales(estado: any): string
+	if estado == nil then
+		return ""
+	end
+	local partes = {}
+	if estado.vehiculo ~= nil and estado.vehiculo ~= "a_pie" then
+		table.insert(partes, if estado.montado == false then "V  subirte" else "V  bajarte")
+	end
+	if #estado.cajas > 0 and (estado.ruta ~= nil or estado.retornoZona ~= nil) then
+		table.insert(partes, "E  entregar")
+	end
+	return table.concat(partes, "   ·   ")
+end
+
 local function refrescarSelector()
 	local root = raizDelJugador()
 	local vallaCerrada = refrescarValla(root)
@@ -287,6 +304,7 @@ local function refrescarSelector()
 	end
 	Hud.mision(misionActual(ultimoEstado))
 	mandoDeVehiculo(ultimoEstado)
+	Hud.acciones(accionesActuales(ultimoEstado))
 	-- El garaje se refresca aquí y no sólo al sincronizar porque depende de a qué
 	-- taller te acercas, y eso cambia andando.
 	pcall(Garage.actualizar, mundo, ultimoEstado)
@@ -480,6 +498,10 @@ ProximityPromptService.PromptTriggered:Connect(function(aviso, jugador)
 		if siguiente then
 			Remotes.event(Remotes.COMPRAR):FireServer(siguiente.id)
 		end
+	elseif aviso.Name == "PromptComprar" then
+		-- El id lo pone el mundo (lo escribió el servidor al construir el
+		-- escaparate) y el cliente sólo lo devuelve: aquí no se decide nada.
+		Remotes.event(Remotes.COMPRAR):FireServer(aviso:GetAttribute("vehiculo"))
 	elseif aviso.Name == "PromptGaraje" then
 		-- Sacar el vehículo de esa plaza. Si ya lo llevas puesto, el mismo aviso
 		-- dice "Guardar" y lo que se manda es "a pie": una sola pieza para las dos
