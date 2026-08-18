@@ -65,6 +65,20 @@ end
 -- Filtra SÓLO contra la ciudad a propósito: si sondeara el mundo entero, las
 -- propias losas que este módulo va plantando se contarían como suelo y cada una
 -- se apoyaría encima de la anterior.
+-- LOS ÁRBOLES NO SON SUELO, y esta ciudad tiene 2.048 copas y 2.720 troncos. Un
+-- rayo desde el cielo se para en la primera hoja que encuentra, así que en un
+-- parque el "suelo" salía a 79 o a 101 studs de altura -- y el sitio quedaba
+-- descartado por imposible cuando en realidad era césped llano. El Refugio_1 daba
+-- 13 de sus 25 muestras "bajo techo": todas eran hojas.
+--
+-- Se reconoce el árbol por su modelo (los del Creator Store vienen en un Model
+-- llamado Tree) y se sigue bajando. Es específico de esta ciudad y así está dicho;
+-- la alternativa --adivinar por tamaño-- confundiría una copa con un balcón.
+local function esArbol(pieza: BasePart): boolean
+	local padre = pieza.Parent
+	return padre ~= nil and padre.Name == "Tree"
+end
+
 local function sueloDeLaCiudad(ciudad: Instance?, x: number, z: number): number?
 	if not ciudad then
 		return nil
@@ -72,8 +86,26 @@ local function sueloDeLaCiudad(ciudad: Instance?, x: number, z: number): number?
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { ciudad }
-	local r = workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -800, 0), params)
-	return r and r.Position.Y or nil
+
+	local desde = 500
+	-- OCHO intentos, no cuatro. Con cuatro se agotaban en la arboleda densa --una
+	-- copa y un tronco por árbol, y hay sitios con dos árboles en la vertical-- y
+	-- entonces la función decía "aquí no hay suelo" en mitad de un parque llano.
+	-- Costó una guarida entera: la segunda de la ruta verde no se plantaba y no
+	-- había forma de saber por qué. Ocho sigue estando muy lejos de recorrer un
+	-- edificio planta por planta, que es lo que no queremos hacer -- un edificio SÍ
+	-- tiene que tapar el suelo.
+	for _ = 1, 8 do
+		local r = workspace:Raycast(Vector3.new(x, desde, z), Vector3.new(0, -(desde + 300), 0), params)
+		if r == nil then
+			return nil
+		end
+		if not esArbol(r.Instance) then
+			return r.Position.Y
+		end
+		desde = r.Position.Y - 0.5
+	end
+	return nil
 end
 
 -- Por encima de esta cota ya no es calle: es un tejado.
@@ -117,6 +149,166 @@ local function sueloTransitable(ciudad: Instance?, x: number, z: number): (numbe
 	return nil, x, z
 end
 
+-- EL PERFIL DEL TERRENO BAJO UNA HUELLA ENTERA, no bajo un punto.
+--
+-- Todo lo que este fichero planta medía el suelo con UN rayo en el centro y dejaba
+-- encima una losa plana. En terreno llano eso funciona; en una ladera no, y la
+-- ciudad tiene laderas: *"cuidado con las guaridas, que las he visto no muy
+-- alineadas con el terreno"* (JJ). Medido después de mirarlo: la Guarida_1 volaba
+-- 20 studs por una esquina y la tierra se la comía 32 por la contraria, y el
+-- Refugio_1 estaba en la misma ladera con 37 de diferencia entre lados.
+--
+-- Devuelve la cota más baja, la más alta y cuántas muestras se salen -- sin suelo
+-- (un hueco entre parcelas) o por encima de la cota de calle (un edificio que pisa
+-- la parcela). Las dos cosas descalifican un sitio igual que un desnivel.
+local function perfilDelSuelo(
+	ciudad: Instance?,
+	centro: Vector3,
+	ancho: number,
+	largo: number
+): (number?, number, number)
+	-- REJILLA DE 5×5, no una cruz de nueve puntos, y esto también lo enseñó una
+	-- medida: con nueve muestras el taller de la ámbar --que mide 96 por 60-- dio
+	-- un perfil perfectamente llano mientras una franja de césped de 93 studs de
+	-- ancho le cruzaba una esquina por medio. Los rayos pasaron de largo por los
+	-- dos lados. Una huella grande necesita muestras cada veinte studs o el hueco
+	-- entre rayos es más grande que lo que se busca.
+	local dx, dz = ancho / 2 - 1, largo / 2 - 1
+	local bajo, alto, fuera = math.huge, -math.huge, 0
+	for i = -2, 2 do
+		for k = -2, 2 do
+			local y = sueloDeLaCiudad(ciudad, centro.X + (i / 2) * dx, centro.Z + (k / 2) * dz)
+			if y == nil or y > COTA_CALLE then
+				fuera += 1
+			else
+				bajo = math.min(bajo, y)
+				alto = math.max(alto, y)
+			end
+		end
+	end
+	if bajo == math.huge then
+		return nil, 0, fuera
+	end
+	return bajo, alto, fuera
+end
+
+-- Un sitio LLANO Y ENTERO para una huella, buscando en anillos hacia fuera.
+--
+-- Es sueloTransitable con la lección aprendida: aquél buscaba un punto de calle y
+-- se daba por satisfecho, y por eso las cosas acababan a medio meter en un talud.
+-- Éste no acepta un sitio hasta que la huella COMPLETA se apoya.
+--
+-- Si no encuentra ninguno dentro de la tolerancia se queda con el MENOS malo en
+-- vez de rendirse: una guarida algo torcida sigue siendo mejor que ninguna, y
+-- quien llame decide qué hacer con el desnivel que se le devuelve.
+local function sitioLlano(
+	ciudad: Instance?,
+	centro: Vector3,
+	ancho: number,
+	largo: number,
+	tolerancia: number,
+	ocupados: { Vector3 }?,
+	separacion: number?,
+	alcance: number?
+): (Vector3?, number)
+	local mejor: Vector3? = nil
+	local mejorNota = math.huge
+
+	-- LO QUE YA ESTÁ PLANTADO NO VALE, y hace falta decirlo porque buscar sitio
+	-- llano mueve las cosas hasta cien studs: la primera vez que corrió esto, dos
+	-- guaridas encontraron el MISMO solar bueno y acabaron una encima de otra. No
+	-- dio ningún error -- simplemente había siete guaridas donde debía haber ocho,
+	-- y una ruta con menos peligro del que anuncia.
+	local function libre(p: Vector3): boolean
+		if ocupados == nil or separacion == nil then
+			return true
+		end
+		for _, otro in ocupados do
+			local dx, dz = p.X - otro.X, p.Z - otro.Z
+			if math.sqrt(dx * dx + dz * dz) < separacion then
+				return false
+			end
+		end
+		return true
+	end
+
+	-- SE PUNTÚAN TODOS Y GANA EL MEJOR; no se descarta nadie por no llegar al
+	-- listón. La primera versión exigía sitio perfecto y devolvía nil si no lo
+	-- encontraba, y el resultado fue peor que el defecto que venía a arreglar: se
+	-- quedaron una guarida y un refugio sin plantar, y una ruta sin sitio donde
+	-- bajar el peligro es un agujero de juego, mientras que una losa un poco
+	-- torcida --con su zócalo-- es sólo una losa un poco torcida.
+	--
+	-- La nota junta las dos cosas que estropean un emplazamiento: el desnivel en
+	-- studs y las muestras que se salen (sin suelo o dentro de un edificio), estas
+	-- últimas a tres studs cada una para que pesen más que una cuesta suave.
+	-- HASTA DÓNDE SE PUEDE MOVER. No es un detalle: la primera versión buscaba
+	-- hasta cien studs en cualquier dirección y el refugio de la verde se fue tan
+	-- lejos del camino que dejó de estar "a mano" -- que era su único trabajo.
+	-- Cada quien sabe cuánto margen tiene sobre su ruta y lo dice aquí.
+	for radio = 0, alcance or 100, 10 do
+		local pasos = if radio == 0 then 1 else 12
+		for k = 0, pasos - 1 do
+			local a = k * math.pi / 6
+			local p = Vector3.new(centro.X + math.cos(a) * radio, centro.Y, centro.Z + math.sin(a) * radio)
+			if not libre(p) then
+				continue
+			end
+			local bajo, alto, fuera = perfilDelSuelo(ciudad, p, ancho, largo)
+			if bajo ~= nil then
+				local nota = (alto - bajo) + fuera * 3
+				if fuera == 0 and alto - bajo <= tolerancia then
+					return Vector3.new(p.X, alto, p.Z), alto - bajo
+				end
+				if nota < mejorNota then
+					mejor, mejorNota = Vector3.new(p.X, alto, p.Z), nota
+				end
+			end
+		end
+	end
+
+	return mejor, mejorNota
+end
+
+-- Distancia de un punto al segmento a→b, medida en el plano. La usan las
+-- comprobaciones de "esto no puede pasar por encima de aquello".
+local function aLaRecta(punto: Vector3, a: Vector3, b: Vector3): number
+	local ax, az = a.X, a.Z
+	local bx, bz = b.X, b.Z
+	local dx, dz = bx - ax, bz - az
+	local largo = dx * dx + dz * dz
+	if largo < 1 then
+		return math.sqrt((punto.X - ax) ^ 2 + (punto.Z - az) ^ 2)
+	end
+	local t = math.clamp(((punto.X - ax) * dx + (punto.Z - az) * dz) / largo, 0, 1)
+	return math.sqrt((punto.X - (ax + dx * t)) ^ 2 + (punto.Z - (az + dz * t)) ^ 2)
+end
+
+-- EL ZÓCALO: lo que va entre una losa y el suelo cuando el terreno cae bajo ella.
+--
+-- Es lo que hace cualquier edificio de verdad en una cuesta, y sale mucho más
+-- barato que exigir que todos los sitios del mapa sean llanos -- porque no lo son.
+-- Toda losa se apoya en el punto MÁS ALTO de su huella (así no hay nada
+-- enterrado) y este bloque tapa el hueco que queda por el lado bajo, que si no se
+-- ve por debajo y delata que la pieza está puesta encima del mapa y no en él.
+local function zocalo(losa: BasePart, bajo: number, padre: Instance)
+	local suelo = losa.Position.Y - losa.Size.Y / 2
+	local caida = suelo - bajo
+	if caida <= 0.6 then
+		return
+	end
+	local pieza = part(
+		losa.Name .. "Zocalo",
+		-- Un pelo más estrecho que la losa, para que el borde de arriba siga
+		-- leyéndose como un escalón y no como un bloque macizo.
+		Vector3.new(losa.Size.X - 1.5, caida + ALTO_LOSA, losa.Size.Z - 1.5),
+		Vector3.new(losa.Position.X, suelo - caida / 2, losa.Position.Z),
+		Color3.new(losa.Color.R * 0.55, losa.Color.G * 0.55, losa.Color.B * 0.55),
+		padre
+	)
+	pieza.Material = Enum.Material.Concrete
+end
+
 -- Coloca una losa APOYADA en el suelo que haya debajo. `alturaPorDefecto` es la
 -- cota medida al elegir el emplazamiento: se usa cuando no hay ciudad, para que el
 -- juego siga cuadrando sin ella.
@@ -139,6 +331,29 @@ end
 -- entero roza una esquina de la parcela, el problema es la parcela, no el
 -- edificio.
 local LIMITE_PIEZA_GRANDE = 200
+
+-- ¿Se puede quitar esta pieza de la ciudad para construir encima?
+--
+-- La primera regla era sólo "si no es enorme", y dejaba pasar justo lo que peor
+-- encaja: los SETOS Y LAS VALLAS. Un seto de 6 × 10 × 233 mide más de doscientos
+-- studs de largo, así que se libraba de la escoba, y luego salía atravesando la
+-- Guarida_5 y su nave de lado a lado. Lo mismo con las vallas que cruzaban cinco
+-- tramos de carretera.
+--
+-- La diferencia entre un seto y un edificio no es el tamaño, es la FORMA: un
+-- edificio es grande en dos direcciones, un seto sólo en una. Así que se mira el
+-- segundo lado más largo -- y además que sea bajo, para no llevarse por delante
+-- un muro largo y fino que sí es arquitectura.
+local function esDespejable(pieza: BasePart): boolean
+	if math.max(pieza.Size.X, pieza.Size.Y, pieza.Size.Z) <= LIMITE_PIEZA_GRANDE then
+		return true
+	end
+	local lados = { pieza.Size.X, pieza.Size.Y, pieza.Size.Z }
+	table.sort(lados, function(a, b)
+		return a > b
+	end)
+	return lados[2] <= 25 and pieza.Size.Y <= 14
+end
 
 -- Cuántas piezas de la ciudad hay dentro de un volumen, SIN tocarlas. Sirve para
 -- elegir sitio antes de construir: preferir una parcela que ya está limpia es
@@ -181,8 +396,7 @@ local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: 
 
 	local quitadas = 0
 	for _, pieza in dentro do
-		local tam = pieza.Size
-		if math.max(tam.X, tam.Y, tam.Z) <= LIMITE_PIEZA_GRANDE then
+		if esDespejable(pieza) then
 			pieza:Destroy()
 			quitadas += 1
 		end
@@ -337,6 +551,11 @@ local function acceso(
 		cotas[i] = math.clamp(cotas[i], cuerda - LIBERTAD, cuerda + LIBERTAD)
 	end
 
+	local estorbos = OverlapParams.new()
+	estorbos.FilterType = Enum.RaycastFilterType.Include
+	estorbos.FilterDescendantsInstances = if ciudad then { ciudad } else {}
+	estorbos.MaxParts = 60
+
 	local puestos = 0
 	for i = 1, tramos do
 		local p0 = desde:Lerp(hasta, (i - 1) / tramos)
@@ -355,6 +574,25 @@ local function acceso(
 		)
 		tramo.Material = Enum.Material.Asphalt
 		tramo.CFrame = CFrame.lookAt(centro, b)
+
+		-- Y SE DESPEJA LO QUE HAYA EN MEDIO. Medido: cinco tramos de acceso pasaban
+		-- a través de VALLAS de la ciudad -- las mismas 116 vallas con las que el
+		-- pathfinding de los ladrones ya se atasca (ver PatrolService). Una vía que
+		-- atraviesa una valla no es una vía: es una valla con asfalto pintado
+		-- debajo, y el jugador que llega en furgoneta se queda parado sin entender
+		-- por qué. Se limpia el corredor por encima del firme, igual que se despeja
+		-- la parcela de un edificio, y con la misma regla: lo grande no se toca,
+		-- porque si un edificio entero roza la vía el problema es el trazado.
+		local corredor = workspace:GetPartBoundsInBox(
+			CFrame.lookAt(centro + Vector3.new(0, 7, 0), b + Vector3.new(0, 7, 0)),
+			Vector3.new(ancho, 12, (b - a).Magnitude + 6),
+			estorbos
+		)
+		for _, pieza in corredor do
+			if esDespejable(pieza) then
+				pieza:Destroy()
+			end
+		end
 		-- RODABLE explícito y no por color: el asfalto se reconoce por gris (ver
 		-- Roads.esCalzada), y una vía nuestra que un día se pinte de otro color
 		-- dejaría de contar sin que nadie tocara esta línea.
@@ -509,10 +747,33 @@ local function losa(
 	-- cae justo sobre el borde del mapa, así que ahí el rayo todavía encuentra
 	-- suelo de la ciudad -- diez studs más abajo-- y la losa de la salida se
 	-- hundía en la explanada.
-	local y = if Perimeter.dentro(centro, 6)
+	local enCasa = Perimeter.dentro(centro, 6)
+
+	-- FUERA DE CASA MANDA LA HUELLA ENTERA, no el centro. Con una sola muestra, una
+	-- losa en cuesta se hunde por un lado y vuela por el otro -- y eso se ve, se
+	-- pisa y se lee como un juego mal montado. Se apoya en el punto MÁS ALTO del
+	-- terreno que cubre, para que no quede nada enterrado, y el hueco que deja por
+	-- el lado bajo lo tapa el zócalo de aquí abajo.
+	-- OJO CON LA FORMA DE ESCRIBIR ESTO. La primera versión decía
+	--     local bajo, alto = if enCasa then nil else perfilDelSuelo(...)
+	-- y un `if` de expresión devuelve UN valor, así que `alto` se quedaba en nil y
+	-- la losa acababa apoyada en la muestra del centro -- justo lo que este cambio
+	-- venía a quitar. No dio ningún error: el taller de la roja se hundía 2,8 studs
+	-- y el zócalo, que sí recibía su dato, tapaba el hueco de abajo como si todo
+	-- estuviera bien. Se ve sólo midiendo el mundo construido.
+	local bajo: number? = nil
+	local alto: number? = nil
+	if not enCasa then
+		bajo, alto = perfilDelSuelo(ciudad, centro, tamano.X, tamano.Z)
+	end
+	local y = if enCasa
 		then Config.POLIGONO_CENTRO.Y
-		else (sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y)
+		else (alto or sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y)
 	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + ALTO_LOSA / 2, centro.Z), color, padre)
+
+	if bajo ~= nil then
+		zocalo(pieza, bajo, padre)
+	end
 	-- RODABLE: las losas del juego (almacén, salida, taller, destinos) son sitio
 	-- del juego, y la regla de la calzada no puede echarte del vehículo al entrar
 	-- en tu propio muelle. Se marca con un atributo porque su color es el de su
@@ -1084,7 +1345,14 @@ end
 -- sales corriendo. Y el azul sigue siendo sólo de las comisarías -- si el sitio
 -- donde te salvas y el sitio del que huyes compartieran color, habría que pararse
 -- a distinguirlos justo cuando no se puede.
-local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: Vector3, padre: Instance): BasePart?
+local function guarida(
+	ciudad: Instance?,
+	indice: number,
+	ruta: string,
+	centro: Vector3,
+	padre: Instance,
+	ocupados: { Vector3 }
+): BasePart?
 	-- NI UNA GUARIDA EN CASA. sueloTransitable busca en espiral, así que una
 	-- propuesta cerca del polígono puede acabar desplazada DENTRO de él -- y pasó:
 	-- la primera de la ruta verde terminó debajo del zócalo de nuestra propia
@@ -1094,16 +1362,26 @@ local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: 
 		return nil
 	end
 
-	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
-	if y == nil then
+	-- UN SITIO LLANO PARA LA HUELLA ENTERA, no un punto de calle. Con una sola
+	-- muestra en el centro, la Guarida_1 acabó en una ladera: volaba 20 studs por
+	-- una esquina y la tierra se la comía 32 por la contraria. Medido después, hay
+	-- sitios con menos de un stud de desnivel a 10-80 studs de cada una, así que no
+	-- había que renunciar a nada -- sólo había que mirar.
+	local sitio = sitioLlano(ciudad, centro, 34, 34, 2, ocupados, 50, 60)
+	if sitio == nil then
 		-- Sin suelo transitable: se omite. Una guarida en una azotea soltaría
 		-- ladrones que caen del cielo, que es peor que no tenerla.
 		return nil
 	end
+	local y, x, z = sitio.Y, sitio.X, sitio.Z
 	-- Y se vuelve a mirar DESPUÉS de la búsqueda, que es la que mueve el sitio.
 	if Perimeter.dentro(Vector3.new(x, y, z), 80) then
 		return nil
 	end
+
+	-- Se despeja su parcela, igual que la del almacén: es un edificio, y un edificio
+	-- con un árbol saliéndole por el tejado se lee como un fallo aunque no lo sea.
+	despejar(ciudad, Vector3.new(x, y, z), 38, 45)
 
 	local ROJO = Color3.fromRGB(150, 58, 52)
 	local ROJO_OSCURO = Color3.fromRGB(92, 34, 32)
@@ -1117,6 +1395,12 @@ local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: 
 		padre
 	)
 	losa.Material = Enum.Material.Slate
+	-- Y su zócalo, si el terreno cae por algún lado: la guarida se apoya en el punto
+	-- alto de su huella, así que lo que falte por el bajo hay que rellenarlo.
+	local bajo = perfilDelSuelo(ciudad, Vector3.new(x, y, z), 34, 34)
+	if bajo ~= nil then
+		zocalo(losa, bajo, padre)
+	end
 	-- Los dos atributos que la hacen existir para el resto del juego: el minimapa
 	-- la busca por el primero y PatrolService reparte por rutas con el segundo.
 	losa:SetAttribute("guarida", true)
@@ -1184,15 +1468,31 @@ local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: 
 	return losa
 end
 
-local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre: Instance): BasePart?
-	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
-	if y == nil then
+local function refugio(
+	ciudad: Instance?,
+	indice: number,
+	centro: Vector3,
+	padre: Instance,
+	ocupados: { Vector3 }
+): BasePart?
+	-- El lado de su losa, aquí arriba porque la búsqueda de sitio necesita saber
+	-- qué huella tiene que caber antes de que la losa exista.
+	local LADO = Config.REFUGIO_RADIO * 1.2
+
+	-- LLANO PARA LA HUELLA ENTERA. El Refugio_1 estaba en una ladera con 37 studs
+	-- de diferencia entre un lado y otro: la caseta salía torcida sobre el terreno
+	-- y por debajo se veía el hueco. Un refugio es el sitio al que corres cuando te
+	-- persiguen; si parece un decorado mal puesto, deja de leerse como un sitio.
+	local sitio = sitioLlano(ciudad, centro, LADO, LADO, 2, ocupados, 80, 40)
+	if sitio == nil then
 		-- Sin calle donde plantarlo. Se omite en vez de ponerlo en una azotea: un
 		-- refugio inalcanzable es peor que uno menos, porque el jugador lo ve en el
 		-- mapa, se desvía hacia él y descubre que no se puede entrar justo cuando
 		-- lo necesitaba.
 		return nil
 	end
+	local y, x, z = sitio.Y, sitio.X, sitio.Z
+	despejar(ciudad, Vector3.new(x, y, z), LADO + 4, 45)
 
 	local AZUL = Color3.fromRGB(74, 118, 176)
 	local AZUL_OSCURO = Color3.fromRGB(44, 70, 108)
@@ -1200,13 +1500,19 @@ local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre
 
 	local losa = part(
 		"Refugio_" .. indice,
-		Vector3.new(Config.REFUGIO_RADIO * 1.2, ALTO_LOSA, Config.REFUGIO_RADIO * 1.2),
+		Vector3.new(LADO, ALTO_LOSA, LADO),
 		Vector3.new(x, y + ALTO_LOSA / 2, z),
 		AZUL,
 		padre
 	)
 	losa.Material = Enum.Material.Pavement
 	losa:SetAttribute("refugio", true)
+
+	-- Y lo que falte hasta el suelo por el lado bajo.
+	local bajo = perfilDelSuelo(ciudad, Vector3.new(x, y, z), LADO, LADO)
+	if bajo ~= nil then
+		zocalo(losa, bajo, padre)
+	end
 
 	-- UNA CASETA DE VERDAD, no una losa pintada de azul.
 	--
@@ -1559,21 +1865,53 @@ function CityBuilder.build(): Mundo
 			-- limpio, sí -- limpio como un solar al que no llega ningún coche, y un
 			-- concesionario al que no se puede llegar en coche no es un sitio, es un
 			-- adorno.
+			-- Y LLANO, que es el tercer requisito y llegó igual que los otros dos:
+			-- midiendo. El taller de la ámbar se quedó a caballo de un talud --la
+			-- tierra le comía 6,7 studs por un lado y dos esquinas suyas colgaban
+			-- sobre el vacío-- porque el sitio se elegía con un rayo en el centro y
+			-- la losa mide 96 por 60. Un concesionario medio enterrado no rompe
+			-- nada; simplemente parece que el juego está mal montado, que es la
+			-- clase de defecto que decide si alguien se queda.
+			-- Dos vueltas: la primera exige el suelo llano, la segunda se conforma con
+			-- lo de siempre. Un taller algo torcido --que además ahora se apoya en su
+			-- punto alto y lleva zócalo-- sigue siendo mejor que una zona sin taller.
+			-- SE MIRAN TODOS Y GANA EL MEJOR. Coger el primero que cumpliera daba un
+			-- taller a caballo de un talud teniendo uno llano dos posiciones más
+			-- allá: los requisitos duros (parcela despejada, calle a la que salir, y
+			-- que su carretera no cruce el destino) no ordenan entre sí, así que
+			-- entre los que pasan hay que quedarse con el que mejor se apoya.
 			local sitio, calleTaller = nil, nil
-			for vuelta = 0, 11 do
-				local angulo = vuelta * math.pi / 6
-				local candidato = ruta.destino + Vector3.new(math.cos(angulo) * 58, 0, math.sin(angulo) * 58)
-				local y = sueloDeLaCiudad(ciudad, candidato.X, candidato.Z)
-				if y ~= nil then
-					local centro = Vector3.new(candidato.X, y, candidato.Z)
-					local libre = despejarCuenta(ciudad, centro, 110)
-					if libre == 0 then
-						local calle = calleMasCercana(ciudad, centro, 200)
-						if calle ~= nil then
-							sitio, calleTaller = centro, calle
-							break
-						end
+			local mejorNota = math.huge
+			for _, radio in { 58, 80 } do
+				for vuelta = 0, 11 do
+					local angulo = vuelta * math.pi / 6
+					local candidato = ruta.destino + Vector3.new(math.cos(angulo) * radio, 0, math.sin(angulo) * radio)
+					local bajo, alto, fuera = perfilDelSuelo(ciudad, candidato, 96, 60)
+					if bajo == nil then
+						continue
 					end
+					local centro = Vector3.new(candidato.X, alto, candidato.Z)
+					if despejarCuenta(ciudad, centro, 110) ~= 0 then
+						continue
+					end
+					local calle = calleMasCercana(ciudad, centro, 200)
+					-- Y SU CARRETERA NO PUEDE PASAR POR ENCIMA DEL DESTINO. Salió al
+					-- mover el taller: la vía del concesionario ámbar cruzaba la losa de
+					-- entrega, así que lo que pisabas en el sitio donde se cobra era
+					-- asfalto del taller. No rompe la entrega, pero tapa la única losa
+					-- que el jugador tiene que reconocer de un vistazo.
+					if calle == nil or aLaRecta(ruta.destino, centro, calle) <= 34 then
+						continue
+					end
+					local nota = (alto - bajo) + fuera * 3 + (radio - 58) / 20
+					if nota < mejorNota then
+						sitio, calleTaller, mejorNota = centro, calle, nota
+					end
+				end
+				-- Con un sitio bueno cerca no hace falta abrir el radio: alejar el
+				-- concesionario del destino es empeorarlo por otro lado.
+				if mejorNota <= 1 then
+					break
 				end
 			end
 			if sitio == nil then
@@ -1672,18 +2010,23 @@ function CityBuilder.build(): Mundo
 	local guaridas: { Vector3 } = {}
 	for _, ruta in Routes.todas() do
 		for _, sitio in Lairs.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.GUARIDAS_POR_RUTA) do
-			local pieza = guarida(ciudad, #guaridas + 1, ruta.id, sitio, mundo)
+			local pieza = guarida(ciudad, #guaridas + 1, ruta.id, sitio, mundo, guaridas)
 			if pieza then
 				table.insert(guaridas, pieza.Position)
 			end
 		end
 	end
 
+	-- Los refugios esquivan tanto a los otros refugios como a las guaridas: una
+	-- comisaría plantada encima de la guarida que venía a rodear no es un descuido
+	-- gracioso, es el sitio al que corres siendo el sitio del que huyes.
 	local refugios: { Vector3 } = {}
+	local tomados: { Vector3 } = table.clone(guaridas)
 	for _, sitio in Shelter.repartir(grupos) do
-		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo)
+		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo, tomados)
 		if pieza then
 			table.insert(refugios, pieza.Position)
+			table.insert(tomados, pieza.Position)
 		end
 	end
 

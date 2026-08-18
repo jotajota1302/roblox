@@ -269,6 +269,50 @@ local function accesos()
 		malos == 0,
 		string.format("%d de %d puntos del camino sin asfalto", malos, total)
 	)
+
+	-- Y NADA DE LA CIUDAD LES SALE POR MEDIO. Medido: cinco tramos de acceso
+	-- atravesaban vallas -- las mismas con las que el pathfinding de los ladrones
+	-- ya se atasca. Una vía con una valla dentro no es una vía; es una valla con
+	-- asfalto debajo, y quien llegue conduciendo se queda parado sin saber por qué.
+	local ciudad = workspace:FindFirstChild("Ciudad")
+	if ciudad ~= nil then
+		local op = OverlapParams.new()
+		op.FilterType = Enum.RaycastFilterType.Include
+		op.FilterDescendantsInstances = { ciudad }
+		op.MaxParts = 40
+		local atravesados, ejemplo = 0, ""
+		for _, pieza in m:GetChildren() do
+			if not pieza:IsA("BasePart") or not string.match(pieza.Name, "^Acceso") then
+				continue
+			end
+			-- Sólo el volumen SOBRE el firme: una vía se apoya en el suelo y lo pisa
+			-- por definición, así que medir hacia abajo sería contar el suelo.
+			local dentro = workspace:GetPartBoundsInBox(
+				pieza.CFrame * CFrame.new(0, 7, 0),
+				Vector3.new(pieza.Size.X, 11, pieza.Size.Z),
+				op
+			)
+			for _, c in dentro do
+				local padre = c.Parent
+				if padre ~= nil and padre.Name == "Tree" then
+					continue
+				end
+				-- Lo enorme no cuenta: si un edificio entero roza la vía, el problema
+				-- es el trazado y lo dice otra comprobación.
+				if math.max(c.Size.X, c.Size.Y, c.Size.Z) > 200 then
+					continue
+				end
+				atravesados += 1
+				ejemplo = string.format("%s dentro de %s", c.Name, pieza.Name)
+				break
+			end
+		end
+		comprobar(
+			"ninguna vía atraviesa nada de la ciudad",
+			atravesados == 0,
+			string.format("%d tramos con algo dentro (p. ej. %s)", atravesados, ejemplo)
+		)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -490,6 +534,137 @@ local function refugios()
 			string.format("el más cercano se sale de los %d studs de desvío", alcance)
 		)
 	end
+end
+
+--------------------------------------------------------------------------------
+-- 5c. Lo que plantamos encaja con el terreno de la ciudad.
+--------------------------------------------------------------------------------
+-- *"Cuidado con las guaridas, que las he visto no muy alineadas con el terreno"*
+-- (JJ). Y no eran sólo las guaridas: todo este fichero medía el suelo con UN rayo
+-- en el centro y dejaba encima una losa plana, así que en cuanto el sitio tenía
+-- cuesta la pieza se hundía por un lado y volaba por el otro. Medido antes de
+-- arreglarlo: la Guarida_1 volaba 20 studs y la tierra se la comía 32; el
+-- Refugio_1, en la misma ladera, 37 de diferencia entre lados.
+--
+-- Es el defecto más barato de cometer y de los más caros que hay: no rompe nada,
+-- pero un mapa donde las cosas están puestas ENCIMA en vez de EN él se lee como
+-- descuidado en el primer minuto, que es justo donde se decide si alguien se queda.
+local function encaje()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local ciudad = workspace:FindFirstChild("Ciudad")
+	if ciudad == nil then
+		comprobar("hay ciudad contra la que medir el encaje", false, "sin Ciudad no se puede comprobar el terreno")
+		return
+	end
+
+	-- El terreno DE LA CIUDAD, sin contar nada nuestro: si sondeáramos el mundo
+	-- entero, cada losa se mediría contra la de al lado.
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { ciudad }
+
+	-- Los árboles NO son suelo: esta ciudad tiene 2.048 copas, y un rayo que se
+	-- para en una hoja dice que hay terreno a cien studs de altura. La sonda mide
+	-- lo mismo que mide el constructor o no sirve para comprobarlo.
+	local function suelo(x: number, z: number): number?
+		local desde = 500
+		for _ = 1, 8 do
+			local g = workspace:Raycast(Vector3.new(x, desde, z), Vector3.new(0, -(desde + 300), 0), params)
+			if g == nil then
+				return nil
+			end
+			local padre = g.Instance.Parent
+			if padre == nil or padre.Name ~= "Tree" then
+				return g.Position.Y
+			end
+			desde = g.Position.Y - 0.5
+		end
+		return nil
+	end
+
+	local peorEnterrada, peorHueco = "", ""
+	local enterradas, huecos = 0, 0
+	local maxEnterrada, maxHueco = 0, 0
+
+	for _, pieza in m:GetChildren() do
+		if not pieza:IsA("BasePart") then
+			continue
+		end
+		-- Los zócalos NO: son precisamente lo que rellena el hueco, así que medirlos
+		-- como si fueran losas cuenta dos veces el mismo desnivel y además siempre
+		-- da "enterrado" -- que es su trabajo.
+		local esLosa = (
+			string.match(pieza.Name, "^Guarida_%d+$")
+			or string.match(pieza.Name, "^Refugio_%d+$")
+			or string.match(pieza.Name, "^Destino_")
+			or string.match(pieza.Name, "^Taller_")
+		) and not string.match(pieza.Name, "Zocalo$")
+		if not esLosa then
+			continue
+		end
+		-- Lo de dentro de casa se apoya en nuestra propia explanada, no en la
+		-- ciudad: medirlo contra el terreno daría un falso positivo garantizado.
+		if Perimeter.dentro(pieza.Position, 6) then
+			continue
+		end
+
+		local base = pieza.Position.Y - pieza.Size.Y / 2
+		local dx, dz = pieza.Size.X / 2 - 1, pieza.Size.Z / 2 - 1
+		local alto, bajo = -math.huge, math.huge
+		-- Rejilla de 5×5, la misma que usa el constructor: con nueve puntos, una
+		-- franja de césped de 93 studs de ancho se cuela entre dos rayos.
+		for i = -2, 2 do
+			for k = -2, 2 do
+				local y = suelo(pieza.Position.X + (i / 2) * dx, pieza.Position.Z + (k / 2) * dz)
+				-- Lo que esté MUY por encima no es terreno, es un puente o un alero:
+				-- estar debajo de algo no es lo mismo que estar enterrado en una loma,
+				-- y meterlo en la misma cuenta daba "131 studs dentro del terreno".
+				if y ~= nil and y <= base + 25 then
+					alto = math.max(alto, y)
+					bajo = math.min(bajo, y)
+				end
+			end
+		end
+		if alto == -math.huge then
+			continue
+		end
+
+		-- ENTERRADA: el terreno sube por encima de su base, o sea que un trozo de la
+		-- pieza está dentro de la loma.
+		local enterrada = alto - base
+		if enterrada > 1.5 then
+			enterradas += 1
+			if enterrada > maxEnterrada then
+				maxEnterrada, peorEnterrada = enterrada, pieza.Name
+			end
+		end
+
+		-- VOLANDO: el terreno cae por debajo de su base y no hay zócalo que lo tape.
+		local zocalo = m:FindFirstChild(pieza.Name .. "Zocalo")
+		local tapado = if zocalo and zocalo:IsA("BasePart") then zocalo.Position.Y - zocalo.Size.Y / 2 else base
+		local hueco = tapado - bajo
+		if hueco > 1.5 then
+			huecos += 1
+			if hueco > maxHueco then
+				maxHueco, peorHueco = hueco, pieza.Name
+			end
+		end
+	end
+
+	comprobar(
+		"ninguna losa enterrada en el terreno",
+		enterradas == 0,
+		string.format("%d enterradas, la peor %s con %.1f studs dentro", enterradas, peorEnterrada, maxEnterrada)
+	)
+	comprobar(
+		"ninguna losa volando sobre el terreno",
+		huecos == 0,
+		string.format("%d con hueco debajo, la peor %s con %.1f studs al aire", huecos, peorHueco, maxHueco)
+	)
 end
 
 --------------------------------------------------------------------------------
@@ -735,6 +910,7 @@ function SelfCheck.run(): string
 		{ nombre = "puerta", fn = puerta },
 		{ nombre = "refugios", fn = refugios },
 		{ nombre = "guaridas", fn = guaridas },
+		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },
 		{ nombre = "puente", fn = puente },
 		{ nombre = "coste", fn = coste },
