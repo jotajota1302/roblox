@@ -218,6 +218,69 @@ end
 
 -- Monta (o desmonta) el vehículo de un personaje. `vehiculoId` nil o "a_pie"
 -- deja al personaje limpio.
+-- LA MALLA DE UN VEHÍCULO, ya escalada y orientada, sin colocar.
+--
+-- Vive aquí y no en quien la pide porque la cuenta de la escala es delicada y ya
+-- se torció una vez: cada autor modela mirando a donde le parece --coche y
+-- furgoneta vienen de lado, la bicicleta con el eje Z hacia arriba-- y los
+-- ángulos no se deducen de las proporciones, se miden y se guardan en el
+-- catálogo. Tener esa cuenta en dos sitios es cómo el escaparate acabaría
+-- enseñando una furgoneta aplastada mientras el jugador conduce una normal.
+--
+-- Devuelve la pieza ANCLADA y su alto real en el mundo (que no es `Size.Y`: en
+-- una malla volteada, Size.Y es el ancho). Quien la pida decide dónde ponerla.
+function Ride.malla(vehiculoId: string?): (BasePart?, number)
+	local modelo = RideCatalog.get(vehiculoId)
+	if modelo == nil then
+		return nil, 0
+	end
+
+	local ok, malla = pcall(function()
+		local m = AssetService:CreateMeshPartAsync(modelo.mesh)
+		m.Name = "Modelo"
+		if modelo.textura then
+			m.TextureID = modelo.textura
+		end
+		if modelo.color then
+			m.Color = modelo.color
+		end
+
+		-- EL ORDEN IMPORTA: primero el volteo sobre X, después el giro sobre Y. Al
+		-- revés, el eje largo del vehículo acaba apuntando al cielo (medido con las
+		-- cuatro combinaciones).
+		local giro = CFrame.Angles(0, math.rad(modelo.giroY), 0) * CFrame.Angles(math.rad(modelo.giroX or 0), 0, 0)
+		local nativo = m.Size
+		-- LA ESCALA, limitada por el LARGO Y POR EL ALTO a la vez. Escalar sólo por
+		-- el lado mayor infla lo pequeño: una malla casi cúbica estirada hasta medir
+		-- 2,6 de largo queda también de 2,6 de alto, por la rodilla de un personaje
+		-- que mide cinco. Y el alto se mide DESPUÉS de girar: en una malla volteada
+		-- la altura no está en su eje Y.
+		local altoNativo = math.abs(giro.RightVector.Y) * nativo.X
+			+ math.abs(giro.UpVector.Y) * nativo.Y
+			+ math.abs(giro.LookVector.Y) * nativo.Z
+		local largoNativo = math.abs(giro.RightVector.Z) * nativo.X
+			+ math.abs(giro.UpVector.Z) * nativo.Y
+			+ math.abs(giro.LookVector.Z) * nativo.Z
+		local porLargo = math.max(modelo.tamano.X, modelo.tamano.Z) / math.max(largoNativo, 0.01)
+		local porAlto = modelo.tamano.Y / math.max(altoNativo, 0.01)
+		m.Size = nativo * math.min(porLargo, porAlto)
+
+		m.Anchored = true
+		m.CanCollide = false
+		m.CFrame = giro
+		return m
+	end)
+
+	if not ok or malla == nil then
+		return nil, 0
+	end
+
+	local m = malla :: BasePart
+	local cf, s3 = m.CFrame, m.Size
+	local alto = math.abs(cf.RightVector.Y) * s3.X + math.abs(cf.UpVector.Y) * s3.Y + math.abs(cf.LookVector.Y) * s3.Z
+	return m, alto
+end
+
 function Ride.montar(character: Model?, vehiculoId: string?)
 	if not character then
 		return

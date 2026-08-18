@@ -21,6 +21,7 @@
 	es media tensión del juego -- desaparecería.
 ]]
 
+local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
@@ -50,6 +51,8 @@ local EXPLICACION: { [string]: string } = {
 	vehiculo_desconocido = "Ese vehiculo no existe",
 	lejos = "Tienes que estar en el taller",
 	con_carga = "Descarga antes de cambiar de vehiculo",
+	no_cabe_la_carga = "Ahi no te cabe lo que llevas: descarga primero",
+	carga_demasiado_grande = "Lo que llevas no entra en ese vehiculo",
 	no_es_tuyo = "Ese vehiculo no es tuyo",
 	ya_lo_llevas = "Ya lo llevas puesto",
 	nivel_insuficiente = "Te falta nivel para ese vehiculo",
@@ -179,8 +182,14 @@ function GarageService.sacar(player: Player, vehiculoId: string?): (boolean, str
 	if not GarageService.enElTaller(player) then
 		return false, "lejos"
 	end
-	if #estado.cajas > 0 then
-		return false, "con_carga"
+	-- CON CARGA SE PUEDE, SI CABE. Antes bastaba una caja para que el taller
+	-- contestara "descarga antes de cambiar de vehículo" -- incluso al sacar la
+	-- furgoneta que acababas de comprar, que es cuando más falta hace. Lo que no
+	-- se puede es cambiar A MENOS: ahí la carga no cabría y habría que hacerla
+	-- desaparecer. La cuenta vive en Cargo, que es puro y está probado.
+	local admite, porQue = Cargo.admiteLaCarga(estado.cajas, vehiculoId)
+	if not admite then
+		return false, porQue
 	end
 	local puede, motivo = Vehicles.puedeSacar(estado.garaje, vehiculoId)
 	if not puede then

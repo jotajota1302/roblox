@@ -65,6 +65,40 @@ function Cargo.cabe(
 	return true, "ok"
 end
 
+-- ¿PUEDE ESTE VEHÍCULO CON LO QUE YA LLEVAS ENCIMA?
+--
+-- Es la pregunta que hay que hacer al sacar un vehículo del garaje, y hasta ahora
+-- no se hacía ninguna: bastaba con llevar una caja para que el taller contestara
+-- *"descarga antes de cambiar de vehículo"*. JJ se lo encontró de frente --*"no me
+-- deja coger vehículos, me dice que descargue"*-- y tenía razón en molestarse: la
+-- regla venía de cuando comprar SUSTITUÍA tu vehículo, y lo que protegía era que
+-- no hubiera carga sin sitio donde caer.
+--
+-- Lo que de verdad hay que impedir no es cambiar, es cambiar A MENOS: subir de
+-- monopatín a furgoneta con el zurrón lleno no tiene ningún problema --cabe todo--
+-- y es exactamente lo que quiere hacer quien acaba de pagarla. Bajar sí, porque
+-- entonces la carga no cabe y habría que hacerla desaparecer.
+--
+-- Las dos mitades son las mismas que en Cargo.cabe: los huecos y el TAMAÑO. Un
+-- piano no baja a un monopatín aunque el monopatín fuera de diez plazas.
+function Cargo.admiteLaCarga(cajas: { Economy.Caja }, vehiculo: string?): (boolean, string)
+	local def = Vehicles.deEstado(vehiculo)
+	-- EL TAMAÑO SE MIRA PRIMERO, igual que en Cargo.cabe y por lo mismo: los dos
+	-- motivos llevan a decisiones opuestas --uno dice "descarga", el otro dice "ese
+	-- vehículo no te sirve para esto"-- y el segundo es el que no se puede resolver
+	-- soltando cajas. Con el orden al revés, bajar un piano a un monopatín contestaba
+	-- "no te cabe", y quien lo leyera iría a vaciar el zurrón para nada.
+	for _, caja in cajas do
+		if caja.objeto ~= nil and Goods.nivelExigido(caja.objeto) > (def.tamanoMaximo or 1) then
+			return false, "carga_demasiado_grande"
+		end
+	end
+	if Cargo.pesoTotal(cajas) > def.capacidad then
+		return false, "no_cabe_la_carga"
+	end
+	return true, "ok"
+end
+
 -- Cuánto puede llevar este jugador. Único sitio del juego que responde a esa
 -- pregunta: antes cada servicio leía Config.CAPACIDAD_A_PIE por su cuenta, y el
 -- día que apareció un vehículo con otra capacidad eso habría dejado al almacén

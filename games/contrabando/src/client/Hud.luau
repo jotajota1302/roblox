@@ -31,7 +31,9 @@ local metaLabel: TextLabel
 local metaFila: Frame
 local avisoLabel: TextLabel
 local misionLabel: TextLabel
-local accionesLabel: TextLabel
+local accionesPanel: Frame
+type FilaAccion = { marco: Frame, tecla: TextLabel, accion: TextLabel }
+local filasAccion: { FilaAccion } = {}
 local modal = false
 
 -- El acabado común de un botón: esquinas, borde del mismo color pero más oscuro
@@ -223,28 +225,75 @@ function Hud.build()
 	--
 	-- Va en gris y más pequeña que la misión: la misión dice QUÉ hacer, esto sólo
 	-- recuerda CON QUÉ. Si compitieran por la atención, la misión perdería.
-	accionesLabel = Instance.new("TextLabel")
-	accionesLabel.Name = "Acciones"
-	accionesLabel.AnchorPoint = Vector2.new(0, 0)
-	accionesLabel.Position = UDim2.fromScale(0.02, 0.295)
-	accionesLabel.Size = UDim2.fromScale(0.34, 0.04)
-	accionesLabel.BackgroundColor3 = UiKit.TINTA
-	accionesLabel.BackgroundTransparency = 0.35
-	accionesLabel.TextColor3 = UiKit.APAGADO
-	accionesLabel.TextScaled = true
-	accionesLabel.Font = Enum.Font.GothamMedium
-	accionesLabel.TextXAlignment = Enum.TextXAlignment.Left
-	accionesLabel.TextStrokeTransparency = 0.7
-	accionesLabel.Text = ""
-	accionesLabel.Visible = false
-	accionesLabel.Parent = gui
-	UiKit.redondear(accionesLabel, 6)
-	UiKit.margen(accionesLabel, 8)
+	-- EL PANEL DE CONTROLES, a la izquierda y debajo de la misión: es donde JJ pidió
+	-- que estuvieran todos ("a la izquierda, donde ya poníamos lo de subir o
+	-- bajarte, que salgan todas las acciones ahí").
+	accionesPanel = Instance.new("Frame")
+	accionesPanel.Name = "Acciones"
+	accionesPanel.AnchorPoint = Vector2.new(0, 0)
+	accionesPanel.Position = UDim2.fromScale(0.02, 0.295)
+	accionesPanel.Size = UDim2.fromScale(0.34, 0.045)
+	accionesPanel.BackgroundTransparency = 1
+	accionesPanel.Visible = false
+	accionesPanel.Parent = gui
 
-	local accionesSize = Instance.new("UISizeConstraint")
-	accionesSize.MinSize = Vector2.new(150, 20)
-	accionesSize.MaxSize = Vector2.new(300, 28)
-	accionesSize.Parent = accionesLabel
+	local lista = Instance.new("UIListLayout")
+	lista.FillDirection = Enum.FillDirection.Vertical
+	lista.SortOrder = Enum.SortOrder.LayoutOrder
+	lista.Padding = UDim.new(0, 4)
+	lista.Parent = accionesPanel
+
+	-- CUATRO FILAS FIJAS, creadas una vez y encendidas o apagadas según haga falta.
+	-- Cuatro porque nunca hay más acciones a la vez y una lista que crece empuja al
+	-- resto de la interfaz; si algún día hay una quinta, se ve enseguida que falta.
+	for i = 1, 4 do
+		local marco = Instance.new("Frame")
+		marco.Name = "Accion" .. i
+		marco.Size = UDim2.new(1, 0, 0, 26)
+		marco.BackgroundColor3 = UiKit.TINTA
+		marco.BackgroundTransparency = 0.35
+		marco.LayoutOrder = i
+		marco.Visible = false
+		marco.Parent = accionesPanel
+		UiKit.redondear(marco, 6)
+
+		local limite = Instance.new("UISizeConstraint")
+		limite.MinSize = Vector2.new(150, 22)
+		limite.MaxSize = Vector2.new(300, 30)
+		limite.Parent = marco
+
+		-- La tecla, en su propia cajita clara: es lo que el ojo busca primero, y con
+		-- el mismo tamaño que el texto se pierde dentro de la frase.
+		local tecla = Instance.new("TextLabel")
+		tecla.Name = "Tecla"
+		tecla.AnchorPoint = Vector2.new(0, 0.5)
+		tecla.Position = UDim2.new(0, 5, 0.5, 0)
+		tecla.Size = UDim2.new(0, 34, 0.74, 0)
+		tecla.BackgroundColor3 = UiKit.PAPEL
+		tecla.BackgroundTransparency = 0.12
+		tecla.TextColor3 = UiKit.TINTA
+		tecla.TextScaled = true
+		tecla.Font = Enum.Font.GothamBold
+		tecla.Text = ""
+		tecla.Parent = marco
+		UiKit.redondear(tecla, 5)
+
+		local accion = Instance.new("TextLabel")
+		accion.Name = "Que"
+		accion.AnchorPoint = Vector2.new(0, 0.5)
+		accion.Position = UDim2.new(0, 45, 0.5, 0)
+		accion.Size = UDim2.new(1, -50, 0.8, 0)
+		accion.BackgroundTransparency = 1
+		accion.TextColor3 = UiKit.PAPEL
+		accion.TextScaled = true
+		accion.Font = Enum.Font.GothamMedium
+		accion.TextXAlignment = Enum.TextXAlignment.Left
+		accion.TextStrokeTransparency = 0.7
+		accion.Text = ""
+		accion.Parent = marco
+
+		table.insert(filasAccion, { marco = marco, tecla = tecla, accion = accion })
+	end
 
 	local misionSize = Instance.new("UISizeConstraint")
 	misionSize.MinSize = Vector2.new(150, 26)
@@ -252,14 +301,44 @@ function Hud.build()
 	misionSize.Parent = misionLabel
 end
 
--- Las teclas que sirven ahora mismo. Vacío = no hay ninguna, y entonces la línea
--- desaparece en vez de quedarse ocupando sitio.
-function Hud.acciones(texto: string)
-	if not accionesLabel then
+-- LOS CONTROLES QUE SIRVEN AHORA MISMO, uno por fila y con su botón dibujado.
+--
+-- Antes era una línea de texto ("V  bajarte  ·  E  entregar") y sólo hablaba de
+-- teclado: *"con el mando no se puede jugar, los botones que hay que pulsar son
+-- los del teclado; que salgan siempre los controles en pantalla de manera visual"*
+-- (JJ). Con un mando enchufado, esa línea era instrucciones para un aparato que no
+-- tienes en la mano.
+--
+-- Ahora cada acción llega con la etiqueta de SU mando --"V" con teclado, "Y" con
+-- mando, el botón táctil en el móvil-- y quien decide cuál es Main.client, que es
+-- el que sabe con qué se está jugando. Aquí sólo se dibuja.
+--
+-- Recibe una lista de { tecla, accion }. Vacía = no hay ninguna, y entonces el
+-- panel desaparece en vez de quedarse ocupando sitio.
+export type Accion = { tecla: string, accion: string }
+
+function Hud.acciones(lista: { Accion })
+	if not accionesPanel then
 		return
 	end
-	accionesLabel.Text = texto
-	accionesLabel.Visible = texto ~= "" and not modal
+	local cuantas = #lista
+	accionesPanel.Visible = cuantas > 0 and not modal
+	if cuantas == 0 then
+		return
+	end
+
+	-- Las filas se reutilizan en vez de recrearse: esto se llama en cada refresco
+	-- del selector --varias veces por segundo-- y crear instancias a ese ritmo es
+	-- basura para el recolector y parpadeo en pantalla.
+	for i, fila in filasAccion do
+		local dato = lista[i]
+		fila.marco.Visible = dato ~= nil
+		if dato ~= nil then
+			fila.tecla.Text = dato.tecla
+			fila.accion.Text = dato.accion
+		end
+	end
+	accionesPanel.Size = UDim2.fromScale(0.34, 0.045 * math.min(cuantas, #filasAccion))
 end
 
 -- Lo que hay que hacer ahora, en una línea. La escribe Main.client, que es quien
@@ -382,8 +461,13 @@ function Hud.setModal(activo: boolean)
 	if misionLabel then
 		misionLabel.Visible = not activo and misionLabel.Text ~= ""
 	end
-	if accionesLabel then
-		accionesLabel.Visible = not activo and accionesLabel.Text ~= ""
+	if accionesPanel then
+		-- Se mira si hay alguna fila encendida: el panel sin filas es una caja vacía.
+		local hayAlguna = false
+		for _, fila in filasAccion do
+			hayAlguna = hayAlguna or fila.marco.Visible
+		end
+		accionesPanel.Visible = not activo and hayAlguna
 	end
 end
 

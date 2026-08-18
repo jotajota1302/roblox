@@ -21,6 +21,8 @@
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
+-- Ride, para poner el vehículo de verdad en el escaparate en vez de una caja.
+local Ride = require(script.Parent.Ride)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
@@ -297,12 +299,17 @@ local function zocalo(losa: BasePart, bajo: number, padre: Instance)
 	if caida <= 0.6 then
 		return
 	end
+	-- CON MARGEN POR ABAJO. La cota más baja se mide con veinticinco rayos, y basta
+	-- que el terreno tenga un escalón entre dos de ellos --o que algo cambie después
+	-- de construir-- para que el zócalo se quede corto y vuelva a verse el hueco.
+	-- Enterrar ocho studs de más no lo ve nadie; que falten cuatro, sí.
+	local MARGEN = 8
 	local pieza = part(
 		losa.Name .. "Zocalo",
 		-- Un pelo más estrecho que la losa, para que el borde de arriba siga
 		-- leyéndose como un escalón y no como un bloque macizo.
-		Vector3.new(losa.Size.X - 1.5, caida + ALTO_LOSA, losa.Size.Z - 1.5),
-		Vector3.new(losa.Position.X, suelo - caida / 2, losa.Position.Z),
+		Vector3.new(losa.Size.X - 1.5, caida + ALTO_LOSA + MARGEN, losa.Size.Z - 1.5),
+		Vector3.new(losa.Position.X, suelo - (caida + MARGEN) / 2, losa.Position.Z),
 		Color3.new(losa.Color.R * 0.55, losa.Color.G * 0.55, losa.Color.B * 0.55),
 		padre
 	)
@@ -551,6 +558,43 @@ local function acceso(
 		cotas[i] = math.clamp(cotas[i], cuerda - LIBERTAD, cuerda + LIBERTAD)
 	end
 
+	-- Y AHORA SE ALISA EL PERFIL, que es lo que faltaba: *"el vehículo no sale de la
+	-- zona inicial y se queda enganchado en el mapa"* (JJ). Medida la rampa de
+	-- salida de casa, sus juntas iban 17,8 → 20,5 → 23,0 → 18,6 → 22,2 → 18,8: un
+	-- zigzag de cinco studs sobre un desnivel real de dos. Cada tramo tomaba la cota
+	-- del suelo bajo su junta, y ahí abajo hay bordillos, el zócalo del polígono y
+	-- el borde de la ciudad. Como los tramos se solapan seis studs para no dejar
+	-- juntas abiertas, dos seguidos con inclinaciones opuestas (+16° y −15°) se
+	-- cruzan y el canto del de atrás asoma por encima del de delante: un escalón de
+	-- cuatro studs, o sea un muro contra el que se choca.
+	--
+	-- LA CUENTA ES UNA ENVOLVENTE DE CONOS, y se llegó a ella después de probar el
+	-- promedio de toda la vida --que sí quitaba el zigzag, pero CORTANDO las lomas:
+	-- el acceso verde acabó enterrado en seis de sus cincuenta y seis puntos, que es
+	-- el mismo defecto con otro nombre--. Aquí cada junta se levanta hasta el mayor
+	-- de los conos que salen de todas las demás con la pendiente máxima:
+	--
+	--     cota[i] = max sobre j de ( suelo[j] − |i−j| · pendiente )
+	--
+	-- Con eso salen a la vez las dos cosas que hacen falta y que peleaban entre sí:
+	-- la vía NUNCA queda por debajo del terreno (su propio cono la sostiene) y NUNCA
+	-- hay un escalón (ningún par de juntas puede separarse más de la pendiente). Las
+	-- lomas se suben rodando y las vaguadas se cruzan volando, que es lo que hace
+	-- una carretera de verdad.
+	local pasoLargo = largo / tramos
+	-- 12 grados: una cuesta empinada de ciudad. Por encima, un vehículo con la
+	-- colisión desactivada seguiría subiendo, pero el PERSONAJE tropieza con el canto.
+	local SALTO_MAXIMO = pasoLargo * 0.21
+
+	local suelo = table.clone(cotas)
+	for i = 1, tramos - 1 do
+		local mejor = suelo[i]
+		for j = 0, tramos do
+			mejor = math.max(mejor, suelo[j] - math.abs(i - j) * SALTO_MAXIMO)
+		end
+		cotas[i] = mejor
+	end
+
 	local estorbos = OverlapParams.new()
 	estorbos.FilterType = Enum.RaycastFilterType.Include
 	estorbos.FilterDescendantsInstances = if ciudad then { ciudad } else {}
@@ -567,7 +611,15 @@ local function acceso(
 			string.format("%s_%d", nombre, i),
 			-- Un poco más largo que el hueco que cubre, para que dos tramos seguidos
 			-- se solapen y no quede una junta de césped entre ellos.
-			Vector3.new(ancho, GROSOR_VIA, (b - a).Magnitude + 6),
+			--
+			-- POCO, y ésta es la medida delicada de toda la vía: el solape es también
+			-- lo que crea los escalones. Dos tramos con distinta inclinación se cruzan
+			-- en la zona solapada, y el canto del de atrás asoma sobre el de delante
+			-- la mitad del solape por la diferencia de pendientes. Con seis studs eso
+			-- daba un muro de cuatro donde la vía cambia de cuesta -- justo lo que
+			-- dejó a JJ sin poder salir de casa. Con 2,6 (algo más que el grosor del
+			-- firme) la junta sigue tapada y el canto baja de medio stud.
+			Vector3.new(ancho, GROSOR_VIA, (b - a).Magnitude + 2.6),
 			centro,
 			Color3.fromRGB(96, 96, 102),
 			padre
@@ -1143,113 +1195,72 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		texto.Parent = cartel
 	end
 
-	-- Tres expositores con los vehículos de la escalera, del más barato al más
-	-- caro, cada uno con su nombre y su precio. Es el escaparate: enseñar lo que
-	-- todavía no puedes pagar es lo que le da destino al dinero.
-	local escaparate = { Config.VEHICULOS[2], Config.VEHICULOS[5], Config.VEHICULOS[7], Config.VEHICULOS[9] }
-	for i, vehiculo in escaparate do
-		if vehiculo == nil then
-			continue
-		end
-		local x = (i - 2.5) * 16
-		local podio = pieza("Podio" .. i, Vector3.new(9, 1.2, 9), Vector3.new(x, 0.6, -2), Color3.fromRGB(88, 86, 92))
-		-- Una silueta tosca basta: lo que vende es el nombre y el precio de debajo,
-		-- y una caja de color se lee como "aquí hay algo" desde la calle.
-		local bulto = pieza(
-			"Expuesto" .. i,
-			Vector3.new(5.5, 3 + i, 8),
-			Vector3.new(x, 1.2 + (3 + i) / 2, -2),
-			Palette.ruta(if i == 1 then "verde" elseif i == 2 then "ambar" else "roja")
-		)
-		bulto.Material = Enum.Material.Metal
-
-		-- SE COMPRA ESTE, no "el primero de la lista". El aviso de la losa compra lo
-		-- más barato que te falte, que estaba bien cuando la escalera era una fila
-		-- de mejoras; con el garaje hay que poder elegir CUÁL, porque un patinete
-		-- teniendo furgoneta ya no es un capricho sino la llave de los atajos.
-		local compra = prompt(bulto, "Comprar " .. vehiculo.nombre, string.format("%d", vehiculo.coste), 22)
-		compra.Name = "PromptComprar"
-		compra:SetAttribute("vehiculo", vehiculo.id)
-
-		local etiqueta = Instance.new("BillboardGui")
-		etiqueta.Name = "Precio"
-		etiqueta.Size = UDim2.fromScale(9, 2.6)
-		etiqueta.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
-		etiqueta.AlwaysOnTop = false
-		etiqueta.MaxDistance = 160
-		etiqueta.Adornee = bulto
-		etiqueta.Parent = bulto
-
-		local texto = Instance.new("TextLabel")
-		texto.Size = UDim2.fromScale(1, 1)
-		texto.BackgroundTransparency = 1
-		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
-		texto.TextStrokeTransparency = 0.35
-		texto.TextScaled = true
-		texto.Font = Enum.Font.GothamBold
-		-- Nombre, precio y NIVEL. El nivel se escribe en el escaparate porque es del
-		-- vehículo, no del jugador: la etiqueta es la misma para todo el mundo y no
-		-- hay que redibujarla cuando alguien sube. Y enseñarlo es la mitad del
-		-- motivo para seguir -- ver la furgoneta con un "nivel 10" encima es
-		-- exactamente lo que hace que subir de nivel signifique algo.
-		texto.Text = string.format(
-			"%s  ·  %d%s",
-			vehiculo.nombre,
-			vehiculo.coste,
-			if (vehiculo :: any).nivel and (vehiculo :: any).nivel > 1
-				then string.format("  ·  nivel %d", (vehiculo :: any).nivel)
-				else ""
-		)
-		texto.Parent = etiqueta
-		podio.Material = Enum.Material.Concrete
-	end
-
-	-- Luz de escaparate: sin ella, bajo el techo los tres expositores son bultos
-	-- negros y el edificio parece cerrado.
-	local plafon =
-		pieza("TallerLuz", Vector3.new(10, 0.5, 2), Vector3.new(0, alto - 1.5, 0), Color3.fromRGB(240, 232, 210))
-	plafon.CanCollide = false
-	local luz = Instance.new("PointLight")
-	luz.Color = Color3.fromRGB(255, 236, 200)
-	luz.Range = 42
-	luz.Brightness = 1.6
-	luz.Parent = plafon
-
-	-- LAS PLAZAS DEL GARAJE, publicadas como atributos igual que el muelle del
-	-- almacén. Los vehículos que hay en ellas NO se construyen aquí: son los de
-	-- CADA jugador, así que los dibuja el cliente. Un garaje construido en el
-	-- servidor enseñaría la moto de otro.
-	-- UNA PLAZA POR VEHÍCULO COMPRABLE: si el garaje tuviera menos sitios que
-	-- vehículos, comprar el noveno haría desaparecer a otro de la vista sin decir
-	-- nada.
-	local plazas = #Config.VEHICULOS - 1
-	for i = 1, plazas do
-		base:SetAttribute(
-			"plaza" .. i,
-			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 17 * frente)
-		)
-	end
-	base:SetAttribute("plazas", plazas)
+	-- OJO: ESTE BLOQUE ESTUVO DUPLICADO. La función tenía el escaparate, el plafón
+	-- y las plazas del garaje DOS VECES seguidas, así que cada taller montaba dos
+	-- escaparates superpuestos --24 podios donde debía haber 12-- con sus avisos de
+	-- compra encima. No daba ningún error: sólo dos avisos de "Comprar" en el mismo
+	-- sitio y el doble de piezas. Salió contando lo que hay en el mundo, no leyendo
+	-- el código.
 
 	-- Tres expositores con los vehículos de la escalera, del más barato al más
 	-- caro, cada uno con su nombre y su precio. Es el escaparate: enseñar lo que
 	-- todavía no puedes pagar es lo que le da destino al dinero.
-	local escaparate = { Config.VEHICULOS[2], Config.VEHICULOS[5], Config.VEHICULOS[7], Config.VEHICULOS[9] }
+	-- TODOS LOS QUE SE VENDEN, no una selección. Enseñaba tres --y uno de los cuatro
+	-- huecos apuntaba a un vehículo que no existe-- así que faltaban cuatro de los
+	-- siete: *"no sé dónde está la bicicleta, ha desaparecido"* (JJ). Un escaparate
+	-- que esconde la mitad del catálogo no le da destino al dinero; sólo confunde.
+	local escaparate = {}
+	for i = 2, #Config.VEHICULOS do
+		table.insert(escaparate, Config.VEHICULOS[i])
+	end
+
 	for i, vehiculo in escaparate do
-		if vehiculo == nil then
-			continue
-		end
-		local x = (i - 2.5) * 16
-		local podio = pieza("Podio" .. i, Vector3.new(9, 1.2, 9), Vector3.new(x, 0.6, -2), Color3.fromRGB(88, 86, 92))
-		-- Una silueta tosca basta: lo que vende es el nombre y el precio de debajo,
-		-- y una caja de color se lee como "aquí hay algo" desde la calle.
+		-- Desplazada media plaza: con siete expositores centrados, el cuarto cae
+		-- justo en el centro de la losa del taller, que es por donde la sonda
+		-- comprueba que la losa se pisa -- y también por donde entra el jugador.
+		local x = (i - (#escaparate + 1) / 2) * 10 + 5
+		local podio =
+			pieza("Podio" .. i, Vector3.new(8.4, 1.2, 8.4), Vector3.new(x, 0.6, -4), Color3.fromRGB(88, 86, 92))
+		-- Una silueta tosca de respaldo: si la malla no carga --sin el place
+		-- publicado no carga ninguna-- esto es lo que se ve, y el escaparate sigue
+		-- leyéndose como "aquí hay algo" desde la calle.
 		local bulto = pieza(
 			"Expuesto" .. i,
-			Vector3.new(5.5, 3 + i, 8),
-			Vector3.new(x, 1.2 + (3 + i) / 2, -2),
-			Palette.ruta(if i == 1 then "verde" elseif i == 2 then "ambar" else "roja")
+			Vector3.new(4.2, 2.4 + i * 0.35, 6.5),
+			Vector3.new(x, 1.2 + (2.4 + i * 0.35) / 2, -4),
+			Palette.ruta(if i <= 2 then "verde" elseif i <= 4 then "ambar" else "roja")
 		)
 		bulto.Material = Enum.Material.Metal
+
+		-- Y EL VEHÍCULO DE VERDAD ENCIMA, si la sesión puede descargar su malla.
+		-- Va en otro hilo porque CreateMeshPartAsync espera al servidor de assets:
+		-- son siete peticiones por taller y ninguna puede estar en el camino de
+		-- arranque del mundo (ver CLAUDE.md). Cuando llega, el bulto se apaga.
+		task.spawn(function()
+			local malla, alto = Ride.malla(vehiculo.id)
+			if malla == nil or podio.Parent == nil then
+				return
+			end
+			malla.Name = "Escaparate" .. i
+			-- Mirando hacia fuera del cobertizo, como en un concesionario de verdad:
+			-- de morro a la calle por la que pasas.
+			malla.CFrame = CFrame.new(podio.Position + Vector3.new(0, podio.Size.Y / 2 + alto / 2, 0))
+				* CFrame.Angles(0, if frente > 0 then 0 else math.pi, 0)
+				* malla.CFrame
+			malla.CanCollide = false
+			malla.Parent = padre
+			-- El bulto se queda: es el que lleva el aviso de compra y el cartel del
+			-- precio, y moverlos a la malla sería tener el mismo dato en dos sitios.
+			-- Invisible y sin colisión, para que no se choque con una caja que ya no
+			-- se ve.
+			bulto.Transparency = 1
+			bulto.CanCollide = false
+			-- Y FUERA DE LOS RAYOS. Invisible no basta: la sonda del mundo mide lo que
+			-- se pisa con raycasts, y una caja invisible los para igual que una
+			-- maciza. La primera vez que se puso esto, el veredicto fue "lo que se
+			-- pisa en el Taller es Expuesto4".
+			bulto.CanQuery = false
+		end)
 
 		-- SE COMPRA ESTE, no "el primero de la lista". El aviso de la losa compra lo
 		-- más barato que te falte, que estaba bien cuando la escalera era una fila
@@ -1834,6 +1845,9 @@ function CityBuilder.build(): Mundo
 		-- grande era una contradicción: exige vehículo, y el vehículo no podía
 		-- llegar hasta la losa.
 		local calle = calleMasCercana(ciudad, destino.Position, 220)
+		-- Se guardan para el taller: su parcela no puede caer sobre esta carretera.
+		local calleDestino = calle
+		local bordeDestino = if calle ~= nil then bordeDeLosa(destino, calle) else destino.Position
 		if calle ~= nil then
 			acceso(
 				ciudad,
@@ -1880,9 +1894,15 @@ function CityBuilder.build(): Mundo
 			-- allá: los requisitos duros (parcela despejada, calle a la que salir, y
 			-- que su carretera no cruce el destino) no ordenan entre sí, así que
 			-- entre los que pasan hay que quedarse con el que mejor se apoya.
+			-- Y SI CON TODAS LAS REGLAS NO HAY SITIO, SE AFLOJAN. La primera vez que se
+			-- exigió "ni encima de la carretera del destino", la ruta verde se quedó
+			-- SIN TALLER: nada falló, simplemente esa zona no tenía dónde cambiar de
+			-- vehículo y nadie podía saber por qué. Un concesionario algo cerca de la
+			-- vía es un defecto de reparto; una zona sin concesionario es un agujero.
 			local sitio, calleTaller = nil, nil
 			local mejorNota = math.huge
-			for _, radio in { 58, 80 } do
+			local exigente = true
+			for _, radio in { 58, 80, 105, 58, 80, 105 } do
 				for vuelta = 0, 11 do
 					local angulo = vuelta * math.pi / 6
 					local candidato = ruta.destino + Vector3.new(math.cos(angulo) * radio, 0, math.sin(angulo) * radio)
@@ -1903,7 +1923,16 @@ function CityBuilder.build(): Mundo
 					if calle == nil or aLaRecta(ruta.destino, centro, calle) <= 34 then
 						continue
 					end
-					local nota = (alto - bajo) + fuera * 3 + (radio - 58) / 20
+					-- NI ENCIMA DE LA CARRETERA DEL DESTINO. El taller de la verde cayó
+					-- justo sobre ella y su escaparate quedó plantado en mitad del
+					-- asfalto: lo que se pisaba en la vía era un podio y un coche
+					-- expuesto. Se mide contra el trazado real --del borde de la losa a
+					-- su calle-- y no contra el destino a secas, que es un punto y no
+					-- dice por dónde va el camino.
+					if exigente and calleDestino ~= nil and aLaRecta(centro, bordeDestino, calleDestino) < 60 then
+						continue
+					end
+					local nota = (alto - bajo) + fuera * 3 + (radio - 58) / 15
 					if nota < mejorNota then
 						sitio, calleTaller, mejorNota = centro, calle, nota
 					end
@@ -1912,6 +1941,12 @@ function CityBuilder.build(): Mundo
 				-- concesionario del destino es empeorarlo por otro lado.
 				if mejorNota <= 1 then
 					break
+				end
+				-- Agotados los dos radios con las reglas duras, se repiten sin la de la
+				-- carretera. El orden importa: primero se busca bien, y sólo si no hay
+				-- nada se acepta lo que haya.
+				if radio == 105 then
+					exigente = false
 				end
 			end
 			if sitio == nil then

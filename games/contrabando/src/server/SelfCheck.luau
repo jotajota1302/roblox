@@ -270,6 +270,45 @@ local function accesos()
 		string.format("%d de %d puntos del camino sin asfalto", malos, total)
 	)
 
+	-- NI ESCALONES. Es el defecto que dejó el juego sin salida: *"el vehículo no
+	-- sale de la zona inicial y se queda enganchado en el mapa"* (JJ). Las vías se
+	-- montan por tramos que se solapan, y dos tramos seguidos con inclinaciones
+	-- opuestas se cruzan dejando el canto de uno asomando sobre el otro. Se recorre
+	-- la superficie de cada vía y se mira el salto entre pasos: cualquier cosa por
+	-- encima de un bordillo es un muro contra el que se choca.
+	local peorSalto, dondeSalto = 0, ""
+	for base, lista in grupos do
+		table.sort(lista, function(a, b)
+			return a.n < b.n
+		end)
+		local anterior: number? = nil
+		for i = 1, #lista - 1 do
+			local a, b = lista[i].p.Position, lista[i + 1].p.Position
+			-- Cada tres studs: un escalón mide dos o tres, y con pasos más largos se
+			-- cuela entre dos muestras justo el sitio donde se traba el vehículo.
+			local pasos = math.max(3, math.floor((a - b).Magnitude / 3))
+			for k = 0, pasos do
+				local punto = a:Lerp(b, k / pasos)
+				local golpe = bajoLosPies(punto.X, punto.Y + 6, punto.Z, 20)
+				if golpe == nil then
+					anterior = nil
+					continue
+				end
+				local y = golpe.Position.Y
+				if anterior ~= nil and math.abs(y - anterior) > peorSalto then
+					peorSalto = math.abs(y - anterior)
+					dondeSalto = string.format("%s cerca de (%.0f, %.0f)", base, punto.X, punto.Z)
+				end
+				anterior = y
+			end
+		end
+	end
+	comprobar(
+		"las vías no tienen escalones",
+		peorSalto <= 2.5,
+		string.format("salto de %.1f studs en %s -- ahí se traba el vehículo", peorSalto, dondeSalto)
+	)
+
 	-- Y NADA DE LA CIUDAD LES SALE POR MEDIO. Medido: cinco tramos de acceso
 	-- atravesaban vallas -- las mismas con las que el pathfinding de los ladrones
 	-- ya se atasca. Una vía con una valla dentro no es una vía; es una valla con

@@ -246,6 +246,31 @@ end
 -- Se enlaza y se desenlaza según tengas vehículo o no: un botón que no hace nada
 -- es peor que ningún botón, porque el jugador lo prueba, no pasa nada, y aprende
 -- a no mirarlo.
+-- CON QUÉ SE ESTÁ JUGANDO AHORA MISMO. No es una pregunta de una vez al arrancar:
+-- se puede enchufar un mando a mitad de partida, o soltarlo y seguir con el
+-- teclado, y la pantalla tiene que decir el botón que hay en la mano.
+--
+-- Lo pidió JJ con un mando de Xbox delante: *"con el mando no se puede jugar, los
+-- botones que hay que pulsar son los del teclado"*. Y no era sólo la etiqueta --no
+-- había NINGÚN botón de mando enlazado--: las acciones del juego que no tienen
+-- aviso de proximidad (subirse al vehículo, entregar) sólo existían en el teclado.
+local UserInputService = game:GetService("UserInputService")
+
+local function conMando(): boolean
+	local ultimo = UserInputService:GetLastInputType()
+	return ultimo == Enum.UserInputType.Gamepad1
+		or ultimo == Enum.UserInputType.Gamepad2
+		or ultimo == Enum.UserInputType.Gamepad3
+		or ultimo == Enum.UserInputType.Gamepad4
+end
+
+-- La etiqueta de cada acción según el aparato. En táctil se deja la del teclado a
+-- propósito: ContextActionService dibuja su botón con ese mismo texto, así que la
+-- lista y el botón dicen lo mismo.
+local function etiqueta(tecla: string, boton: string): string
+	return if conMando() then boton else tecla
+end
+
 local mandoPuesto = false
 
 local function mandoDeVehiculo(estado: any)
@@ -263,7 +288,11 @@ local function mandoDeVehiculo(estado: any)
 			Remotes.event(Remotes.MONTAR):FireServer()
 		end
 		return Enum.ContextActionResult.Pass
-	end, true, Enum.KeyCode.V)
+		-- ButtonY, y no ButtonX: la X la usa Roblox para los avisos de proximidad
+		-- (comprar, sacar del garaje, dejar carga), así que compartirla haría que
+		-- bajarse del coche y comprar un vehículo fueran el mismo botón dentro del
+		-- taller -- que es justo donde se hacen las dos cosas.
+	end, true, Enum.KeyCode.V, Enum.KeyCode.ButtonY)
 	-- El título dice la tecla, no la acción: la acción cambia (subir/bajar) y el
 	-- botón es el mismo, así que poner "Bajar" lo dejaría mintiendo la mitad del
 	-- tiempo.
@@ -276,18 +305,26 @@ end
 -- QUÉ TECLAS SIRVEN AHORA. Se calcula del estado, igual que la misión, y sólo
 -- aparece lo que de verdad hace algo en este momento: una lista fija de teclas se
 -- convierte en decorado que el jugador deja de leer al segundo minuto.
-local function accionesActuales(estado: any): string
+local function accionesActuales(estado: any): { Hud.Accion }
+	local lista: { Hud.Accion } = {}
 	if estado == nil then
-		return ""
+		return lista
 	end
-	local partes = {}
 	if estado.vehiculo ~= nil and estado.vehiculo ~= "a_pie" then
-		table.insert(partes, if estado.montado == false then "V  subirte" else "V  bajarte")
+		table.insert(lista, {
+			tecla = etiqueta("V", "Y"),
+			accion = if estado.montado == false then "subirte al vehículo" else "bajarte del vehículo",
+		})
 	end
 	if #estado.cajas > 0 and (estado.ruta ~= nil or estado.retornoZona ~= nil) then
-		table.insert(partes, "E  entregar")
+		table.insert(lista, { tecla = etiqueta("E", "RB"), accion = "entregar la carga" })
 	end
-	return table.concat(partes, "   ·   ")
+	-- LO QUE SIEMPRE SE PUEDE, y que hasta ahora no se decía en ningún sitio: el
+	-- aviso de proximidad lo dibuja Roblox con el botón correcto de cada aparato,
+	-- pero sólo aparece cuando ya estás encima. Nombrarlo aquí es lo que hace que
+	-- alguien que acaba de entrar sepa que hay algo que pulsar.
+	table.insert(lista, { tecla = etiqueta("E", "X"), accion = "recoger, comprar y usar" })
+	return lista
 end
 
 local function refrescarSelector()
@@ -322,6 +359,13 @@ local function refrescarSelector()
 		RoutePicker.ocultar()
 	end
 end
+
+-- Y CUANDO CAMBIA EL APARATO, se reescribe la lista. Enchufar el mando a mitad de
+-- partida no debería dejar la pantalla diciendo "V" mientras tienes un pad en la
+-- mano; y al revés igual.
+UserInputService.LastInputTypeChanged:Connect(function()
+	Hud.acciones(accionesActuales(ultimoEstado))
+end)
 
 -- A qué apunta la brújula, que cambia con lo que estés haciendo:
 --
@@ -563,7 +607,10 @@ ContextActionService:BindAction("Entregar", function(_, inputState)
 		Remotes.event(Remotes.ENTREGAR):FireServer()
 	end
 	return Enum.ContextActionResult.Pass
-end, false, Enum.KeyCode.E)
+	-- Y en el mando, el gatillo derecho de arriba: entregar no tiene aviso de
+	-- proximidad --se puede hacer desde cualquier punto de la losa-- así que sin
+	-- esto era la única acción del bucle que un jugador de mando no podía hacer.
+end, false, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
 
 -- Se pide el estado DESPUÉS de construir la interfaz: al revés llegaría a un
 -- cliente que todavía no sabe dibujarlo.

@@ -25,10 +25,75 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Roads = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Roads"))
 local Vehicles = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Vehicles"))
+local RideCatalog = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RideCatalog"))
+
+local AssetService = game:GetService("AssetService")
 
 local Garage = {}
 local carpeta: Folder? = nil
 local dibujado = ""
+
+-- LAS MALLAS DE LOS VEHÍCULOS, pedidas UNA vez por sesión.
+--
+-- El garaje se redibuja al comprar, al sacar y al acercarse a cualquier taller, y
+-- `CreateMeshPartAsync` habla con el servidor de assets: sin caché, cada
+-- redibujado serían siete peticiones. Aquí se guarda la pieza original --nunca se
+-- mete en el mundo-- y lo que se planta son clones.
+--
+-- Un `false` en la tabla significa "ya se intentó y no se pudo": sin el place
+-- publicado no se descarga ninguna malla, y sin esa marca se reintentarían las
+-- siete en cada redibujado para siempre.
+local cacheMallas: { [string]: BasePart | false } = {}
+
+local function mallaDe(id: string): BasePart?
+	local guardada = cacheMallas[id]
+	if guardada ~= nil then
+		return if guardada == false then nil else guardada :: BasePart
+	end
+	local modelo = RideCatalog.get(id)
+	if modelo == nil then
+		cacheMallas[id] = false
+		return nil
+	end
+	local ok, pieza = pcall(function()
+		local m = AssetService:CreateMeshPartAsync(modelo.mesh)
+		if modelo.textura then
+			m.TextureID = modelo.textura
+		end
+		if modelo.color then
+			m.Color = modelo.color
+		end
+		-- La misma cuenta que en el servidor (Ride.malla) y por el mismo motivo: el
+		-- catálogo dice cuánto mide en el juego, no el autor de la malla.
+		local giro = CFrame.Angles(0, math.rad(modelo.giroY), 0) * CFrame.Angles(math.rad(modelo.giroX or 0), 0, 0)
+		local nativo = m.Size
+		local altoNativo = math.abs(giro.RightVector.Y) * nativo.X
+			+ math.abs(giro.UpVector.Y) * nativo.Y
+			+ math.abs(giro.LookVector.Y) * nativo.Z
+		local largoNativo = math.abs(giro.RightVector.Z) * nativo.X
+			+ math.abs(giro.UpVector.Z) * nativo.Y
+			+ math.abs(giro.LookVector.Z) * nativo.Z
+		local porLargo = math.max(modelo.tamano.X, modelo.tamano.Z) / math.max(largoNativo, 0.01)
+		local porAlto = modelo.tamano.Y / math.max(altoNativo, 0.01)
+		m.Size = nativo * math.min(porLargo, porAlto)
+		m.Anchored = true
+		m.CanCollide = false
+		m.CFrame = giro
+		return m
+	end)
+	if not ok or pieza == nil then
+		cacheMallas[id] = false
+		return nil
+	end
+	cacheMallas[id] = pieza :: BasePart
+	return pieza :: BasePart
+end
+
+-- El alto REAL en el mundo: en una malla volteada, Size.Y es el ancho.
+local function altoDe(pieza: BasePart): number
+	local cf, s3 = pieza.CFrame, pieza.Size
+	return math.abs(cf.RightVector.Y) * s3.X + math.abs(cf.UpVector.Y) * s3.Y + math.abs(cf.LookVector.Y) * s3.Z
+end
 
 local function plazas(taller: BasePart): { Vector3 }
 	local total = taller:GetAttribute("plazas")
@@ -117,9 +182,9 @@ function Garage.actualizar(mundo: Instance?, estado: any)
 			plaza.Color = if esActivo then Palette.TALLER else Color3.fromRGB(70, 70, 76)
 			plaza.Parent = f
 
-			-- Un bulto con la forma aproximada del vehículo. No se pide la malla:
-			-- esto se redibuja cada vez que compras, y cuatro peticiones al servidor
-			-- de assets por redibujado es tiempo de carga por gusto.
+			-- Un bulto con la forma aproximada del vehículo. Es el RESPALDO: encima se
+			-- le pone la malla de verdad si se puede descargar (más abajo), y sin
+			-- place publicado no se descarga ninguna.
 			local bulto = Instance.new("Part")
 			bulto.Name = "Bulto" .. i
 			-- El tamaño sale de la capacidad: se ve de un vistazo cuál lleva más.
@@ -171,6 +236,29 @@ function Garage.actualizar(mundo: Instance?, estado: any)
 			-- decide nada, sólo devuelve lo que le dieron.
 			aviso:SetAttribute("vehiculo", id)
 			aviso.Parent = bulto
+
+			-- Y LA MALLA DE VERDAD ENCIMA. *"No se ven los coches en el taller, sólo
+			-- los cuadrados"* (JJ) -- y era literal: el garaje enseñaba un bloque gris
+			-- por vehículo, así que la moto y la furgoneta se distinguían por el
+			-- tamaño del bloque y por lo que ponía debajo.
+			--
+			-- CON CACHÉ, que es lo que antes desaconsejaba pedirlas: esto se redibuja
+			-- cada vez que compras o te acercas a un taller, y una petición al
+			-- servidor de assets por redibujado sería tiempo de carga regalado. Se
+			-- pide una vez por vehículo en toda la sesión y luego se clona.
+			task.spawn(function()
+				local malla = mallaDe(id)
+				if malla == nil or bulto.Parent == nil then
+					return
+				end
+				local copia = malla:Clone()
+				local alto = altoDe(copia)
+				copia.Name = "Modelo"
+				copia.CFrame = CFrame.new(sitios[i] + Vector3.new(0, 0.3 + alto / 2, 0)) * copia.CFrame
+				copia.Parent = f
+				-- El bulto se queda porque lleva el aviso y la ficha, pero se apaga.
+				bulto.Transparency = 1
+			end)
 		end
 	end
 end

@@ -64,4 +64,33 @@ return function(kit)
 	-- meter la escalera de nueve (JJ pidio comprar cosas "para ir mas rapido"). Lo
 	-- que impide que alguien sea inalcanzable ya no es congelar la velocidad, sino
 	-- que los perseguidores escalen con el perseguido: ver PatrolService.
+
+	-- SACAR UN VEHÍCULO CON EL ZURRÓN LLENO. La regla vieja decía "descarga antes de
+	-- cambiar" con una sola caja encima, y eso bloqueaba justo lo que quiere hacer
+	-- quien acaba de comprarse la furgoneta. Lo que no puede es cambiar A MENOS.
+	local tresComunes = {
+		{ rareza = "comun" } :: any,
+		{ rareza = "comun" } :: any,
+		{ rareza = "comun" } :: any,
+	}
+	kit.truthy("con tres cajas se puede sacar la furgoneta", (Cargo.admiteLaCarga(tresComunes, "furgoneta")))
+	kit.truthy("y seguir a pie, que caben tres", (Cargo.admiteLaCarga(tresComunes, nil)))
+
+	local zurronDeFurgoneta = {}
+	for _ = 1, 10 do
+		table.insert(zurronDeFurgoneta, { rareza = "comun" } :: any)
+	end
+	kit.falsy("pero con diez cajas no se baja uno a pie", (Cargo.admiteLaCarga(zurronDeFurgoneta, nil)))
+	local _, motivo = Cargo.admiteLaCarga(zurronDeFurgoneta, nil)
+	kit.eq("y el motivo es el hueco", motivo, "no_cabe_la_carga")
+
+	-- Y EL TAMAÑO, que es la otra mitad: un piano no baja a un monopatín por mucho
+	-- hueco que sobre.
+	local conPiano = { { rareza = "comun", objeto = "piano" } :: any }
+	kit.truthy("con el piano se puede sacar la furgoneta", (Cargo.admiteLaCarga(conPiano, "furgoneta")))
+	kit.falsy("pero no el monopatin", (Cargo.admiteLaCarga(conPiano, "monopatin")))
+	local _, porQue = Cargo.admiteLaCarga(conPiano, "monopatin")
+	kit.eq("y ahi el motivo es el tamano", porQue, "carga_demasiado_grande")
+
+	kit.truthy("de vacio se puede sacar cualquiera", (Cargo.admiteLaCarga({}, "monopatin")))
 end
