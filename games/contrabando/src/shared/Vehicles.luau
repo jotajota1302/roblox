@@ -22,6 +22,8 @@ export type Vehiculo = {
 	penalizacionPorPeso: number,
 	coste: number,
 	nivel: number?,
+	expone: number?,
+	bulto: number?,
 }
 
 local Vehicles = {}
@@ -112,6 +114,20 @@ function Vehicles.nivelDe(id: string): number
 		return 1
 	end
 	return (Vehicles.get(id) :: any).nivel or 1
+end
+
+-- EL EJE DE EXPOSICIÓN, en dos funciones. Los valores por defecto son los de ir a
+-- pie --lo pierdes todo, te ven a la distancia normal-- porque es lo que tiene que
+-- pasar con un vehículo al que se le olvide ponerle los números: nunca una ventaja
+-- silenciosa.
+function Vehicles.expone(id: string?): number
+	local def = Vehicles.deEstado(id)
+	return (def :: any).expone or 1
+end
+
+function Vehicles.bulto(id: string?): number
+	local def = Vehicles.deEstado(id)
+	return (def :: any).bulto or 1
 end
 
 -- ¿Puede este jugador comprar este vehículo? Devuelve el motivo junto al

@@ -148,11 +148,16 @@ end
 -- Lo que te cuesta que te alcancen. Redondea HACIA ARRIBA a propósito: con una
 -- sola caja encima, redondear hacia abajo dejaría el alcance en un susto gratis, y
 -- una patrulla que no puede quitarte nada deja de ser un motivo para correr.
-function Heat.cajasIncautadas(cuantas: number): number
+function Heat.cajasIncautadas(cuantas: number, expone: number?): number
 	if cuantas <= 0 then
 		return 0
 	end
-	return math.min(cuantas, math.ceil(cuantas * Config.PATRULLA_FRACCION))
+	-- `expone` es del vehículo (ver Config.VEHICULOS): a pie lo sueltas todo, en
+	-- furgoneta pierdes menos de un tercio de lo que perderías a pie. Es el eje que
+	-- el plan original tenía y se habia perdido. Por defecto 1 -- quien no lo pase
+	-- pierde lo de siempre, nunca menos: una ventaja no puede colarse por descuido.
+	local fraccion = Config.PATRULLA_FRACCION * (expone or 1)
+	return math.min(cuantas, math.ceil(cuantas * fraccion))
 end
 
 return Heat

@@ -127,4 +127,42 @@ return function(kit)
 	-- El vehículo por defecto sigue siendo el de a pie, y sólo admite lo pequeño.
 	kit.eq("a pie es el vehiculo inicial", Vehicles.deEstado(nil).id, Config.VEHICULO_INICIAL)
 	kit.eq("y solo admite lo pequeno", Vehicles.deEstado(nil).tamanoMaximo, 1)
+
+	-- LO GRANDE TIENE QUE PAGAR MÁS POR HUECO QUE LO PEQUEÑO. Es la regla que
+	-- justifica el garaje entero: si mover algo enorme rindiera menos por hueco
+	-- ocupado, comprar capacidad sería pagar por empeorar, y el piano --lo más
+	-- vistoso del catálogo-- sería una trampa en vez de una meta.
+	--
+	-- Se mide sobre el catálogo REAL, ponderando por frecuencia: lo que importa no
+	-- es el mejor objeto de cada tamaño sino lo que sale de media.
+	local Economy = require(script.Parent.Parent.Economy)
+	local porHueco = {}
+	for nivel = 1, 4 do
+		local valor, huecos = 0, 0
+		for _, o in Goods.todos() do
+			if Goods.nivelExigido(o.id) == nivel then
+				valor += Economy.valorCaja({ rareza = o.rareza, objeto = o.id }, 1) * o.frecuencia
+				huecos += Goods.huecos(o.id) * o.frecuencia
+			end
+		end
+		porHueco[nivel] = if huecos > 0 then valor / huecos else 0
+	end
+	for nivel = 2, 4 do
+		kit.truthy(
+			string.format(
+				"el tamaño %d paga mas por hueco que el %d (%.1f > %.1f)",
+				nivel,
+				nivel - 1,
+				porHueco[nivel],
+				porHueco[nivel - 1]
+			),
+			porHueco[nivel] > porHueco[nivel - 1]
+		)
+	end
+
+	-- Y el bono es del TAMAÑO, no del objeto: dos cosas del mismo tamaño valen lo
+	-- mismo por hueco a igualdad de rareza.
+	kit.eq("una carga sin objeto no cobra bono", Goods.bono(nil), 1)
+	kit.eq("ni un objeto inventado", Goods.bono("dirigible"), 1)
+	kit.truthy("lo enorme cobra mas bono que lo pequeño", Goods.bono("piano") > Goods.bono("frasco"))
 end

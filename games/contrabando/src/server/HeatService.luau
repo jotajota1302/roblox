@@ -24,6 +24,7 @@ local Players = game:GetService("Players")
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
 local PlayerState = require(script.Parent.PlayerState)
@@ -122,11 +123,22 @@ local function muestra(player: Player, ahora: number): boolean
 	local estado = antes
 	local vigilado = false
 
+	-- EN QUÉ VA, para saber desde cuán lejos le fichan. Se pregunta al estado del
+	-- JUGADOR y no al del calor -- que es una tabla distinta y no sabe de vehículos.
+	-- Y cuenta lo que lleva PUESTO: con la moto aparcada al otro lado del parque
+	-- vas a pie, y te tienen que fichar como a alguien que va a pie.
+	local suyo = PlayerState.peek(player)
+	local montado = suyo ~= nil and suyo.montado ~= false
+	local radio = Config.DETECTOR_RADIO * (if montado and suyo then Vehicles.bulto(suyo.vehiculo) else 1)
+
 	for _, poste in detectores do
 		if poste.Parent == nil then
 			continue
 		end
-		if (root.Position - poste.Position).Magnitude > Config.DETECTOR_RADIO then
+		-- EL RADIO DEPENDE DE LO QUE CONDUCES. Una furgoneta se ve venir desde más
+		-- lejos que un monopatín, y es lo que impide que el vehículo grande sea
+		-- sólo mejor: aguanta más golpes (Vehicles.expone) pero recibe más.
+		if (root.Position - poste.Position).Magnitude > radio then
 			continue
 		end
 		vigilado = true

@@ -66,6 +66,11 @@ Todos salen de [`src/shared/Config.luau`](src/shared/Config.luau), que es la ún
 Caja base **10 monedas**. Las probabilidades están **aflojadas para el prototipo** (en
 producción: 90 / 8 / 1,8 / 0,2) para poder ver una legendaria sin jugar una hora.
 
+**Y el tamaño paga.** Lo que rinde cada tamaño por hueco ocupado: pequeño 54,7 · mediano
+64,8 · grande 78,5 · enorme **87,4**. Antes la curva iba justo al revés —lo enorme pagaba
+33,6— y eso hacía del piano lo más vistoso del catálogo y lo peor que podías cargar. Mover
+algo grande exige vehículo, y lo que exige inversión tiene que devolverla.
+
 Cada pieza es además **un objeto concreto** de un catálogo de 17 (sobre, frasco, maletín,
 cajón, televisión, baúl, nevera, sofá, piano, estatua…) con **tamaño**: pequeño (1 hueco),
 mediano (2), grande (4), enorme (8). **El tamaño exige vehículo**: un piano no se lleva a
@@ -89,22 +94,27 @@ rápido.
 
 ### Vehículos
 
-| | Capacidad | Velocidad | Tamaño máx. | Sólo calzada | Nivel | Coste |
-|---|---|---|---|---|---|---|
-| A pie | 3 | 16 | pequeño | no | 1 | — |
-| Monopatín | 5 | 19 | mediano | no | 1 | 150 |
-| Patinete | 6 | 20 | mediano | no | 2 | 400 |
-| Patinete eléctrico | 7 | 24 | mediano | **sí** | 3 | 1.400 |
-| Bicicleta | 9 | 26 | grande | **sí** | 4 | 2.500 |
-| Moto | 12 | 32 | grande | **sí** | 6 | 4.500 |
-| Coche | 18 | 34 | enorme | **sí** | 8 | 8.000 |
-| Furgoneta | 26 | 30 | enorme | **sí** | 10 | 15.000 |
+| | Capacidad | Velocidad | Tamaño máx. | Sólo calzada | Nivel | Te fichan a | De 10 pierdes | Coste |
+|---|---|---|---|---|---|---|---|---|
+| A pie | 3 | 16 | pequeño | no | 1 | 35 | 5 | — |
+| Monopatín | 5 | 19 | mediano | no | 1 | 35 | 5 | 150 |
+| Patinete | 6 | 20 | mediano | no | 2 | 37 | 5 | 400 |
+| Patinete eléctrico | 7 | 24 | mediano | **sí** | 3 | 40 | 4 | 1.400 |
+| Bicicleta | 9 | 26 | grande | **sí** | 4 | 42 | 4 | 2.500 |
+| Moto | 12 | 32 | grande | **sí** | 6 | 46 | 3 | 4.500 |
+| Coche | 18 | 34 | enorme | **sí** | 8 | 51 | 2 | 8.000 |
+| Furgoneta | 26 | 30 | enorme | **sí** | 10 | 56 | 2 | 15.000 |
 
-Dos reglas sostienen esta tabla:
+**El eje de exposición** son las dos columnas del medio, y es lo que impide que el vehículo
+caro sea sólo mejor: **aguanta más golpes pero recibe más**. Una furgoneta te ahorra tres de
+cada cinco cajas cuando te alcanzan, y a cambio te fichan desde 56 studs en vez de 35.
+
+Tres reglas sostienen esta tabla:
 
 1. **La progresión va por capacidad y acceso, nunca por potencia.** El tope antitrampas
    son 40 studs/s y ningún vehículo se acerca: nadie es inatrapable.
-2. **Los rápidos van atados al asfalto.** Si te sales con uno de motor te bajas, el
+2. **Lo que ganas por un lado lo pagas por el otro** (el eje de exposición).
+3. **Los rápidos van atados al asfalto.** Si te sales con uno de motor te bajas, el
    vehículo se queda aparcado en la última calzada que pisaste, y lo que no cabe en tu
    espalda **se queda dentro del vehículo**. Al volver a él lo recuperas; si vuelves a
    casa sin él, aparece solo en tu taller.

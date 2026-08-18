@@ -40,11 +40,25 @@ Config.PENALIZACION_POR_CAJA = 1.4 -- studs/s menos por unidad de peso transport
 --
 -- `huecos` es lo que ocupa de la capacidad; `nivel` es el listón que el vehículo
 -- tiene que alcanzar para admitirlo.
+--
+-- `bono` es LO QUE PAGA DE MÁS POR SER GRANDE, y llegó midiendo. Sin él, esto es
+-- lo que pagaba cada tamaño por hueco ocupado:
+--
+--     pequeño 54,7   mediano 40,5   grande 39,3   enorme 33,6
+--
+-- Es decir: cuanto más grande, PEOR negocio. El piano era lo más vistoso del
+-- catálogo y lo peor que podías cargar, y el vehículo grande se vendía como "por
+-- fin puedes llevar el piano" -- o sea, vendía una trampa. Con medio catálogo
+-- siendo decoración cara, la mitad del garaje se quedaba sin motivo.
+--
+-- El bono invierte la curva: mover algo enorme exige vehículo, y lo que exige
+-- inversión tiene que devolverla. La progresión sigue siendo por capacidad y
+-- acceso, no por potencia.
 Config.TAMANOS = {
-	{ id = "pequeno", nombre = "pequeño", nivel = 1, huecos = 1 },
-	{ id = "mediano", nombre = "mediano", nivel = 2, huecos = 2 },
-	{ id = "grande", nombre = "grande", nivel = 3, huecos = 4 },
-	{ id = "enorme", nombre = "enorme", nivel = 4, huecos = 8 },
+	{ id = "pequeno", nombre = "pequeño", nivel = 1, huecos = 1, bono = 1 },
+	{ id = "mediano", nombre = "mediano", nivel = 2, huecos = 2, bono = 1.6 },
+	{ id = "grande", nombre = "grande", nivel = 3, huecos = 4, bono = 2 },
+	{ id = "enorme", nombre = "enorme", nivel = 4, huecos = 8, bono = 2.6 },
 }
 
 -- `soloCalzada` marca los que NO pueden salirse del asfalto (ver Roads.luau). Es
@@ -57,6 +71,22 @@ Config.TAMANOS = {
 -- 16 y 22 para que nadie fuera inatrapable; esa regla SIGUE VIGENTE pero ahora se
 -- sostiene por otro sitio -- quien te persigue puede cortar por donde tú no
 -- puedes-- y eso permite que comprar una moto se note de verdad.
+-- `expone` y `bulto` son EL EJE QUE EL PLAN ORIGINAL TENÍA Y SE PERDIÓ. El diseño
+-- daba a cada vehículo una consecuencia distinta al ser alcanzado ("sueltas todo"
+-- / "pierdes el 30 %" / "aguanta dos toques") y eso desapareció por el camino sin
+-- que nadie lo decidiera: hoy todos pierden exactamente lo mismo.
+--
+-- Recuperado en dos números que se pelean entre sí, que es lo que lo hace una
+-- decisión y no una mejora:
+--
+--   · `expone`  -- qué fracción de la carga pierdes cuando te alcanzan. A pie lo
+--                  sueltas todo; en furgoneta, menos de un tercio.
+--   · `bulto`   -- cuánto más lejos te fichan. Una furgoneta se ve venir; un
+--                  monopatín, no.
+--
+-- Así lo grande no es "mejor": aguanta más golpes pero recibe más. Y encima va
+-- atado al asfalto (soloCalzada). La regla de oro sigue intacta -- nadie corre más
+-- por tener el vehículo caro.
 -- `nivel` es EL NIVEL MÍNIMO PARA COMPRARLO, y llegó con la licencia (ver
 -- RUMBO.md §3.A). Antes el único requisito era el dinero, y medido salía esto: la
 -- ruta roja multiplica por diez GRATIS desde el primer minuto, mientras el garaje
@@ -77,6 +107,8 @@ Config.VEHICULOS = {
 		tamanoMaximo = 1,
 		coste = 0,
 		nivel = 1,
+		expone = 1.0,
+		bulto = 1.0,
 	},
 	-- EL PRIMER PELDAÑO. Antes eran los patines (150) y se quitaron enteros a
 	-- petición de JJ: van en los PIES, y eso pelea con la animación de andar --
@@ -95,6 +127,8 @@ Config.VEHICULOS = {
 		tamanoMaximo = 2,
 		coste = 150,
 		nivel = 1,
+		expone = 1.0,
+		bulto = 1.0,
 	},
 	{
 		id = "patinete",
@@ -105,6 +139,8 @@ Config.VEHICULOS = {
 		tamanoMaximo = 2,
 		coste = 400,
 		nivel = 2,
+		expone = 0.9,
+		bulto = 1.05,
 	},
 	{
 		id = "patinete_electrico",
@@ -116,6 +152,8 @@ Config.VEHICULOS = {
 		soloCalzada = true,
 		coste = 1400,
 		nivel = 3,
+		expone = 0.8,
+		bulto = 1.15,
 	},
 	{
 		id = "bicicleta",
@@ -127,6 +165,8 @@ Config.VEHICULOS = {
 		soloCalzada = true,
 		coste = 2500,
 		nivel = 4,
+		expone = 0.7,
+		bulto = 1.2,
 	},
 	{
 		id = "moto",
@@ -138,6 +178,8 @@ Config.VEHICULOS = {
 		soloCalzada = true,
 		coste = 4500,
 		nivel = 6,
+		expone = 0.55,
+		bulto = 1.3,
 	},
 	{
 		id = "coche",
@@ -149,6 +191,8 @@ Config.VEHICULOS = {
 		soloCalzada = true,
 		coste = 8000,
 		nivel = 8,
+		expone = 0.4,
+		bulto = 1.45,
 	},
 	{
 		id = "furgoneta",
@@ -160,6 +204,8 @@ Config.VEHICULOS = {
 		soloCalzada = true,
 		coste = 15000,
 		nivel = 10,
+		expone = 0.3,
+		bulto = 1.6,
 	},
 }
 

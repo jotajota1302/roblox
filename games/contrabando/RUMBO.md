@@ -195,9 +195,13 @@ arregla.
    (267.200 en total): de guardar 10 y producir cada 30 s, a guardar 48 y producir cada 8.
    Se paga en la oficina de la nave. De paso levanta el techo de la capacidad, que dejaba
    media escalera de vehículos sin sentido.
-3. **Lo grande tiene que pagar más por hueco** ([`V1.md`](V1.md) §1) — medio catálogo es
-   hoy decoración cara.
-4. **Recuperar el eje de exposición de los vehículos** (§2) — gratis, devuelve una decisión.
+3. ~~**Lo grande tiene que pagar más por hueco**~~ — **hecho el 18/08**. Un bono por tamaño
+   invierte la curva: de 54,7/40,5/39,3/33,6 por hueco a 54,7/64,8/78,5/87,4. Y de paso el
+   garaje pasa a rendir ×3,8 en vez de ×2,15 sobre ir a pie.
+4. ~~**Recuperar el eje de exposición de los vehículos**~~ — **hecho el 18/08**. Cada
+   vehículo pierde distinto al ser alcanzado (`expone`) y se ve venir desde distinta
+   distancia (`bulto`): la furgoneta salva tres de cada cinco cajas y a cambio la fichan a
+   56 studs en vez de a 35. Una prueba comprueba que ningún vehículo gane en las dos cosas.
 5. ~~**El mapa que deja planear** (§3.D)~~ — **hecho el 18/08**. Las esquinas fichadas con
    su radio, las guaridas con su alcance y los ladrones con su aura, todo en el minimapa; y
    el selector anuncia lo que compras. Los ladrones salen de guaridas fijas: medido, entre

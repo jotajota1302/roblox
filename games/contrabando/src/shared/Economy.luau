@@ -8,6 +8,8 @@
 ]]
 
 local Config = require(script.Parent.Config)
+-- Goods sólo depende de Config, así que esto no cierra ningún ciclo.
+local Goods = require(script.Parent.Goods)
 
 -- `objeto` es el id del catálogo (Goods): qué cosa concreta es -- un sobre, un
 -- piano, una nevera. Es OPCIONAL a propósito y no obligatorio: hay partidas
@@ -29,9 +31,15 @@ function Economy.rareza(id: string)
 	error("rareza desconocida: " .. tostring(id))
 end
 
+-- Tres multiplicadores sobre la base, y cada uno responde a una decisión distinta
+-- del jugador: la RAREZA a qué cogió del almacén, la RUTA a por dónde salió, y el
+-- TAMAÑO a en qué se ha gastado el dinero -- porque lo grande exige vehículo.
+--
+-- El del tamaño se añadió midiendo: sin él, lo enorme pagaba 33,6 por hueco y lo
+-- pequeño 54,7, o sea que llevar el piano era perder dinero (ver Config.TAMANOS).
 function Economy.valorCaja(caja: Caja, multiplicadorRuta: number): number
 	local def = Economy.rareza(caja.rareza)
-	return Config.CAJA_VALOR_BASE * def.multiplicador * multiplicadorRuta
+	return math.floor(Config.CAJA_VALOR_BASE * def.multiplicador * multiplicadorRuta * Goods.bono(caja.objeto))
 end
 
 function Economy.valorEntrega(cajas: { Caja }, multiplicadorRuta: number): number

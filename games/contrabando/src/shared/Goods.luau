@@ -186,6 +186,20 @@ end
 
 -- Qué listón de vehículo exige. Es LA regla nueva: un piano no entra en unos
 -- patines por mucho hueco libre que quede.
+-- Lo que paga de más por su tamaño. Uno para lo desconocido y para lo que no
+-- lleva objeto (las cargas de partidas viejas): quien no dice qué es, cobra como
+-- lo más pequeño.
+function Goods.bono(objetoId: string?): number
+	if objetoId == nil then
+		return 1
+	end
+	local o = Goods.get(objetoId)
+	if o == nil then
+		return 1
+	end
+	return tamanoDe(o.tamano).bono or 1
+end
+
 function Goods.nivelExigido(objetoId: string): number
 	local o = Goods.get(objetoId)
 	if not o then

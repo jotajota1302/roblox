@@ -92,4 +92,34 @@ return function(kit)
 	kit.eq("y con impares redondea hacia arriba", Heat.cajasIncautadas(3), 2)
 	kit.eq("con una caja, esa caja", Heat.cajasIncautadas(1), 1)
 	kit.eq("sin carga no hay nada que incautar", Heat.cajasIncautadas(0), 0)
+
+	-- EL EJE DE EXPOSICIÓN: lo que te quitan depende de en qué vas. Es lo que el
+	-- plan original tenía ("sueltas todo" / "pierdes el 30 %") y se había perdido.
+	local Config = require(script.Parent.Parent.Config)
+	local Vehicles = require(script.Parent.Parent.Vehicles)
+	kit.eq("a pie con 10 cajas pierdes la mitad", Heat.cajasIncautadas(10, 1), 5)
+	kit.eq("en furgoneta pierdes bastante menos", Heat.cajasIncautadas(10, 0.3), 2)
+	kit.truthy("y siempre algo: un alcance no puede salir gratis", Heat.cajasIncautadas(1, 0.1) >= 1)
+	kit.eq("sin carga no hay nada que quitar", Heat.cajasIncautadas(0, 0.3), 0)
+	-- Por defecto se pierde LO DE SIEMPRE, nunca menos: una ventaja no puede
+	-- colarse por que alguien olvide pasar el parámetro.
+	kit.eq("sin decir el vehiculo se pierde lo de siempre", Heat.cajasIncautadas(10), Heat.cajasIncautadas(10, 1))
+
+	-- Y LA REGLA QUE HACE QUE SEA UNA DECISIÓN Y NO UNA MEJORA: el que menos pierde
+	-- al ser alcanzado es el que más lejos se ve venir. Si un vehículo ganara en
+	-- las dos cosas, comprarlo dejaría de ser una elección.
+	local anteriorExpone, anteriorBulto = nil, nil
+	for _, v in Config.VEHICULOS do
+		local expone, bulto = Vehicles.expone(v.id), Vehicles.bulto(v.id)
+		if anteriorExpone ~= nil then
+			kit.truthy(
+				string.format("%s no gana en las dos cosas a la vez", v.nombre),
+				not (expone < anteriorExpone and bulto < anteriorBulto)
+			)
+		end
+		anteriorExpone, anteriorBulto = expone, bulto
+	end
+	kit.eq("ir a pie lo pierde todo", Vehicles.expone("a_pie"), 1)
+	kit.truthy("y la furgoneta bastante menos", Vehicles.expone("furgoneta") < 0.5)
+	kit.truthy("pero se ve venir de mas lejos", Vehicles.bulto("furgoneta") > Vehicles.bulto("a_pie"))
 end

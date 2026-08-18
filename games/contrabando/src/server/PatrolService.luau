@@ -29,6 +29,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
@@ -356,7 +357,10 @@ end
 -- vuelve.
 local function alcanzar(player: Player)
 	local estado = PlayerState.get(player)
-	local cuantas = Heat.cajasIncautadas(#estado.cajas)
+	-- Lo que te quitan depende de EN QUÉ VAS: a pie lo sueltas todo, en furgoneta
+	-- pierdes bastante menos. Es el otro lado de que la furgoneta se vea venir de
+	-- más lejos (Vehicles.bulto).
+	local cuantas = Heat.cajasIncautadas(#estado.cajas, Vehicles.expone(estado.vehiculo))
 	if cuantas > 0 then
 		for _ = 1, cuantas do
 			table.remove(estado.cajas)

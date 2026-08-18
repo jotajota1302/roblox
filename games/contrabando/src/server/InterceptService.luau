@@ -21,6 +21,7 @@ local RunService = game:GetService("RunService")
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Intercept = require(game.ReplicatedStorage.Shared.Intercept)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
@@ -139,9 +140,12 @@ function InterceptService.tick(ahora: number)
 
 			-- Solo se roba lo que quepa en el ladrón: lo que no cabe se queda con
 			-- la víctima. Robar transfiere carga, nunca la destruye.
+			-- Y AQUÍ TAMBIÉN CUENTA EN QUÉ VA LA VÍCTIMA. Sin esto, el eje de
+			-- exposición valdría contra los ladrones de mentira y no contra los de
+			-- verdad, que es justo al revés de lo que importa.
 			local robadas, restantes = Intercept.repartoConCapacidad(
 				estadoVictima.cajas,
-				Config.ROBO_FRACCION,
+				Config.ROBO_FRACCION * Vehicles.expone(estadoVictima.vehiculo),
 				estadoAtacante.cajas,
 				Cargo.capacidad(estadoAtacante.vehiculo)
 			)
