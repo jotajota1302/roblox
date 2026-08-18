@@ -24,6 +24,7 @@ local Players = game:GetService("Players")
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
+local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
@@ -129,7 +130,13 @@ local function muestra(player: Player, ahora: number): boolean
 	-- vas a pie, y te tienen que fichar como a alguien que va a pie.
 	local suyo = PlayerState.peek(player)
 	local montado = suyo ~= nil and suyo.montado ~= false
-	local radio = Config.DETECTOR_RADIO * (if montado and suyo then Vehicles.bulto(suyo.vehiculo) else 1)
+	-- Y EL CAMUFLAJE ENCIMA, que es la habilidad que compra justo esto. Multiplica
+	-- el mismo número en vez de restar studs: así lo que ya estaba equilibrado
+	-- --que la furgoneta se vea venir más que un monopatín-- se mueve entero en vez
+	-- de aplanarse. Baja, nunca a cero: un repartidor invisible no existe.
+	local radio = Config.DETECTOR_RADIO
+		* (if montado and suyo then Vehicles.bulto(suyo.vehiculo) else 1)
+		* (if suyo then Skills.factorBulto(suyo.habilidades) else 1)
 
 	for _, poste in detectores do
 		if poste.Parent == nil then

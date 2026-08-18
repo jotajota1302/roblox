@@ -105,6 +105,24 @@ return function(kit)
 	-- colarse por que alguien olvide pasar el parámetro.
 	kit.eq("sin decir el vehiculo se pierde lo de siempre", Heat.cajasIncautadas(10), Heat.cajasIncautadas(10, 1))
 
+	-- EL SUELO, que es la regla de oro escrita en un número. Sobre `expone` se
+	-- multiplica ahora el factor del aguante (Skills.factorRobo), y dos
+	-- multiplicadores encadenados tienden a cero: sin suelo, la furgoneta con el
+	-- aguante al máximo saldría inmune al robo, que es exactamente lo que el
+	-- diseño prohíbe.
+	local Skills = require(script.Parent.Parent.Skills)
+	local todoElAguante = { aguante = 3 }
+	kit.truthy(
+		"con furgoneta y el aguante al máximo, todavía te quitan",
+		Heat.cajasIncautadas(20, Vehicles.expone("furgoneta") * Skills.factorRobo(todoElAguante)) > 0
+	)
+	kit.truthy("ni un multiplicador absurdo deja el robo en cero", Heat.cajasIncautadas(20, 0.0001) > 0)
+	kit.eq(
+		"y el suelo es el que dice Config",
+		Heat.cajasIncautadas(100, 0),
+		math.ceil(100 * Config.ROBO_FRACCION_MINIMA)
+	)
+
 	-- Y LA REGLA QUE HACE QUE SEA UNA DECISIÓN Y NO UNA MEJORA: el que menos pierde
 	-- al ser alcanzado es el que más lejos se ve venir. Si un vehículo ganara en
 	-- las dos cosas, comprarlo dejaría de ser una elección.

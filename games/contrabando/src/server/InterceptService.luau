@@ -26,6 +26,7 @@ local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
+local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -145,7 +146,14 @@ function InterceptService.tick(ahora: number)
 			-- verdad, que es justo al revés de lo que importa.
 			local robadas, restantes = Intercept.repartoConCapacidad(
 				estadoVictima.cajas,
-				Config.ROBO_FRACCION * Vehicles.expone(estadoVictima.vehiculo),
+				-- Vehículo y aguante, con suelo: mitigar no es anular. Con todo
+				-- comprado y furgoneta, el ladrón todavía se lleva el 10 %.
+				math.max(
+					Config.ROBO_FRACCION_MINIMA,
+					Config.ROBO_FRACCION
+						* Vehicles.expone(estadoVictima.vehiculo)
+						* Skills.factorRobo(estadoVictima.habilidades)
+				),
 				estadoAtacante.cajas,
 				Cargo.capacidad(estadoAtacante.vehiculo)
 			)

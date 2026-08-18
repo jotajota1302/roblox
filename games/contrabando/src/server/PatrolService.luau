@@ -33,6 +33,7 @@ local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
+local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local PlayerState = require(script.Parent.PlayerState)
 local Ride = require(script.Parent.Ride)
 local Telemetry = require(script.Parent.Telemetry)
@@ -371,7 +372,40 @@ function PatrolService.registrarGuaridas(sitios: { Vector3 })
 	guaridas = sitios
 end
 
+-- EL SEÑUELO: un cebo que se suelta en el suelo y al que van los ladrones que
+-- estén cerca. Es la única habilidad que se PULSA, y es la mitad de por qué el
+-- viaje pasa de aguantar a decidir.
+--
+-- RETRASA, NO ANULA, y eso no es un detalle de equilibrio: es la regla de oro. La
+-- persecución sigue viva todo el rato -- sólo cambia a dónde van mientras dura --
+-- y tiene recarga, así que nadie se vuelve inalcanzable por comprarlo.
+local senuelos: { [Player]: { donde: Vector3, hasta: number } } = {}
+
+function PatrolService.senuelo(player: Player, donde: Vector3, hasta: number)
+	senuelos[player] = { donde = donde, hasta = hasta }
+end
+
+-- Dónde tiene que ir quien persigue a este jugador: el cebo si está vivo y la
+-- patrulla lo tiene cerca, o el jugador. La distancia se mide desde LA PATRULLA,
+-- no desde el jugador: un cebo soltado al otro lado del mapa no debe apartar a
+-- nadie de su presa.
+local function objetivoDe(player: Player, desde: Vector3, ahora: number): Vector3?
+	local cebo = senuelos[player]
+	if not cebo then
+		return nil
+	end
+	if ahora >= cebo.hasta then
+		senuelos[player] = nil
+		return nil
+	end
+	if (cebo.donde - desde).Magnitude > Config.SENUELO_RADIO then
+		return nil
+	end
+	return cebo.donde
+end
+
 local function retirar(player: Player)
+	senuelos[player] = nil
 	local lista = escoltas[player]
 	if not lista then
 		return
@@ -394,7 +428,10 @@ local function alcanzar(player: Player)
 	-- Lo que te quitan depende de EN QUÉ VAS: a pie lo sueltas todo, en furgoneta
 	-- pierdes bastante menos. Es el otro lado de que la furgoneta se vea venir de
 	-- más lejos (Vehicles.bulto).
-	local cuantas = Heat.cajasIncautadas(#estado.cajas, Vehicles.expone(estado.vehiculo))
+	-- El vehículo y el AGUANTE, juntos: los dos son factores sobre lo mismo, y
+	-- Heat.cajasIncautadas les pone el suelo para que nunca salga cero.
+	local cuantas =
+		Heat.cajasIncautadas(#estado.cajas, Vehicles.expone(estado.vehiculo) * Skills.factorRobo(estado.habilidades))
 	if cuantas > 0 then
 		for _ = 1, cuantas do
 			table.remove(estado.cajas)
@@ -459,6 +496,16 @@ local function perseguir(patrulla: Patrulla, player: Player)
 				-- una decisión (salir ahora y correr, o esperar a que se enfríe).
 				patrulla.humanoid:MoveTo(objetivo.Position)
 				task.wait(1.5)
+				continue
+			end
+
+			-- ¿Hay cebo? Entonces va al cebo, y NO alcanza mientras tanto. Que no
+			-- alcance es la mitad del truco: si siguiera robando de camino al
+			-- señuelo, el señuelo no serviría de nada.
+			local cebo = objetivoDe(player, patrulla.raiz.Position, os.clock())
+			if cebo then
+				patrulla.humanoid:MoveTo(cebo)
+				task.wait(0.5)
 				continue
 			end
 

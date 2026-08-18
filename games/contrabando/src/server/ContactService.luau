@@ -1,6 +1,8 @@
 --!strict
 --[[
-	ContactService.luau — quién recoge un contacto y cuándo cuenta.
+	ContactService.luau — quién recoge un contacto, cuándo cuenta, y en qué se
+	gasta. Los contactos y las habilidades son un solo sistema: uno paga al otro,
+	y separarlos en dos servicios sería partir por la mitad una misma regla.
 
 	POR QUÉ EXISTE. Medido antes de esto: toda la experiencia del juego se otorgaba
 	en una sola línea de CargoService, al entregar. Los 54-100 segundos de viaje no
@@ -23,8 +25,11 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local CargoService = require(script.Parent.CargoService)
+local PatrolService = require(script.Parent.PatrolService)
 local PlayerState = require(script.Parent.PlayerState)
 
 local ContactService = {}
@@ -143,9 +148,95 @@ function ContactService.tick(ahora: number)
 	end
 end
 
+-- Cuándo puede volver a soltar cebo cada jugador. En memoria y no en el estado
+-- guardado: una recarga que sobrevive a cerrar el juego sólo castiga a quien se
+-- desconecta, y desconectarse no es una jugada.
+local senueloLibre: { [Player]: number } = {}
+
+local function avisar(player: Player, texto: string, bueno: boolean?)
+	Remotes.event(Remotes.AVISO):FireClient(player, texto, if bueno then Palette.AVISO_BUENO else Palette.AVISO_MALO)
+end
+
+-- LA COMPRA LA DECIDE EL SERVIDOR. El cliente pinta el precio, pero un remote
+-- manipulado manda el id que quiera: sin esta comprobación, las habilidades
+-- serían gratis para cualquiera que sepa abrir un ejecutor.
+local function comprar(player: Player, id: any)
+	if typeof(id) ~= "string" then
+		return
+	end
+	local estado = PlayerState.peek(player)
+	if not estado then
+		return
+	end
+
+	local ok, motivo, habilidades, contactos = Skills.comprar(estado.habilidades, estado.contactos or 0, id)
+	if not ok then
+		avisar(player, motivo)
+		return
+	end
+
+	estado.habilidades = habilidades
+	estado.contactos = contactos
+	-- El camuflaje cambia desde cuán lejos te fichan y el aguante lo que pierdes:
+	-- los dos los leen sus servicios en el momento, así que no hay nada que
+	-- refrescar salvo lo que ve el jugador.
+	PlayerState.sync(player)
+	avisar(player, "Has aprendido: " .. id, true)
+	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+end
+
+-- EL CEBO SE SUELTA DONDE ESTÁ EL JUGADOR, y la posición la toma el servidor del
+-- personaje: si viniera en el mensaje, soltar el señuelo sería teletransportar
+-- ladrones a donde uno quisiera.
+local function soltarSenuelo(player: Player)
+	local estado = PlayerState.peek(player)
+	if not estado then
+		return
+	end
+	if not Skills.tieneSenuelo(estado.habilidades) then
+		avisar(player, "Todavia no tienes senuelo")
+		return
+	end
+
+	local ahora = os.clock()
+	local libre = senueloLibre[player] or 0
+	if ahora < libre then
+		avisar(player, string.format("Senuelo listo en %d s", math.ceil(libre - ahora)))
+		return
+	end
+
+	local root = raiz(player)
+	if not root then
+		return
+	end
+
+	senueloLibre[player] = ahora + Config.SENUELO_RECARGA
+	PatrolService.senuelo(player, root.Position, ahora + Config.SENUELO_DURACION)
+	avisar(player, "Senuelo soltado", true)
+	Remotes.event(Remotes.SONIDO):FireClient(player, "alerta")
+end
+
 function ContactService.start()
+	-- Los dos remotes, creados AL ARRANCAR como todos: uno que el servidor sólo
+	-- envía no existe hasta el primer envío, y el cliente que hace WaitForChild
+	-- sobre él se cuelga para siempre.
+	Remotes.event(Remotes.COMPRAR_HABILIDAD).OnServerEvent:Connect(function(player, id)
+		local ok, err = pcall(comprar, player, id)
+		if not ok then
+			quejarse("la compra", err)
+		end
+	end)
+
+	Remotes.event(Remotes.USAR_SENUELO).OnServerEvent:Connect(function(player)
+		local ok, err = pcall(soltarSenuelo, player)
+		if not ok then
+			quejarse("el senuelo", err)
+		end
+	end)
+
 	Players.PlayerRemoving:Connect(function(player)
 		ultimaRuta[player] = nil
+		senueloLibre[player] = nil
 		local estado = PlayerState.peek(player)
 		if estado then
 			estado.recogidos = 0

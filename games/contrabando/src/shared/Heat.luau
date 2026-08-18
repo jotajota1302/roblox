@@ -156,7 +156,12 @@ function Heat.cajasIncautadas(cuantas: number, expone: number?): number
 	-- furgoneta pierdes menos de un tercio de lo que perderías a pie. Es el eje que
 	-- el plan original tenía y se habia perdido. Por defecto 1 -- quien no lo pase
 	-- pierde lo de siempre, nunca menos: una ventaja no puede colarse por descuido.
-	local fraccion = Config.PATRULLA_FRACCION * (expone or 1)
+	--
+	-- Y CON SUELO. `expone` es un multiplicador y ahora le entra encima el factor
+	-- del aguante (Skills.factorRobo): apilar factores sin suelo acabaría llevando
+	-- la fracción a cero, o sea inmunidad al robo por la puerta de atrás, que es
+	-- justo lo que el diseño prohíbe. Un ladrón siempre se lleva algo.
+	local fraccion = math.max(Config.ROBO_FRACCION_MINIMA, Config.PATRULLA_FRACCION * (expone or 1))
 	return math.min(cuantas, math.ceil(cuantas * fraccion))
 end
 
