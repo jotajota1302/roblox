@@ -20,6 +20,7 @@
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
+local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
@@ -1066,6 +1067,66 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	baliza.Transparency = 0.25
 end
 
+-- UNA GUARIDA: de dónde salen los ladrones (ver Lairs.luau).
+--
+-- Tiene que verse y reconocerse DESDE LEJOS, porque su trabajo es que la rodees.
+-- Una guarida que sólo se descubre cuando ya te ha soltado un ladrón encima no
+-- cambia nada respecto a que aparezcan de la nada, que es justo lo que venía a
+-- arreglar.
+--
+-- ROJA Y CERRADA, al revés que la comisaría (azul y abierta por los cuatro
+-- lados). Las dos cosas dicen lo mismo sin una palabra: en una entras, de la otra
+-- sales corriendo. Y el azul sigue siendo sólo de las comisarías -- si el sitio
+-- donde te salvas y el sitio del que huyes compartieran color, habría que pararse
+-- a distinguirlos justo cuando no se puede.
+local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: Vector3, padre: Instance): BasePart?
+	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
+	if y == nil then
+		-- Sin suelo transitable: se omite. Una guarida en una azotea soltaría
+		-- ladrones que caen del cielo, que es peor que no tenerla.
+		return nil
+	end
+
+	local ROJO = Color3.fromRGB(150, 58, 52)
+	local ROJO_OSCURO = Color3.fromRGB(92, 34, 32)
+	local HIERRO = Color3.fromRGB(58, 54, 58)
+
+	local losa = part(
+		"Guarida_" .. indice,
+		Vector3.new(34, ALTO_LOSA, 34),
+		Vector3.new(x, y + ALTO_LOSA / 2, z),
+		ROJO_OSCURO,
+		padre
+	)
+	losa.Material = Enum.Material.Slate
+	-- Los dos atributos que la hacen existir para el resto del juego: el minimapa
+	-- la busca por el primero y PatrolService reparte por rutas con el segundo.
+	losa:SetAttribute("guarida", true)
+	losa:SetAttribute("ruta", ruta)
+	losa:SetAttribute("rodable", true)
+
+	local suelo = y + ALTO_LOSA
+	local nave =
+		part("GuaridaNave_" .. indice, Vector3.new(26, 18, 26), Vector3.new(x, suelo + 9, z), ROJO_OSCURO, padre)
+	nave.Material = Enum.Material.Brick
+
+	-- El portón: la única cara distinta, y mira al camino. Es lo que convierte un
+	-- cubo en un sitio del que sale gente.
+	local porton =
+		part("GuaridaPorton_" .. indice, Vector3.new(12, 11, 1.5), Vector3.new(x, suelo + 5.5, z + 13), HIERRO, padre)
+	porton.Material = Enum.Material.DiamondPlate
+
+	-- Y una luz roja encima, alta pero MUCHO más baja que el faro de la comisaría
+	-- (190 studs): la comisaría hay que encontrarla desde la otra punta del barrio
+	-- cuando la necesitas; la guarida sólo hay que verla venir con tiempo.
+	local farol = part("GuaridaFarol_" .. indice, Vector3.new(4, 46, 4), Vector3.new(x, y + 23, z), ROJO, padre)
+	farol.Material = Enum.Material.Neon
+	farol.CanCollide = false
+	farol.Transparency = 0.35
+
+	return losa
+end
+
 local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre: Instance): BasePart?
 	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
 	if y == nil then
@@ -1548,6 +1609,19 @@ function CityBuilder.build(): Mundo
 	for _, ruta in Routes.todas() do
 		table.insert(grupos, Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.REFUGIOS_POR_RUTA + 2))
 	end
+	-- LAS GUARIDAS, dos por ruta. Van antes que los refugios en el código y
+	-- después en importancia: son el peligro que se puede ver venir, y sin ellas
+	-- los refugios no tienen de qué salvarte.
+	local guaridas: { Vector3 } = {}
+	for _, ruta in Routes.todas() do
+		for _, sitio in Lairs.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.GUARIDAS_POR_RUTA) do
+			local pieza = guarida(ciudad, #guaridas + 1, ruta.id, sitio, mundo)
+			if pieza then
+				table.insert(guaridas, pieza.Position)
+			end
+		end
+	end
+
 	local refugios: { Vector3 } = {}
 	for _, sitio in Shelter.repartir(grupos) do
 		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo)
@@ -1564,6 +1638,7 @@ function CityBuilder.build(): Mundo
 		destinos = destinos,
 		detectores = detectores,
 		refugios = refugios,
+		guaridas = guaridas,
 	}
 end
 

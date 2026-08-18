@@ -14,6 +14,24 @@ local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("P
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 
+-- Cuántas guaridas hay PLANTADAS de verdad en esa ruta. Se cuentan del mundo y no
+-- se da por bueno el número del diseño: una guarida se omite si no encuentra suelo
+-- transitable donde caer, y un selector que promete dos cuando hay una está
+-- mintiendo justo en el dato por el que se elige.
+local function guaridasDe(rutaId: string): number
+	local mundo = workspace:FindFirstChild("Mundo")
+	if mundo == nil then
+		return (select(2, Routes.amenazas(rutaId)))
+	end
+	local n = 0
+	for _, pieza in mundo:GetChildren() do
+		if pieza:IsA("BasePart") and pieza:GetAttribute("guarida") == true and pieza:GetAttribute("ruta") == rutaId then
+			n += 1
+		end
+	end
+	return n
+end
+
 local RoutePicker = {}
 local gui: ScreenGui? = nil
 local tarjetas: { [string]: TextButton } = {}
@@ -146,11 +164,19 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 		-- ese dato aquí la decisión se toma a ciegas y el jugador aprende a base
 		-- de perder cargas. En palabras y no en símbolos: los caracteres decorados
 		-- salen como cuadrados en TextLabel.
+		-- QUÉ HAY POR EL CAMINO, en números. Antes decía la distancia y una palabra
+		-- ("peligrosa"), y con eso elegir ruta seguía siendo elegir un
+		-- multiplicador a ciegas: nadie sabe qué significa "peligrosa" hasta que le
+		-- cuesta una carga. Las esquinas fichadas y las guaridas son lo que de
+		-- verdad se compra al elegir, y ahora además se ven en el mapa -- así que
+		-- el número de aquí y los círculos de allí dicen lo mismo.
+		local fichadas = (Routes.amenazas(ruta.id))
+		local madrigueras = guaridasDe(ruta.id)
 		texto(
 			"Detalle",
 			3,
 			0.2,
-			string.format("%d m  ·  %s", Routes.distancia(ruta.id), Routes.vigilancia(ruta.id)),
+			string.format("%d m  ·  %d esquinas  ·  %d guaridas", Routes.distancia(ruta.id), fichadas, madrigueras),
 			Enum.Font.GothamMedium,
 			0.35
 		)
@@ -226,8 +252,15 @@ function RoutePicker.actualizar(estado: any)
 		local detalle = boton:FindFirstChild("Detalle") :: TextLabel?
 		local multiplicador = boton:FindFirstChild("Multiplicador") :: TextLabel?
 		if detalle then
+			local fichadas = (Routes.amenazas(id))
+			local madrigueras = guaridasDe(id)
 			detalle.Text = if puede
-				then string.format("%d m  ·  %s", Routes.distancia(id), Routes.vigilancia(id))
+				then string.format(
+					"%d m  ·  %d esquinas  ·  %d guaridas",
+					Routes.distancia(id),
+					fichadas,
+					madrigueras
+				)
 				else Routes.requisito(id)
 			detalle.TextTransparency = if puede then 0.35 else 0
 		end

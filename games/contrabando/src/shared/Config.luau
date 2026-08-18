@@ -414,6 +414,32 @@ Config.REFUGIO_SEPARACION = 320
 -- en una mecánica en vez de en un decorado. Si algún día las patrullas pudieran
 -- atajar, habría que bajarlas por debajo de la velocidad cargada o el sistema se
 -- convierte en un impuesto: te pillan siempre y la decisión desaparece.
+-- LAS GUARIDAS: de dónde salen los ladrones.
+--
+-- Petición de JJ jugando: "no ves en el mapa dónde están los ladrones y su zona de
+-- influencia, te aparecen de repente; deberías poder mirar el mapa y planear por
+-- dónde ir". Y era literal -- los ladrones se materializaban a 90-140 studs del
+-- jugador, en cualquier dirección, sin venir de ningún sitio.
+--
+-- Un peligro que no se puede anticipar no es tensión: es un impuesto. Con guaridas
+-- fijas y marcadas pasan tres cosas a la vez: se pueden rodear (que es la
+-- habilidad que este juego decía pedir y no pedía), explican de dónde viene el que
+-- te persigue, y le dan a cada zona un carácter que el color solo no da.
+--
+-- DOS POR RUTA, y no más: el corredor tiene que poder recorrerse esquivándolas.
+-- Si hubiera guaridas en todas partes, rodear dejaría de ser una decisión.
+Config.GUARIDAS_POR_RUTA = 2
+
+-- Cuánto se apartan del camino recto. Menos que los refugios (100): una guarida
+-- pegada al corredor es un obstáculo que hay que rodear, y ése es su trabajo.
+Config.GUARIDA_DESVIO = 70
+
+-- A qué distancia del jugador una guarida sirve para soltar a un ladrón. Por
+-- debajo de APARICION_MIN sería una emboscada; por encima de esto el ladrón
+-- llegaría tan tarde que daría igual, así que se cae al método viejo (un punto
+-- cualquiera alrededor) antes que quedarse sin amenaza.
+Config.GUARIDA_ALCANCE = 260
+
 Config.PATRULLAS = {
 	[0] = { cantidad = 0, velocidad = 0 },
 	[1] = { cantidad = 1, velocidad = 18 },

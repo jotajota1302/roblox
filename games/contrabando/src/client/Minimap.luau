@@ -257,6 +257,99 @@ function Minimap.build()
 	end)
 end
 
+-- LO FIJO SE PINTA EN EL LIENZO, UNA VEZ. Las esquinas fichadas y las guaridas no
+-- se mueven jamás, así que dibujarlas en cada refresco sería pagar doce veces por
+-- segundo por algo que no cambia. Van en la misma capa que el plano de la ciudad y
+-- se mueven con él gratis.
+--
+-- POR QUÉ ESTÁN AQUÍ, que es lo importante: lo pidió JJ jugando y señalaba el
+-- agujero exacto entre lo que el diseño prometía y lo que había. El rediseño de la
+-- ciudad decía que la habilidad del juego sería reconocer el cruce malo y
+-- rodearlo; con los peligros invisibles, eso sólo se podía aprender perdiendo la
+-- carga. Un peligro que no se puede anticipar no es tensión, es un impuesto.
+local peligrosPintados = false
+
+local function pintarPeligros(capa: Frame)
+	local mundo = workspace:FindFirstChild("Mundo")
+	if mundo == nil or peligrosPintados then
+		return
+	end
+
+	local function mancha(
+		nombre: string,
+		centro: Vector3,
+		radio: number,
+		color: Color3,
+		opacidad: number,
+		orden: number
+	)
+		local f = Instance.new("Frame")
+		f.Name = nombre
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = UDim2.fromOffset((centro.X - origenMapa.X) * ESCALA, (centro.Z - origenMapa.Y) * ESCALA)
+		f.Size = UDim2.fromOffset(radio * 2 * ESCALA, radio * 2 * ESCALA)
+		f.BackgroundColor3 = color
+		f.BackgroundTransparency = opacidad
+		f.BorderSizePixel = 0
+		f.ZIndex = orden
+		f.Parent = capa
+		local redondo = Instance.new("UICorner")
+		redondo.CornerRadius = UDim.new(1, 0)
+		redondo.Parent = f
+		return f
+	end
+
+	local fichadas, madrigueras = 0, 0
+	for _, pieza in mundo:GetChildren() do
+		if not pieza:IsA("BasePart") then
+			continue
+		end
+		if pieza:GetAttribute("detectorId") ~= nil then
+			-- SU RADIO DE VERDAD, no un punto. Un punto dice dónde está; el círculo
+			-- dice por dónde NO pasar, que es lo único que sirve para trazar un
+			-- camino. Es el mismo número que usa el servidor para dispararlas.
+			mancha(
+				"Fichada_" .. pieza.Name,
+				pieza.Position,
+				Config.DETECTOR_RADIO,
+				Color3.fromRGB(255, 170, 60),
+				0.72,
+				2
+			)
+			fichadas += 1
+		elseif pieza:GetAttribute("guarida") == true then
+			-- SU ALCANCE VA COMO ANILLO, NO COMO MANCHA. Es la distancia a la que esa
+			-- guarida puede soltarte un ladrón encima (Config.GUARIDA_ALCANCE), y son
+			-- 260 studs: seis discos de ese tamaño pintarían el mapa entero de rojo y
+			-- no se distinguiría nada, que es justo lo contrario de lo que se le pide
+			-- a un plano. El anillo dice lo mismo y deja ver lo que hay debajo.
+			local anillo = mancha(
+				"Guarida_" .. pieza.Name,
+				pieza.Position,
+				Config.GUARIDA_ALCANCE,
+				Color3.fromRGB(220, 70, 60),
+				1,
+				2
+			)
+			local trazo = Instance.new("UIStroke")
+			trazo.Color = Color3.fromRGB(220, 70, 60)
+			trazo.Thickness = 1.5
+			trazo.Transparency = 0.55
+			trazo.Parent = anillo
+			-- Y el núcleo, que es lo que se ve de lejos y lo que hay que rodear.
+			mancha("GuaridaNucleo_" .. pieza.Name, pieza.Position, 20, Color3.fromRGB(220, 70, 60), 0.25, 3)
+			madrigueras += 1
+		end
+	end
+
+	-- Sólo se da por pintado cuando había algo que pintar: si el mundo todavía no
+	-- ha replicado al cliente, hay que volver a intentarlo en el siguiente refresco
+	-- en vez de quedarse con un mapa sin peligros para toda la partida.
+	if fichadas > 0 or madrigueras > 0 then
+		peligrosPintados = true
+	end
+end
+
 function Minimap.actualizar(nuevo: any)
 	estado = nuevo
 end
@@ -297,6 +390,10 @@ function Minimap.refrescar()
 	-- Se mueve el LIENZO, no sus cientos de hijos: es lo que hace que un plano de
 	-- verdad quepa en el presupuesto de un móvil.
 	capa.Position = UDim2.new(0.5, -(centro.X - origenMapa.X) * ESCALA, 0.5, -(centro.Z - origenMapa.Y) * ESCALA)
+
+	-- Los peligros fijos, en cuanto el mundo haya llegado al cliente. Se protege
+	-- sola: en cuanto pinta algo, no vuelve a hacer nada.
+	pintarPeligros(capa)
 
 	local casa = punto("Almacen", Palette.ALMACEN, 10, 4)
 	casa.Position = (aPantalla(centro, Config.ALMACEN_POS, lado))
@@ -358,11 +455,40 @@ function Minimap.refrescar()
 	local patrullas = workspace:FindFirstChild("Patrullas")
 	if patrullas then
 		for i, agente in patrullas:GetChildren() do
+			local sitio = agente:GetPivot().Position
+			local donde, dentro = aPantalla(centro, sitio, lado)
+
+			-- SU ZONA DE INFLUENCIA, no sólo el punto. Es la mitad de lo que se
+			-- pide a un mapa cuando aprieta: no "dónde está" sino "hasta dónde
+			-- llega". El radio es la distancia a la que el juego ya te avisa de que
+			-- lo tienes detrás, así que el círculo dibuja exactamente el momento en
+			-- que dejas de poder ignorarlo.
+			local aura = punto("Aura_" .. i, Color3.fromRGB(255, 110, 100), 1, 6)
+			local lo = Config.ALERTA_DISTANCIA * 2 * ESCALA
+			aura.Size = UDim2.fromOffset(lo, lo)
+			aura.BackgroundTransparency = 0.82
+			aura.Position = donde
+			aura.Visible = dentro
+			-- Redonda del todo. punto() ya le puso una esquina, pero con el radio del
+			-- tamaño con el que nació (un píxel), y aquí el tamaño se recalcula en cada
+			-- refresco: si el radio no es relativo, el aura sale cuadrada -- y un
+			-- cuadrado no se lee como un alcance.
+			local redondo = aura:FindFirstChildOfClass("UICorner")
+			if redondo then
+				redondo.CornerRadius = UDim.new(1, 0)
+			end
+			vistos["Aura_" .. i] = true
+
 			local clave = "Patrulla_" .. i
 			local p = punto(clave, Color3.fromRGB(255, 110, 100), 9, 7)
-			local donde, dentro = aPantalla(centro, agente:GetPivot().Position, lado)
 			p.Position = donde
-			p.Visible = dentro
+			-- LOS DE FUERA DEL MARCO SE PEGAN AL BORDE en vez de desaparecer. Un
+			-- ladrón que no se ve porque queda a cincuenta metros del recuadro es
+			-- justo el que te va a alcanzar: esconderlo es esconder el dato por el
+			-- que se mira el mapa.
+			p.Size = if dentro then UDim2.fromOffset(9, 9) else UDim2.fromOffset(6, 6)
+			p.BackgroundTransparency = if dentro then 0 else 0.3
+			p.Visible = true
 			vistos[clave] = true
 		end
 	end
@@ -373,6 +499,7 @@ function Minimap.refrescar()
 	for clave, p in puntos do
 		local esVolatil = string.sub(clave, 1, 8) == "Jugador_"
 			or string.sub(clave, 1, 9) == "Patrulla_"
+			or string.sub(clave, 1, 5) == "Aura_"
 			or string.sub(clave, 1, 8) == "Refugio_"
 		if esVolatil and not vistos[clave] then
 			p.Visible = false

@@ -132,6 +132,15 @@ function Routes.requisito(id: string): string
 	return string.format("Nivel %d", nivel)
 end
 
+-- Lo que te vas a encontrar por el camino, en números. Vive aquí y no en el
+-- selector por lo mismo que Routes.vigilancia: es una regla del juego, no una
+-- etiqueta. El día que una zona cambie de densidad, lo que el jugador lee cambia
+-- solo -- y un selector que promete "poco peligrosa" en la zona más sembrada es
+-- peor que no decir nada.
+function Routes.amenazas(id: string): (number, number)
+	return Routes.get(id).detectores, Config.GUARIDAS_POR_RUTA
+end
+
 function Routes.entregaValida(rutaElegida: string?, rutaDelDestino: string): boolean
 	return rutaElegida ~= nil and rutaElegida == rutaDelDestino
 end

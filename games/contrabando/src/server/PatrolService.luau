@@ -27,6 +27,7 @@ local Players = game:GetService("Players")
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
+local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
@@ -52,6 +53,11 @@ local APARICION_MAX = 140
 local ABANDONO = 320
 
 local PatrolService = {}
+
+-- De dónde salen. Vacío hasta que el mundo se construya: sin guaridas el servicio
+-- sigue funcionando con el método viejo, que es lo que hace que un mapa sin ellas
+-- (o un fallo al plantarlas) no deje al juego sin amenaza.
+local guaridas: { Vector3 } = {}
 
 type Patrulla = {
 	modelo: Model,
@@ -293,6 +299,23 @@ local function puntoDeAparicion(centro: Vector3, rng: Random): Vector3?
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { contenedor() }
 
+	-- PRIMERO, LA GUARIDA. Es el cambio que pidió JJ: "te aparecen de repente;
+	-- deberías poder mirar el mapa y planear por dónde ir". Un ladrón que sale de
+	-- un sitio marcado en el mapa se puede rodear; uno que se materializa a tu
+	-- espalda, no -- y eso no es tensión, es un impuesto.
+	--
+	-- Sólo si la guarida cae en la ventana buena (ver Lairs.sirve): pegada encima
+	-- sería una emboscada, y al otro lado del barrio llegaría cuando el viaje ya ha
+	-- terminado. Fuera de la ventana se cae al método de siempre -- antes un ladrón
+	-- sin guarida que ningún ladrón.
+	local cerca, distancia = Lairs.masCercana(centro, guaridas)
+	if cerca ~= nil and Lairs.sirve(distancia, APARICION_MIN) then
+		local golpe = workspace:Raycast(Vector3.new(cerca.X, cerca.Y + 60, cerca.Z), Vector3.new(0, -200, 0), params)
+		if golpe then
+			return golpe.Position + Vector3.new(0, 4, 0)
+		end
+	end
+
 	for _ = 1, 8 do
 		local angulo = rng:NextNumber(0, math.pi * 2)
 		local radio = rng:NextNumber(APARICION_MIN, APARICION_MAX)
@@ -304,6 +327,13 @@ local function puntoDeAparicion(centro: Vector3, rng: Random): Vector3?
 		end
 	end
 	return nil
+end
+
+-- Las guaridas del mapa, que las planta CityBuilder. Se registran igual que los
+-- refugios en HeatService: el servicio no las busca por su cuenta en workspace
+-- porque entonces cada uno tendría su propia idea de qué es una guarida.
+function PatrolService.registrarGuaridas(sitios: { Vector3 })
+	guaridas = sitios
 end
 
 local function retirar(player: Player)

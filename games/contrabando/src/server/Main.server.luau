@@ -147,6 +147,13 @@ if mundo then
 		-- refugio que protege del robo pero no de la policía, y el jugador no
 		-- tendría forma de saber cuál.
 		HeatService.registrarRefugios(mundo.refugios)
+		-- Y las guaridas a PatrolService, que es quien suelta a los ladrones desde
+		-- ellas. Mismo motivo que los refugios: el servicio no las busca por su
+		-- cuenta en workspace, porque entonces cada uno tendría su propia idea de
+		-- qué cuenta como guarida.
+		if PatrolService and (PatrolService :: any).registrarGuaridas then
+			(PatrolService :: any).registrarGuaridas(mundo.guaridas or {})
+		end
 	end
 end
 

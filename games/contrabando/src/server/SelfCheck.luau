@@ -301,6 +301,73 @@ local function puerta()
 end
 
 --------------------------------------------------------------------------------
+-- 5b. Las guaridas: existen, se pueden rodear, y ninguna cae en zona segura.
+--------------------------------------------------------------------------------
+local function guaridas()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local sitios: { BasePart } = {}
+	for _, x in m:GetChildren() do
+		if x:IsA("BasePart") and x:GetAttribute("guarida") == true then
+			table.insert(sitios, x)
+		end
+	end
+	comprobar(
+		"hay guaridas plantadas",
+		#sitios >= 1,
+		"ninguna -- los ladrones vuelven a salir de la nada, que es lo que esto venía a arreglar"
+	)
+
+	-- NINGUNA EN LA ZONA SEGURA. El almacén no es asaltable nunca, y una guarida
+	-- pegada a casa contradiría esa promesa sin romperla del todo: el jugador
+	-- vería salir ladrones del sitio donde se supone que está a salvo.
+	local dentro = 0
+	for _, g in sitios do
+		local d = (Vector3.new(g.Position.X, 0, g.Position.Z) - Vector3.new(
+			Config.ALMACEN_POS.X,
+			0,
+			Config.ALMACEN_POS.Z
+		)).Magnitude
+		if d <= Config.ZONA_SEGURA_RADIO then
+			dentro += 1
+		end
+	end
+	comprobar("ninguna guarida en la zona segura", dentro == 0, string.format("%d dentro del radio seguro", dentro))
+
+	-- Y CADA RUTA TIENE LA SUYA CERCA DEL CAMINO: una guarida a trescientos studs
+	-- del corredor no la rodea nadie porque nadie pasa por allí, y entonces la ruta
+	-- se queda sin la amenaza que anuncia su selector.
+	local alcance = Config.GUARIDA_DESVIO + 90
+	for _, ruta in Routes.todas() do
+		local cerca = 0
+		for _, g in sitios do
+			if g:GetAttribute("ruta") == ruta.id and alTrayecto(g.Position, ruta.destino) <= alcance then
+				cerca += 1
+			end
+		end
+		comprobar(
+			string.format("la %s tiene guarida sobre su camino", ruta.id),
+			cerca >= 1,
+			"ninguna de las suyas cae cerca del corredor"
+		)
+	end
+
+	-- Se pisan: si una quedara flotando o enterrada, el ladrón saldría del aire.
+	local malas = 0
+	for _, g in sitios do
+		local techo = g.Position.Y + g.Size.Y / 2
+		local golpe = bajoLosPies(g.Position.X, techo, g.Position.Z, 8)
+		if golpe == nil or golpe.Instance ~= g then
+			malas += 1
+		end
+	end
+	comprobar("las guaridas están apoyadas en el suelo", malas == 0, string.format("%d flotando o enterradas", malas))
+end
+
+--------------------------------------------------------------------------------
 -- 5. Los refugios: los hay, están separados, y cada ruta tiene uno a mano.
 --------------------------------------------------------------------------------
 local function refugios()
@@ -593,6 +660,7 @@ function SelfCheck.run(): string
 		{ nombre = "accesos", fn = accesos },
 		{ nombre = "puerta", fn = puerta },
 		{ nombre = "refugios", fn = refugios },
+		{ nombre = "guaridas", fn = guaridas },
 		{ nombre = "economía", fn = economia },
 		{ nombre = "puente", fn = puente },
 		{ nombre = "coste", fn = coste },
