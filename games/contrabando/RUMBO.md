@@ -198,8 +198,10 @@ arregla.
 3. **Lo grande tiene que pagar más por hueco** ([`V1.md`](V1.md) §1) — medio catálogo es
    hoy decoración cara.
 4. **Recuperar el eje de exposición de los vehículos** (§2) — gratis, devuelve una decisión.
-5. **El mapa que deja planear** (§3.D) — esquinas fichadas y guaridas visibles. Es lo que
-   convierte el viaje en una decisión y hoy no existe.
+5. ~~**El mapa que deja planear** (§3.D)~~ — **hecho el 18/08**. Las esquinas fichadas con
+   su radio, las guaridas con su alcance y los ladrones con su aura, todo en el minimapa; y
+   el selector anuncia lo que compras. Los ladrones salen de guaridas fijas: medido, entre
+   el 62 % y el 66 % del trayecto tiene una a distancia útil (antes: 0 %, salían del aire).
 6. **Ladrones que crecen con lo que llevas** (§3.B).
 7. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
 8. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.

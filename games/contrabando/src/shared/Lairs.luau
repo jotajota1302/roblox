@@ -52,12 +52,25 @@ function Lairs.sitiosDeRuta(origen: Vector3, destino: Vector3, cuantas: number):
 	-- Perpendicular en el plano: girar 90° es (z, -x).
 	local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
 
+	-- EL TRAMO SE MIDE EN STUDS, NO EN FRACCIÓN, y esto lo destapó plantarlas: con
+	-- un 0,2 fijo, la primera guarida de la ruta verde --que mide 420 studs-- caía
+	-- a 84 studs del almacén, o sea DENTRO de la zona segura. Una fracción dice lo
+	-- mismo para una ruta de 400 studs y para una de 1.400, y no es lo mismo.
+	--
+	-- Así que el tramo útil empieza pasada la zona segura con margen y termina
+	-- antes del destino: perder la carga a las puertas de la entrega no se lee como
+	-- riesgo sino como tomadura de pelo.
+	local largo = plano.Magnitude
+	local tMin = math.max(0.2, (Config.ZONA_SEGURA_RADIO + 90) / largo)
+	local tMax = math.min(0.85, 1 - 120 / largo)
+	if tMax <= tMin then
+		-- Ruta tan corta que no hay tramo donde ponerlas sin pisar la casa o el
+		-- destino. Antes ninguna que una mal puesta.
+		return sitios
+	end
+
 	for i = 1, cuantas do
-		-- Repartidas por el tramo central del viaje. Ni en la puerta de casa --que
-		-- es zona segura y no puede tener una guarida al lado-- ni pegadas al
-		-- destino, donde el viaje ya está hecho y perder la carga allí sólo se lee
-		-- como una tomadura de pelo.
-		local t = 0.3 + 0.4 * ((i - 0.5) / cuantas)
+		local t = tMin + (tMax - tMin) * ((i - 0.5) / cuantas)
 		local centro = origen:Lerp(destino, t)
 		local signo = if i % 2 == 1 then -1 else 1
 		table.insert(sitios, centro + lado * (Config.GUARIDA_DESVIO * signo))

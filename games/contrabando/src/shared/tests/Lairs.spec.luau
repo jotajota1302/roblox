@@ -16,7 +16,7 @@ return function(kit)
 	-- tomadura de pelo.
 	for i, g in guaridas do
 		local avance = (g.X - origen.X) / (destino.X - origen.X)
-		kit.truthy(string.format("la guarida %d esta en el tramo central", i), avance > 0.25 and avance < 0.75)
+		kit.truthy(string.format("la guarida %d esta en el tramo central", i), avance > 0.15 and avance < 0.9)
 	end
 
 	-- SE APARTAN DEL CAMINO, pero poco: tienen que estorbar. Si estuvieran lejos,

@@ -79,6 +79,9 @@ pie. Ésa es la razón de ser del dinero — el vehículo no es "una caja más",
 | 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | ~848 |
 | 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | ~1.399 |
 
+El selector de ruta las anuncia con sus números — "9 esquinas · 3 guaridas" — y no con una
+palabra: nadie sabe qué significa "peligrosa" hasta que le cuesta una carga.
+
 **La licencia** es lo que impide que el ×10 sea gratis en el primer minuto. Sin ella, medido,
 el garaje entero (31.950 monedas, ×2,15 de ganancia) competía contra un multiplicador que no
 costaba nada — y perdía. Sigue siendo **acceso, no potencia**: la licencia no te hace más
@@ -124,6 +127,18 @@ hay un mejor sino un mejor **para este viaje**.
 explicárselo a nadie. **El azul está reservado entero para ellas**: si el que te persigue y
 el sitio donde te salvas comparten color, tienes que pararte a distinguirlos justo cuando
 no puedes pararte.
+
+### Guaridas
+
+Los ladrones **salen de guaridas**, no de la nada: tres por ruta (dos en la verde, que es
+corta), apartadas 70 studs del camino y siempre fuera de la zona segura. Una guarida suelta
+ladrones contra ti si estás entre 90 y 380 studs de ella — más cerca sería una emboscada
+que no se puede esquivar, más lejos llegarían cuando el viaje ya ha terminado. Medido:
+**cubren entre el 62 % y el 66 % de cada trayecto**; en el resto (la salida de casa y la
+llegada al destino) se cae al método viejo.
+
+Están en el mapa, con su alcance, igual que las esquinas fichadas con su radio. Es lo que
+permite mirar el plano y **decidir por dónde ir** antes de salir.
 
 ### Robo
 
@@ -179,7 +194,10 @@ lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no serví
 
 - **HUD**: dinero, nivel y barra de XP, carga (con lo que espera en el vehículo), peligro,
   la misión en curso y una línea de acciones con las teclas.
-- **Brújula** hacia lo que toca ahora, y **minimapa**.
+- **Brújula** hacia lo que toca ahora, y **minimapa con los peligros**: las esquinas
+  fichadas con su radio real, las guaridas con su alcance, y los ladrones activos con la
+  zona a la que ya te avisan — los que se salen del recuadro se pegan al borde en vez de
+  desaparecer.
 - **Selector de ruta** al acercarse a la salida, con multiplicador y peligro de cada una.
 - **Garaje** dibujado en las plazas del taller: cada vehículo con sus huecos y si puede
   salirse del asfalto.

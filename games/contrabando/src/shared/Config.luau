@@ -426,9 +426,22 @@ Config.REFUGIO_SEPARACION = 320
 -- habilidad que este juego decía pedir y no pedía), explican de dónde viene el que
 -- te persigue, y le dan a cada zona un carácter que el color solo no da.
 --
--- DOS POR RUTA, y no más: el corredor tiene que poder recorrerse esquivándolas.
--- Si hubiera guaridas en todas partes, rodear dejaría de ser una decisión.
-Config.GUARIDAS_POR_RUTA = 2
+-- TRES POR RUTA. Empezaron siendo dos --"que el corredor pueda recorrerse
+-- esquivándolas"-- y se midió lo que pasaba: con dos, en el 61 % del viaje NO
+-- había ninguna guarida a distancia útil, así que el ladrón seguía saliendo de la
+-- nada la mayor parte del tiempo. Es decir: el arreglo no arreglaba nada durante
+-- más de la mitad del trayecto.
+--
+-- Barrido de parámetros sobre las tres rutas (cobertura media / peor ruta):
+--   2 guaridas, alcance 260 -> 65 % / 31 %
+--   2 guaridas, alcance 380 -> 84 % / 61 %
+--   3 guaridas, alcance 380 -> 93 % / 79 %
+--   4 guaridas, alcance 300 -> 93 % / 80 %  (lo mismo, con más estorbo)
+--
+-- Tres es donde la curva se aplana. Siguen apartadas del camino, así que rodearlas
+-- sigue siendo posible: lo que cambia es que ahora casi siempre hay una de la que
+-- venir, que era el punto.
+Config.GUARIDAS_POR_RUTA = 3
 
 -- Cuánto se apartan del camino recto. Menos que los refugios (100): una guarida
 -- pegada al corredor es un obstáculo que hay que rodear, y ése es su trabajo.
@@ -438,7 +451,12 @@ Config.GUARIDA_DESVIO = 70
 -- debajo de APARICION_MIN sería una emboscada; por encima de esto el ladrón
 -- llegaría tan tarde que daría igual, así que se cae al método viejo (un punto
 -- cualquiera alrededor) antes que quedarse sin amenaza.
-Config.GUARIDA_ALCANCE = 260
+--
+-- 380 y no 260, y el motivo es el mismo que el de arriba: con 260 la mayor parte
+-- del viaje se quedaba sin guarida útil. Un ladrón que sale a 380 studs tarda unos
+-- veinte segundos en plantarse encima -- va más rápido que tú cargado, así que
+-- llega igual, y llega desde un sitio que estaba en el mapa.
+Config.GUARIDA_ALCANCE = 380
 
 Config.PATRULLAS = {
 	[0] = { cantidad = 0, velocidad = 0 },

@@ -1080,10 +1080,23 @@ end
 -- donde te salvas y el sitio del que huyes compartieran color, habría que pararse
 -- a distinguirlos justo cuando no se puede.
 local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: Vector3, padre: Instance): BasePart?
+	-- NI UNA GUARIDA EN CASA. sueloTransitable busca en espiral, así que una
+	-- propuesta cerca del polígono puede acabar desplazada DENTRO de él -- y pasó:
+	-- la primera de la ruta verde terminó debajo del zócalo de nuestra propia
+	-- explanada. Ver salir ladrones del sitio donde el juego promete que estás a
+	-- salvo contradice la única garantía que da el almacén.
+	if Perimeter.dentro(centro, 80) then
+		return nil
+	end
+
 	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
 	if y == nil then
 		-- Sin suelo transitable: se omite. Una guarida en una azotea soltaría
 		-- ladrones que caen del cielo, que es peor que no tenerla.
+		return nil
+	end
+	-- Y se vuelve a mirar DESPUÉS de la búsqueda, que es la que mueve el sitio.
+	if Perimeter.dentro(Vector3.new(x, y, z), 80) then
 		return nil
 	end
 

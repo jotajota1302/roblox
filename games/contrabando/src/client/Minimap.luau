@@ -333,8 +333,11 @@ local function pintarPeligros(capa: Frame)
 			)
 			local trazo = Instance.new("UIStroke")
 			trazo.Color = Color3.fromRGB(220, 70, 60)
-			trazo.Thickness = 1.5
-			trazo.Transparency = 0.55
+			trazo.Thickness = 1
+			-- Muy tenue: son 380 studs de radio y hay nueve. A pleno color, el mapa
+			-- se convierte en una maraña de arcos y deja de leerse -- que es lo
+			-- contrario de para lo que está.
+			trazo.Transparency = 0.82
 			trazo.Parent = anillo
 			-- Y el núcleo, que es lo que se ve de lejos y lo que hay que rodear.
 			mancha("GuaridaNucleo_" .. pieza.Name, pieza.Position, 20, Color3.fromRGB(220, 70, 60), 0.25, 3)
