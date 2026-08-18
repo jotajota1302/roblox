@@ -16,6 +16,7 @@ local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiK
 
 local RoutePicker = {}
 local gui: ScreenGui? = nil
+local tarjetas: { [string]: TextButton } = {}
 
 function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	local pantalla = Instance.new("ScreenGui")
@@ -96,6 +97,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 		-- tarjeta. Separarlas es la única forma de darle su propio tamaño.
 		boton.Text = ""
 		boton.Parent = fila
+		tarjetas[ruta.id] = boton
 		UiKit.redondear(boton, 14)
 		-- Borde grueso en vez de sombra: estas tarjetas viven dentro de un
 		-- UIListLayout, que reparte el espacio entre todos sus hijos, y una sombra
@@ -201,6 +203,39 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	end)
 
 	gui = pantalla
+end
+
+-- Pinta el candado. La regla NO se decide aquí: se pregunta a Routes, que es el
+-- mismo módulo que aplica el servidor. Dos copias de "¿puedo salir por aquí?"
+-- acaban discrepando, y el día que discrepen el jugador verá una tarjeta
+-- encendida que al pulsarla no hace nada -- que es exactamente lo que este
+-- selector vino a quitar.
+--
+-- Y LA TARJETA BLOQUEADA SIGUE PULSÁNDOSE. Es deliberado: el servidor contesta
+-- con lo que falta ("Te falta nivel: Nivel 8 y vehículo de motor"), y esa frase
+-- vale más que un botón muerto. Además así hay una sola fuente de la verdad.
+function RoutePicker.actualizar(estado: any)
+	if estado == nil then
+		return
+	end
+	local nivel = estado.nivel or 1
+	for id, boton in tarjetas do
+		local puede = Routes.disponible(id, nivel, estado.vehiculo)
+		local color = Palette.ruta(id)
+		boton.BackgroundColor3 = if puede then color else UiKit.oscurecer(color, 0.62)
+		local detalle = boton:FindFirstChild("Detalle") :: TextLabel?
+		local multiplicador = boton:FindFirstChild("Multiplicador") :: TextLabel?
+		if detalle then
+			detalle.Text = if puede
+				then string.format("%d m  ·  %s", Routes.distancia(id), Routes.vigilancia(id))
+				else Routes.requisito(id)
+			detalle.TextTransparency = if puede then 0.35 else 0
+		end
+		if multiplicador then
+			-- El ×10 apagado es la promesa: se ve lo que hay detrás del candado.
+			multiplicador.TextTransparency = if puede then 0 else 0.45
+		end
+	end
 end
 
 function RoutePicker.mostrar()

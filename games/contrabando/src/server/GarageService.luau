@@ -22,6 +22,7 @@
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
@@ -51,6 +52,7 @@ local EXPLICACION: { [string]: string } = {
 	con_carga = "Descarga antes de cambiar de vehiculo",
 	no_es_tuyo = "Ese vehiculo no es tuyo",
 	ya_lo_llevas = "Ya lo llevas puesto",
+	nivel_insuficiente = "Te falta nivel para ese vehiculo",
 }
 
 local GarageService = {}
@@ -105,7 +107,12 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	--
 	-- Lo que sí se respeta es no cambiar de vehículo a mitad de viaje: con carga
 	-- encima, la compra va al garaje y sigues con el que llevas puesto.
-	local puede, motivo = Vehicles.puedeComprar(estado.garaje, vehiculoId, estado.dinero)
+	-- EL NIVEL ENTRA EN LA COMPRA. Es la mitad de la licencia (RUMBO.md §3.A): la
+	-- otra mitad son las rutas. El nivel se calcula de la experiencia, nunca se
+	-- guarda aparte -- dos fuentes para lo mismo acaban discrepando, y la que
+	-- discrepara aquí abriría o cerraría el taller sin motivo visible.
+	local nivel = Levels.nivelDe(estado.xp or 0)
+	local puede, motivo = Vehicles.puedeComprar(estado.garaje, vehiculoId, estado.dinero, nivel)
 	if not puede then
 		return false, motivo
 	end

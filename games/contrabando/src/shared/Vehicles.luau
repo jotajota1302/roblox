@@ -21,6 +21,7 @@ export type Vehiculo = {
 	velocidadBase: number,
 	penalizacionPorPeso: number,
 	coste: number,
+	nivel: number?,
 }
 
 local Vehicles = {}
@@ -103,10 +104,20 @@ function Vehicles.garajeDe(garaje: { string }?, vehiculoSuelto: string?): { stri
 	return lista
 end
 
+-- El nivel mínimo para comprarlo. Uno por defecto: un vehículo sin nivel escrito
+-- es comprable desde el principio, que es lo que se espera de un catálogo al que
+-- alguien añada una línea sin leer esto.
+function Vehicles.nivelDe(id: string): number
+	if not Vehicles.existe(id) then
+		return 1
+	end
+	return (Vehicles.get(id) :: any).nivel or 1
+end
+
 -- ¿Puede este jugador comprar este vehículo? Devuelve el motivo junto al
 -- veredicto, igual que Intercept.puedeRobar: cuando alguien diga "le he dado a
 -- comprar y no pasa nada", el motivo dice qué regla se aplicó.
-function Vehicles.puedeComprar(garaje: { string }?, id: string, dinero: number): (boolean, string)
+function Vehicles.puedeComprar(garaje: { string }?, id: string, dinero: number, nivel: number?): (boolean, string)
 	if not Vehicles.existe(id) then
 		return false, "vehiculo_desconocido"
 	end
@@ -116,6 +127,16 @@ function Vehicles.puedeComprar(garaje: { string }?, id: string, dinero: number):
 	end
 	if Vehicles.posee(garaje, id) then
 		return false, "ya_lo_tienes"
+	end
+	-- EL NIVEL VA ANTES QUE EL DINERO al comprobar, y el orden importa: el motivo
+	-- que se devuelve es el que ve el jugador, y "te falta nivel" explica algo que
+	-- puede arreglar jugando. "No te llega el dinero" cuando además le falta nivel
+	-- le manda a hacer viajes para nada.
+	--
+	-- `nivel` es opcional para no romper a quien todavía llame sin él: sin nivel se
+	-- comporta como antes. Los servicios SÍ lo pasan.
+	if nivel ~= nil and nivel < Vehicles.nivelDe(id) then
+		return false, "nivel_insuficiente"
 	end
 	-- YA NO SE PROHÍBE COMPRAR "HACIA ABAJO". Esa regla existía para que nadie
 	-- gastase dinero en algo estrictamente peor; con el garaje no hay peor, y un
@@ -145,7 +166,11 @@ end
 -- Lo que se ofrece en el taller: lo que todavía no tienes, de lo barato a lo
 -- caro. Que la lista dependa del estado evita que el cliente decida qué mostrar,
 -- y el cliente no decide nada en este juego.
-function Vehicles.mejorasPara(garaje: { string }?): { Vehiculo }
+--
+-- LOS BLOQUEADOS POR NIVEL TAMBIÉN SALEN, marcados. Un escaparate que esconde lo
+-- que aún no puedes comprar no enseña a dónde vas: ver la furgoneta con un
+-- "Nivel 10" encima es la mitad del motivo para seguir jugando.
+function Vehicles.mejorasPara(garaje: { string }?, nivel: number?): { Vehiculo }
 	local mejoras: { Vehiculo } = {}
 	for _, def in Config.VEHICULOS do
 		if def.coste > 0 and not Vehicles.posee(garaje, def.id) then
@@ -153,7 +178,9 @@ function Vehicles.mejorasPara(garaje: { string }?): { Vehiculo }
 			-- tocan otros módulos. Devolver la referencia viva significa que
 			-- cualquiera que la modifique está cambiando la configuración del juego
 			-- para todo el servidor, y ese fallo no deja rastro.
-			table.insert(mejoras, table.clone(def))
+			local copia = table.clone(def) :: any
+			copia.bloqueado = nivel ~= nil and nivel < Vehicles.nivelDe(def.id)
+			table.insert(mejoras, copia)
 		end
 	end
 	table.sort(mejoras, function(a, b)

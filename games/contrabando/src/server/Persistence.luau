@@ -15,6 +15,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
+local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local PlayerState = require(script.Parent.PlayerState)
 
 local NOMBRE_STORE = "ContrabandoV1"
@@ -75,6 +76,11 @@ function Persistence.cargar(player: Player)
 	if Vehicles.existe(datos.vehiculo) then
 		estado.vehiculo = datos.vehiculo
 	end
+	-- LA NAVE. Se recorta al rango que exista hoy: una partida guardada con más
+	-- escalones de los que tiene esta versión (o un dato corrupto) no puede dejar
+	-- el almacén sin responder. Warehouse.mejora ya sanea, pero el número que se
+	-- guarda tiene que estar sano también, o al volver a guardar se propaga.
+	estado.naveNivel = math.clamp(math.floor(tonumber(datos.naveNivel) or 1), 1, Warehouse.maximo())
 	PlayerState.sync(player)
 end
 
@@ -109,6 +115,9 @@ function Persistence.guardar(player: Player)
 		-- La lista entera, no sólo el que lleva puesto: si sólo se guardara el
 		-- activo, salir del juego con el patinete fuera borraría la furgoneta.
 		garaje = estado.garaje or {},
+		-- La nave mejorada es lo más caro que se puede comprar en el juego: si esto
+		-- no se guardara, una desconexión costaría hasta 150.000 monedas.
+		naveNivel = estado.naveNivel or 1,
 	}
 
 	local ok, err = pcall(function()

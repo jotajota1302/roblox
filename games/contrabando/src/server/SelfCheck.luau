@@ -32,6 +32,8 @@
 	nada; contar los postes plantados sí.
 ]]
 
+local Players = game:GetService("Players")
+
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
@@ -61,7 +63,22 @@ end
 local function bajoLosPies(x: number, y: number, z: number, alcance: number?): RaycastResult?
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = {}
+	-- LOS PERSONAJES FUERA. Sin esto, la sonda mide a quien esté de pie encima: la
+	-- primera vez que se corrió con alguien parado sobre el almacén, el veredicto
+	-- fue "lo que se pisa ahí es Handle" -- el sombrero del jugador. Una batería
+	-- que falla según dónde se haya parado alguien no sirve para decidir nada.
+	local fuera: { Instance } = {}
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(fuera, p.Character)
+		end
+	end
+	-- Y los ladrones, que son personajes también y andan por el mapa.
+	local ladrones = workspace:FindFirstChild("Ladrones") or workspace:FindFirstChild("Patrullas")
+	if ladrones then
+		table.insert(fuera, ladrones)
+	end
+	params.FilterDescendantsInstances = fuera
 	return workspace:Raycast(Vector3.new(x, y + 6, z), Vector3.new(0, -(alcance or 14), 0), params)
 end
 

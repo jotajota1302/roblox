@@ -23,6 +23,7 @@ Remotes.DEVOLVER = "Devolver" -- cliente -> servidor: "dejo esto en el almacén"
 Remotes.COMPRAR = "Comprar" -- cliente -> servidor: "compro este vehículo"
 Remotes.SACAR = "Sacar" -- cliente -> servidor: "saco este vehículo del garaje"
 Remotes.MONTAR = "Montar" -- cliente -> servidor: "me subo o me bajo del vehículo"
+Remotes.MEJORAR_NAVE = "MejorarNave" -- cliente -> servidor: "pago la siguiente mejora de la nave"
 Remotes.AVISO = "Aviso" -- servidor -> cliente: mensaje corto en pantalla
 Remotes.SONIDO = "Sonido" -- servidor -> cliente: reproducir un efecto por su clave
 

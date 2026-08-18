@@ -10,16 +10,26 @@
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local CargoService = require(script.Parent.CargoService)
 local PlayerState = require(script.Parent.PlayerState)
+local Telemetry = require(script.Parent.Telemetry)
 
 local DISTANCIA_ALMACEN = 45
 
 local WarehouseService = {}
 local almacen: BasePart? = nil
+
+-- Por qué no se puede mejorar, en palabras. Cada motivo dice algo que el jugador
+-- puede hacer al respecto -- que es lo único que distingue una regla de un fallo.
+local EXPLICACION: { [string]: string } = {
+	lejos = "Tienes que estar en la nave",
+	sin_dinero = "No te llega el dinero",
+	al_maximo = "Tu nave ya esta al maximo",
+}
 
 function WarehouseService.registrarAlmacen(part: BasePart)
 	almacen = part
@@ -34,13 +44,12 @@ local function actualizar(player: Player): number
 	-- aquí se pusiera almacenUltimaVisita = ahora sin más (como hacía antes), el
 	-- bucle de refresco de 5 s con un ritmo de 30 tiraría el resto en cada muestra
 	-- y el almacén no produciría NUNCA con el jugador conectado.
-	estado.almacenCajas, estado.almacenUltimaVisita = Warehouse.avanzar(
-		estado.almacenCajas,
-		estado.almacenUltimaVisita,
-		ahora,
-		Config.ALMACEN_RITMO,
-		Config.ALMACEN_TOPE
-	)
+	-- EL RITMO Y EL TOPE SALEN DE LA NAVE, no de las constantes: mejorarla es el
+	-- sumidero que no se acaba, y si esta línea siguiera leyendo Config el jugador
+	-- pagaría 30.000 monedas por una mejora que no hace nada.
+	local nave = Warehouse.mejora(estado.naveNivel)
+	estado.almacenCajas, estado.almacenUltimaVisita =
+		Warehouse.avanzar(estado.almacenCajas, estado.almacenUltimaVisita, ahora, nave.ritmo, nave.tope)
 
 	-- La lista de piezas se pone al día con el contador. La rareza se sortea AL
 	-- PRODUCIR y no al recoger, que es lo que convierte el almacén en una decisión:
@@ -72,6 +81,57 @@ local function actualizar(player: Player): number
 	end
 
 	return estado.almacenCajas
+end
+
+-- MEJORAR LA NAVE. El sumidero que no se acaba (RUMBO.md §3.C): sube el ritmo y
+-- el tope de producción, o sea, alarga cuánto puedes estar sin entrar sin
+-- desperdiciar nada.
+--
+-- Devuelve el motivo junto al veredicto, como todo lo que puede decir que no: un
+-- botón que no responde cuesta la partida entera; una línea de texto la salva.
+function WarehouseService.mejorar(player: Player): (boolean, string)
+	local estado = PlayerState.get(player)
+
+	-- EN LA NAVE, no desde el otro lado del mapa. Es lo mismo que se le pide al
+	-- taller y por el mismo motivo: comprar tiene que ser un sitio al que ir.
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local losa = almacen
+	if root == nil or losa == nil then
+		return false, "lejos"
+	end
+	local d = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(losa.Position.X, 0, losa.Position.Z)).Magnitude
+	if d > DISTANCIA_ALMACEN then
+		return false, "lejos"
+	end
+
+	local siguienteNivel, siguiente = Warehouse.siguiente(estado.naveNivel)
+	if siguienteNivel == nil or siguiente == nil then
+		return false, "al_maximo"
+	end
+	if estado.dinero < siguiente.coste then
+		return false, "sin_dinero"
+	end
+
+	-- Cobrar ANTES de entregar, como en el taller: al revés, cualquier fallo entre
+	-- las dos líneas regala la mejora.
+	estado.dinero -= siguiente.coste
+	estado.naveNivel = siguienteNivel
+
+	-- Y SE NOTA AL MOMENTO: al subir el tope, lo que ya estaba produciéndose
+	-- aparece sin esperar al siguiente ciclo. Sin este empujón, pagar 30.000
+	-- monedas no cambia nada en pantalla durante medio minuto.
+	actualizar(player)
+	PlayerState.sync(player)
+
+	Telemetry.evento(player, "mejora_nave", { nivel = siguienteNivel, coste = siguiente.coste })
+	Remotes.event(Remotes.AVISO):FireClient(
+		player,
+		string.format("Nave nivel %d: guarda %d y produce cada %d s", siguienteNivel, siguiente.tope, siguiente.ritmo),
+		Palette.AVISO_BUENO
+	)
+	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+	return true, "ok"
 end
 
 function WarehouseService.disponibles(player: Player): number
@@ -232,6 +292,18 @@ function WarehouseService.start()
 		-- no dejar pasar nada que no sea un número: cualquier otra cosa se trata
 		-- como "coge lo que quepa", que es el comportamiento del botón.
 		WarehouseService.reclamar(player, if typeof(indice) == "number" then indice else nil)
+	end)
+
+	Remotes.event(Remotes.MEJORAR_NAVE).OnServerEvent:Connect(function(player)
+		local ok, resultado, motivo = pcall(WarehouseService.mejorar, player)
+		if not ok then
+			warn("[Contrabando] fallo al mejorar la nave: " .. tostring(resultado))
+			return
+		end
+		if not resultado then
+			Remotes.event(Remotes.AVISO)
+				:FireClient(player, EXPLICACION[motivo] or "No se puede mejorar", Palette.AVISO_MALO)
+		end
 	end)
 
 	-- Sincroniza cada 5 s para que el contador del HUD suba solo mientras el

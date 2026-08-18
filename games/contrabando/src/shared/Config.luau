@@ -57,6 +57,16 @@ Config.TAMANOS = {
 -- 16 y 22 para que nadie fuera inatrapable; esa regla SIGUE VIGENTE pero ahora se
 -- sostiene por otro sitio -- quien te persigue puede cortar por donde tú no
 -- puedes-- y eso permite que comprar una moto se note de verdad.
+-- `nivel` es EL NIVEL MÍNIMO PARA COMPRARLO, y llegó con la licencia (ver
+-- RUMBO.md §3.A). Antes el único requisito era el dinero, y medido salía esto: la
+-- ruta roja multiplica por diez GRATIS desde el primer minuto, mientras el garaje
+-- entero cuesta 31.950 monedas para dar un ×2,15. El sumidero competía contra una
+-- palanca que no costaba nada, y perdía.
+--
+-- Atar los peldaños al nivel no es una traba: es lo que convierte la experiencia
+-- --que hasta ahora era un número que subía y nada más-- en el permiso para
+-- acceder a lo siguiente. Y sigue siendo ACCESO, no potencia, que es la regla que
+-- no se toca.
 Config.VEHICULOS = {
 	{
 		id = "a_pie",
@@ -66,6 +76,7 @@ Config.VEHICULOS = {
 		penalizacionPorPeso = Config.PENALIZACION_POR_CAJA,
 		tamanoMaximo = 1,
 		coste = 0,
+		nivel = 1,
 	},
 	-- EL PRIMER PELDAÑO. Antes eran los patines (150) y se quitaron enteros a
 	-- petición de JJ: van en los PIES, y eso pelea con la animación de andar --
@@ -83,6 +94,7 @@ Config.VEHICULOS = {
 		penalizacionPorPeso = 1.0,
 		tamanoMaximo = 2,
 		coste = 150,
+		nivel = 1,
 	},
 	{
 		id = "patinete",
@@ -92,6 +104,7 @@ Config.VEHICULOS = {
 		penalizacionPorPeso = 0.9,
 		tamanoMaximo = 2,
 		coste = 400,
+		nivel = 2,
 	},
 	{
 		id = "patinete_electrico",
@@ -102,6 +115,7 @@ Config.VEHICULOS = {
 		tamanoMaximo = 2,
 		soloCalzada = true,
 		coste = 1400,
+		nivel = 3,
 	},
 	{
 		id = "bicicleta",
@@ -112,6 +126,7 @@ Config.VEHICULOS = {
 		tamanoMaximo = 3,
 		soloCalzada = true,
 		coste = 2500,
+		nivel = 4,
 	},
 	{
 		id = "moto",
@@ -122,6 +137,7 @@ Config.VEHICULOS = {
 		tamanoMaximo = 3,
 		soloCalzada = true,
 		coste = 4500,
+		nivel = 6,
 	},
 	{
 		id = "coche",
@@ -132,6 +148,7 @@ Config.VEHICULOS = {
 		tamanoMaximo = 4,
 		soloCalzada = true,
 		coste = 8000,
+		nivel = 8,
 	},
 	{
 		id = "furgoneta",
@@ -142,6 +159,7 @@ Config.VEHICULOS = {
 		tamanoMaximo = 4,
 		soloCalzada = true,
 		coste = 15000,
+		nivel = 10,
 	},
 }
 
@@ -231,10 +249,15 @@ Config.TALLER_POS = Vector3.new(-540, 19.2, 930)
 -- `detectores` es la densidad de vigilancia de cada zona, y es lo que de verdad
 -- las diferencia. La verde lleva unos pocos A PROPÓSITO y no cero: es donde se
 -- aprende qué es un detector sin que salga caro.
+-- `nivel` es el nivel mínimo para poder elegirla y `exigeMotor` pide además un
+-- vehículo de calzada. Las dos cosas son LA LICENCIA (RUMBO.md §3.A): sin ellas,
+-- el jugador nuevo elige la roja en su primer minuto, cobra diez veces más sin
+-- haber hecho nada por merecerlo, y el resto de la progresión se queda sin sentido.
 Config.RUTAS = {
 	{
 		id = "verde",
 		multiplicador = 1,
+		nivel = 1,
 		destino = Vector3.new(-180, 19, 540),
 		detectores = 3,
 		pvp = "ninguno",
@@ -242,6 +265,7 @@ Config.RUTAS = {
 	{
 		id = "ambar",
 		multiplicador = 3,
+		nivel = 3,
 		destino = Vector3.new(240, 14.8, 420),
 		detectores = 9,
 		pvp = "transportistas",
@@ -249,6 +273,12 @@ Config.RUTAS = {
 	{
 		id = "roja",
 		multiplicador = 10,
+		nivel = 8,
+		-- Y ADEMÁS PIDE VEHÍCULO DE MOTOR. Es la única ruta con dos requisitos, y
+		-- es a propósito: el ×10 es la palanca más fuerte del juego y tenía que
+		-- estar DETRÁS del sumidero en vez de compitiendo con él. Con esto, el
+		-- dinero que se gasta en el taller compra algo que el dinero solo no daba.
+		exigeMotor = true,
 		destino = Vector3.new(600, 19.2, -180),
 		detectores = 18,
 		pvp = "libre",
@@ -284,6 +314,35 @@ Config.RETORNO_PIEZAS = 3
 -- Almacén
 Config.ALMACEN_RITMO = 30 -- PROTOTIPO: 180 (1 caja cada 3 min)
 Config.ALMACEN_TOPE = 10
+
+-- LA NAVE SE MEJORA: el sumidero que no se acaba (RUMBO.md §3.C).
+--
+-- Estaba en el plan original desde el principio y nunca se hizo, y su ausencia es
+-- la que dejaba el juego sin motivo para volver mañana: el garaje era el ÚNICO
+-- destino del dinero, y medido se compra entero con siete viajes rojos. Después
+-- no quedaba nada que querer.
+--
+-- Mejorar la nave hace justo lo que el garaje no puede hacer: **alarga tu ventana
+-- de ausencia**. Con tope 10 y una caja cada 30 s, dejar de jugar cinco minutos ya
+-- es desperdiciar producción; con tope 30 puedes irte a cenar. La cadencia de
+-- retorno crece con el jugador en vez de agobiarle igual desde el primer día.
+--
+-- Y ARREGLA DE PASO EL TECHO DE LA CAPACIDAD: un almacén lleno de nivel 1 pesa
+-- unos 23 huecos, así que hoy comprar algo que cargue más de 24 no sirve de nada
+-- --el coche ya está en el techo y la furgoneta lo pasa-- y eso deja la mitad del
+-- garaje sin sentido. Con la nave subida hay de verdad qué llevar.
+--
+-- El nivel 1 NO repite los números: los toma de las constantes de arriba, para que
+-- no haya dos sitios diciendo a qué ritmo produce una nave sin mejorar.
+Config.NAVE_MEJORAS = {
+	{ ritmo = Config.ALMACEN_RITMO, tope = Config.ALMACEN_TOPE, coste = 0 },
+	{ ritmo = 24, tope = 14, coste = 1200 },
+	{ ritmo = 19, tope = 18, coste = 4000 },
+	{ ritmo = 15, tope = 24, coste = 12000 },
+	{ ritmo = 12, tope = 30, coste = 30000 },
+	{ ritmo = 10, tope = 38, coste = 70000 },
+	{ ritmo = 8, tope = 48, coste = 150000 },
+}
 
 -- Radio alrededor de la salida en el que se puede elegir ruta. Vive aquí, y no
 -- en RouteService, porque el CLIENTE también lo necesita: el selector de ruta

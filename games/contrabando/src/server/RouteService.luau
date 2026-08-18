@@ -2,7 +2,7 @@
 --[[
 	RouteService.luau — elección de ruta y su validación.
 
-	Cuatro comprobaciones que el servidor NO se salta, porque cada una es un
+	Cinco comprobaciones que el servidor NO se salta, porque cada una es un
 	exploit si falta:
 
 	  1. que la ruta exista (un id inventado no cobra nada)
@@ -11,9 +11,12 @@
 	     viaje, que sería elegir la verde para pasar tranquilo y cambiar a roja al
 	     llegar)
 	  4. que no esté ya en ruta
+	  5. que TENGA LA LICENCIA: nivel suficiente y, en la roja, vehículo de motor
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Levels = require(game.ReplicatedStorage.Shared.Levels)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
@@ -21,6 +24,14 @@ local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
 local RouteService = {}
+
+-- Lo que se le dice al jugador cuando la licencia le cierra una ruta. El texto
+-- del nivel se compone con Routes.requisito para que no haya dos sitios diciendo
+-- qué hace falta: el día que cambie el nivel pedido, esto cambia solo.
+local EXPLICACION: { [string]: string } = {
+	necesitas_motor = "Esa ruta pide un vehiculo de motor",
+	ruta_desconocida = "Esa ruta no existe",
+}
 
 -- La losa de salida sigue siendo el sitio donde el juego INVITA a elegir (allí se
 -- abre el selector solo), pero ya no es donde se valida: eso lo hace el recinto
@@ -64,6 +75,23 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- La regla que importa sigue en pie: fuera del recinto no se elige, así que no
 	-- se cambia de ruta a mitad de viaje.
 	if not Perimeter.dentro(root.Position, 25) then
+		return false
+	end
+
+	-- LA LICENCIA, y se comprueba aquí porque el cliente no decide nada: el
+	-- selector pinta en gris lo que no puedes coger, pero un remote manipulado
+	-- manda el id que quiera. Sin esta línea, el ×10 de la roja seguiría siendo
+	-- gratis para cualquiera que sepa abrir la consola.
+	local nivel = Levels.nivelDe(estado.xp or 0)
+	local puede, motivo = Routes.disponible(rutaId, nivel, estado.vehiculo)
+	if not puede then
+		-- Y SE DICE POR QUÉ. Cuatro motivos distintos por los que no se sale se ven
+		-- todos igual desde dentro --no pasa nada al pulsar-- y eso se lee como un
+		-- juego roto, no como una regla.
+		local texto = if motivo == "nivel_insuficiente"
+			then string.format("Te falta nivel: %s", Routes.requisito(rutaId))
+			else EXPLICACION[motivo] or "Por ahi no puedes salir"
+		Remotes.event(Remotes.AVISO):FireClient(player, texto, Palette.AVISO_MALO)
 		return false
 	end
 

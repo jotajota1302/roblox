@@ -387,6 +387,31 @@ end
 
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	ultimoEstado = estado
+	-- LO QUE CUESTA LA SIGUIENTE MEJORA, escrito en el propio aviso de la oficina.
+	-- Se pone desde el cliente y no al construir el mundo porque el precio depende
+	-- del nivel de CADA jugador, y esa pieza es la misma para todos. Tocar un
+	-- ProximityPrompt desde el cliente sólo se ve en su pantalla, que es justo lo
+	-- que hace falta.
+	intentar("precioDeLaNave", function(e)
+		local oficina = mundo and mundo:FindFirstChild("OficinaNave")
+		local aviso = oficina and oficina:FindFirstChild("PromptMejorar") :: ProximityPrompt?
+		if aviso == nil then
+			return
+		end
+		local siguiente = e and e.naveSiguiente
+		if siguiente then
+			aviso.ActionText = string.format("Mejorar nave  ·  %d", siguiente.coste)
+			aviso.ObjectText = string.format("Guarda %d  ·  cada %d s", siguiente.tope, siguiente.ritmo)
+			aviso.Enabled = true
+		else
+			aviso.ActionText = "Nave al maximo"
+			aviso.ObjectText = "Oficina"
+		end
+	end, estado)
+	-- El candado de las rutas, antes de decidir si se enseña el selector: si se
+	-- pintara después, la primera vez que se abre saldría un instante con todas
+	-- las tarjetas encendidas.
+	intentar("RoutePicker.actualizar", RoutePicker.actualizar, estado)
 	refrescarSelector()
 	intentar("apuntarBrujula", apuntarBrujula, estado)
 	intentar("Minimap.actualizar", Minimap.actualizar, estado)
@@ -523,6 +548,8 @@ ProximityPromptService.PromptTriggered:Connect(function(aviso, jugador)
 		local id = aviso:GetAttribute("vehiculo")
 		local puesto = ultimoEstado and ultimoEstado.vehiculo
 		Remotes.event(Remotes.SACAR):FireServer(if id == puesto then "a_pie" else id)
+	elseif aviso.Name == "PromptMejorar" then
+		Remotes.event(Remotes.MEJORAR_NAVE):FireServer()
 	elseif aviso.Name == "PromptCaja" then
 		Remotes.event(Remotes.RECLAMAR):FireServer(aviso.Parent and aviso.Parent:GetAttribute("indice"))
 	end

@@ -12,6 +12,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 
 export type Estado = {
@@ -57,6 +58,11 @@ export type Estado = {
 	-- EL GARAJE: todo lo que ha comprado, no sólo lo que lleva puesto. Comprar ya
 	-- no sustituye -- ver Vehicles.posee y el porqué que hay allí.
 	garaje: { string }?,
+	-- EL NIVEL DE LA NAVE. Es el sumidero que no se acaba (ver Config.NAVE_MEJORAS):
+	-- sube el ritmo y el tope de producción, o sea, alarga cuánto puedes estar sin
+	-- entrar sin desperdiciar nada. Se guarda; el nivel del JUGADOR no, porque ése
+	-- se calcula de la experiencia.
+	naveNivel: number?,
 	-- LO QUE VA EN EL VEHÍCULO cuando lo dejas aparcado. Un repartidor no se echa
 	-- veinte bultos a la espalda al bajarse de la furgoneta: se quedan dentro (ver
 	-- RoadService, y la medición que lo destapó).
@@ -85,6 +91,7 @@ function PlayerState.get(player: Player): Estado
 			retornoZona = nil,
 			montado = true,
 			garaje = {},
+			naveNivel = 1,
 			cajasEnVehiculo = {},
 		}
 		estados[player] = estado
@@ -126,6 +133,12 @@ function PlayerState.sync(player: Player)
 		montado = estado.montado ~= false,
 		garaje = estado.garaje or {},
 		cajasEnVehiculo = estado.cajasEnVehiculo or {},
+		-- La nave, ya resuelta: el nivel, lo que da ahora y lo que daría el
+		-- siguiente escalón. El cliente no abre la tabla de mejoras ni aplica
+		-- ninguna regla; sólo dibuja lo que le llega.
+		naveNivel = estado.naveNivel or 1,
+		nave = Warehouse.mejora(estado.naveNivel),
+		naveSiguiente = select(2, Warehouse.siguiente(estado.naveNivel)),
 		-- El nivel viaja ya calculado: el cliente sólo dibuja, y así no hay dos
 		-- sitios haciendo la misma cuenta con riesgo de discrepar en pantalla.
 		nivel = Levels.nivelDe(estado.xp or 0),
@@ -142,8 +155,10 @@ function PlayerState.sync(player: Player)
 		vehiculoNombre = if montado then vehiculo.nombre else aPie.nombre,
 		capacidad = if montado then vehiculo.capacidad else aPie.capacidad,
 		-- Lo que le queda por comprar, ya filtrado por su estado: el taller no
-		-- ofrece nada que no sea una mejora.
-		mejoras = Vehicles.mejorasPara(estado.garaje),
+		-- ofrece nada que no sea una mejora. Va con el NIVEL para que cada una
+		-- llegue marcada como comprable o bloqueada: el cliente pinta, no decide, y
+		-- sin esto tendría que aplicar la regla por su cuenta.
+		mejoras = Vehicles.mejorasPara(estado.garaje, Levels.nivelDe(estado.xp or 0)),
 	})
 end
 

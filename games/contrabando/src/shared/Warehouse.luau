@@ -14,7 +14,35 @@
 	desde el primer día.
 ]]
 
+local Config = require(script.Parent.Config)
+
 local Warehouse = {}
+
+export type Mejora = { ritmo: number, tope: number, coste: number }
+
+-- LA NAVE MEJORADA. El nivel entra por parámetro y sale saneado: un nivel fuera de
+-- rango --un dato corrupto, una partida de otra versión con más escalones-- se
+-- recorta al que existe en vez de reventar. Que alguien pierda una mejora al
+-- cargar es malo; que el almacén no responda es peor.
+function Warehouse.mejora(nivel: number?): Mejora
+	local n = math.clamp(math.floor(tonumber(nivel) or 1), 1, #Config.NAVE_MEJORAS)
+	return Config.NAVE_MEJORAS[n]
+end
+
+function Warehouse.maximo(): number
+	return #Config.NAVE_MEJORAS
+end
+
+-- La SIGUIENTE mejora, o nil si ya está al tope. Devuelve también el nivel al que
+-- se sube, porque quien la compra necesita los dos datos y calcular "nivel + 1"
+-- por su cuenta es cómo se acaba subiendo dos escalones de golpe.
+function Warehouse.siguiente(nivel: number?): (number?, Mejora?)
+	local n = math.clamp(math.floor(tonumber(nivel) or 1), 1, #Config.NAVE_MEJORAS)
+	if n >= #Config.NAVE_MEJORAS then
+		return nil, nil
+	end
+	return n + 1, Config.NAVE_MEJORAS[n + 1]
+end
 
 function Warehouse.acumulado(
 	guardadas: number,

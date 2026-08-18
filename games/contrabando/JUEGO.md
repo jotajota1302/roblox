@@ -73,24 +73,29 @@ pie. Ésa es la razón de ser del dinero — el vehículo no es "una caja más",
 
 ### Rutas
 
-| Ruta | Paga | Esquinas fichadas | Robo entre jugadores | Distancia recta desde casa |
-|---|---|---|---|---|
-| 🟢 Verde | ×1 | 3 | ninguno | ~420 studs |
-| 🟡 Ámbar | ×3 | 9 | sólo entre los que llevan carga | ~848 |
-| 🔴 Roja | ×10 | 18 | libre | ~1.399 |
+| Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Distancia recta |
+|---|---|---|---|---|---|
+| 🟢 Verde | ×1 | — | 3 | ninguno | ~420 studs |
+| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | ~848 |
+| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | ~1.399 |
+
+**La licencia** es lo que impide que el ×10 sea gratis en el primer minuto. Sin ella, medido,
+el garaje entero (31.950 monedas, ×2,15 de ganancia) competía contra un multiplicador que no
+costaba nada — y perdía. Sigue siendo **acceso, no potencia**: la licencia no te hace más
+rápido.
 
 ### Vehículos
 
-| | Capacidad | Velocidad | Tamaño máx. | Sólo calzada | Coste |
-|---|---|---|---|---|---|
-| A pie | 3 | 16 | pequeño | no | — |
-| Monopatín | 5 | 19 | mediano | no | 150 |
-| Patinete | 6 | 20 | mediano | no | 400 |
-| Patinete eléctrico | 7 | 24 | mediano | **sí** | 1.400 |
-| Bicicleta | 9 | 26 | grande | **sí** | 2.500 |
-| Moto | 12 | 32 | grande | **sí** | 4.500 |
-| Coche | 18 | 34 | enorme | **sí** | 8.000 |
-| Furgoneta | 26 | 30 | enorme | **sí** | 15.000 |
+| | Capacidad | Velocidad | Tamaño máx. | Sólo calzada | Nivel | Coste |
+|---|---|---|---|---|---|---|
+| A pie | 3 | 16 | pequeño | no | 1 | — |
+| Monopatín | 5 | 19 | mediano | no | 1 | 150 |
+| Patinete | 6 | 20 | mediano | no | 2 | 400 |
+| Patinete eléctrico | 7 | 24 | mediano | **sí** | 3 | 1.400 |
+| Bicicleta | 9 | 26 | grande | **sí** | 4 | 2.500 |
+| Moto | 12 | 32 | grande | **sí** | 6 | 4.500 |
+| Coche | 18 | 34 | enorme | **sí** | 8 | 8.000 |
+| Furgoneta | 26 | 30 | enorme | **sí** | 10 | 15.000 |
 
 Dos reglas sostienen esta tabla:
 
@@ -140,6 +145,23 @@ producir**: no volver es desperdiciar tiempo. La producción se calcula **offlin
 hora de la última visita. **La nave no es asaltable jamás** — sólo está en juego lo que
 llevas encima.
 
+**Y se mejora**, en la oficina que hay junto a la losa. Siete escalones, de 1.200 a 150.000
+monedas (267.200 en total), que suben las dos cosas a la vez:
+
+| Nivel | Guarda | Produce cada | Cuesta |
+|---|---|---|---|
+| 1 | 10 | 30 s | — |
+| 2 | 14 | 24 s | 1.200 |
+| 3 | 18 | 19 s | 4.000 |
+| 4 | 24 | 15 s | 12.000 |
+| 5 | 30 | 12 s | 30.000 |
+| 6 | 38 | 10 s | 70.000 |
+| 7 | 48 | 8 s | 150.000 |
+
+Es el sumidero que no se acaba, y hace lo que el garaje no puede: **alarga tu ventana de
+ausencia**. De paso arregla el techo de la capacidad — con la nave de partida un almacén
+lleno pesa unos 23 huecos, así que comprar algo que cargue más de 24 no servía de nada.
+
 ## 4. El mundo
 
 - **El polígono**: 360 × 250 studs de explanada propia **fuera de la ciudad**, con muro en
@@ -177,8 +199,6 @@ Para que nadie lo dé por hecho leyendo los documentos viejos:
 - **No hay monetización.** Ni pases, ni gamepasses, ni Robux. Cero.
 - **No hay evento global** ("Redada"): sin masa de jugadores no significa nada.
 - **No hay rotación de precios**: los multiplicadores son fijos.
-- **No hay mejora de la nave**: el ritmo y el tope no se pueden subir todavía, así que el
-  sumidero de dinero es sólo el garaje.
 - **No hay tutorial explícito**: todo se aprende con el mundo (la valla que te frena, la
   baliza que se ve desde lejos, el aviso de "te vienen detrás").
 - **El robo entre dos jugadores reales no se ha probado nunca.** Está implementado y sus

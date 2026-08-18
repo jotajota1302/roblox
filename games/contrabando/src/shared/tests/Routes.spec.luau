@@ -38,4 +38,41 @@ return function(kit)
 	kit.truthy("entregar donde elegiste vale", Routes.entregaValida("roja", "roja"))
 	kit.falsy("entregar en otro destino no vale", Routes.entregaValida("roja", "verde"))
 	kit.falsy("sin haber elegido ruta no vale", Routes.entregaValida(nil, "verde"))
+
+	-- LA LICENCIA. Es lo que arregla el fallo de economía medido el 18/08: el ×10
+	-- de la roja era gratis desde el primer minuto mientras el garaje entero
+	-- costaba 31.950 monedas para dar un ×2,15.
+	kit.eq("la verde se abre desde el principio", select(1, Routes.licencia("verde")), 1)
+	kit.truthy("la ambar pide nivel", select(1, Routes.licencia("ambar")) > 1)
+	kit.truthy(
+		"y la roja pide mas que la ambar",
+		select(1, Routes.licencia("roja")) > select(1, Routes.licencia("ambar"))
+	)
+	kit.falsy("la verde no pide vehiculo", select(2, Routes.licencia("verde")))
+	kit.truthy("la roja si", select(2, Routes.licencia("roja")))
+
+	-- EL ORDEN DE LOS REQUISITOS NO PUEDE INVERTIRSE: si una ruta que paga menos
+	-- pidiera más nivel, el jugador la saltaría entera y el escalón sobraría.
+	local anterior = 0
+	for _, ruta in Routes.todas() do
+		local nivel = select(1, Routes.licencia(ruta.id))
+		kit.truthy(string.format("la %s no pide menos que la anterior", ruta.id), nivel >= anterior)
+		anterior = nivel
+	end
+
+	-- Y quien no llega, se entera de por qué. Un botón que no responde cuesta la
+	-- partida; un motivo la salva.
+	kit.truthy("con nivel de sobra se sale por la verde", (Routes.disponible("verde", 1, "a_pie")))
+	kit.falsy("un novato no sale por la roja", (Routes.disponible("roja", 1, "moto")))
+	kit.eq("y el motivo es el nivel", select(2, Routes.disponible("roja", 1, "moto")), "nivel_insuficiente")
+	kit.falsy("ni con nivel pero a pie", (Routes.disponible("roja", 99, "a_pie")))
+	kit.eq("y ahi el motivo es el vehiculo", select(2, Routes.disponible("roja", 99, "a_pie")), "necesitas_motor")
+	kit.truthy("con nivel y moto, adelante", (Routes.disponible("roja", 99, "moto")))
+	kit.falsy("una ruta inventada nunca esta disponible", (Routes.disponible("dorada", 99, "moto")))
+	-- El monopatín no es de motor: va por todas partes, y ésa es su gracia.
+	kit.falsy("el monopatin no abre la roja", (Routes.disponible("roja", 99, "monopatin")))
+
+	-- Lo que se lee en el selector sale de la regla, no de un texto a mano.
+	kit.truthy("el requisito de la roja menciona el vehiculo", string.find(Routes.requisito("roja"), "motor") ~= nil)
+	kit.truthy("y el de la ambar solo el nivel", string.find(Routes.requisito("ambar"), "Nivel") ~= nil)
 end

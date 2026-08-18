@@ -185,10 +185,16 @@ arregla.
 
 ---
 
-## 6. Orden de trabajo propuesto
+## 6. Orden de trabajo
 
-1. **El nivel como licencia** (§3.A) — es el que arregla la economía, y es pequeño.
-2. **La nave mejorable** (§3.C) — el sumidero que no se acaba.
+1. ~~**El nivel como licencia** (§3.A)~~ — **hecho el 18/08**. Ámbar a nivel 3; roja a nivel
+   8 **y** con vehículo de motor; cada peldaño del taller con su nivel, y el escaparate
+   enseña los bloqueados en vez de esconderlos. El servidor lo comprueba y dice qué falta
+   ("Te falta nivel: Nivel 8 y vehículo de motor"), porque el selector pinta pero no decide.
+2. ~~**La nave mejorable** (§3.C)~~ — **hecho el 18/08**. Siete escalones de 1.200 a 150.000
+   (267.200 en total): de guardar 10 y producir cada 30 s, a guardar 48 y producir cada 8.
+   Se paga en la oficina de la nave. De paso levanta el techo de la capacidad, que dejaba
+   media escalera de vehículos sin sentido.
 3. **Lo grande tiene que pagar más por hueco** ([`V1.md`](V1.md) §1) — medio catálogo es
    hoy decoración cara.
 4. **Recuperar el eje de exposición de los vehículos** (§2) — gratis, devuelve una decisión.

@@ -82,4 +82,50 @@ return function(kit)
 		kit.eq("por debajo del ritmo siguiente, cajas no sube", cajasParcial, 1)
 		kit.eq("y el reloj sólo avanza lo consumido, no hasta ahora", visitaParcial, 1030)
 	end
+
+	-- LA NAVE MEJORABLE: el sumidero que no se acaba. Lo que se comprueba no son
+	-- los números concretos --ésos se tocarán-- sino que la escalera SIGA SIENDO
+	-- una escalera: cada peldaño cuesta más, produce más deprisa y guarda más. Si
+	-- alguna vez uno rompe el orden, pagar por él sería un castigo.
+	local Config = require(script.Parent.Parent.Config)
+	local anterior = Warehouse.mejora(1)
+	kit.eq("el nivel 1 es la nave de partida", anterior.tope, Config.ALMACEN_TOPE)
+	kit.eq("y su ritmo tambien", anterior.ritmo, Config.ALMACEN_RITMO)
+	kit.eq("el nivel 1 no cuesta nada", anterior.coste, 0)
+	for n = 2, Warehouse.maximo() do
+		local m = Warehouse.mejora(n)
+		kit.truthy(string.format("el nivel %d cuesta mas", n), m.coste > anterior.coste)
+		kit.truthy(string.format("el nivel %d produce mas deprisa", n), m.ritmo < anterior.ritmo)
+		kit.truthy(string.format("el nivel %d guarda mas", n), m.tope > anterior.tope)
+		anterior = m
+	end
+
+	-- Y LA ESCALERA TIENE QUE PASAR EL TECHO DE LA CAPACIDAD. Con tope 10 un
+	-- almacén lleno pesa unos 23 huecos, así que la mitad del garaje no sirve para
+	-- nada: si mejorar la nave no diera de sobra para llenar el vehículo más
+	-- grande, seguiríamos vendiendo capacidad que nadie puede usar.
+	local mayor = 0
+	for _, v in Config.VEHICULOS do
+		mayor = math.max(mayor, v.capacidad)
+	end
+	kit.truthy(
+		"la nave del final da de comer al vehiculo mas grande",
+		Warehouse.mejora(Warehouse.maximo()).tope >= mayor / 2
+	)
+
+	-- Los niveles imposibles se recortan en vez de reventar: un dato corrupto no
+	-- puede dejar el almacén sin responder.
+	kit.eq(
+		"un nivel de mas se recorta al ultimo",
+		Warehouse.mejora(999).tope,
+		Warehouse.mejora(Warehouse.maximo()).tope
+	)
+	kit.eq("un nivel de menos se recorta al primero", Warehouse.mejora(-3).tope, Warehouse.mejora(1).tope)
+	kit.eq("y sin nivel se empieza por el primero", Warehouse.mejora(nil).tope, Warehouse.mejora(1).tope)
+
+	-- La siguiente mejora, que es lo que se compra.
+	local siguienteNivel, siguiente = Warehouse.siguiente(1)
+	kit.eq("desde el 1 se sube al 2", siguienteNivel, 2)
+	kit.truthy("y cuesta dinero", (siguiente :: any).coste > 0)
+	kit.eq("desde el ultimo no hay siguiente", Warehouse.siguiente(Warehouse.maximo()), nil)
 end

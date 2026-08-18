@@ -112,4 +112,51 @@ return function(kit)
 		end
 	end
 	kit.eq("con todos comprados no queda nada", #Vehicles.mejorasPara(todos), 0)
+
+	-- EL NIVEL COMO LICENCIA, también en el taller. La escalera de vehículos tiene
+	-- que subir a la vez que la de niveles: un peldaño caro que se abre antes que
+	-- uno barato deja al barato sin sentido.
+	local Config = require(script.Parent.Parent.Config)
+	local nivelAnterior, costeAnterior = 0, -1
+	for _, v in Config.VEHICULOS do
+		if v.coste > 0 then
+			local nivel = Vehicles.nivelDe(v.id)
+			kit.truthy(
+				string.format("%s no se abre antes que el anterior", v.nombre),
+				nivel >= nivelAnterior and v.coste > costeAnterior
+			)
+			nivelAnterior, costeAnterior = nivel, v.coste
+		end
+	end
+	kit.eq("ir a pie no pide nivel", Vehicles.nivelDe("a_pie"), 1)
+	kit.eq("y un vehiculo inventado tampoco revienta", Vehicles.nivelDe("submarino"), 1)
+
+	-- Con dinero de sobra pero sin nivel, no se compra -- y el motivo lo dice.
+	local caro = Config.VEHICULOS[#Config.VEHICULOS]
+	kit.falsy("sin nivel no se compra lo caro", (Vehicles.puedeComprar({}, caro.id, 999999, 1)))
+	kit.eq(
+		"y el motivo es el nivel, no el dinero",
+		select(2, Vehicles.puedeComprar({}, caro.id, 999999, 1)),
+		"nivel_insuficiente"
+	)
+	kit.truthy("con nivel y dinero, si", (Vehicles.puedeComprar({}, caro.id, 999999, 99)))
+	-- Sin pasar nivel se comporta como antes: los servicios lo pasan, pero nada
+	-- que se olvide de hacerlo debe dejar de funcionar en silencio.
+	kit.truthy("sin nivel se comporta como antes", (Vehicles.puedeComprar({}, caro.id, 999999)))
+
+	-- El escaparate ENSEÑA lo bloqueado, marcado. Esconderlo quitaría la mitad del
+	-- motivo para seguir jugando.
+	local paraNovato = Vehicles.mejorasPara(nil, 1)
+	local bloqueados = 0
+	for _, v in paraNovato do
+		if (v :: any).bloqueado then
+			bloqueados += 1
+		end
+	end
+	kit.eq("al novato se le enseñan todos", #paraNovato, #Vehicles.mejorasPara(nil))
+	kit.truthy("y algunos salen marcados como bloqueados", bloqueados > 0)
+	local paraVeterano = Vehicles.mejorasPara(nil, 99)
+	for _, v in paraVeterano do
+		kit.falsy("al veterano no le bloquea ninguno", (v :: any).bloqueado)
+	end
 end

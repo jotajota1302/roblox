@@ -920,7 +920,19 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		texto.TextStrokeTransparency = 0.35
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = string.format("%s  ·  %d", vehiculo.nombre, vehiculo.coste)
+		-- Nombre, precio y NIVEL. El nivel se escribe en el escaparate porque es del
+		-- vehículo, no del jugador: la etiqueta es la misma para todo el mundo y no
+		-- hay que redibujarla cuando alguien sube. Y enseñarlo es la mitad del
+		-- motivo para seguir -- ver la furgoneta con un "nivel 10" encima es
+		-- exactamente lo que hace que subir de nivel signifique algo.
+		texto.Text = string.format(
+			"%s  ·  %d%s",
+			vehiculo.nombre,
+			vehiculo.coste,
+			if (vehiculo :: any).nivel and (vehiculo :: any).nivel > 1
+				then string.format("  ·  nivel %d", (vehiculo :: any).nivel)
+				else ""
+		)
 		texto.Parent = etiqueta
 		podio.Material = Enum.Material.Concrete
 	end
@@ -996,7 +1008,19 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		texto.TextStrokeTransparency = 0.35
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = string.format("%s  ·  %d", vehiculo.nombre, vehiculo.coste)
+		-- Nombre, precio y NIVEL. El nivel se escribe en el escaparate porque es del
+		-- vehículo, no del jugador: la etiqueta es la misma para todo el mundo y no
+		-- hay que redibujarla cuando alguien sube. Y enseñarlo es la mitad del
+		-- motivo para seguir -- ver la furgoneta con un "nivel 10" encima es
+		-- exactamente lo que hace que subir de nivel signifique algo.
+		texto.Text = string.format(
+			"%s  ·  %d%s",
+			vehiculo.nombre,
+			vehiculo.coste,
+			if (vehiculo :: any).nivel and (vehiculo :: any).nivel > 1
+				then string.format("  ·  nivel %d", (vehiculo :: any).nivel)
+				else ""
+		)
 		texto.Parent = etiqueta
 		podio.Material = Enum.Material.Concrete
 	end
@@ -1204,6 +1228,50 @@ function CityBuilder.build(): Mundo
 	-- recibía ("no puedo dejar paquetes en el almacén", JJ), así que elegir mal lo
 	-- que cargabas no tenía marcha atrás.
 	prompt(almacen, "Dejar carga aquí", "Almacén", 30).Name = "PromptDevolver"
+
+	-- LA OFICINA: donde se paga la mejora de la nave (ver Config.NAVE_MEJORAS).
+	--
+	-- Va en una pieza propia y no como un segundo aviso sobre la losa, por dos
+	-- motivos: dos ProximityPrompt en la misma pieza salen amontonados y el
+	-- jugador no sabe cuál va a pulsar, y sobre todo porque mejorar la nave tiene
+	-- que ser UN SITIO al que ir, igual que el taller. Un sumidero sin lugar es un
+	-- botón de menú.
+	--
+	-- El coste no se escribe aquí: depende del nivel de cada jugador y esta pieza
+	-- es la misma para todos. Lo pone el cliente en el propio aviso al recibir su
+	-- estado.
+	do
+		local mitad = almacen.Size.X / 2
+		local oficina = part(
+			"OficinaNave",
+			Vector3.new(10, 7, 6),
+			almacen.Position + Vector3.new(mitad - 8, 3.5 + ALTO_LOSA / 2, mitad - 6),
+			Palette.ALMACEN,
+			mundo
+		)
+		oficina.Material = Enum.Material.WoodPlanks
+		oficina:SetAttribute("rodable", true)
+		prompt(oficina, "Mejorar nave", "Oficina", 18).Name = "PromptMejorar"
+
+		local cartel = Instance.new("BillboardGui")
+		cartel.Name = "Rotulo"
+		cartel.Size = UDim2.fromScale(10, 2.4)
+		cartel.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
+		cartel.AlwaysOnTop = false
+		cartel.MaxDistance = 140
+		cartel.Adornee = oficina
+		cartel.Parent = oficina
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
+		texto.TextStrokeTransparency = 0.35
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = "OFICINA"
+		texto.Parent = cartel
+	end
 
 	local frenteCasa = if Config.POLIGONO_SALIDA.Z < Config.ALMACEN_POS.Z then -1 else 1
 	nave(almacen, mundo, frenteCasa)
