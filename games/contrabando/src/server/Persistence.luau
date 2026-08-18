@@ -67,6 +67,11 @@ function Persistence.cargar(player: Player)
 	-- ayer puede ser un id que hoy ya no existe (se retira un vehículo, se
 	-- renombra), y Vehicles.get revienta ante un desconocido: sin este filtro,
 	-- un cambio de catálogo dejaría a esos jugadores sin poder entrar.
+	-- EL GARAJE, saneado por Vehicles: los ids que ya no existan (un vehículo
+	-- retirado del catálogo) se caen solos, y el `vehiculo` suelto de las partidas
+	-- anteriores al garaje entra como una plaza más. Sin eso, estrenar el garaje
+	-- habría dejado a pie a todo el que ya jugaba.
+	estado.garaje = Vehicles.garajeDe(datos.garaje, datos.vehiculo)
 	if Vehicles.existe(datos.vehiculo) then
 		estado.vehiculo = datos.vehiculo
 	end
@@ -101,6 +106,9 @@ function Persistence.guardar(player: Player)
 		almacenCajas = estado.almacenCajas,
 		almacenUltimaVisita = os.time(),
 		vehiculo = estado.vehiculo,
+		-- La lista entera, no sólo el que lleva puesto: si sólo se guardara el
+		-- activo, salir del juego con el patinete fuera borraría la furgoneta.
+		garaje = estado.garaje or {},
 	}
 
 	local ok, err = pcall(function()

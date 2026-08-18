@@ -20,6 +20,7 @@
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
+local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
@@ -125,6 +126,28 @@ end
 -- edificio.
 local LIMITE_PIEZA_GRANDE = 200
 
+-- Cuántas piezas de la ciudad hay dentro de un volumen, SIN tocarlas. Sirve para
+-- elegir sitio antes de construir: preferir una parcela que ya está limpia es
+-- mejor que arrasar la primera que toque.
+local function despejarCuenta(ciudad: Instance?, centro: Vector3, lado: number): number
+	if ciudad == nil then
+		return 0
+	end
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { ciudad }
+	params.MaxParts = 60
+	local dentro =
+		workspace:GetPartBoundsInBox(CFrame.new(centro.X, centro.Y + 24, centro.Z), Vector3.new(lado, 45, lado), params)
+	local cuenta = 0
+	for _, pieza in dentro do
+		if math.max(pieza.Size.X, pieza.Size.Y, pieza.Size.Z) <= LIMITE_PIEZA_GRANDE then
+			cuenta += 1
+		end
+	end
+	return cuenta
+end
+
 local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: number): number
 	if ciudad == nil then
 		return 0
@@ -156,6 +179,100 @@ local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: 
 	return quitadas
 end
 
+-- EL POLÍGONO: el suelo que construimos nosotros, fuera de la ciudad.
+--
+-- Aquí no se despeja nada porque no hay nada que despejar: es terreno virgen
+-- detrás del borde del mapa. Todo lo del juego --almacén, taller, salida-- vive
+-- encima, y una carretera lo cose a la ciudad.
+--
+-- Se marca RODABLE entero: es una explanada de asfalto, y además es la zona
+-- segura, así que bajarse del vehículo aquí no tendría ningún sentido.
+local function poligono(padre: Instance)
+	local centro = Config.POLIGONO_CENTRO
+	local medida = Config.POLIGONO_TAMANO
+	local cota = centro.Y
+
+	local suelo = part(
+		"Poligono",
+		Vector3.new(medida.X, 4, medida.Y),
+		Vector3.new(centro.X, cota - 2, centro.Z),
+		Color3.fromRGB(104, 104, 110),
+		padre
+	)
+	suelo.Material = Enum.Material.Concrete
+	suelo:SetAttribute("rodable", true)
+
+	-- Un zócalo hasta bien abajo: la explanada está al borde del mundo y sin esto
+	-- se ve el canto flotando sobre el vacío desde media ciudad.
+	local zocalo = part(
+		"PoligonoZocalo",
+		Vector3.new(medida.X + 6, 90, medida.Y + 6),
+		Vector3.new(centro.X, cota - 48, centro.Z),
+		Color3.fromRGB(74, 72, 78),
+		padre
+	)
+	zocalo.Material = Enum.Material.Slate
+	zocalo.CanCollide = false
+
+	-- LA CARRETERA DE ACCESO, de la salida del polígono a la calle más cercana.
+	-- Es la frontera del juego: cruzarla es salir de casa, y por eso la salida se
+	-- planta justo aquí.
+	local desde = Config.POLIGONO_SALIDA
+	local hasta = Config.POLIGONO_ENGANCHE
+	local medio = (desde + hasta) / 2
+	local largo = (Vector3.new(hasta.X, 0, hasta.Z) - Vector3.new(desde.X, 0, desde.Z)).Magnitude
+	local via = part(
+		"PoligonoAcceso",
+		Vector3.new(26, 3, largo + 20),
+		Vector3.new(medio.X, cota - 1.5, medio.Z),
+		Color3.fromRGB(96, 96, 102),
+		padre
+	)
+	via.Material = Enum.Material.Asphalt
+	via.CFrame = CFrame.lookAt(via.Position, Vector3.new(hasta.X, cota - 1.5, hasta.Z))
+	via:SetAttribute("rodable", true)
+
+	-- Muro perimetral bajo en tres lados: cierra el recinto sin encerrar (la valla
+	-- de verdad, la que frena, es la del recinto y sólo aparece con carga sin
+	-- destino). Éste es decorado que dice "esto es tuyo".
+	local function muro(nombre: string, tamano: Vector3, offset: Vector3)
+		local m = part(
+			nombre,
+			tamano,
+			Vector3.new(centro.X + offset.X, cota + 1.5, centro.Z + offset.Z),
+			Color3.fromRGB(128, 126, 120),
+			padre
+		)
+		m.Material = Enum.Material.Brick
+	end
+	muro("MuroOeste", Vector3.new(3, 7, medida.Y), Vector3.new(-medida.X / 2, 0, 0))
+	muro("MuroEste", Vector3.new(3, 7, medida.Y), Vector3.new(medida.X / 2, 0, 0))
+	muro("MuroSur", Vector3.new(medida.X, 7, 3), Vector3.new(0, 0, medida.Y / 2))
+	-- El norte queda ABIERTO: es por donde se sale a la ciudad.
+
+	-- Farolas, para que de noche el polígono no sea una mancha negra.
+	for i = -1, 1, 2 do
+		for j = -1, 1, 2 do
+			local poste = part(
+				string.format("Farola_%d_%d", i, j),
+				Vector3.new(1.2, 22, 1.2),
+				Vector3.new(centro.X + i * (medida.X / 2 - 20), cota + 11, centro.Z + j * (medida.Y / 2 - 20)),
+				Color3.fromRGB(70, 70, 76),
+				padre
+			)
+			poste.Material = Enum.Material.Metal
+			poste.CanCollide = false
+			local luz = Instance.new("PointLight")
+			luz.Range = 60
+			luz.Brightness = 1.4
+			luz.Color = Color3.fromRGB(255, 238, 205)
+			luz.Parent = poste
+		end
+	end
+
+	return suelo
+end
+
 local function losa(
 	ciudad: Instance?,
 	nombre: string,
@@ -164,7 +281,13 @@ local function losa(
 	color: Color3,
 	padre: Instance
 ): Part
-	local y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
+	-- DENTRO DEL POLÍGONO manda su cota, no la de la ciudad. La boca del polígono
+	-- cae justo sobre el borde del mapa, así que ahí el rayo todavía encuentra
+	-- suelo de la ciudad -- diez studs más abajo-- y la losa de la salida se
+	-- hundía en la explanada.
+	local y = if Perimeter.dentro(centro, 6)
+		then Config.POLIGONO_CENTRO.Y
+		else (sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y)
 	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + ALTO_LOSA / 2, centro.Z), color, padre)
 	-- RODABLE: las losas del juego (almacén, salida, taller, destinos) son sitio
 	-- del juego, y la regla de la calzada no puede echarte del vehículo al entrar
@@ -569,6 +692,19 @@ local function concesionario(base: Part, padre: Instance)
 	luz.Brightness = 1.6
 	luz.Parent = plafon
 
+	-- LAS PLAZAS DEL GARAJE, publicadas como atributos igual que el muelle del
+	-- almacén. Los vehículos que hay en ellas NO se construyen aquí: son los de
+	-- CADA jugador, así que los dibuja el cliente. Un garaje construido en el
+	-- servidor enseñaría la moto de otro.
+	local plazas = 4
+	for i = 1, plazas do
+		base:SetAttribute(
+			"plaza" .. i,
+			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 13)
+		)
+	end
+	base:SetAttribute("plazas", plazas)
+
 	-- Y su baliza, como la de la salida: hay que poder encontrarlo desde el otro
 	-- lado del recinto sin dar vueltas.
 	local baliza = part(
@@ -688,7 +824,7 @@ end
 export type Mundo = {
 	almacen: BasePart,
 	salida: BasePart,
-	taller: BasePart,
+	talleres: { BasePart },
 	aparicion: BasePart,
 	destinos: { BasePart },
 	detectores: { BasePart },
@@ -730,9 +866,15 @@ function CityBuilder.build(): Mundo
 		end
 	end
 
-	-- La parcela, limpia antes de nada: la nave mide 52x34 y la losa 90x90, así que
-	-- cualquier cosa que hubiera ahí acabaría atravesando el almacén.
-	despejar(ciudad, Config.ALMACEN_POS, 96, 45)
+	-- EL POLÍGONO PRIMERO: el almacén, el taller y la salida van encima de él, no
+	-- dentro de la ciudad. Ya no hace falta despejar nada aquí -- es terreno
+	-- nuestro y está vacío por construcción.
+	--
+	-- Se llama `poligono` y no `explanada` porque YA HABÍA una `explanada`: la
+	-- plancha de respaldo para cuando no hay ciudad. Dos funciones locales con el
+	-- mismo nombre no dan ningún error en Luau -- la segunda pisa a la primera-- y
+	-- el resultado fue que el polígono no se construía y nadie se enteraba.
+	poligono(mundo)
 	local almacen = losa(ciudad, "Almacen", Vector3.new(90, ALTO_LOSA, 90), Config.ALMACEN_POS, Palette.ALMACEN, mundo)
 	nave(almacen, mundo)
 	muelle(almacen)
@@ -758,9 +900,10 @@ function CityBuilder.build(): Mundo
 	-- La salida: el único sitio donde se elige ruta, y lo que impide cambiar de
 	-- ruta a mitad de viaje. Se coloca entre el almacén y el centro de la ciudad,
 	-- que es hacia donde se sale en las tres rutas.
-	local haciaLaCiudad = (Vector3.new(0, 0, 0) - Config.ALMACEN_POS).Unit
-	local salidaPos = Config.ALMACEN_POS + haciaLaCiudad * 60
-	despejar(ciudad, Vector3.new(salidaPos.X, Config.ALMACEN_POS.Y, salidaPos.Z), 36, 45)
+	-- La salida va en LA BOCA DEL POLÍGONO, que es el único sitio por donde se sale
+	-- a la ciudad. Antes se calculaba como "60 studs hacia el centro del mapa" y
+	-- con el polígono eso caería en mitad del patio, sin ningún borde que cruzar.
+	local salidaPos = Config.POLIGONO_SALIDA
 	local salida = losa(
 		ciudad,
 		"Salida",
@@ -837,10 +980,13 @@ function CityBuilder.build(): Mundo
 		end
 	end
 
-	despejar(ciudad, Config.TALLER_POS, 52, 45)
+	local talleres: { BasePart } = {}
+
+	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
 	local taller = losa(ciudad, "Taller", Vector3.new(46, ALTO_LOSA, 46), Config.TALLER_POS, Palette.TALLER, mundo)
 	prompt(taller, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
 	concesionario(taller, mundo)
+	table.insert(talleres, taller)
 
 	local destinos: { BasePart } = {}
 	local detectores: { BasePart } = {}
@@ -856,6 +1002,38 @@ function CityBuilder.build(): Mundo
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
+
+		-- Y SU TALLER AL LADO. Decisión de JJ: cambiar de vehículo no puede costar
+		-- un viaje entero de vuelta a casa, sobre todo ahora que tener varios
+		-- significa elegir el bueno para el trayecto (ver el garaje en
+		-- Vehicles.posee).
+		--
+		-- El sitio se busca en un anillo alrededor del destino y se queda con el
+		-- primero que esté LIMPIO: plantarlo a ciegas a una distancia fija es como
+		-- acabó el primero encima de una pista de baloncesto.
+		do
+			local sitio = nil
+			for vuelta = 0, 11 do
+				local angulo = vuelta * math.pi / 6
+				local candidato = ruta.destino + Vector3.new(math.cos(angulo) * 58, 0, math.sin(angulo) * 58)
+				local y = sueloDeLaCiudad(ciudad, candidato.X, candidato.Z)
+				if y ~= nil then
+					local libre = despejarCuenta(ciudad, Vector3.new(candidato.X, y, candidato.Z), 70)
+					if libre == 0 then
+						sitio = Vector3.new(candidato.X, y, candidato.Z)
+						break
+					end
+				end
+			end
+			if sitio ~= nil then
+				despejar(ciudad, sitio, 70, 45)
+				local tallerZona =
+					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(46, ALTO_LOSA, 46), sitio, Palette.TALLER, mundo)
+				prompt(tallerZona, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
+				concesionario(tallerZona, mundo)
+				table.insert(talleres, tallerZona)
+			end
+		end
 		-- SIN aviso de entrega: llegar al destino con la carga correcta YA cobra
 		-- solo (ver CargoService.arrancarEntregaAutomatica). No existe ninguna razón
 		-- para llegar y no querer entregar, así que pedir confirmación era un paso
@@ -917,7 +1095,7 @@ function CityBuilder.build(): Mundo
 	return {
 		almacen = almacen,
 		salida = salida,
-		taller = taller,
+		talleres = talleres,
 		aparicion = spawn,
 		destinos = destinos,
 		detectores = detectores,

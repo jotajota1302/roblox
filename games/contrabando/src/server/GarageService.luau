@@ -45,22 +45,37 @@ local EXPLICACION: { [string]: string } = {
 	vehiculo_desconocido = "Ese vehiculo no existe",
 	lejos = "Tienes que estar en el taller",
 	con_carga = "Descarga antes de cambiar de vehiculo",
+	no_es_tuyo = "Ese vehiculo no es tuyo",
+	ya_lo_llevas = "Ya lo llevas puesto",
 }
 
 local GarageService = {}
-local taller: BasePart? = nil
+-- VARIOS TALLERES, no uno. Hay uno en tu recinto y otro junto a cada destino
+-- (decisión de JJ): cambiar de vehículo no puede costar un viaje entero de ida y
+-- vuelta al almacén, que es lo que pasaba con un único taller en casa.
+--
+-- El ALMACÉN sigue siendo único a propósito, y no es lo mismo: el almacén es el
+-- sitio al que volvéis todos --lo que hace que os crucéis-- y repartirlo por el
+-- mapa dejaría a cada jugador en su esquina. El taller no mueve el bucle: sólo
+-- es donde se gasta.
+local talleres: { BasePart } = {}
 
 function GarageService.registrarTaller(part: BasePart)
-	taller = part
+	table.insert(talleres, part)
 end
 
 function GarageService.enElTaller(player: Player): boolean
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not root or not taller then
+	if not root then
 		return false
 	end
-	return (root.Position - (taller :: BasePart).Position).Magnitude <= DISTANCIA_TALLER
+	for _, taller in talleres do
+		if (root.Position - taller.Position).Magnitude <= DISTANCIA_TALLER then
+			return true
+		end
+	end
+	return false
 end
 
 -- Pública (no local) para poder probarla desde el servidor sin pasar por el
@@ -81,7 +96,7 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 		return false, "con_carga"
 	end
 
-	local puede, motivo = Vehicles.puedeComprar(estado.vehiculo, vehiculoId, estado.dinero)
+	local puede, motivo = Vehicles.puedeComprar(estado.garaje, vehiculoId, estado.dinero)
 	if not puede then
 		return false, motivo
 	end
@@ -90,7 +105,12 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	-- Cobrar ANTES de entregar. Al revés, cualquier fallo entre las dos líneas
 	-- regala el vehículo, y ese es el orden que se olvida en todas las tiendas.
 	estado.dinero -= def.coste
+	-- SE AÑADE al garaje, no sustituye. Y se saca al momento, que es lo que
+	-- espera quien acaba de pagar.
+	estado.garaje = Vehicles.garajeDe(estado.garaje, estado.vehiculo)
+	table.insert(estado.garaje, def.id)
 	estado.vehiculo = def.id
+	estado.montado = true
 
 	CargoService.aplicarVelocidad(player)
 	-- Y se VE al instante. Sin esto, pagar 4.500 por una moto cambia dos numeros en
@@ -107,6 +127,44 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	return true, "ok"
 end
 
+-- SACAR UN VEHÍCULO DEL GARAJE. Es la otra mitad de tenerlos: sin esto, comprar
+-- un patinete teniendo furgoneta sería tirar el dinero.
+--
+-- Las mismas dos condiciones que comprar --estar en el taller y no llevar carga--
+-- y por los mismos motivos: cambiar de vehículo a mitad de viaje sería sacarse
+-- una furgoneta de la manga al ver llegar a un ladrón, y hacerlo con el zurrón
+-- lleno abriría la pregunta de dónde va la carga que ya no cabe.
+function GarageService.sacar(player: Player, vehiculoId: string?): (boolean, string)
+	if vehiculoId ~= nil and typeof(vehiculoId) ~= "string" then
+		return false, "vehiculo_desconocido"
+	end
+	local estado = PlayerState.get(player)
+	if not GarageService.enElTaller(player) then
+		return false, "lejos"
+	end
+	if #estado.cajas > 0 then
+		return false, "con_carga"
+	end
+	local puede, motivo = Vehicles.puedeSacar(estado.garaje, vehiculoId)
+	if not puede then
+		return false, motivo
+	end
+	local def = Vehicles.deEstado(vehiculoId)
+	if def.id == (estado.vehiculo or Vehicles.A_PIE) and estado.montado ~= false then
+		return false, "ya_lo_llevas"
+	end
+
+	estado.vehiculo = def.id
+	estado.montado = true
+	CargoService.aplicarVelocidad(player)
+	Ride.montar(player.Character, if def.id == Vehicles.A_PIE then nil else def.id)
+	PlayerState.sync(player)
+
+	Telemetry.evento(player, "saca_vehiculo", { vehiculo = def.id })
+	Remotes.event(Remotes.AVISO):FireClient(player, "Sacas " .. def.nombre, VERDE)
+	return true, "ok"
+end
+
 function GarageService.start()
 	Remotes.event(Remotes.COMPRAR).OnServerEvent:Connect(function(player, vehiculoId)
 		local ok, motivo = GarageService.comprar(player, vehiculoId)
@@ -116,6 +174,13 @@ function GarageService.start()
 			if GarageService.enElTaller(player) then
 				Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "No se puede comprar", ROJO)
 			end
+		end
+	end)
+
+	Remotes.event(Remotes.SACAR).OnServerEvent:Connect(function(player, vehiculoId)
+		local ok, motivo = GarageService.sacar(player, vehiculoId)
+		if not ok and GarageService.enElTaller(player) then
+			Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "No se puede sacar", ROJO)
 		end
 	end)
 

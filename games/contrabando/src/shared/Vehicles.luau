@@ -60,10 +60,53 @@ function Vehicles.deEstado(vehiculo: string?): Vehiculo
 	return Vehicles.get(vehiculo :: string)
 end
 
+-- EL GARAJE: lo que ya tienes. Antes el jugador tenía UN vehículo y comprar
+-- sustituía al anterior; ahora se acumulan, y elegir cuál sacas es una decisión.
+--
+-- POR QUÉ CAMBIÓ: tener varios no significaba nada mientras un vehículo sólo
+-- fuera "más capacidad" -- el último era siempre el mejor y el anterior, basura.
+-- Con la regla de la calzada (ver Roads.luau) dejó de ser así: el patinete entra
+-- en cualquier callejón y la furgoneta lleva un piano pero va por donde va todo
+-- el mundo. Ya no hay un "mejor": hay un mejor PARA ESTE VIAJE.
+function Vehicles.posee(garaje: { string }?, id: string?): boolean
+	if id == nil or id == Vehicles.A_PIE then
+		-- Ir a pie no se compra ni se pierde: siempre lo tienes.
+		return true
+	end
+	for _, tuyo in garaje or {} do
+		if tuyo == id then
+			return true
+		end
+	end
+	return false
+end
+
+-- El garaje con el que entra un jugador, saneado. Acepta además el `vehiculo`
+-- suelto de las partidas ANTERIORES al garaje: quien guardó una furgoneta cuando
+-- sólo se guardaba una, la recupera igual. Sin esto, estrenar el garaje habría
+-- dejado a pie a todo el que ya jugaba.
+function Vehicles.garajeDe(garaje: { string }?, vehiculoSuelto: string?): { string }
+	local lista: { string } = {}
+	local function meter(id: string?)
+		if id == nil or not Vehicles.existe(id) then
+			return
+		end
+		if id == Vehicles.A_PIE or Vehicles.posee(lista, id) then
+			return
+		end
+		table.insert(lista, id :: string)
+	end
+	for _, id in garaje or {} do
+		meter(id)
+	end
+	meter(vehiculoSuelto)
+	return lista
+end
+
 -- ¿Puede este jugador comprar este vehículo? Devuelve el motivo junto al
 -- veredicto, igual que Intercept.puedeRobar: cuando alguien diga "le he dado a
 -- comprar y no pasa nada", el motivo dice qué regla se aplicó.
-function Vehicles.puedeComprar(vehiculoActual: string?, id: string, dinero: number): (boolean, string)
+function Vehicles.puedeComprar(garaje: { string }?, id: string, dinero: number): (boolean, string)
 	if not Vehicles.existe(id) then
 		return false, "vehiculo_desconocido"
 	end
@@ -71,37 +114,51 @@ function Vehicles.puedeComprar(vehiculoActual: string?, id: string, dinero: numb
 	if def.coste <= 0 then
 		return false, "no_esta_a_la_venta"
 	end
-	local actual = Vehicles.deEstado(vehiculoActual)
-	if actual.id == def.id then
+	if Vehicles.posee(garaje, id) then
 		return false, "ya_lo_tienes"
 	end
-	-- Comprar hacia abajo no está prohibido por capricho: sin esta regla, comprar
-	-- un vehículo peor por dinero sería un botón que sólo puede perjudicarte, y
-	-- alguien lo pulsaría.
-	if def.capacidad <= actual.capacidad then
-		return false, "ya_tienes_uno_mejor"
-	end
+	-- YA NO SE PROHÍBE COMPRAR "HACIA ABAJO". Esa regla existía para que nadie
+	-- gastase dinero en algo estrictamente peor; con el garaje no hay peor, y un
+	-- patinete comprado teniendo furgoneta es la llave de los atajos.
 	if dinero < def.coste then
 		return false, "sin_dinero"
 	end
 	return true, "ok"
 end
 
--- Lo que se ofrece en el taller a un jugador concreto: sólo lo que sería una
--- mejora. Que la lista dependa del estado evita que el cliente tenga que decidir
--- qué mostrar, y el cliente no decide nada en este juego.
-function Vehicles.mejorasPara(vehiculoActual: string?): { Vehiculo }
-	local actual = Vehicles.deEstado(vehiculoActual)
+-- ¿Puede sacar del garaje este vehículo?
+function Vehicles.puedeSacar(garaje: { string }?, id: string?): (boolean, string)
+	if id == nil or id == Vehicles.A_PIE then
+		-- Volver a ir a pie siempre vale: es la forma de dejar el coche y no es una
+		-- compra, así que no se comprueba nada.
+		return true, "ok"
+	end
+	if not Vehicles.existe(id) then
+		return false, "vehiculo_desconocido"
+	end
+	if not Vehicles.posee(garaje, id) then
+		return false, "no_es_tuyo"
+	end
+	return true, "ok"
+end
+
+-- Lo que se ofrece en el taller: lo que todavía no tienes, de lo barato a lo
+-- caro. Que la lista dependa del estado evita que el cliente decida qué mostrar,
+-- y el cliente no decide nada en este juego.
+function Vehicles.mejorasPara(garaje: { string }?): { Vehiculo }
 	local mejoras: { Vehiculo } = {}
 	for _, def in Config.VEHICULOS do
-		if def.coste > 0 and def.capacidad > actual.capacidad then
-			-- Copia, no la tabla de Config: lo que sale de aquí viaja al cliente y
-			-- lo tocan otros módulos. Devolver la referencia viva significa que
-			-- cualquiera que la modifique está modificando la configuración del
-			-- juego para todo el servidor, y ese fallo no deja rastro.
+		if def.coste > 0 and not Vehicles.posee(garaje, def.id) then
+			-- Copia, no la tabla de Config: lo que sale de aquí viaja al cliente y lo
+			-- tocan otros módulos. Devolver la referencia viva significa que
+			-- cualquiera que la modifique está cambiando la configuración del juego
+			-- para todo el servidor, y ese fallo no deja rastro.
 			table.insert(mejoras, table.clone(def))
 		end
 	end
+	table.sort(mejoras, function(a, b)
+		return a.coste < b.coste
+	end)
 	return mejoras
 end
 

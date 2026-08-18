@@ -54,6 +54,9 @@ export type Estado = {
 	-- (ver RoadService). Es del estado y no del dibujo: de esto depende a qué
 	-- velocidad anda, y eso no puede decidirlo el cliente.
 	montado: boolean?,
+	-- EL GARAJE: todo lo que ha comprado, no sólo lo que lleva puesto. Comprar ya
+	-- no sustituye -- ver Vehicles.posee y el porqué que hay allí.
+	garaje: { string }?,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -77,6 +80,7 @@ function PlayerState.get(player: Player): Estado
 			retorno = {},
 			retornoZona = nil,
 			montado = true,
+			garaje = {},
 		}
 		estados[player] = estado
 	end
@@ -112,6 +116,7 @@ function PlayerState.sync(player: Player)
 		retorno = estado.retorno or {},
 		retornoZona = estado.retornoZona,
 		montado = estado.montado ~= false,
+		garaje = estado.garaje or {},
 		-- El nivel viaja ya calculado: el cliente sólo dibuja, y así no hay dos
 		-- sitios haciendo la misma cuenta con riesgo de discrepar en pantalla.
 		nivel = Levels.nivelDe(estado.xp or 0),
@@ -124,7 +129,7 @@ function PlayerState.sync(player: Player)
 		capacidad = vehiculo.capacidad,
 		-- Lo que le queda por comprar, ya filtrado por su estado: el taller no
 		-- ofrece nada que no sea una mejora.
-		mejoras = Vehicles.mejorasPara(estado.vehiculo),
+		mejoras = Vehicles.mejorasPara(estado.garaje),
 	})
 end
 

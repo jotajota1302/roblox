@@ -17,6 +17,7 @@ local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("P
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local Perimeter = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Perimeter"))
 local Compass = require(script.Parent:WaitForChild("Compass"))
+local Garage = require(script.Parent:WaitForChild("Garage"))
 local Gate = require(script.Parent:WaitForChild("Gate"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
@@ -89,7 +90,7 @@ local function refrescarValla(root: BasePart?): boolean
 		Gate.mostrar(false)
 		return false
 	end
-	local cerrada = Perimeter.debeCerrar(ultimoEstado, root.Position, Config.ALMACEN_POS)
+	local cerrada = Perimeter.debeCerrar(ultimoEstado, root.Position)
 	if Gate.mostrar(cerrada) and cerrada then
 		Hud.aviso("Con carga no se sale sin destino elegido", Color3.fromRGB(232, 176, 64))
 	end
@@ -124,7 +125,7 @@ local function debeElegir(root: BasePart?, vallaCerrada: boolean): boolean
 	if salida and (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA then
 		return true
 	end
-	return vallaCerrada and Perimeter.tocando(root.Position, Config.ALMACEN_POS)
+	return vallaCerrada and Perimeter.tocando(root.Position)
 end
 
 -- Aviso al cruzar la salida con carga y sin ruta. Sin esto, salir sin elegir es
@@ -286,6 +287,9 @@ local function refrescarSelector()
 	end
 	Hud.mision(misionActual(ultimoEstado))
 	mandoDeVehiculo(ultimoEstado)
+	-- El garaje se refresca aquí y no sólo al sincronizar porque depende de a qué
+	-- taller te acercas, y eso cambia andando.
+	pcall(Garage.actualizar, mundo, ultimoEstado)
 	-- Aquí y no sólo al sincronizar: los sonidos los crea Roblox cuando le parece
 	-- (al reaparecer, al cambiar de estado), así que hay que volver a callarlos.
 	ajustarSonidoDePasos(ultimoEstado)
@@ -476,6 +480,13 @@ ProximityPromptService.PromptTriggered:Connect(function(aviso, jugador)
 		if siguiente then
 			Remotes.event(Remotes.COMPRAR):FireServer(siguiente.id)
 		end
+	elseif aviso.Name == "PromptGaraje" then
+		-- Sacar el vehículo de esa plaza. Si ya lo llevas puesto, el mismo aviso
+		-- dice "Guardar" y lo que se manda es "a pie": una sola pieza para las dos
+		-- caras de la misma acción, como el botón de subir/bajar.
+		local id = aviso:GetAttribute("vehiculo")
+		local puesto = ultimoEstado and ultimoEstado.vehiculo
+		Remotes.event(Remotes.SACAR):FireServer(if id == puesto then "a_pie" else id)
 	elseif aviso.Name == "PromptCaja" then
 		Remotes.event(Remotes.RECLAMAR):FireServer(aviso.Parent and aviso.Parent:GetAttribute("indice"))
 	end

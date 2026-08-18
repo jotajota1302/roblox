@@ -133,7 +133,9 @@ if mundo then
 		WarehouseService.registrarAlmacen(mundo.almacen)
 	end
 	if GarageService then
-		GarageService.registrarTaller(mundo.taller)
+		for _, taller in mundo.talleres do
+			GarageService.registrarTaller(taller)
+		end
 	end
 	if HeatService then
 		for _, poste in mundo.detectores do

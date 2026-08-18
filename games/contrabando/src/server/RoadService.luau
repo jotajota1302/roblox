@@ -86,7 +86,7 @@ local function sueloBajoLosPies(root: BasePart): (boolean, Vector3?)
 	-- TU PROPIO RECINTO ES RODABLE ENTERO. Dentro hay césped entre el almacén, el
 	-- taller y la salida, y sin esta regla comprar una moto significaría bajarse de
 	-- ella tres veces antes de salir de casa. El patio es tuyo: ahí se rueda.
-	if Perimeter.dentro(root.Position, Config.ALMACEN_POS) then
+	if Perimeter.dentro(root.Position) then
 		return true, root.Position
 	end
 	local params = RaycastParams.new()

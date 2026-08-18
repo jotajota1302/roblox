@@ -63,7 +63,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	--
 	-- La regla que importa sigue en pie: fuera del recinto no se elige, así que no
 	-- se cambia de ruta a mitad de viaje.
-	if not Perimeter.dentro(root.Position, Config.ALMACEN_POS) then
+	if not Perimeter.dentro(root.Position, 25) then
 		return false
 	end
 

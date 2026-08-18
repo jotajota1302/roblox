@@ -34,7 +34,7 @@ function Gate.build()
 	local f = Instance.new("Folder")
 	f.Name = "RecintoAlmacen"
 
-	local postes = Perimeter.postes(Config.ALMACEN_POS, Config.RECINTO_RADIO, Config.RECINTO_PANELES)
+	local postes = Perimeter.postes(Config.RECINTO_PANELES)
 	for i, poste in postes do
 		local panel = Instance.new("Part")
 		panel.Name = "Valla" .. i
@@ -42,7 +42,7 @@ function Gate.build()
 		-- Hundida 6 studs: el suelo de la ciudad no es una mesa, y un panel apoyado
 		-- justo en la cota del almacén dejaría por debajo una rendija a la altura
 		-- de los tobillos en cuanto la calle baje un poco.
-		panel.CFrame = CFrame.new(poste.posicion + Vector3.new(0, Config.RECINTO_ALTO / 2 - 6, 0))
+		panel.CFrame = CFrame.new(poste.posicion + Vector3.new(0, Config.RECINTO_ALTO / 2 - 3, 0))
 			* CFrame.Angles(0, math.rad(poste.giro), 0)
 		panel.Anchored = true
 		panel.CanCollide = true
@@ -58,7 +58,7 @@ function Gate.build()
 		-- El motivo, escrito en la propia valla y sólo en una de cada seis: es lo
 		-- que convierte un obstáculo en una instrucción. Repetirlo en las
 		-- veinticuatro sería un anillo de carteles ilegible.
-		if i % 6 == 1 then
+		if i % 2 == 1 then
 			local cartel = Instance.new("BillboardGui")
 			cartel.Name = "Cartel"
 			cartel.Size = UDim2.fromScale(22, 4)

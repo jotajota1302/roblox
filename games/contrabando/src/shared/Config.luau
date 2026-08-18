@@ -172,23 +172,42 @@ Config.RAREZAS = {
 -- suelo plano, y el almacén acabó plantado encima de una pista de tenis de la
 -- ciudad -- lo dijo JJ jugando: "estaría bien que el almacén no estuviera encima
 -- de nada". El criterio bueno es más estricto y es el que se aplicó después: que
--- NO HAYA NADA de la ciudad por encima del suelo en 70 studs a la redonda, que
--- haya una calle cerca y, sobre todo, QUE EL SUELO SEA LLANO.
+-- EL POLÍGONO: nuestra propia explanada, FUERA de la ciudad.
 --
--- Lo tercero se aprendió caro. La primera elección puntuaba espacio libre y
--- lejanía del centro, y salió una parcela con NUEVE STUDS de desnivel a lo largo
--- de sus 90: la losa se apoyaba en el lado alto y por el bajo quedaba colgando en
--- el aire sobre una calle, con un escalón infranqueable. En la foto de JJ jugando
--- se ve el almacén flotando y a él en la carretera de debajo -- "el almacén no
--- está bien posicionado en el mapa".
+-- Las dos primeras versiones metieron el almacén dentro del mapa ajeno y las dos
+-- salieron mal: la primera cayó sobre una pista de tenis, la segunda sobre una de
+-- baloncesto con la canasta asomando por encima del tejado. El parche era
+-- despejar la parcela --borrar las piezas de la ciudad que estorbaban-- y JJ puso
+-- el dedo en la llaga: "que el almacén y el taller tengan su zona y no se pongan
+-- encima del mapa de la ciudad tapando cosas".
 --
--- La parcela de ahora se eligió barriendo el cuadrante entero y midiendo el
--- desnivel de la huella (92x92) además de todo lo anterior: 0,20 studs de
--- diferencia entre su punto más alto y el más bajo, nada encima, y una calle a 40
--- studs por el norte. La del taller y la de la salida se comprobaron igual (0,01
--- y 0,20).
-Config.ALMACEN_POS = Vector3.new(-600, 19.2, 640)
-Config.TALLER_POS = Vector3.new(-600, 19.2, 530)
+-- Tiene razón por dos motivos, y el segundo importa más que el primero:
+--
+--   · destruir el mapa para hacerle sitio a lo nuestro deja huecos raros que
+--     nadie entiende (media pista de baloncesto, una valla cortada);
+--   · y un almacén metido entre edificios NO SE LEE como "tu base". La ciudad es
+--     el sitio al que sales; si tu casa está dentro de ella, salir no significa
+--     nada.
+--
+-- Así que el juego se planta en un polígono propio pegado al borde suroeste,
+-- construido por nosotros (ver CityBuilder.explanada), con su carretera de acceso
+-- a la ciudad. La ciudad no se toca ni un stud, y cruzar esa carretera es
+-- literalmente salir de casa.
+--
+-- La ciudad va de X -774 a 774 y de Z -790 a 780 (medido). El polígono empieza
+-- justo detrás de ese borde.
+Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 880)
+Config.POLIGONO_TAMANO = Vector2.new(320, 230)
+-- Por dónde se sale a la ciudad: el extremo norte del polígono, y desde ahí una
+-- carretera hasta la calle más cercana.
+-- EN LA BOCA EXACTA (centro.Z - alto/2 = 880 - 115), no unos studs más adentro:
+-- la salida es el umbral, y la prueba de Perimeter lo comprueba porque puesta a
+-- ojo se queda en mitad del patio y deja de significar "aquí se sale".
+Config.POLIGONO_SALIDA = Vector3.new(-620, 19.2, 765)
+Config.POLIGONO_ENGANCHE = Vector3.new(-593, 19.2, 679) -- la calle de la ciudad más cercana (medida)
+
+Config.ALMACEN_POS = Vector3.new(-668, 19.2, 925)
+Config.TALLER_POS = Vector3.new(-548, 19.2, 925)
 
 -- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
 -- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles
@@ -352,18 +371,14 @@ Config.ZONA_SEGURA_RADIO = 150
 -- EL RECINTO DEL ALMACÉN: la valla que no te deja salir a la ciudad con carga y
 -- sin destino elegido (ver Perimeter.luau, que tiene el porqué entero).
 --
--- 130 studs no es un número redondo: es el mínimo que deja DENTRO las dos cosas
--- que hay que poder hacer con la carga puesta -- la salida, donde se elige ruta
--- (a 60 del almacén), y el taller, donde se compra vehículo (a 110). Con menos,
--- la valla te separaría de la tienda justo cuando acabas de cargar; con más, se
--- comería la zona segura y la valla aparecería en mitad de la ciudad.
-Config.RECINTO_RADIO = 130
--- Paneles del anillo. Con menos de 20 la cuerda se separa tanto del arco que los
--- paneles cortan por dentro del radio; con muchos más son piezas de sobra en un
--- juego que tiene que ir en un móvil de gama baja.
-Config.RECINTO_PANELES = 24
--- Alto: por encima del salto de Roblox con vehículo y con margen. Una valla que
--- se salta es una valla que enseña a saltársela.
+-- El recinto YA NO ES UN RADIO: es el polígono entero, que es rectangular (ver
+-- Perimeter.dentro). Lo único que queda aquí es cuántos paneles cierran su boca.
+--
+-- Ocho para 320 studs de ancho: cuarenta studs por panel, que es una pieza
+-- manejable y con solape suficiente para que no queden rendijas.
+Config.RECINTO_PANELES = 8
+-- Alto: por encima del salto de Roblox con vehículo y con margen. Una puerta que
+-- se salta es una puerta que enseña a saltársela.
 Config.RECINTO_ALTO = 26
 
 -- Sonidos. Los efectos NO son decoración: son información. Que suene una alerta al
