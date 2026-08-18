@@ -197,15 +197,49 @@ local function vestir(modelo: Model)
 		-- tumbarlo un cuarto de vuelta para que quede como un disco en el suelo.
 		pegar(anillo, raiz, CFrame.new(0, -2.9, 0) * CFrame.Angles(0, 0, math.rad(90)))
 
+		-- EL PILAR DE LUZ, y es lo que faltaba para verlos llegar. Un ladrón aparece
+		-- entre 90 y 140 studs (o desde una guarida, hasta 380), y a esa distancia
+		-- un muñeco de cinco studs vestido de oscuro no se distingue de la acera:
+		-- *"no los veo a lo lejos aunque se supone que están"* (JJ). Todo lo que le
+		-- habíamos puesto --antifaz, mochila, anillo de alcance-- sólo se lee de
+		-- cerca, es decir, cuando ya no sirve para decidir nada.
+		--
+		-- 70 studs de columna, y la altura sale de medirlo: 571 ladrones virtuales a
+		-- 120 studs del camino, contando desde qué fracción hay línea de visión
+		-- limpia hacia cada altura de su cuerpo.
+		--
+		--      3 studs (su cabeza) ... 38% de las veces
+		--     20 ....................... 53%
+		--     35 ....................... 60%
+		--     70 ....................... 69%
+		--    100 ....................... 76%
+		--
+		-- O sea que sin columna, seis de cada diez veces el ladrón que viene a por ti
+		-- no se puede ver aunque mires justo hacia él. Con 70 se dobla la cifra y
+		-- ahí se corta: más alto asomaría por encima de los tejados y se le seguiría
+		-- por toda la ciudad, y despistarlos --que es la otra mitad del sistema--
+		-- dejaría de existir. Por eso es más bajo que el farol de una guarida (170):
+		-- la guarida es un sitio fijo que hay que poder rodear desde el otro barrio;
+		-- el ladrón se ve en la calle en la que está.
+		local faro = pieza("Faro", Vector3.new(1.6, 70, 1.6), Color3.fromRGB(255, 60, 50), modelo)
+		faro.Material = Enum.Material.Neon
+		faro.Transparency = 0.55
+		faro.CastShadow = false
+		pegar(faro, raiz, CFrame.new(0, 35, 0))
+
 		-- Y su nombre, para que se distinga de un peatón en una ciudad llena de
 		-- muñecos. Sin AlwaysOnTop, igual que las placas de los jugadores: si se
 		-- viera a través de los edificios, esconderse dejaría de servir de nada.
+		--
+		-- El alcance de la placa llega ahora hasta donde el ladrón abandona la
+		-- persecución (320): con 180 había un tramo entero --de 180 a 320-- en el
+		-- que te perseguía alguien de quien no podías saber ni qué era.
 		local placa = Instance.new("BillboardGui")
 		placa.Name = "Placa"
 		placa.Size = UDim2.fromScale(4, 1.1)
 		placa.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
 		placa.AlwaysOnTop = false
-		placa.MaxDistance = 180
+		placa.MaxDistance = 320
 		placa.Adornee = cabeza or raiz
 		placa.Parent = cabeza or raiz
 

@@ -85,13 +85,31 @@ function Shelter.sitiosDeRuta(origen: Vector3, destino: Vector3, cuantos: number
 	-- Perpendicular en el plano: girar 90° es (z, -x).
 	local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
 
+	-- EL TRAMO SE MIDE EN STUDS, NO EN FRACCIÓN. La versión anterior repartía entre
+	-- el 25% y el 75% del trayecto, y con eso el refugio de la ruta verde --que mide
+	-- 622 studs-- caía a 230 del almacén: su puerta quedaba a 35 studs de donde
+	-- acaba la zona segura. *"Hay un refugio justo a la salida del almacén, no tiene
+	-- sentido"* (JJ), y no lo tenía: pegado a casa, meterse dentro nunca es lo mejor
+	-- que puedes hacer --el almacén apaga el calor entero y encima es donde cobras--
+	-- así que el refugio deja de ser una decisión.
+	--
+	-- Una fracción dice cosas muy distintas en una ruta de 600 y en una de 1.700; en
+	-- studs, el refugio arranca donde volver a casa empieza a doler. Es la misma
+	-- lección que ya pagaron las guaridas (ver Lairs.sitiosDeRuta).
+	local largo = plano.Magnitude
+	local tMin = math.max(0.3, (Config.ZONA_SEGURA_RADIO + Config.REFUGIO_MARGEN_CASA) / largo)
+	local tMax = math.min(0.8, 1 - Config.REFUGIO_MARGEN_DESTINO / largo)
+	if tMax <= tMin then
+		-- Ruta tan corta que no hay tramo donde plantarlo sin pisar la casa o el
+		-- destino. En una ruta así el almacén ya hace de refugio: está al lado.
+		return sitios
+	end
+
 	for i = 1, cuantos do
-		-- Repartidos por el tramo central. Ni pegados al almacén --donde ya estás a
-		-- salvo y sobrarían-- ni pegados al destino, donde el viaje ya está hecho.
-		-- Repartidos por un tramo MÁS ancho que antes (0,25 a 0,75 en vez de 0,3 a
-		-- 0,7): con uno por ruta, lo que importa es que no caigan todos a la misma
-		-- altura del viaje.
-		local t = 0.25 + 0.5 * ((i - 0.5) / cuantos)
+		-- Repartidos por ese tramo. Con uno por ruta lo que importa es que no caigan
+		-- todos a la misma altura del viaje, y los de más son sólo suplentes para
+		-- cuando el primero choca con el de otra ruta (ver Shelter.repartir).
+		local t = tMin + (tMax - tMin) * ((i - 0.5) / cuantos)
 		local centro = origen:Lerp(destino, t)
 		local signo = if i % 2 == 1 then 1 else -1
 		table.insert(sitios, centro + lado * (Config.REFUGIO_DESVIO * signo))

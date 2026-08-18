@@ -365,6 +365,59 @@ local function guaridas()
 		end
 	end
 	comprobar("las guaridas están apoyadas en el suelo", malas == 0, string.format("%d flotando o enterradas", malas))
+
+	-- SE VEN POR ENCIMA DEL BARRIO. Su trabajo entero es que las rodees, y una
+	-- guarida que no se distingue desde lejos no se rodea: se descubre cuando ya te
+	-- ha soltado un ladrón encima, que es exactamente lo que venía a arreglar. El
+	-- farol medía 46 studs cuando los tejados de alrededor pasan de 80, así que la
+	-- guarida sólo existía en el minimapa -- *"no los veo a lo lejos"* (JJ).
+	--
+	-- Se compara contra los EDIFICIOS DE SU MANZANA, no contra una constante: lo que
+	-- importa no es la altura del farol sino si asoma por encima de lo que tiene al
+	-- lado, y eso depende de dónde haya caído.
+	--
+	-- Y contra el percentil 80 de los tejados de alrededor, no contra el más alto:
+	-- una torre suelta puede taparlo desde UN ángulo y eso no es un defecto --es la
+	-- ciudad haciendo de ciudad--. Lo que sí lo es, y es lo que se mide, es que el
+	-- farol quede por debajo del caserío normal y no se vea desde ninguna parte.
+	local ciudad = workspace:FindFirstChild("Ciudad")
+	local altos: { BasePart } = {}
+	if ciudad then
+		for _, p in ciudad:GetDescendants() do
+			if p:IsA("BasePart") and p.Size.Y > 20 then
+				table.insert(altos, p)
+			end
+		end
+	end
+
+	local tapadas, peor = 0, 0
+	for _, g in sitios do
+		local farol = m:FindFirstChild("GuaridaFarol_" .. string.match(g.Name, "%d+"))
+		if farol == nil or not farol:IsA("BasePart") then
+			continue
+		end
+		local cima = farol.Position.Y + farol.Size.Y / 2
+
+		local cimas: { number } = {}
+		for _, p in altos do
+			local d = (Vector3.new(p.Position.X, 0, p.Position.Z) - Vector3.new(g.Position.X, 0, g.Position.Z)).Magnitude
+			if d <= 150 then
+				table.insert(cimas, p.Position.Y + p.Size.Y / 2)
+			end
+		end
+		table.sort(cimas)
+		local barrio = if #cimas > 0 then cimas[math.max(1, math.ceil(#cimas * 0.8))] else g.Position.Y
+
+		if cima < barrio then
+			tapadas += 1
+			peor = math.max(peor, barrio - cima)
+		end
+	end
+	comprobar(
+		"las guaridas asoman sobre su manzana",
+		tapadas == 0,
+		string.format("%d tapadas por los edificios de al lado (hasta %.0f studs por debajo)", tapadas, peor)
+	)
 end
 
 --------------------------------------------------------------------------------
@@ -397,6 +450,27 @@ local function refugios()
 		"los refugios están espaciados",
 		juntos == 0,
 		string.format("%d parejas más cerca de %d studs", juntos, math.floor(Config.REFUGIO_SEPARACION * 0.8))
+	)
+
+	-- NI UNO A LA SALIDA DEL ALMACÉN. Lo vio JJ jugando y la sonda no lo miraba: el
+	-- de la ruta verde estaba a 230 studs de casa, con la puerta a 35 studs de donde
+	-- acaba la zona segura. Pegado al almacén, un refugio no es una decisión --el
+	-- almacén apaga el calor entero y encima es donde cobras-- y una opción que
+	-- nunca puede ganar es una opción que no existe.
+	local minimo = Config.ZONA_SEGURA_RADIO + Config.REFUGIO_MARGEN_CASA / 2
+	local pegados, elMasCerca = 0, math.huge
+	for _, sitio in sitios do
+		local d = (Vector3.new(sitio.X, 0, sitio.Z) - Vector3.new(Config.ALMACEN_POS.X, 0, Config.ALMACEN_POS.Z)).Magnitude
+			- Config.REFUGIO_RADIO
+		elMasCerca = math.min(elMasCerca, d)
+		if d < minimo then
+			pegados += 1
+		end
+	end
+	comprobar(
+		"ningún refugio a la salida del almacén",
+		pegados == 0,
+		string.format("%d pegados a casa -- el más cercano abre a %.0f studs", pegados, elMasCerca)
 	)
 
 	-- A MANO DE SU RUTA. Un refugio que existe pero cae a doscientos studs del

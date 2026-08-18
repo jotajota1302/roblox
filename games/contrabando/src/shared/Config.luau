@@ -446,6 +446,26 @@ Config.REFUGIO_SEGUNDOS_POR_NIVEL = 5
 -- llegar a él es una decisión, y para eso tiene que ser el único que tienes cerca.
 Config.REFUGIOS_POR_RUTA = 1
 Config.REFUGIO_DESVIO = 100
+
+-- LO QUE TIENE QUE APARTARSE DE CASA, medido en studs desde el borde de la zona
+-- segura. Lo destapó JJ jugando: *"hay un refugio justo a la salida del almacén,
+-- no tiene sentido"*. Y no lo tenía -- el de la ruta verde caía a 230 studs del
+-- almacén, o sea con su puerta a 35 studs de donde acaba la zona segura.
+--
+-- Un refugio ahí no es una decisión: es una versión peor del almacén. El almacén
+-- apaga el calor de golpe y además es donde cobras; si el refugio está pegado a
+-- él, meterse dentro nunca puede ser lo mejor que puedes hacer, y una opción que
+-- nunca gana es una opción que no existe. El refugio empieza a significar algo
+-- justo donde volver a casa empieza a doler.
+--
+-- Con 200, el refugio queda a 350 del centro del almacén y su puerta a más del
+-- doble de la zona segura. El motivo de que esto se mida en STUDS y no en fracción
+-- del trayecto es el mismo que ya enseñaron las guaridas: un 0,33 dice cosas muy
+-- distintas en una ruta de 600 y en una de 1.700.
+Config.REFUGIO_MARGEN_CASA = 200
+-- Y lo que se aparta del destino, por el otro lado: un refugio a las puertas de la
+-- entrega llega cuando el viaje ya está hecho.
+Config.REFUGIO_MARGEN_DESTINO = 140
 -- Y la distancia mínima entre dos refugios cualesquiera, aunque sean de rutas
 -- distintas: sin ella, dos rutas que pasan cerca plantan los suyos casi pegados
 -- y vuelven a parecer mobiliario urbano.

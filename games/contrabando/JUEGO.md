@@ -138,6 +138,13 @@ explicárselo a nadie. **El azul está reservado entero para ellas**: si el que 
 el sitio donde te salvas comparten color, tienes que pararte a distinguirlos justo cuando
 no puedes pararte.
 
+Y **ninguna a la salida de casa**: el sitio de cada comisaría se mide en studs desde el
+almacén, no en fracción del trayecto. Con fracción, la de la ruta verde caía a 230 studs de
+casa —la puerta a 35 studs de donde acaba la zona segura— y ahí una comisaría no es una
+decisión: el almacén apaga el peligro entero y además es donde cobras, así que meterse
+dentro nunca podía ser lo mejor que hacer. Ahora la primera abre a 340 studs, más del doble
+de la zona segura.
+
 ### Guaridas
 
 Los ladrones **salen de guaridas**, no de la nada: tres por ruta (dos en la verde, que es
@@ -149,6 +156,17 @@ llegada al destino) se cae al método viejo.
 
 Están en el mapa, con su alcance, igual que las esquinas fichadas con su radio. Es lo que
 permite mirar el plano y **decidir por dónde ir** antes de salir.
+
+**Y también se ven desde la calle**, que es lo que faltaba: una guarida existía en el plano
+pero no en la ciudad, porque su farol medía 46 studs y los tejados de alrededor pasan de 80.
+Medido con rayos desde el camino, se veía el 39 % de las veces; con el farol a 170 studs
+—por debajo del faro de una comisaría, que es 190, porque el sitio al que corres tiene que
+verse desde más lejos que el que hay que rodear— se ve el **61 %**.
+
+Lo mismo con el ladrón, que es lo que se ve peor de todo: a 120 studs, su cuerpo sólo tiene
+línea de visión limpia el 38 % de las veces. Lleva un **pilar de luz de 70 studs** —69 %— y
+ahí se corta a propósito: más alto asomaría por encima de los tejados, se le seguiría por
+toda la ciudad y despistarlos dejaría de existir.
 
 ### Robo
 

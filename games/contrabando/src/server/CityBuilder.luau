@@ -1134,13 +1134,52 @@ local function guarida(ciudad: Instance?, indice: number, ruta: string, centro: 
 		part("GuaridaPorton_" .. indice, Vector3.new(12, 11, 1.5), Vector3.new(x, suelo + 5.5, z + 13), HIERRO, padre)
 	porton.Material = Enum.Material.DiamondPlate
 
-	-- Y una luz roja encima, alta pero MUCHO más baja que el faro de la comisaría
-	-- (190 studs): la comisaría hay que encontrarla desde la otra punta del barrio
-	-- cuando la necesitas; la guarida sólo hay que verla venir con tiempo.
-	local farol = part("GuaridaFarol_" .. indice, Vector3.new(4, 46, 4), Vector3.new(x, y + 23, z), ROJO, padre)
+	-- Y una luz roja encima, MÁS ALTA QUE LOS TEJADOS. Empezó midiendo 46 studs y
+	-- eso era, en la práctica, no tenerla: la ciudad tiene 2.944 piezas de más de
+	-- 20 studs de alto, con la cumbrera mediana a 86 y el 90% por debajo de 101. Un
+	-- farol de 46 no asoma por encima de casi nada, así que la guarida sólo existía
+	-- en el minimapa -- *"los enemigos no se ven, sólo en el plano del mapa"* (JJ).
+	--
+	-- La altura se eligió MIDIENDO, no a ojo: 218 rayos desde el camino de las tres
+	-- rutas hacia cada guarida que tuvieran a menos de 400 studs, contando desde qué
+	-- fracción del trayecto hay línea de visión limpia.
+	--
+	--     46 studs (lo que había) ... se ve el 39% de las veces
+	--     90 .......................... 50%
+	--    130 .......................... 54%
+	--    170 .......................... 62%
+	--    210 .......................... 67%
+	--
+	-- Sube deprisa hasta 170 y luego se aplana: a partir de ahí lo que tapa la
+	-- guarida no es un tejado sino el edificio que tienes delante, y contra eso no
+	-- hay altura que valga. Así que 170 -- que además sigue siendo MÁS BAJO que el
+	-- faro de la comisaría (190), y esa diferencia es información: el sitio al que
+	-- corres tiene que verse desde más lejos que el sitio que hay que rodear.
+	local farol = part("GuaridaFarol_" .. indice, Vector3.new(4, 170, 4), Vector3.new(x, y + 85, z), ROJO, padre)
 	farol.Material = Enum.Material.Neon
 	farol.CanCollide = false
 	farol.Transparency = 0.35
+
+	-- Y su nombre arriba del todo, a la altura del tejado: un pilar rojo dice "algo
+	-- pasa aquí", pero no dice qué. Sin AlwaysOnTop, igual que el resto de placas:
+	-- si se leyera a través de los edificios, rodear la manzana no serviría de nada.
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "Cartel"
+	cartel.Size = UDim2.fromScale(20, 5)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 92, 0)
+	cartel.MaxDistance = 900
+	cartel.Adornee = farol
+	cartel.Parent = farol
+
+	local rotulo = Instance.new("TextLabel")
+	rotulo.Size = UDim2.fromScale(1, 1)
+	rotulo.BackgroundTransparency = 1
+	rotulo.TextColor3 = Color3.fromRGB(255, 130, 120)
+	rotulo.TextStrokeTransparency = 0.35
+	rotulo.TextScaled = true
+	rotulo.Font = Enum.Font.GothamBold
+	rotulo.Text = "GUARIDA"
+	rotulo.Parent = cartel
 
 	return losa
 end

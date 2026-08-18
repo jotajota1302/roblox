@@ -71,6 +71,29 @@ return function(kit)
 		kit.truthy("el refugio " .. i .. " esta en el tramo central", avance > 0.2 and avance < 0.8)
 	end
 
+	-- NINGUNO A LA SALIDA DE CASA, y esto se mide en STUDS. Es el defecto que
+	-- destapó JJ jugando: con el reparto por fracción, el refugio de la ruta verde
+	-- --622 studs-- caía a 230 del almacén, con su puerta a 35 studs de donde acaba
+	-- la zona segura. Pegado a casa, meterse dentro nunca es lo mejor que puedes
+	-- hacer, y una opción que nunca gana no es una opción.
+	local corta = Shelter.sitiosDeRuta(origen, Vector3.new(622, 20, 0), Config.REFUGIOS_POR_RUTA + 2)
+	kit.truthy("la ruta corta sigue teniendo refugios", #corta > 0)
+	for i, s in corta do
+		local aCasa = (Vector3.new(s.X, 0, s.Z) - Vector3.new(origen.X, 0, origen.Z)).Magnitude
+		kit.truthy(
+			string.format("el refugio %d de la ruta corta se aparta de casa (%.0f studs)", i, aCasa),
+			aCasa - Config.REFUGIO_RADIO >= Config.ZONA_SEGURA_RADIO + Config.REFUGIO_MARGEN_CASA / 2
+		)
+	end
+
+	-- Y en una ruta tan corta que no cabe ninguno, ninguno: antes que un refugio
+	-- dentro de la zona segura, el almacén ya hace ese trabajo y está al lado.
+	kit.eq(
+		"en una ruta que no da para tramo no se planta nada",
+		#Shelter.sitiosDeRuta(origen, Vector3.new(200, 20, 0), 2),
+		0
+	)
+
 	-- EL REPARTO. Entra AGRUPADO POR RUTA, y tiene dos trabajos que pelean entre sí:
 	-- que no se amontonen, y que ninguna ruta se quede sin uno.
 	local grupos = {
