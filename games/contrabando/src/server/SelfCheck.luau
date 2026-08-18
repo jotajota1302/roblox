@@ -34,7 +34,10 @@
 
 local Players = game:GetService("Players")
 
+local PathfindingService = game:GetService("PathfindingService")
+
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
@@ -804,6 +807,105 @@ local function coste()
 end
 
 --------------------------------------------------------------------------------
+-- LOS CONTACTOS. La comprobación que importa no es que estén plantados: es que
+-- quien recorre la ruta LOS PISE.
+--
+-- Existe porque ya falló una vez y no dio la cara. Repartidos sobre la recta
+-- casa-destino, medidos contra el camino real del pathfinder, caían en el camino
+-- el 0 % de la ruta verde, el 8 % de la ámbar y el 5 % de la roja: treinta y ocho
+-- piezas alumbradas, con sus atributos, y ninguna al alcance de nadie. Es la misma
+-- firma que los quince detectores en las azoteas.
+--
+-- LA REGLA, que vale para cualquier sistema de este tipo: si el desvío típico
+-- respecto al camino supera el radio de acción, el sistema no existe.
+local function contactos()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local piezas: { BasePart } = {}
+	for _, x in m:GetChildren() do
+		if x:IsA("BasePart") and x.Name:match("^Contacto_") then
+			table.insert(piezas, x)
+		end
+	end
+
+	comprobar("hay contactos plantados", #piezas >= 1, "ninguno -- el viaje vuelve a no dar nada")
+	if #piezas == 0 then
+		return
+	end
+
+	-- NINGUNO EN UN TEJADO. Se mide contra el suelo que tiene DEBAJO, no contra una
+	-- cota fija: la ciudad tiene laderas y un contacto a 42 studs puede estar
+	-- perfectamente apoyado.
+	local flotando = 0
+	for _, p in piezas do
+		local golpe = bajoLosPies(p.Position.X, p.Position.Y, p.Position.Z, 300)
+		if golpe == nil or (p.Position.Y - golpe.Position.Y) > 8 then
+			flotando += 1
+		end
+	end
+	comprobar(
+		"ningún contacto flota",
+		flotando == 0,
+		string.format("%d en el aire o sobre un tejado -- ahí no los pisa nadie", flotando)
+	)
+
+	-- Y EL CAMINO REAL, ruta por ruta.
+	for _, ruta in Routes.todas() do
+		local camino = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
+		local ok = pcall(function()
+			camino:ComputeAsync(Config.POLIGONO_SALIDA, ruta.destino)
+		end)
+		if not ok or camino.Status ~= Enum.PathStatus.Success then
+			comprobar("hay camino a pie hasta " .. ruta.id, false, tostring(camino.Status))
+			continue
+		end
+
+		local puntos: { Vector3 } = {}
+		for _, w in camino:GetWaypoints() do
+			table.insert(puntos, w.Position)
+		end
+
+		local sueltos: { Contacts.Contacto } = {}
+		local racimos: { Contacts.Contacto } = {}
+		for _, p in piezas do
+			if p:GetAttribute("ruta") ~= ruta.id then
+				continue
+			end
+			local c = { pos = p.Position, valor = 1, tipo = tostring(p:GetAttribute("tipo")) }
+			if c.tipo == "racimo" then
+				table.insert(racimos, c)
+			else
+				table.insert(sueltos, c)
+			end
+		end
+
+		if #sueltos > 0 then
+			local pisados = Contacts.cercaDelCamino(sueltos, puntos, Config.CONTACTO_RADIO)
+			-- El listón es el 70 %: por debajo, media ruta va sin nada que recoger y
+			-- el ritmo que esto venía a dar no existe.
+			comprobar(
+				string.format("los contactos de la %s están en el camino", ruta.id),
+				pisados >= math.ceil(#sueltos * 0.7),
+				string.format("sólo %d de %d al alcance de quien va por el camino", pisados, #sueltos)
+			)
+		end
+
+		-- Los racimos, al revés: tienen que estar FUERA del camino, o dejan de ser
+		-- un rodeo y se convierten en un regalo.
+		if #racimos > 0 then
+			local enElCamino = Contacts.cercaDelCamino(racimos, puntos, Config.CONTACTO_RADIO)
+			comprobar(
+				string.format("los racimos de la %s piden desviarse", ruta.id),
+				enElCamino == 0,
+				string.format("%d de %d caen sobre el camino: se cogen sin decidir nada", enElCamino, #racimos)
+			)
+		end
+	end
+end
+
 -- 9. INFORME. Números medidos, sin aprobado ni suspenso.
 --
 -- No son comprobaciones porque no hay un valor "correcto": son las cifras con las
@@ -949,6 +1051,7 @@ function SelfCheck.run(): string
 		{ nombre = "puerta", fn = puerta },
 		{ nombre = "refugios", fn = refugios },
 		{ nombre = "guaridas", fn = guaridas },
+		{ nombre = "contactos", fn = contactos },
 		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },
 		{ nombre = "puente", fn = puente },
