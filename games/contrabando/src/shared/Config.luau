@@ -660,4 +660,17 @@ Config.CONTACTOS_POR_RUTA = {
 Config.RACHA_POR_CONTACTO = 0.5
 Config.RACHA_MAXIMA = 4 -- el coche (34) queda en 38, con el antitrampas en 40
 
+-- LAS HABILIDADES. Todas se montan sobre un número que ya se calculaba: ninguna
+-- crea un sistema nuevo y NINGUNA DA VELOCIDAD.
+--
+-- El suelo de robo es la regla de oro escrita en un número: `expone` es un
+-- multiplicador, así que apilar factores sin suelo acabaría llevando a cero la
+-- fracción robada -- inmunidad por la puerta de atrás, que es exactamente lo que
+-- el diseño prohíbe.
+Config.ROBO_FRACCION_MINIMA = 0.10
+
+Config.SENUELO_DURACION = 6 -- segundos que los ladrones van al señuelo y no a ti
+Config.SENUELO_RECARGA = 45
+Config.SENUELO_RADIO = 120 -- a quién despista
+
 return Config
