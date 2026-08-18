@@ -308,10 +308,20 @@ Config.RUTAS = {
 	-- hay del almacén a la salida. Para el que acaba de entrar, eso es todo lo que
 	-- hay antes del primer premio.
 	--
-	-- El ×0,5 NO es un castigo: es lo que impide que domine. Tres cajas comunes son
-	-- 15 monedas en ~45 s (20 por minuto) y la verde da 30 en ~100 s (18 por
-	-- minuto). Casi iguales, así que el barrio es una puerta y no un atajo -- y por
-	-- eso tampoco hace falta cerrarlo nunca.
+	-- EL ×0,4 SALE DE UNA CUENTA, no de un ajuste a ojo, y la primera versión de esto
+	-- lo tenía mal. Con ×0,5 el barrio rendía MÁS que la verde: 119 monedas por
+	-- minuto contra 113 a pie, y 1.028 contra 979 con furgoneta. O sea que un
+	-- veterano tenía motivo para quedarse dando vueltas en el viaje de tutorial,
+	-- que es exactamente lo que este multiplicador venía a evitar.
+	--
+	-- La cuenta usa el valor esperado de una caja (94 monedas: 70 % común, 20 %
+	-- marcada ×10, 8 % sellada ×50, 2 % legendaria ×135) y los ciclos completos
+	-- medidos -- 71 s el barrio, 150 s la verde, ida y vuelta incluidas.
+	--
+	-- Con ×0,4: barrio 95/min contra verde 113/min a pie, y 822 contra 979 con
+	-- furgoneta. La verde gana en los dos casos, que es lo que tenía que pasar: el
+	-- barrio es la puerta de entrada, no un atajo. Y por eso tampoco hace falta
+	-- cerrarlo nunca.
 	--
 	-- SIN GUARIDAS y con una sola esquina fichada: el peligro se enseña, no se
 	-- aplica. Perder la primera carga de tu vida es la forma más rápida de que
@@ -323,7 +333,7 @@ Config.RUTAS = {
 	-- entre 200 y 350 studs; si sale rojo, es esta coordenada la que hay que mover.
 	{
 		id = "barrio",
-		multiplicador = 0.5,
+		multiplicador = 0.4,
 		nivel = 1,
 		destino = Vector3.new(-428, 19.2, 623),
 		detectores = 1,

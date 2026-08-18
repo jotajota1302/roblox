@@ -59,14 +59,22 @@ rampa de entrada.
 | | |
 |---|---|
 | Distancia | ~250 studs desde la salida (**~18 s de ida**, primera entrega en ~45 s) |
-| Multiplicador | **×0,5** |
+| Multiplicador | **×0,4** |
 | Licencia | ninguna |
 | Peligro | **1** esquina fichada, sin guaridas propias |
 | PvP | ninguno |
 | Contactos | 3 sueltos, 0 racimos |
 
-**El ×0,5 no es un castigo: es lo que impide que domine.** Tres cajas comunes son 15 monedas
-en ~45 s, o sea 20 por minuto; la verde da 30 en ~100 s, o sea 18 por minuto. Casi iguales.
+**El multiplicador sale de una cuenta, y la primera versión la tenía mal.** Con ×0,5 el
+barrio rendía MÁS que la verde —119 monedas por minuto contra 113 a pie, y 1.028 contra 979
+con furgoneta—, o sea que un veterano tenía motivo para quedarse dando vueltas en el viaje de
+tutorial. Con **×0,4**: 95/min contra 113 a pie y 822 contra 979 con furgoneta. La verde gana
+en los dos casos.
+
+La cuenta usa el valor esperado de una caja (**94 monedas**: 70 % común, 20 % marcada ×10, 8 %
+sellada ×50, 2 % legendaria ×135) y los ciclos completos con ida y vuelta: **71 s** el barrio,
+**150 s** la verde.
+
 El barrio es la puerta de entrada, no un atajo permanente — y por eso tampoco hace falta
 cerrarlo.
 
