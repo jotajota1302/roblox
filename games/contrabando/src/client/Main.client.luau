@@ -15,7 +15,9 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
+local Perimeter = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Perimeter"))
 local Compass = require(script.Parent:WaitForChild("Compass"))
+local Gate = require(script.Parent:WaitForChild("Gate"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
@@ -54,6 +56,7 @@ local ultimoEstado: any = nil
 local cerradoAMano = false
 
 construir("Hud", Hud.build)
+construir("Gate", Gate.build)
 construir("Compass", Compass.build)
 construir("Minimap", Minimap.build)
 
@@ -65,29 +68,63 @@ construir("RoutePicker", function()
 	end)
 end)
 
--- CUÁNDO aparece el selector. La versión anterior sólo miraba "llevas carga y no
+-- Dónde está el jugador. Se pide una vez por vuelta y se pasa a quien lo
+-- necesite: la valla, el selector y el aviso miran todos la misma posición, y
+-- consultarla tres veces sería tres respuestas distintas dentro de la misma
+-- decisión.
+local function raizDelJugador(): BasePart?
+	local character = Players.LocalPlayer.Character
+	return character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+end
+
+-- LA VALLA DEL RECINTO. Las reglas están en Shared.Perimeter; aquí sólo se
+-- levanta o se baja, y se avisa UNA vez cuando cambia.
+--
+-- Es la respuesta a lo que pedía JJ: "no deberías poder salir de la zona del
+-- almacén a la ciudad si has cargado paquete y no eliges ruta". El aviso de
+-- texto que había no bastaba -- llegaba cuando ya habías cruzado, duraba tres
+-- segundos y no decía cómo arreglarlo.
+local function refrescarValla(root: BasePart?): boolean
+	if root == nil then
+		Gate.mostrar(false)
+		return false
+	end
+	local cerrada = Perimeter.debeCerrar(ultimoEstado, root.Position, Config.ALMACEN_POS)
+	if Gate.mostrar(cerrada) and cerrada then
+		Hud.aviso("Con carga no se sale sin destino elegido", Color3.fromRGB(232, 176, 64))
+	end
+	return cerrada
+end
+
+-- CUÁNDO aparece el selector. La primera versión sólo miraba "llevas carga y no
 -- has elegido ruta", y eso lo abría NADA MÁS RECOGER, dentro del almacén. Dos
 -- consecuencias, las dos malas:
 --
---   · Ahí el servidor RECHAZA la elección (exige estar en la salida), así que
---     era una pantalla cuyos tres botones no hacían nada.
+--   · Ahí el servidor RECHAZABA la elección, así que era una pantalla cuyos tres
+--     botones no hacían nada.
 --   · Y al ser modal, tapaba el mundo entero -- incluido tu propio personaje --
---     y escondía los botones, incluido el de comprar la furgoneta. Recogías
---     cajas y te quedabas encerrado en una pantalla oscura sin salida.
+--     y escondía los botones. Recogías cajas y te quedabas encerrado en una
+--     pantalla oscura sin salida.
 --
--- Ahora aparece donde sirve: en la salida, con carga y sin ruta elegida. Y se
--- puede cerrar; al alejarse y volver, vuelve a ofrecerse.
-local function debeElegir(): boolean
+-- Ahora aparece en dos sitios, y el segundo es el que cierra el agujero que
+-- encontró JJ ("si le das a 'ahora no' no sé dónde tengo que ir para volver"):
+--
+--   · en la salida, que es donde uno va a decidir;
+--   · y al llegar a la valla, porque plantarse delante de ella ES decir "quiero
+--     salir". Responder a ese gesto con la pregunta vale más que cualquier
+--     cartel: la pantalla que cerraste vuelve sola cuando la necesitas.
+local function debeElegir(root: BasePart?, vallaCerrada: boolean): boolean
 	if ultimoEstado == nil or #ultimoEstado.cajas == 0 or ultimoEstado.ruta ~= nil then
 		return false
 	end
-	local character = Players.LocalPlayer.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
-	if not root or not salida then
+	if root == nil then
 		return false
 	end
-	return (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA
+	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
+	if salida and (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA then
+		return true
+	end
+	return vallaCerrada and Perimeter.tocando(root.Position, Config.ALMACEN_POS)
 end
 
 -- Aviso al cruzar la salida con carga y sin ruta. Sin esto, salir sin elegir es
@@ -113,21 +150,64 @@ local function vigilarSalidaSinRuta(eligiendo: boolean)
 	end
 end
 
+-- QUÉ TOCA HACER AHORA, en una línea. Es el hilo que ata el bucle entero: el
+-- jugador que acaba de cobrar a dos mil studs de casa, o el que cerró el
+-- selector con "Ahora no", tienen que poder mirar a un sitio y saber qué sigue.
+--
+-- Sale del estado y sólo del estado, así que dice lo mismo que la brújula por
+-- construcción: dos fuentes distintas acabarían contradiciéndose el día que una
+-- cambie.
+local function misionActual(estado: any): (string, Color3)
+	if estado == nil then
+		return "", Palette.ALMACEN
+	end
+	if estado.retornoZona ~= nil then
+		if #estado.cajas > 0 then
+			return "Lleva la carga al almacén", Palette.ALMACEN
+		end
+		return "Recoge la carga de vuelta", Palette.ruta(estado.retornoZona)
+	end
+	if estado.ruta ~= nil then
+		return "Entrega en " .. string.upper(estado.ruta), Palette.ruta(estado.ruta)
+	end
+	if #estado.cajas > 0 then
+		return "Elige destino en la salida", Palette.SALIDA
+	end
+	-- Con dinero suficiente, lo primero es gastarlo. "No sé dónde se compran los
+	-- vehículos" (JJ) tenía dos mitades: el taller no se veía --ya es un
+	-- concesionario con rótulo y escaparate-- y nadie te decía nunca que ya podías
+	-- permitirte algo. El HUD enseña el precio; esto dice qué hacer con él.
+	local siguiente = estado.mejoras and estado.mejoras[1]
+	if siguiente and estado.dinero >= siguiente.coste then
+		return "Compra " .. siguiente.nombre .. " en el taller", Palette.TALLER
+	end
+	if (estado.almacenCajas or 0) > 0 then
+		return "Carga mercancía en el muelle", Palette.ALMACEN
+	end
+	-- Y el hueco que no tenía respuesta: almacén vacío y zurrón vacío. Sin esta
+	-- línea, el jugador se queda mirando un muelle pelado sin saber si el juego se
+	-- ha roto o hay que esperar.
+	return "El almacén está produciendo: espera", Palette.ALMACEN
+end
+
 local function refrescarSelector()
-	local eligiendo = debeElegir()
+	local root = raizDelJugador()
+	local vallaCerrada = refrescarValla(root)
+	local eligiendo = debeElegir(root, vallaCerrada)
 	vigilarSalidaSinRuta(eligiendo)
 	if not eligiendo then
-		-- Al salir de la zona se olvida el cierre manual: volver a la salida es
-		-- justamente decir "ahora sí quiero elegir".
+		-- Al salir de la zona se olvida el cierre manual: volver a la salida --o
+		-- llegar a la valla-- es justamente decir "ahora sí quiero elegir".
 		cerradoAMano = false
 	end
 	local mostrar = eligiendo and not cerradoAMano
-	-- setModal ANTES de update: update decide si el botón de comprar se enciende,
-	-- y necesita saber ya si hay algo delante.
+	-- setModal ANTES de update y de mision: las dos miran si hay algo delante para
+	-- decidir si se dibujan.
 	Hud.setModal(mostrar)
 	if ultimoEstado then
 		Hud.update(ultimoEstado)
 	end
+	Hud.mision(misionActual(ultimoEstado))
 	if mostrar then
 		RoutePicker.mostrar()
 	else
@@ -179,11 +259,29 @@ local function apuntarBrujula(estado: any)
 	Compass.apuntar(Config.ALMACEN_POS, "Tu almacén", Palette.ALMACEN)
 end
 
+-- Como `construir`, pero para lo que corre en cada actualización de estado: cada
+-- pieza protegida por su cuenta y, sobre todo, QUE SE OIGA cuando falla.
+--
+-- El pcall pelado que había aquí costó una tarde: la brújula dejó de apuntar a
+-- nada y no había ni un mensaje en la consola, así que el fallo no se distinguía
+-- de "no hay objetivo". Un error tragado es peor que un error a la vista.
+local avisados: { [string]: boolean } = {}
+
+local function intentar(nombre: string, fn: (any) -> (), estado: any)
+	local ok, err = pcall(fn, estado)
+	if not ok and not avisados[nombre] then
+		-- Una vez por sesión y por sitio: esto corre en cada sync, y un fallo
+		-- permanente llenaría la consola hasta tapar todo lo demás.
+		avisados[nombre] = true
+		warn("[Contrabando] fallo en " .. nombre .. ": " .. tostring(err))
+	end
+end
+
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	ultimoEstado = estado
 	refrescarSelector()
-	pcall(apuntarBrujula, estado)
-	pcall(Minimap.actualizar, estado)
+	intentar("apuntarBrujula", apuntarBrujula, estado)
+	intentar("Minimap.actualizar", Minimap.actualizar, estado)
 	-- La pila del muelle, que ES el contador del almacén. Protegida por su cuenta:
 	-- un fallo dibujando cajas no puede costar el HUD ni el selector de ruta.
 	pcall(function()

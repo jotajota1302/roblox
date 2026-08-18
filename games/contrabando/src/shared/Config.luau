@@ -157,16 +157,23 @@ Config.RAREZAS = {
 -- suelo plano, y el almacén acabó plantado encima de una pista de tenis de la
 -- ciudad -- lo dijo JJ jugando: "estaría bien que el almacén no estuviera encima
 -- de nada". El criterio bueno es más estricto y es el que se aplicó después: que
--- NO HAYA NADA de la ciudad por encima del suelo en 70 studs a la redonda, y que
--- haya una calle cerca. De 15 parcelas que lo cumplen, ésta es la que quedaba en
--- la esquina apartada, con una calle a 70 studs.
--- Elegido barriendo el mapa entero y puntuando por DOS cosas a la vez: cuánto
--- espacio libre hay alrededor (80 studs, el máximo que ofrece la ciudad) y cuánto
--- se aleja del centro (965). Lo segundo importa tanto como lo primero: en una
--- esquina de verdad nadie pasa por delante del almacén de camino a otra cosa, y
--- eso es lo que hace que salir signifique algo.
-Config.ALMACEN_POS = Vector3.new(-653, 21.8, 710)
-Config.TALLER_POS = Vector3.new(-653, 21.8, 600)
+-- NO HAYA NADA de la ciudad por encima del suelo en 70 studs a la redonda, que
+-- haya una calle cerca y, sobre todo, QUE EL SUELO SEA LLANO.
+--
+-- Lo tercero se aprendió caro. La primera elección puntuaba espacio libre y
+-- lejanía del centro, y salió una parcela con NUEVE STUDS de desnivel a lo largo
+-- de sus 90: la losa se apoyaba en el lado alto y por el bajo quedaba colgando en
+-- el aire sobre una calle, con un escalón infranqueable. En la foto de JJ jugando
+-- se ve el almacén flotando y a él en la carretera de debajo -- "el almacén no
+-- está bien posicionado en el mapa".
+--
+-- La parcela de ahora se eligió barriendo el cuadrante entero y midiendo el
+-- desnivel de la huella (92x92) además de todo lo anterior: 0,20 studs de
+-- diferencia entre su punto más alto y el más bajo, nada encima, y una calle a 40
+-- studs por el norte. La del taller y la de la salida se comprobaron igual (0,01
+-- y 0,20).
+Config.ALMACEN_POS = Vector3.new(-600, 19.2, 640)
+Config.TALLER_POS = Vector3.new(-600, 19.2, 530)
 
 -- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
 -- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles
@@ -326,6 +333,23 @@ Config.INTERCEPT_HZ = 5
 -- letra (su contenido sigue intocable), pero rompe el espíritu: la zona de partida
 -- tiene que ser segura.
 Config.ZONA_SEGURA_RADIO = 150
+
+-- EL RECINTO DEL ALMACÉN: la valla que no te deja salir a la ciudad con carga y
+-- sin destino elegido (ver Perimeter.luau, que tiene el porqué entero).
+--
+-- 130 studs no es un número redondo: es el mínimo que deja DENTRO las dos cosas
+-- que hay que poder hacer con la carga puesta -- la salida, donde se elige ruta
+-- (a 60 del almacén), y el taller, donde se compra vehículo (a 110). Con menos,
+-- la valla te separaría de la tienda justo cuando acabas de cargar; con más, se
+-- comería la zona segura y la valla aparecería en mitad de la ciudad.
+Config.RECINTO_RADIO = 130
+-- Paneles del anillo. Con menos de 20 la cuerda se separa tanto del arco que los
+-- paneles cortan por dentro del radio; con muchos más son piezas de sobra en un
+-- juego que tiene que ir en un móvil de gama baja.
+Config.RECINTO_PANELES = 24
+-- Alto: por encima del salto de Roblox con vehículo y con margen. Una valla que
+-- se salta es una valla que enseña a saltársela.
+Config.RECINTO_ALTO = 26
 
 -- Sonidos. Los efectos NO son decoración: son información. Que suene una alerta al
 -- acercarse un perseguidor es la diferencia entre persecución y emboscada injusta.

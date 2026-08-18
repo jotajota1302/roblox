@@ -7,26 +7,34 @@
 
 	  1. que la ruta exista (un id inventado no cobra nada)
 	  2. que lleve carga (elegir ruta sin nada encima no tiene sentido)
-	  3. que esté en la salida del almacén (no se cambia de ruta a mitad de viaje,
-	     que sería elegir la verde para pasar tranquilo y cambiar a roja al llegar)
+	  3. que esté DENTRO DEL RECINTO del almacén (no se cambia de ruta a mitad de
+	     viaje, que sería elegir la verde para pasar tranquilo y cambiar a roja al
+	     llegar)
 	  4. que no esté ya en ruta
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
--- Compartida con el cliente (Config.DISTANCIA_SALIDA): el selector de ruta sólo
--- aparece donde esta comprobación va a decir que sí.
-local DISTANCIA_SALIDA = Config.DISTANCIA_SALIDA
-
 local RouteService = {}
+
+-- La losa de salida sigue siendo el sitio donde el juego INVITA a elegir (allí se
+-- abre el selector solo), pero ya no es donde se valida: eso lo hace el recinto
+-- entero, unos pasos más allá. Se guarda igual porque el mundo la registra al
+-- arrancar y perder la referencia obligaría a buscarla por nombre el día que algo
+-- vuelva a necesitarla.
 local salida: BasePart? = nil
 
 function RouteService.registrarSalida(part: BasePart)
 	salida = part
+end
+
+function RouteService.getSalida(): BasePart?
+	return salida
 end
 
 function RouteService.elegir(player: Player, rutaId: string): boolean
@@ -44,10 +52,18 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not root or not salida then
+	if not root then
 		return false
 	end
-	if (root.Position - salida.Position).Magnitude > DISTANCIA_SALIDA then
+	-- EL RECINTO ENTERO, no los 40 studs de la losa de salida. El selector se abre
+	-- en dos sitios --la salida y la valla-- y la valla está a setenta studs de la
+	-- losa: con la comprobación vieja, el jugador que se plantaba delante de la
+	-- valla veía tres botones que el servidor rechazaba en silencio, que es
+	-- exactamente el fallo que esta ronda venía a quitar.
+	--
+	-- La regla que importa sigue en pie: fuera del recinto no se elige, así que no
+	-- se cambia de ruta a mitad de viaje.
+	if not Perimeter.dentro(root.Position, Config.ALMACEN_POS) then
 		return false
 	end
 

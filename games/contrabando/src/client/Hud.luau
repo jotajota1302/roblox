@@ -30,6 +30,7 @@ local calorFila: Frame
 local metaLabel: TextLabel
 local metaFila: Frame
 local avisoLabel: TextLabel
+local misionLabel: TextLabel
 local modal = false
 
 -- El acabado común de un botón: esquinas, borde del mismo color pero más oscuro
@@ -181,6 +182,53 @@ function Hud.build()
 	local avisoSize = Instance.new("UISizeConstraint")
 	avisoSize.MaxSize = Vector2.new(520, 46)
 	avisoSize.Parent = avisoLabel
+
+	-- LA MISIÓN: qué toca hacer AHORA, siempre en pantalla.
+	--
+	-- JJ, jugando: "si le das a 'ahora no' no sé dónde tengo que ir para volver".
+	-- El juego ya lo decía en dos sitios, y ninguno servía para eso: el aviso dura
+	-- tres segundos y la brújula dice a DÓNDE apunta, no QUÉ hay que hacer. Entre
+	-- una y otra quedaba el hueco donde vive el jugador nuevo -- el que ha cerrado
+	-- una pantalla y ya no sabe cómo volver a abrirla.
+	--
+	-- Va pegado bajo el panel de estado, en la misma columna: es información del
+	-- mismo tipo y leerla es un solo movimiento de ojos.
+	misionLabel = Instance.new("TextLabel")
+	misionLabel.Name = "Mision"
+	misionLabel.AnchorPoint = Vector2.new(0, 0)
+	misionLabel.Position = UDim2.fromScale(0.02, 0.235)
+	misionLabel.Size = UDim2.fromScale(0.34, 0.055)
+	misionLabel.BackgroundColor3 = UiKit.TINTA
+	misionLabel.BackgroundTransparency = 0.22
+	misionLabel.TextColor3 = UiKit.PAPEL
+	misionLabel.TextScaled = true
+	misionLabel.Font = Enum.Font.GothamBold
+	misionLabel.TextXAlignment = Enum.TextXAlignment.Left
+	misionLabel.TextStrokeTransparency = 0.6
+	misionLabel.Text = ""
+	misionLabel.Visible = false
+	misionLabel.Parent = gui
+	UiKit.redondear(misionLabel, 8)
+	UiKit.margen(misionLabel, 8)
+	UiKit.borde(misionLabel, Color3.fromRGB(90, 88, 96), 1.5, 0.35)
+
+	local misionSize = Instance.new("UISizeConstraint")
+	misionSize.MinSize = Vector2.new(150, 26)
+	misionSize.MaxSize = Vector2.new(300, 38)
+	misionSize.Parent = misionLabel
+end
+
+-- Lo que hay que hacer ahora, en una línea. La escribe Main.client, que es quien
+-- sabe en qué punto del bucle estás.
+function Hud.mision(texto: string, color: Color3?)
+	if not misionLabel then
+		return
+	end
+	misionLabel.Text = texto
+	misionLabel.TextColor3 = color or UiKit.PAPEL
+	-- Con el selector abierto no se enseña: la pregunta que hay delante ya es la
+	-- misión, y repetirla debajo sería ruido sobre la decisión.
+	misionLabel.Visible = texto ~= "" and not modal
 end
 
 export type EstadoHud = {
@@ -275,6 +323,10 @@ function Hud.setModal(activo: boolean)
 	end
 	if avisoLabel then
 		avisoLabel.Visible = not activo
+	end
+	-- Y la línea de misión con él: el selector ES la misión mientras está abierto.
+	if misionLabel then
+		misionLabel.Visible = not activo and misionLabel.Text ~= ""
 	end
 end
 

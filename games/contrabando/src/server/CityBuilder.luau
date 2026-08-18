@@ -19,6 +19,7 @@
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
@@ -197,49 +198,37 @@ end
 -- habilidad que el viaje tenía que pedir y no pedía.
 local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: Instance): { BasePart }
 	local origen = Config.ALMACEN_POS
-	local destino = ruta.destino
-	local rng = Random.new(#ruta.id * 7919) -- semilla del nombre: estable entre servidores
 	local puestos: { BasePart } = {}
 
-	-- El primer detector va SIEMPRE más allá de la zona segura, y esto no es un
-	-- ajuste fino: dentro de ese radio HeatService apaga el calor en cada muestra,
-	-- así que un detector plantado ahí es un poste decorativo que no dispara nunca.
-	-- Con el 15 % fijo que había antes, los tres de la ruta verde caían a 119 studs
-	-- --dentro de los 150 de la zona segura-- y la ruta de aprendizaje se quedaba
-	-- literalmente sin vigilancia, que es justo donde hay que aprender qué es.
-	local largo = (destino - origen).Magnitude
-	local tMin = math.min(0.55, (Config.ZONA_SEGURA_RADIO + 40) / math.max(largo, 1))
-
-	for i = 1, ruta.detectores do
-		-- Repartidos por el resto del trayecto, dejando también un respiro antes del
-		-- destino: llegar y que te detecten en la misma zancada sería quitarle al
-		-- jugador la decisión justo cuando ya la había ganado.
-		local t = tMin + (0.95 - tMin) * ((i - 0.5) / ruta.detectores)
-		local centro = origen:Lerp(destino, t)
-		-- Y desviados de la línea recta, si no serían una hilera de postes que se
-		-- esquiva andando en paralelo. La desviación crece con la densidad: en la
-		-- roja hay que cubrir el barrio, no una calle.
-		--
-		-- EL PRIMERO NO: va sobre el trayecto, sin desviar. Medido recorriendo la
-		-- ruta verde entera andando -- calor máximo 0, cero patrullas: sus tres
-		-- detectores estaban lo bastante dispersos como para no dispararse NUNCA. La
-		-- verde es la ruta donde se aprende qué es un detector y qué cuesta, y una
-		-- ruta de aprendizaje que no llega a enseñar nada deja al jugador
-		-- descubriendo el sistema en la ámbar, donde ya duele. Uno garantizado, el
-		-- resto a esquivar: eso es enseñar sin castigar.
-		local ancho = 60 + ruta.detectores * 8
-		local desvio = if i == 1 then 0 else ancho
-		local x = centro.X + rng:NextNumber(-desvio, desvio)
-		local z = centro.Z + rng:NextNumber(-desvio, desvio)
+	-- DÓNDE van los postes lo decide Detectors, que es puro y está probado. Aquí
+	-- sólo se bajan al suelo y se construyen.
+	--
+	-- La cuenta que vive allí es la que este fichero se saltó dos veces: si el
+	-- desvío respecto al camino es mayor que el radio de detección, la vigilancia
+	-- no vigila nada. Medido antes del cambio: la ruta roja entera, andada de punta
+	-- a punta, daba CALOR 0 con dieciocho detectores plantados.
+	for i, sitio in Detectors.sitios(origen, ruta.destino, ruta.detectores) do
+		local x, z = sitio.posicion.X, sitio.posicion.Z
 
 		-- Suelo de CALLE, no lo primero que toque el rayo: la mitad de los postes
 		-- acababa en tejados, donde no se disparan nunca (ver sueloTransitable).
-		local y
-		y, x, z = sueloTransitable(ciudad, x, z)
+		--
+		-- Pero al del CORREDOR se le busca calle en corto: si se le deja vagar cien
+		-- studs buscando asfalto acaba fuera del alcance del camino, que es
+		-- justamente lo que venía a garantizar. Antes que eso, se queda donde está.
+		local y, cx, cz = sueloTransitable(ciudad, x, z)
+		if y ~= nil and sitio.enElCorredor then
+			local desplazado = math.sqrt((cx - x) ^ 2 + (cz - z) ^ 2)
+			if desplazado > Config.DETECTOR_RADIO then
+				y = sueloDeLaCiudad(ciudad, x, z)
+				cx, cz = x, z
+			end
+		end
+		x, z = cx, cz
 		if y == nil then
-			-- Ni siquiera hay calle cerca (un hueco entre parcelas): se cae a la
-			-- línea del trayecto, que sí la tiene, en vez de plantar un poste
-			-- flotando en el vacío.
+			-- Ni siquiera hay suelo (un hueco entre parcelas): se cae a la línea del
+			-- trayecto, que sí lo tiene, en vez de plantar un poste en el vacío.
+			local centro = origen:Lerp(ruta.destino, (i - 0.5) / math.max(ruta.detectores, 1))
 			y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
 			x, z = centro.X, centro.Z
 		end
@@ -420,6 +409,123 @@ end
 -- ése es el único momento en que importa. De ahí el pilar de luz: cuando te
 -- persiguen no vas a leer un cartel, vas a buscar una referencia de color en el
 -- horizonte. Es la misma razón por la que los destinos llevan baliza.
+-- EL CONCESIONARIO. Antes era una losa amarilla con un aviso encima, y la
+-- consecuencia la dijo JJ jugando: "no sé dónde se compran los vehículos, debería
+-- haber como un concesionario, ¿o es un menú de compras?". Las dos preguntas
+-- salen del mismo sitio: el único sumidero de dinero del juego no se parecía a
+-- nada, así que no había forma de saber que estaba ahí ni de qué era.
+--
+-- Un edificio con techo, escaparate iluminado y tres coches expuestos se reconoce
+-- desde la otra acera sin leer nada, que es lo que tiene que pasar: el taller es
+-- el sitio al que va el dinero, y ver a dónde va tu dinero es la mitad del motivo
+-- para hacer otro viaje.
+--
+-- Todo con Part y a propósito: los meshes del catálogo de vehículos no cargan
+-- mientras el place no esté publicado, y un escaparate vacío no vendería nada.
+local function concesionario(base: Part, padre: Instance)
+	local CHAPA = Color3.fromRGB(214, 206, 186)
+	local MARCO = Color3.fromRGB(120, 96, 52)
+	local suelo = base.Position.Y + base.Size.Y / 2
+	local ancho, largo, alto = 40, 26, 15
+
+	local function pieza(nombre: string, tamano: Vector3, offset: Vector3, color: Color3): Part
+		local p = part(nombre, tamano, Vector3.new(base.Position.X, suelo, base.Position.Z) + offset, color, padre)
+		p.Material = Enum.Material.SmoothPlastic
+		return p
+	end
+
+	-- Un cobertizo abierto por delante: dos laterales, fondo, techo y marquesina.
+	pieza("TallerIzq", Vector3.new(1.2, alto, largo), Vector3.new(-ancho / 2, alto / 2, 0), CHAPA)
+	pieza("TallerDer", Vector3.new(1.2, alto, largo), Vector3.new(ancho / 2, alto / 2, 0), CHAPA)
+	pieza("TallerFondo", Vector3.new(ancho, alto, 1.2), Vector3.new(0, alto / 2, -largo / 2), CHAPA)
+	pieza("TallerTecho", Vector3.new(ancho + 6, 1.2, largo + 8), Vector3.new(0, alto, 2), MARCO)
+	local rotulo = pieza("TallerRotulo", Vector3.new(ancho, 3.4, 1), Vector3.new(0, alto + 2, largo / 2 + 5), MARCO)
+
+	-- El rótulo, en las dos caras: se llega por delante y por detrás.
+	for _, giro in { 0, 180 } do
+		local cartel = Instance.new("SurfaceGui")
+		cartel.Name = "Rotulo" .. giro
+		cartel.Face = if giro == 0 then Enum.NormalId.Front else Enum.NormalId.Back
+		cartel.CanvasSize = Vector2.new(800, 90)
+		cartel.Adornee = rotulo
+		cartel.Parent = rotulo
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBlack
+		texto.Text = "VEHÍCULOS"
+		texto.Parent = cartel
+	end
+
+	-- Tres expositores con los vehículos de la escalera, del más barato al más
+	-- caro, cada uno con su nombre y su precio. Es el escaparate: enseñar lo que
+	-- todavía no puedes pagar es lo que le da destino al dinero.
+	local escaparate = { Config.VEHICULOS[2], Config.VEHICULOS[6], Config.VEHICULOS[9] }
+	for i, vehiculo in escaparate do
+		if vehiculo == nil then
+			continue
+		end
+		local x = (i - 2) * 12
+		local podio = pieza("Podio" .. i, Vector3.new(9, 1.2, 9), Vector3.new(x, 0.6, -2), Color3.fromRGB(88, 86, 92))
+		-- Una silueta tosca basta: lo que vende es el nombre y el precio de debajo,
+		-- y una caja de color se lee como "aquí hay algo" desde la calle.
+		local bulto = pieza(
+			"Expuesto" .. i,
+			Vector3.new(5.5, 3 + i, 8),
+			Vector3.new(x, 1.2 + (3 + i) / 2, -2),
+			Palette.ruta(if i == 1 then "verde" elseif i == 2 then "ambar" else "roja")
+		)
+		bulto.Material = Enum.Material.Metal
+
+		local etiqueta = Instance.new("BillboardGui")
+		etiqueta.Name = "Precio"
+		etiqueta.Size = UDim2.fromScale(9, 2.6)
+		etiqueta.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
+		etiqueta.AlwaysOnTop = false
+		etiqueta.MaxDistance = 160
+		etiqueta.Adornee = bulto
+		etiqueta.Parent = bulto
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
+		texto.TextStrokeTransparency = 0.35
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = string.format("%s  ·  %d", vehiculo.nombre, vehiculo.coste)
+		texto.Parent = etiqueta
+		podio.Material = Enum.Material.Concrete
+	end
+
+	-- Luz de escaparate: sin ella, bajo el techo los tres expositores son bultos
+	-- negros y el edificio parece cerrado.
+	local plafon =
+		pieza("TallerLuz", Vector3.new(10, 0.5, 2), Vector3.new(0, alto - 1.5, 0), Color3.fromRGB(240, 232, 210))
+	plafon.CanCollide = false
+	local luz = Instance.new("PointLight")
+	luz.Color = Color3.fromRGB(255, 236, 200)
+	luz.Range = 42
+	luz.Brightness = 1.6
+	luz.Parent = plafon
+
+	-- Y su baliza, como la de la salida: hay que poder encontrarlo desde el otro
+	-- lado del recinto sin dar vueltas.
+	local baliza = part(
+		"Baliza_Taller",
+		Vector3.new(5, 46, 5),
+		Vector3.new(base.Position.X, suelo + 23, base.Position.Z),
+		Palette.TALLER,
+		padre
+	)
+	baliza.CanCollide = false
+	baliza.Material = Enum.Material.Neon
+	baliza.Transparency = 0.25
+end
+
 local function refugio(ciudad: Instance?, indice: number, centro: Vector3, padre: Instance): BasePart?
 	local y, x, z = sueloTransitable(ciudad, centro.X, centro.Z)
 	if y == nil then
@@ -603,11 +709,42 @@ function CityBuilder.build(): Mundo
 		mundo
 	)
 
+	-- Y su baliza, que es lo que la convierte en un sitio al que se puede VOLVER.
+	-- Los tres destinos tenían la suya desde el principio y la salida no, y eso
+	-- dejaba el peor hueco posible: la única losa que hay que encontrar con la
+	-- carga puesta era también la única invisible. Más baja que las de destino
+	-- (60 studs frente a 300) porque se busca desde dentro del recinto, no desde
+	-- el otro extremo del mapa.
+	local balizaSalida =
+		part("Baliza_Salida", Vector3.new(6, 60, 6), salida.Position + Vector3.new(0, 30, 0), Palette.SALIDA, mundo)
+	balizaSalida.CanCollide = false
+	balizaSalida.Material = Enum.Material.Neon
+
+	local cartelSalida = Instance.new("BillboardGui")
+	cartelSalida.Name = "Cartel"
+	cartelSalida.Size = UDim2.fromScale(20, 6)
+	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 36, 0)
+	cartelSalida.AlwaysOnTop = false
+	cartelSalida.MaxDistance = 400
+	cartelSalida.Adornee = balizaSalida
+	cartelSalida.Parent = balizaSalida
+
+	local textoSalida = Instance.new("TextLabel")
+	textoSalida.Size = UDim2.fromScale(1, 1)
+	textoSalida.BackgroundTransparency = 1
+	textoSalida.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textoSalida.TextStrokeTransparency = 0.2
+	textoSalida.TextScaled = true
+	textoSalida.Font = Enum.Font.GothamBold
+	textoSalida.Text = "SALIDA  ·  elige destino"
+	textoSalida.Parent = cartelSalida
+
 	-- El taller, al otro lado: pasar por delante de la tienda al salir convertiría
 	-- la mejora en un anuncio, pero está DENTRO de la zona segura, así que nadie
 	-- puede emboscar a quien compra.
-	local taller = losa(ciudad, "Taller", Vector3.new(40, ALTO_LOSA, 40), Config.TALLER_POS, Palette.TALLER, mundo)
-	prompt(taller, "Comprar vehículo", "Taller", 24).Name = "PromptTaller"
+	local taller = losa(ciudad, "Taller", Vector3.new(46, ALTO_LOSA, 46), Config.TALLER_POS, Palette.TALLER, mundo)
+	prompt(taller, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
+	concesionario(taller, mundo)
 
 	local destinos: { BasePart } = {}
 	local detectores: { BasePart } = {}

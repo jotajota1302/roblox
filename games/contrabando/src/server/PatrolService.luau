@@ -113,6 +113,107 @@ local function vehiculoDelPerseguidor(vehiculoDelJugador: string?): string?
 	return if Ride.existe(suyo.id) then suyo.id else nil
 end
 
+-- CÓMO SE VE UN LADRÓN, que es lo primero que preguntó JJ después de jugar: "no
+-- veo a los ladrones con su zona de detección" y "los diseños de los ladrones
+-- están poco trabajados".
+--
+-- Las dos cosas son el mismo problema. Un muñeco oscuro entre muñecos de bloques
+-- no se distingue de un peatón, y lo que hace falta saber cuando aparece uno no
+-- es que es "malo": es CUÁNTO TIENE QUE ACERCARSE para quitarte la carga. Ese
+-- número existe (Config.PATRULLA_ALCANCE, seis studs) y hasta ahora no se veía
+-- por ningún lado, así que el robo llegaba sin aviso y parecía arbitrario.
+--
+-- Todo con Part, nada de mallas: los meshes no cargan sin publicar el place (ver
+-- CLAUDE.md), y un ladrón invisible sería peor que uno tosco.
+local function pieza(nombre: string, tamano: Vector3, color: Color3, padre: Instance): BasePart
+	local p = Instance.new("Part")
+	p.Name = nombre
+	p.Size = tamano
+	p.Color = color
+	p.Material = Enum.Material.SmoothPlastic
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.Parent = padre
+	return p
+end
+
+local function pegar(pieza: BasePart, a: BasePart, offset: CFrame)
+	pieza.CFrame = a.CFrame * offset
+	local soldadura = Instance.new("WeldConstraint")
+	soldadura.Part0 = a
+	soldadura.Part1 = pieza
+	soldadura.Parent = pieza
+end
+
+local function vestir(modelo: Model)
+	local cabeza = modelo:FindFirstChild("Head") :: BasePart?
+	local torso = modelo:FindFirstChild("Torso") :: BasePart?
+	local raiz = modelo:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+	if cabeza then
+		-- Gorro y antifaz: dos piezas y el muñeco genérico pasa a ser un tipo con
+		-- la cara tapada. Es lo mínimo que se lee a treinta metros.
+		local gorro = pieza("Gorro", Vector3.new(2.1, 0.8, 1.3), Color3.fromRGB(28, 28, 34), modelo)
+		pegar(gorro, cabeza, CFrame.new(0, 0.75, 0))
+		local visera = pieza("Visera", Vector3.new(2.1, 0.25, 0.9), Color3.fromRGB(20, 20, 24), modelo)
+		pegar(visera, cabeza, CFrame.new(0, 0.42, -0.9))
+		local antifaz = pieza("Antifaz", Vector3.new(2.05, 0.6, 1.25), Color3.fromRGB(18, 18, 22), modelo)
+		pegar(antifaz, cabeza, CFrame.new(0, -0.05, 0))
+	end
+
+	if torso then
+		-- La mochila del botín: dice qué viene a hacer sin una palabra.
+		local mochila = pieza("Mochila", Vector3.new(1.6, 1.7, 0.9), Color3.fromRGB(64, 46, 34), modelo)
+		pegar(mochila, torso, CFrame.new(0, 0.1, 0.85))
+		local correa = pieza("Correa", Vector3.new(2.1, 0.35, 1.15), Color3.fromRGB(30, 26, 24), modelo)
+		pegar(correa, torso, CFrame.new(0, 0.5, 0))
+	end
+
+	if raiz then
+		-- EL ANILLO DE ALCANCE, pegado a los pies. Es su "zona de detección" hecha
+		-- visible: dentro de este círculo te roba, fuera no. Con él, la persecución
+		-- pasa de "aparece un mensaje y pierdes la mitad" a un juego de distancias
+		-- que se puede leer mientras corres.
+		local anillo = pieza(
+			"Alcance",
+			Vector3.new(0.3, Config.PATRULLA_ALCANCE * 2, Config.PATRULLA_ALCANCE * 2),
+			Color3.fromRGB(255, 70, 60),
+			modelo
+		)
+		anillo.Shape = Enum.PartType.Cylinder
+		anillo.Material = Enum.Material.Neon
+		anillo.Transparency = 0.72
+		anillo.CastShadow = false
+		-- El cilindro de Roblox crece a lo largo de su eje X, así que hay que
+		-- tumbarlo un cuarto de vuelta para que quede como un disco en el suelo.
+		pegar(anillo, raiz, CFrame.new(0, -2.9, 0) * CFrame.Angles(0, 0, math.rad(90)))
+
+		-- Y su nombre, para que se distinga de un peatón en una ciudad llena de
+		-- muñecos. Sin AlwaysOnTop, igual que las placas de los jugadores: si se
+		-- viera a través de los edificios, esconderse dejaría de servir de nada.
+		local placa = Instance.new("BillboardGui")
+		placa.Name = "Placa"
+		placa.Size = UDim2.fromScale(4, 1.1)
+		placa.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
+		placa.AlwaysOnTop = false
+		placa.MaxDistance = 180
+		placa.Adornee = cabeza or raiz
+		placa.Parent = cabeza or raiz
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 96, 86)
+		texto.TextStrokeTransparency = 0.3
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = "LADRÓN"
+		texto.Parent = placa
+	end
+end
+
 local function crearAgente(donde: Vector3, velocidad: number, vehiculo: string?): Patrulla?
 	local ok, resultado = pcall(function()
 		local descripcion = Instance.new("HumanoidDescription")
@@ -144,6 +245,8 @@ local function crearAgente(donde: Vector3, velocidad: number, vehiculo: string?)
 				parte.Material = Enum.Material.SmoothPlastic
 			end
 		end
+
+		vestir(modelo)
 
 		local cabeza = modelo:FindFirstChild("Head")
 		if cabeza and cabeza:IsA("BasePart") then

@@ -384,14 +384,42 @@ local function cobrar(player: Player, destino: BasePart)
 		--
 		-- SIEMPRE pequeñas (nivel 1): si hiciera falta vehículo para moverlas, el
 		-- jugador nuevo volvería de vacío igual y no habríamos arreglado nada.
+		--
+		-- Y SE SUBEN SOLAS al zurrón, igual que la entrega se cobra sola. La primera
+		-- versión las dejaba en el suelo esperando a que las recogieras, y eso
+		-- producía justo lo que contó JJ jugando: "en la vuelta al almacén la
+		-- brújula sigue apuntando al primer destino". No era un fallo de la brújula
+		-- -- apuntaba a la carga que se había dejado atrás-- pero da igual: si el
+		-- juego tiene que explicar por qué su flecha señala el sitio del que acabas
+		-- de salir, la flecha está mal. Nadie entrega y decide NO llevarse el
+		-- encargo de vuelta.
 		estado.retorno = {}
+		local capacidad = Cargo.capacidad(estado.vehiculo)
+		local subidas = 0
 		for _ = 1, Config.RETORNO_PIEZAS do
-			table.insert(estado.retorno, CargoService.nuevaCaja(1))
+			local pieza = CargoService.nuevaCaja(1)
+			if Cargo.cabe(estado.cajas, pieza, capacidad, estado.vehiculo) then
+				table.insert(estado.cajas, pieza)
+				subidas += 1
+			else
+				-- Lo que no cabe se queda en el muelle del destino, con su aviso: es
+				-- el caso raro (zurrón lleno de carga robada) y ahí sí toca elegir.
+				table.insert(estado.retorno, pieza)
+			end
 		end
 		estado.retornoZona = rutaDelDestino
+		if subidas > 0 then
+			task.delay(0.8, function()
+				avisar(player, string.format("Cargas %d bultos de vuelta al almacén", subidas), Palette.AVISO_BUENO)
+			end)
+		end
 	end
 
 	PlayerState.sync(player)
+	-- La carga de vuelta se acaba de subir al zurrón DESPUÉS de vaciarlo, así que
+	-- el cuerpo sigue pintado vacío: sin este repintado, el jugador vería el mismo
+	-- personaje de manos libres mientras el HUD le dice que lleva tres bultos.
+	CargoService.mostrarCarga(player)
 	Telemetry.evento(player, "entrega", {
 		ruta = rutaDelDestino,
 		cajas = #cajas,

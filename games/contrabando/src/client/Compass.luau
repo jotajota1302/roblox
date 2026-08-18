@@ -110,10 +110,27 @@ function Compass.build()
 
 	marco = panel
 
-	RunService.RenderStepped:Connect(function()
-		local ok = pcall(Compass.refrescar)
-		if not ok and panel then
-			panel.Visible = false
+	local avisado = false
+	-- HEARTBEAT Y NO RenderStepped. Los dos van al ritmo del monitor, pero
+	-- RenderStepped SÓLO corre mientras el cliente dibuja: con la ventana en
+	-- segundo plano se para en seco, y con ella la brújula entera -- se queda
+	-- apagada, sin error y sin girar, exactamente igual que si no hubiera destino.
+	-- Medido en Studio: cero llamadas por segundo con el cliente sin foco. Es una
+	-- pieza de información, no una animación; que dependa del foco de la ventana
+	-- sólo puede dar disgustos.
+	RunService.Heartbeat:Connect(function()
+		local ok, err = pcall(Compass.refrescar)
+		if not ok then
+			if panel then
+				panel.Visible = false
+			end
+			-- Una sola vez: esto corre sesenta veces por segundo. Pero que se oiga
+			-- ALGUNA: apagar la brújula en silencio deja el mismo aspecto que "no hay
+			-- destino", y esa confusión ya costó una tarde de diagnóstico.
+			if not avisado then
+				avisado = true
+				warn("[Contrabando] la brujula fallo: " .. tostring(err))
+			end
 		end
 	end)
 end
@@ -145,9 +162,24 @@ function Compass.refrescar()
 
 	panel.Visible = true
 
+	-- El rótulo y el color, ANTES de mirar la distancia. Si se dejan para después,
+	-- plantarse encima del objetivo (que es lo que pasa al llegar al almacén) sale
+	-- por el return de abajo con la etiqueta del destino ANTERIOR puesta: la
+	-- brújula se queda diciendo "de vuelta al almacén" cuando ya estás en él.
+	if titulo then
+		titulo.Text = etiqueta
+		titulo.TextColor3 = tono
+	end
+	if aguja then
+		aguja.TextColor3 = tono
+	end
+
 	local haciaAlla = destino - root.Position
 	local plano = Vector3.new(haciaAlla.X, 0, haciaAlla.Z)
 	if plano.Magnitude < 1 then
+		if distancia then
+			distancia.Text = "aquí"
+		end
 		return
 	end
 
@@ -164,11 +196,6 @@ function Compass.refrescar()
 
 	if aguja then
 		aguja.Rotation = giro
-		aguja.TextColor3 = tono
-	end
-	if titulo then
-		titulo.Text = etiqueta
-		titulo.TextColor3 = tono
 	end
 	if distancia then
 		-- En "m" aunque sean studs: es la unidad que el jugador entiende, y el
