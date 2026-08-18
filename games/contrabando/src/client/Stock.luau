@@ -21,13 +21,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Goods = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goods"))
+local GoodsLook = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GoodsLook"))
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rarity"))
-
--- Los tonos de los detalles. Van aquí y no repartidos por los `if` para que
--- cambiar el aspecto de la mercancía sea tocar cuatro líneas y no buscarlas.
-local MADERA_OSCURA = Color3.fromRGB(96, 72, 44)
-local METAL_OSCURO = Color3.fromRGB(58, 62, 70)
-local DORADO = Color3.fromRGB(212, 172, 82)
 
 local Stock = {}
 local carpeta: Folder? = nil
@@ -83,7 +78,6 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto
 	for i = 1, math.min(#lote, #lista) do
 		local rareza = lote[i].rareza
 		local objeto = lote[i].objeto
-		local aspecto = Rarity.aspecto(rareza)
 
 		local caja = Instance.new("Part")
 		caja.Name = "CajaAlmacen" .. i
@@ -125,84 +119,12 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto
 		aviso.RequiresLineOfSight = false
 		aviso.Parent = caja
 
-		-- Los detalles que separan un objeto de un cubo. Son dos piezas por objeto y
-		-- cambian por completo lo que parece: "el tema objetos que se llevan, que
-		-- son todo cajas" (JJ). Van sin colisión y ancladas a la pieza madre.
-		local function adorno(nombre: string, tamano: Vector3, offset: Vector3, color: Color3, material: Enum.Material)
-			local d = Instance.new("Part")
-			d.Name = nombre
-			d.Size = tamano
-			d.Color = color
-			d.Material = material
-			d.Anchored = true
-			d.CanCollide = false
-			d.CFrame = caja.CFrame * CFrame.new(offset)
-			d.Parent = caja
-			return d
-		end
-
-		local lado = caja.Size
-		local forma = (objeto and Goods.get(objeto) and (Goods.get(objeto) :: any).forma) or "cajon"
-		if forma == "cajon" or forma == "baul" then
-			-- Flejes cruzados: dos listones y el cubo pasa a ser un cajón.
-			adorno(
-				"Fleje1",
-				Vector3.new(lado.X + 0.1, 0.45, lado.Z + 0.1),
-				Vector3.new(0, lado.Y * 0.22, 0),
-				MADERA_OSCURA,
-				Enum.Material.Wood
-			)
-			adorno(
-				"Fleje2",
-				Vector3.new(lado.X + 0.1, 0.45, lado.Z + 0.1),
-				Vector3.new(0, -lado.Y * 0.22, 0),
-				MADERA_OSCURA,
-				Enum.Material.Wood
-			)
-		elseif forma == "maletin" or forma == "joyero" then
-			-- Asa arriba y cierre delante: se lee como maletín al instante.
-			adorno(
-				"Asa",
-				Vector3.new(lado.X * 0.4, 0.5, 0.5),
-				Vector3.new(0, lado.Y * 0.6, 0),
-				METAL_OSCURO,
-				Enum.Material.Metal
-			)
-			adorno(
-				"Cierre",
-				Vector3.new(lado.X * 0.9, 0.35, 0.2),
-				Vector3.new(0, 0, lado.Z * 0.5),
-				METAL_OSCURO,
-				Enum.Material.Metal
-			)
-		elseif forma == "nevera" or forma == "television" then
-			-- Refuerzos en las esquinas: la silueta de algo blindado.
-			for k, e in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
-				adorno(
-					"Refuerzo" .. k,
-					Vector3.new(0.6, lado.Y + 0.1, 0.6),
-					Vector3.new(e[1] * lado.X * 0.45, 0, e[2] * lado.Z * 0.45),
-					METAL_OSCURO,
-					Enum.Material.Metal
-				)
-			end
-		elseif forma == "urna" or forma == "estatua" then
-			-- Base y tapa: una urna es lo único que no debería parecer una caja.
-			adorno(
-				"Base",
-				Vector3.new(lado.X * 1.25, 0.5, lado.Z * 1.25),
-				Vector3.new(0, -lado.Y * 0.5, 0),
-				DORADO,
-				Enum.Material.Metal
-			)
-			adorno(
-				"Tapa",
-				Vector3.new(lado.X * 0.7, lado.Y * 0.25, lado.Z * 0.7),
-				Vector3.new(0, lado.Y * 0.6, 0),
-				DORADO,
-				Enum.Material.Metal
-			)
-		end
+		-- Los detalles que separan un objeto de un cubo: flejes, asas, aros, la
+		-- planta de la maceta. Los pone GoodsLook, que es también quien dibuja el
+		-- bulto que llevas a la espalda -- antes eran dos códigos distintos y un
+		-- objeto podía llevar flejes en el suelo y ser un cubo pelado en cuanto lo
+		-- cogías.
+		GoodsLook.adornar(caja, objeto)
 
 		-- Qué es y cuánto multiplica, escrito encima. Es el dato de la decisión: sin
 		-- él, elegir entre la urna y tres cajones sería elegir por la forma, a
@@ -270,6 +192,7 @@ function Stock.actualizarRetorno(piezas: { { rareza: string, objeto: string? } }
 		caja.Anchored = true
 		caja.CanCollide = false
 		caja.Parent = f
+		GoodsLook.adornar(caja, pieza.objeto)
 
 		local aviso = Instance.new("ProximityPrompt")
 		aviso.Name = "PromptCaja"

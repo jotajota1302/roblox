@@ -13,6 +13,7 @@ local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
+local GoodsLook = require(game.ReplicatedStorage.Shared.GoodsLook)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
@@ -186,6 +187,10 @@ function CargoService.mostrarCarga(player: Player)
 		weld.Part0 = root
 		weld.Part1 = p
 		weld.Parent = p
+
+		-- Y sus detalles, los mismos que tenía en el suelo del muelle: soldados,
+		-- porque a la espalda del jugador todo se mueve.
+		GoodsLook.adornar(p, caja.objeto, true)
 	end
 
 	-- QUÉ llevas, escrito encima. Una sola etiqueta para todo el bulto, con la
