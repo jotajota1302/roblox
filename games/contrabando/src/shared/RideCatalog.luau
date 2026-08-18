@@ -34,7 +34,13 @@ export type Modelo = {
 	-- Medida en studs. Los originales vienen a escalas absurdas -- el coche medía
 	-- 50 studs de largo y la moto 3 -- así que la medida de juego se fija aquí y no
 	-- se hereda del autor.
+	-- El alto de aquí NO es decorativo: es el TOPE. La escala se queda con el
+	-- menor de los dos factores (largo y alto), para que una malla casi cúbica no
+	-- acabe midiendo lo mismo de alto que de largo.
 	tamano: Vector3,
+	-- `doble` para lo que va de dos en dos: los patines son una sola malla y hay
+	-- que clonarla, uno por pie.
+	doble: boolean?,
 	-- Desplazamiento respecto al centro del personaje y giro en grados. Cada autor
 	-- modela mirando hacia donde le parece, y sin esto la mitad van de lado.
 	offset: Vector3,
@@ -59,21 +65,22 @@ RideCatalog.MODELOS = {
 	patines = {
 		mesh = "rbxassetid://85333403995294",
 		textura = "rbxassetid://121874462881181",
-		tamano = Vector3.new(2.4, 1.6, 2.6),
+		tamano = Vector3.new(1.1, 1.0, 2.0),
+		doble = true,
 		offset = Vector3.new(0, -2.6, 0),
 		giroY = 0,
 	},
 	monopatin = {
 		mesh = "rbxassetid://136682752722782",
 		textura = "rbxassetid://85379852016686",
-		tamano = Vector3.new(1.8, 0.9, 4.4),
+		tamano = Vector3.new(1.8, 1.1, 4.0),
 		offset = Vector3.new(0, -2.9, 0),
 		giroY = 0,
 	},
 	patinete = {
 		mesh = "rbxassetid://119645081769748",
 		textura = "rbxassetid://71699102265311",
-		tamano = Vector3.new(1.6, 3.8, 4.6),
+		tamano = Vector3.new(1.6, 3.0, 3.6),
 		-- Bajo y algo retrasado: colocado al centro, el manillar le quedaba al
 		-- conductor a la altura del pecho y la plataforma por delante de los pies.
 		offset = Vector3.new(0, -2, -0.7),
@@ -82,7 +89,7 @@ RideCatalog.MODELOS = {
 	patinete_electrico = {
 		mesh = "rbxassetid://118747264146015",
 		textura = "rbxassetid://116829806666752",
-		tamano = Vector3.new(1.8, 4, 5),
+		tamano = Vector3.new(1.8, 3.2, 4.0),
 		offset = Vector3.new(0, -1.9, -0.7),
 		giroY = 0,
 	},
@@ -92,7 +99,7 @@ RideCatalog.MODELOS = {
 	bicicleta = {
 		mesh = "rbxassetid://475108790",
 		textura = "rbxassetid://475108895",
-		tamano = Vector3.new(2, 4, 6),
+		tamano = Vector3.new(2.0, 3.4, 6.0),
 		offset = Vector3.new(0, -1.4, 0),
 		giroX = -90,
 		giroY = 90,
@@ -100,7 +107,7 @@ RideCatalog.MODELOS = {
 	moto = {
 		mesh = "rbxassetid://7951986269",
 		textura = "rbxassetid://7951986376",
-		tamano = Vector3.new(2.2, 3, 6.5),
+		tamano = Vector3.new(2.2, 2.8, 6.5),
 		offset = Vector3.new(0, -1.9, 0),
 		giroY = 0,
 	},

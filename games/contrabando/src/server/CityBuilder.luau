@@ -612,7 +612,9 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	local CHAPA = Color3.fromRGB(214, 206, 186)
 	local MARCO = Color3.fromRGB(120, 96, 52)
 	local suelo = base.Position.Y + base.Size.Y / 2
-	local ancho, largo, alto = 40, 26, 15
+	-- Grande de verdad: tiene que caber el escaparate Y el garaje entero (ocho
+	-- vehículos), y con 40x26 las plazas se salían por detrás del cobertizo.
+	local ancho, largo, alto = 72, 44, 17
 
 	local function pieza(nombre: string, tamano: Vector3, offset: Vector3, color: Color3): Part
 		local p = part(
@@ -655,12 +657,12 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	-- Tres expositores con los vehículos de la escalera, del más barato al más
 	-- caro, cada uno con su nombre y su precio. Es el escaparate: enseñar lo que
 	-- todavía no puedes pagar es lo que le da destino al dinero.
-	local escaparate = { Config.VEHICULOS[2], Config.VEHICULOS[6], Config.VEHICULOS[9] }
+	local escaparate = { Config.VEHICULOS[2], Config.VEHICULOS[5], Config.VEHICULOS[7], Config.VEHICULOS[9] }
 	for i, vehiculo in escaparate do
 		if vehiculo == nil then
 			continue
 		end
-		local x = (i - 2) * 12
+		local x = (i - 2.5) * 16
 		local podio = pieza("Podio" .. i, Vector3.new(9, 1.2, 9), Vector3.new(x, 0.6, -2), Color3.fromRGB(88, 86, 92))
 		-- Una silueta tosca basta: lo que vende es el nombre y el precio de debajo,
 		-- y una caja de color se lee como "aquí hay algo" desde la calle.
@@ -708,11 +710,14 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	-- almacén. Los vehículos que hay en ellas NO se construyen aquí: son los de
 	-- CADA jugador, así que los dibuja el cliente. Un garaje construido en el
 	-- servidor enseñaría la moto de otro.
-	local plazas = 4
+	-- UNA PLAZA POR VEHÍCULO COMPRABLE: si el garaje tuviera menos sitios que
+	-- vehículos, comprar el noveno haría desaparecer a otro de la vista sin decir
+	-- nada.
+	local plazas = #Config.VEHICULOS - 1
 	for i = 1, plazas do
 		base:SetAttribute(
 			"plaza" .. i,
-			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 13 * frente)
+			Vector3.new(base.Position.X + (i - (plazas + 1) / 2) * 11, suelo + 0.5, base.Position.Z + 17 * frente)
 		)
 	end
 	base:SetAttribute("plazas", plazas)
@@ -1002,7 +1007,7 @@ function CityBuilder.build(): Mundo
 	local talleres: { BasePart } = {}
 
 	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
-	local taller = losa(ciudad, "Taller", Vector3.new(46, ALTO_LOSA, 46), Config.TALLER_POS, Palette.TALLER, mundo)
+	local taller = losa(ciudad, "Taller", Vector3.new(96, ALTO_LOSA, 60), Config.TALLER_POS, Palette.TALLER, mundo)
 	prompt(taller, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
 	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
@@ -1037,7 +1042,7 @@ function CityBuilder.build(): Mundo
 				local candidato = ruta.destino + Vector3.new(math.cos(angulo) * 58, 0, math.sin(angulo) * 58)
 				local y = sueloDeLaCiudad(ciudad, candidato.X, candidato.Z)
 				if y ~= nil then
-					local libre = despejarCuenta(ciudad, Vector3.new(candidato.X, y, candidato.Z), 70)
+					local libre = despejarCuenta(ciudad, Vector3.new(candidato.X, y, candidato.Z), 110)
 					if libre == 0 then
 						sitio = Vector3.new(candidato.X, y, candidato.Z)
 						break
@@ -1045,9 +1050,9 @@ function CityBuilder.build(): Mundo
 				end
 			end
 			if sitio ~= nil then
-				despejar(ciudad, sitio, 70, 45)
+				despejar(ciudad, sitio, 110, 45)
 				local tallerZona =
-					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(46, ALTO_LOSA, 46), sitio, Palette.TALLER, mundo)
+					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(96, ALTO_LOSA, 60), sitio, Palette.TALLER, mundo)
 				prompt(tallerZona, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.
 				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
@@ -1102,13 +1107,21 @@ function CityBuilder.build(): Mundo
 	-- Los refugios, uno por cada sitio que propone Shelter para cada ruta. Se
 	-- plantan DESPUÉS de los destinos porque sólo tienen sentido sobre un trayecto
 	-- que ya existe.
-	local refugios: { Vector3 } = {}
+	-- LOS REFUGIOS. Se juntan las propuestas de las tres rutas y se pasan por
+	-- Shelter.repartir, que descarta los que caen demasiado cerca de otro: cada
+	-- ruta propone a ciegas y dos que pasen cerca plantarían los suyos casi
+	-- pegados.
+	local propuestas: { Vector3 } = {}
 	for _, ruta in Routes.todas() do
 		for _, sitio in Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.REFUGIOS_POR_RUTA) do
-			local pieza = refugio(ciudad, #refugios + 1, sitio, mundo)
-			if pieza then
-				table.insert(refugios, pieza.Position)
-			end
+			table.insert(propuestas, sitio)
+		end
+	end
+	local refugios: { Vector3 } = {}
+	for _, sitio in Shelter.repartir(propuestas) do
+		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo)
+		if pieza then
+			table.insert(refugios, pieza.Position)
 		end
 	end
 

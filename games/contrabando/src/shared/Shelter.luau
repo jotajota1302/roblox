@@ -88,13 +88,46 @@ function Shelter.sitiosDeRuta(origen: Vector3, destino: Vector3, cuantos: number
 	for i = 1, cuantos do
 		-- Repartidos por el tramo central. Ni pegados al almacén --donde ya estás a
 		-- salvo y sobrarían-- ni pegados al destino, donde el viaje ya está hecho.
-		local t = 0.3 + 0.4 * ((i - 0.5) / cuantos)
+		-- Repartidos por un tramo MÁS ancho que antes (0,25 a 0,75 en vez de 0,3 a
+		-- 0,7): con uno por ruta, lo que importa es que no caigan todos a la misma
+		-- altura del viaje.
+		local t = 0.25 + 0.5 * ((i - 0.5) / cuantos)
 		local centro = origen:Lerp(destino, t)
 		local signo = if i % 2 == 1 then 1 else -1
 		table.insert(sitios, centro + lado * (Config.REFUGIO_DESVIO * signo))
 	end
 
 	return sitios
+end
+
+-- TODOS los refugios del mapa, con la separación mínima garantizada.
+--
+-- Cada ruta propone los suyos sin saber nada de las demás, y dos rutas que pasan
+-- cerca acaban plantando refugios casi pegados: tres en el mismo barrio dejan de
+-- ser una decisión y pasan a ser mobiliario urbano ("deberían ser menos y estar
+-- más espaciados", JJ). Aquí se descartan los que caen demasiado cerca de uno ya
+-- aceptado.
+--
+-- El orden de entrada MANDA: el primero de cada ruta es el que sobrevive, y así
+-- ninguna ruta se queda sin refugio por el capricho del orden de descarte.
+function Shelter.repartir(propuestas: { Vector3 }, separacion: number?): { Vector3 }
+	local minimo = separacion or Config.REFUGIO_SEPARACION
+	local aceptados: { Vector3 } = {}
+	for _, sitio in propuestas do
+		local vale = true
+		for _, puesto in aceptados do
+			local dx = sitio.X - puesto.X
+			local dz = sitio.Z - puesto.Z
+			if math.sqrt(dx * dx + dz * dz) < minimo then
+				vale = false
+				break
+			end
+		end
+		if vale then
+			table.insert(aceptados, sitio)
+		end
+	end
+	return aceptados
 end
 
 return Shelter

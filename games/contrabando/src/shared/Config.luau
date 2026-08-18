@@ -197,17 +197,25 @@ Config.RAREZAS = {
 -- La ciudad va de X -774 a 774 y de Z -790 a 780 (medido). El polígono empieza
 -- justo detrás de ese borde.
 Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 880)
-Config.POLIGONO_TAMANO = Vector2.new(320, 230)
+Config.POLIGONO_TAMANO = Vector2.new(360, 250)
 -- Por dónde se sale a la ciudad: el extremo norte del polígono, y desde ahí una
 -- carretera hasta la calle más cercana.
 -- EN LA BOCA EXACTA (centro.Z - alto/2 = 880 - 115), no unos studs más adentro:
 -- la salida es el umbral, y la prueba de Perimeter lo comprueba porque puesta a
 -- ojo se queda en mitad del patio y deja de significar "aquí se sale".
-Config.POLIGONO_SALIDA = Vector3.new(-620, 19.2, 765)
+-- DERIVADA del borde, no escrita a mano. Se puso a ojo dos veces y las dos se
+-- quedó dentro del patio al cambiar el tamaño del polígono -- la prueba de
+-- Perimeter lo cazó las dos veces, pero una constante que hay que acordarse de
+-- mover a mano cada vez que crece el recinto es una trampa esperando.
+Config.POLIGONO_SALIDA = Vector3.new(
+	Config.POLIGONO_CENTRO.X,
+	Config.POLIGONO_CENTRO.Y,
+	Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
+)
 Config.POLIGONO_ENGANCHE = Vector3.new(-593, 19.2, 679) -- la calle de la ciudad más cercana (medida)
 
 Config.ALMACEN_POS = Vector3.new(-668, 19.2, 925)
-Config.TALLER_POS = Vector3.new(-548, 19.2, 925)
+Config.TALLER_POS = Vector3.new(-540, 19.2, 930)
 
 -- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
 -- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles
@@ -328,8 +336,16 @@ Config.REFUGIO_SEGUNDOS_POR_NIVEL = 5
 -- Cuántos por ruta y a qué altura del trayecto. Desviados de la línea a propósito:
 -- un refugio que te pilla de paso no es una decisión, es un regalo. Hay que querer
 -- ir.
-Config.REFUGIOS_POR_RUTA = 2
-Config.REFUGIO_DESVIO = 120
+-- UNO POR RUTA, no dos. Con dos por ruta salían seis repartidos por una ciudad
+-- de 1.500 studs y acababan siendo mobiliario: "los puntos de refugio deberían
+-- ser menos y estar más espaciados" (JJ). Un refugio sólo significa algo si
+-- llegar a él es una decisión, y para eso tiene que ser el único que tienes cerca.
+Config.REFUGIOS_POR_RUTA = 1
+Config.REFUGIO_DESVIO = 100
+-- Y la distancia mínima entre dos refugios cualesquiera, aunque sean de rutas
+-- distintas: sin ella, dos rutas que pasan cerca plantan los suyos casi pegados
+-- y vuelven a parecer mobiliario urbano.
+Config.REFUGIO_SEPARACION = 320
 
 -- Patrullas por nivel de calor, y a qué velocidad van.
 --
@@ -408,16 +424,26 @@ Config.SONIDO_MOTOR = "rbxassetid://9112787430" -- "Go Kart Engine Constant 1" (
 Config.SONIDO_RUEDAS = "rbxassetid://9125955680" -- "Skateboard Constant Rolling" (ProSoundEffects)
 Config.SONIDO_PEDALES = "rbxassetid://7453582428" -- "Bicycle Pedalling"
 
+-- `motor` separa dos cosas que suenan MUY distinto: un motor tiene ralentí --se
+-- oye parado-- y una rueda no hace absolutamente ningún ruido si no te mueves.
+--
+-- La primera versión trataba a los patines como a una moto: rodadura constante,
+-- también quieto, y a tono agudo. El resultado, en palabras de JJ: "el sonido de
+-- los patines es insoportable". Lo era: un siseo agudo que no paraba nunca y que
+-- además no correspondía a nada de lo que estabas haciendo.
+--
+-- Ahora lo que no tiene motor CALLA al pararse y suena discreto al rodar, con el
+-- tono bajado: la rodadura es un detalle de fondo, no un instrumento.
 Config.SONIDOS_VEHICULO = {
-	patines = { sonido = Config.SONIDO_RUEDAS, tono = 1.25, volumen = 0.35 },
-	monopatin = { sonido = Config.SONIDO_RUEDAS, tono = 1.1, volumen = 0.4 },
-	patinete = { sonido = Config.SONIDO_RUEDAS, tono = 1.0, volumen = 0.4 },
-	patinete_electrico = { sonido = Config.SONIDO_MOTOR, tono = 1.35, volumen = 0.3 },
-	bicicleta = { sonido = Config.SONIDO_PEDALES, tono = 1.0, volumen = 0.45 },
-	moto = { sonido = Config.SONIDO_MOTOR, tono = 1.15, volumen = 0.55 },
-	coche = { sonido = Config.SONIDO_MOTOR, tono = 0.85, volumen = 0.5 },
-	furgoneta = { sonido = Config.SONIDO_MOTOR, tono = 0.72, volumen = 0.55 },
-} :: { [string]: { sonido: string, tono: number, volumen: number } }
+	patines = { sonido = Config.SONIDO_RUEDAS, tono = 0.85, volumen = 0.12, motor = false },
+	monopatin = { sonido = Config.SONIDO_RUEDAS, tono = 0.8, volumen = 0.13, motor = false },
+	patinete = { sonido = Config.SONIDO_RUEDAS, tono = 0.75, volumen = 0.14, motor = false },
+	patinete_electrico = { sonido = Config.SONIDO_MOTOR, tono = 1.2, volumen = 0.22, motor = true },
+	bicicleta = { sonido = Config.SONIDO_PEDALES, tono = 0.95, volumen = 0.18, motor = false },
+	moto = { sonido = Config.SONIDO_MOTOR, tono = 1.1, volumen = 0.4, motor = true },
+	coche = { sonido = Config.SONIDO_MOTOR, tono = 0.85, volumen = 0.38, motor = true },
+	furgoneta = { sonido = Config.SONIDO_MOTOR, tono = 0.72, volumen = 0.42, motor = true },
+} :: { [string]: { sonido: string, tono: number, volumen: number, motor: boolean } }
 
 Config.SONIDOS = {
 	cobro = "rbxassetid://1319346243", -- "Money,Coins,Drop In Cash Register" (codes4breakfast)

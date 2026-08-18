@@ -319,10 +319,16 @@ local function paso(player: Player)
 			-- juguete estropeado.
 			local proporcion = if nominal > 0 then math.clamp(velocidad / nominal, 0.55, 1) else 1
 			ruido.PlaybackSpeed = def.tono * (0.82 + 0.18 * proporcion)
-			-- Y se calla si el jugador está parado: un motor a tope con el personaje
-			-- quieto es lo que hace que un juego suene barato.
+			-- Y CALLA SEGÚN LO QUE SEA. Un motor parado sigue sonando --su ralentí
+			-- es la mitad de lo que dice "vas en moto"-- pero una rueda parada no
+			-- hace ningún ruido, y tratarlas igual daba un siseo permanente que
+			-- JJ describió como insoportable, con toda la razón.
 			local quieto = humanoid.MoveDirection.Magnitude < 0.1
-			ruido.Volume = if quieto then def.volumen * 0.35 else def.volumen
+			if quieto then
+				ruido.Volume = if def.motor then def.volumen * 0.3 else 0
+			else
+				ruido.Volume = def.volumen
+			end
 		end
 	end
 end

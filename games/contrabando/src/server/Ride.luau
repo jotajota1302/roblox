@@ -248,19 +248,36 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		ruidoViejo:Destroy()
 	end
 
-	-- A QUÉ ALTURA PISA ESTE PERSONAJE. No es una constante: depende del rig, y el
-	-- juego ha vivido con los dos -- R6 mientras el place no estaba publicado (los
-	-- avatares R15 son mallas y no se descargaban) y R15 en cuanto se publicó.
+	-- A QUÉ ALTURA PISA ESTE PERSONAJE. No es una constante: depende del rig, y en
+	-- este juego conviven los dos -- los jugadores van en R15 desde que el place
+	-- está publicado, y los ladrones son R6 (hechos de Part, para que se vean
+	-- siempre).
 	--
-	-- Los offsets del catálogo se calibraron a ojo sobre R6 y el resultado se vio en
-	-- cuanto hubo avatar de verdad: "parece que la moto no va por encima del terreno"
-	-- (JJ). Medido: entre 0,40 y 0,60 studs ENTERRADOS, los cinco vehículos probados.
+	-- LA PRIMERA VERSIÓN USABA HipHeight Y SÓLO VALÍA PARA R15. En R6 esa
+	-- propiedad es CERO por diseño --el rig clásico no la usa-- así que la cuenta
+	-- daba un metro de más y el vehículo se le quedaba a la altura del pecho a todo
+	-- ladrón que llevara uno. Con jugadores R15 no se veía: el fallo estaba
+	-- escondido en los PNJ.
 	--
-	-- Así que la altura deja de ser un número escrito a mano y pasa a ser una cuenta:
-	-- la base del vehículo se apoya donde pisa el personaje, sea cual sea su rig.
+	-- Así que no se pregunta por el rig: se mide. El punto más bajo de todas las
+	-- piezas del personaje es donde pisa, tenga los huesos que tenga.
 	local function cotaDeLosPies(character: Model, root: BasePart): number
+		local masBaja = nil
+		for _, parte in character:GetDescendants() do
+			if parte:IsA("BasePart") and parte.Name ~= "HumanoidRootPart" then
+				local base = parte.Position.Y - parte.Size.Y / 2
+				if masBaja == nil or base < masBaja then
+					masBaja = base
+				end
+			end
+		end
+		if masBaja ~= nil then
+			return masBaja
+		end
+		-- Sin piezas que medir (un personaje a medio montar): se cae a la cuenta de
+		-- siempre, que al menos no deja el vehículo en el aire.
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		local altura = if humanoid then humanoid.HipHeight else 2
+		local altura = if humanoid and humanoid.HipHeight > 0 then humanoid.HipHeight else 2
 		return root.Position.Y - (altura + root.Size.Y / 2)
 	end
 
@@ -290,7 +307,10 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		sonido.Name = "RuidoVehiculo"
 		sonido.SoundId = def.sonido
 		sonido.Looped = true
-		sonido.Volume = def.volumen
+		-- Arranca CALLADO si no tiene motor: RoadService le pone el volumen en la
+		-- vuelta siguiente según te muevas o no. Sin esto, montarse en unos patines
+		-- suelta un siseo antes de dar un paso.
+		sonido.Volume = if def.motor then def.volumen * 0.3 else 0
 		-- El tono ES la escala del juego hecha sonido: cuanto más grave, más
 		-- grande. Un mismo motor a 0,72 y a 1,15 son dos vehículos distintos.
 		sonido.PlaybackSpeed = def.tono
@@ -343,7 +363,27 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 			-- vehículo mida de largo lo que pide el catálogo sin deformarse. Forzar
 			-- los tres ejes a la vez es lo que aplastaba la furgoneta.
 			local nativo = m.Size
-			local escala = math.max(modelo.tamano.X, modelo.tamano.Z) / math.max(nativo.X, nativo.Y, nativo.Z, 0.01)
+			-- LA ESCALA, limitada por el LARGO Y POR EL ALTO a la vez.
+			--
+			-- Escalar sólo por el lado mayor infla lo pequeño: los patines vienen casi
+			-- cúbicos, así que estirarlos hasta medir 2,6 de largo los dejaba también
+			-- de 2,6 de ALTO -- por la rodilla de un personaje que mide cinco. "El
+			-- personaje con los patines se ve fatal" (JJ).
+			--
+			-- Y el alto se mide DESPUÉS de girar: en una malla volteada (la bicicleta)
+			-- la altura no está en su eje Y.
+			local giro = CFrame.Angles(0, math.rad(modelo.giroY), 0) * CFrame.Angles(math.rad(modelo.giroX or 0), 0, 0)
+			local altoNativo = math.abs(giro.RightVector.Y) * nativo.X
+				+ math.abs(giro.UpVector.Y) * nativo.Y
+				+ math.abs(giro.LookVector.Y) * nativo.Z
+			local largoNativo = math.abs(giro.RightVector.Z) * nativo.X
+				+ math.abs(giro.UpVector.Z) * nativo.Y
+				+ math.abs(giro.LookVector.Z) * nativo.Z
+			local porLargo = math.max(modelo.tamano.X, modelo.tamano.Z) / math.max(largoNativo, 0.01)
+			local porAlto = modelo.tamano.Y / math.max(altoNativo, 0.01)
+			-- El menor de los dos: así el vehículo nunca sale más alto de lo que dice el
+			-- catálogo, que es la medida que se comparó con el personaje.
+			local escala = math.min(porLargo, porAlto)
 			m.Size = nativo * escala
 			m.Anchored = false
 			m.CanCollide = false
@@ -372,6 +412,22 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 			weld.Parent = m
 			return m
 		end)
+		-- LOS PATINES VAN DE DOS EN DOS. Es una sola malla, y centrada bajo el
+		-- personaje parecía un monopatín gordo en vez de un par de patines: se clona
+		-- y se separa a la anchura de los pies.
+		if ok and malla and modelo.doble then
+			local separacion = 0.62
+			malla.CFrame = malla.CFrame * CFrame.new(-separacion, 0, 0)
+			local gemelo = malla:Clone()
+			gemelo.Name = "ModeloDerecho"
+			gemelo.CFrame = malla.CFrame * CFrame.new(separacion * 2, 0, 0)
+			gemelo.Parent = carpeta
+			local weldGemelo = Instance.new("WeldConstraint")
+			weldGemelo.Part0 = root
+			weldGemelo.Part1 = gemelo
+			weldGemelo.Parent = gemelo
+		end
+
 		if ok and malla then
 			return -- con el modelo puesto, las piezas sobran
 		end
