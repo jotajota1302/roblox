@@ -50,6 +50,10 @@ export type Estado = {
 	-- segundo almacén que se acumule.
 	retorno: { Economy.Caja },
 	retornoZona: string?,
+	-- ¿Va montado en su vehículo, o lo dejó aparcado al salirse del asfalto?
+	-- (ver RoadService). Es del estado y no del dibujo: de esto depende a qué
+	-- velocidad anda, y eso no puede decidirlo el cliente.
+	montado: boolean?,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -72,6 +76,7 @@ function PlayerState.get(player: Player): Estado
 			xp = 0,
 			retorno = {},
 			retornoZona = nil,
+			montado = true,
 		}
 		estados[player] = estado
 	end
@@ -106,6 +111,7 @@ function PlayerState.sync(player: Player)
 		xp = estado.xp or 0,
 		retorno = estado.retorno or {},
 		retornoZona = estado.retornoZona,
+		montado = estado.montado ~= false,
 		-- El nivel viaja ya calculado: el cliente sólo dibuja, y así no hay dos
 		-- sitios haciendo la misma cuenta con riesgo de discrepar en pantalla.
 		nivel = Levels.nivelDe(estado.xp or 0),

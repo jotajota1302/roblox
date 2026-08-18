@@ -105,6 +105,57 @@ end
 -- Coloca una losa APOYADA en el suelo que haya debajo. `alturaPorDefecto` es la
 -- cota medida al elegir el emplazamiento: se usa cuando no hay ciudad, para que el
 -- juego siga cuadrando sin ella.
+-- DESPEJAR LA PARCELA antes de construir encima.
+--
+-- "Hemos puesto el almacén en la pista de baloncesto y hay una canasta dentro"
+-- (JJ). Y no fue mala suerte: una pista de baloncesto es exactamente lo que un
+-- barrido que premia SUELO LLANO Y DESPEJADO va a elegir siempre. El fallo fue
+-- creer que se podía comprobar con rayos -- un rayo cada veinticinco studs pasa de
+-- largo junto a un poste de canasta, una farola o un banco. Se comprobó, salió
+-- limpio, y la canasta estaba ahí.
+--
+-- Buscar otra parcela tampoco valía: con el criterio bueno (volumen, no rayos) no
+-- queda NI UNA libre en el cuadrante con sitio para el almacén, el taller y la
+-- salida. Esta ciudad no tiene solares vacíos. Así que se hace lo que haría
+-- cualquiera que comprara el terreno: se despeja.
+--
+-- Se borra desde metro y medio SOBRE el suelo, para no abrir un agujero en la
+-- calle, y se dejan en paz las piezas enormes: si el bounding box de un edificio
+-- entero roza una esquina de la parcela, el problema es la parcela, no el
+-- edificio.
+local LIMITE_PIEZA_GRANDE = 200
+
+local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: number): number
+	if ciudad == nil then
+		return 0
+	end
+	local base = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
+
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { ciudad }
+	params.MaxParts = 400
+
+	local dentro = workspace:GetPartBoundsInBox(
+		CFrame.new(centro.X, base + 1.5 + alto / 2, centro.Z),
+		Vector3.new(lado, alto, lado),
+		params
+	)
+
+	local quitadas = 0
+	for _, pieza in dentro do
+		local tam = pieza.Size
+		if math.max(tam.X, tam.Y, tam.Z) <= LIMITE_PIEZA_GRANDE then
+			pieza:Destroy()
+			quitadas += 1
+		end
+	end
+	if quitadas > 0 then
+		print(string.format("[Contrabando] parcela despejada en (%.0f, %.0f): %d piezas", centro.X, centro.Z, quitadas))
+	end
+	return quitadas
+end
+
 local function losa(
 	ciudad: Instance?,
 	nombre: string,
@@ -114,7 +165,13 @@ local function losa(
 	padre: Instance
 ): Part
 	local y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
-	return part(nombre, tamano, Vector3.new(centro.X, y + ALTO_LOSA / 2, centro.Z), color, padre)
+	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + ALTO_LOSA / 2, centro.Z), color, padre)
+	-- RODABLE: las losas del juego (almacén, salida, taller, destinos) son sitio
+	-- del juego, y la regla de la calzada no puede echarte del vehículo al entrar
+	-- en tu propio muelle. Se marca con un atributo porque su color es el de su
+	-- función --verde, ámbar, azul-- y RoadService reconoce el asfalto por gris.
+	pieza:SetAttribute("rodable", true)
+	return pieza
 end
 
 -- Un aviso de "pulsa aquí" pegado a una pieza del mundo.
@@ -673,6 +730,9 @@ function CityBuilder.build(): Mundo
 		end
 	end
 
+	-- La parcela, limpia antes de nada: la nave mide 52x34 y la losa 90x90, así que
+	-- cualquier cosa que hubiera ahí acabaría atravesando el almacén.
+	despejar(ciudad, Config.ALMACEN_POS, 96, 45)
 	local almacen = losa(ciudad, "Almacen", Vector3.new(90, ALTO_LOSA, 90), Config.ALMACEN_POS, Palette.ALMACEN, mundo)
 	nave(almacen, mundo)
 	muelle(almacen)
@@ -700,6 +760,7 @@ function CityBuilder.build(): Mundo
 	-- que es hacia donde se sale en las tres rutas.
 	local haciaLaCiudad = (Vector3.new(0, 0, 0) - Config.ALMACEN_POS).Unit
 	local salidaPos = Config.ALMACEN_POS + haciaLaCiudad * 60
+	despejar(ciudad, Vector3.new(salidaPos.X, Config.ALMACEN_POS.Y, salidaPos.Z), 36, 45)
 	local salida = losa(
 		ciudad,
 		"Salida",
@@ -716,16 +777,20 @@ function CityBuilder.build(): Mundo
 	-- (60 studs frente a 300) porque se busca desde dentro del recinto, no desde
 	-- el otro extremo del mapa.
 	local balizaSalida =
-		part("Baliza_Salida", Vector3.new(6, 60, 6), salida.Position + Vector3.new(0, 30, 0), Palette.SALIDA, mundo)
+		part("Baliza_Salida", Vector3.new(6, 110, 6), salida.Position + Vector3.new(0, 55, 0), Palette.SALIDA, mundo)
 	balizaSalida.CanCollide = false
 	balizaSalida.Material = Enum.Material.Neon
 
 	local cartelSalida = Instance.new("BillboardGui")
 	cartelSalida.Name = "Cartel"
-	cartelSalida.Size = UDim2.fromScale(20, 6)
-	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 36, 0)
-	cartelSalida.AlwaysOnTop = false
-	cartelSalida.MaxDistance = 400
+	cartelSalida.Size = UDim2.fromScale(30, 8)
+	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 66, 0)
+	-- POR ENCIMA DE TODO, al contrario que los carteles de los destinos. Los de
+	-- fuera se ocultan tras los edificios a propósito (esconderse tiene que servir
+	-- de algo), pero éste está dentro de tu propio recinto y su único trabajo es
+	-- que no te pierdas al salir de la nave, que es literalmente lo que pasó.
+	cartelSalida.AlwaysOnTop = true
+	cartelSalida.MaxDistance = 700
 	cartelSalida.Adornee = balizaSalida
 	cartelSalida.Parent = balizaSalida
 
@@ -742,6 +807,37 @@ function CityBuilder.build(): Mundo
 	-- El taller, al otro lado: pasar por delante de la tienda al salir convertiría
 	-- la mejora en un anuncio, pero está DENTRO de la zona segura, así que nadie
 	-- puede emboscar a quien compra.
+	-- EL CAMINO PINTADO del muelle a la salida. Un cartel dice DÓNDE está; una
+	-- línea en el suelo dice POR DÓNDE se va, y es lo que de verdad resuelve el
+	-- "le doy a 'ahora no' y no sé dónde tengo que ir". Se sigue sin pensar y sin
+	-- levantar la vista, que es como se anda cargado.
+	do
+		local desde = almacen.Position + Vector3.new(0, almacen.Size.Y / 2, 0)
+		local hasta = salida.Position + Vector3.new(0, salida.Size.Y / 2, 0)
+		local tramos = 14
+		for i = 1, tramos do
+			local t = (i - 0.5) / tramos
+			local punto = desde:Lerp(hasta, t)
+			local y = sueloDeLaCiudad(ciudad, punto.X, punto.Z) or punto.Y
+			local raya = part(
+				"Sendero" .. i,
+				Vector3.new(2.6, 0.25, 5),
+				Vector3.new(punto.X, y + 0.2, punto.Z),
+				Palette.SALIDA,
+				mundo
+			)
+			raya.CanCollide = false
+			raya.Material = Enum.Material.Neon
+			raya.Transparency = 0.35
+			raya.CastShadow = false
+			raya:SetAttribute("rodable", true)
+			-- Orientada a lo largo del camino: una raya atravesada parecería un paso de
+			-- cebra y diría justo lo contrario de lo que quiere decir.
+			raya.CFrame = CFrame.lookAt(raya.Position, Vector3.new(hasta.X, y + 0.2, hasta.Z))
+		end
+	end
+
+	despejar(ciudad, Config.TALLER_POS, 52, 45)
 	local taller = losa(ciudad, "Taller", Vector3.new(46, ALTO_LOSA, 46), Config.TALLER_POS, Palette.TALLER, mundo)
 	prompt(taller, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
 	concesionario(taller, mundo)
@@ -750,6 +846,7 @@ function CityBuilder.build(): Mundo
 	local detectores: { BasePart } = {}
 
 	for _, ruta in Routes.todas() do
+		despejar(ciudad, ruta.destino, 50, 45)
 		local destino = losa(
 			ciudad,
 			"Destino_" .. ruta.id,

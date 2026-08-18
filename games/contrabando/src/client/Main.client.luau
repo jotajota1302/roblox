@@ -190,6 +190,39 @@ local function misionActual(estado: any): (string, Color3)
 	return "El almacén está produciendo: espera", Palette.ALMACEN
 end
 
+-- EL RUIDO DE LO QUE ESTÁS HACIENDO. "Aunque vayas en vehículo suenan los pasos
+-- del personaje" (JJ), y tiene razón: el sonido dice lo que haces, y si dice que
+-- vas andando, vas andando por mucha moto que se vea debajo.
+--
+-- VA EN EL CLIENTE, y ése fue el primer intento fallido: se hizo en el servidor y
+-- allí esos sonidos NO EXISTEN. Los crea RbxCharacterSounds, que es un script
+-- local de Roblox, dentro del HumanoidRootPart de cada personaje y en la máquina
+-- de cada jugador. Medido: desde el servidor, buscar "Running" devuelve nil
+-- siempre.
+--
+-- Se silencian por VOLUMEN y guardando el valor original, no destruyéndolos: al
+-- bajarse del vehículo tienen que volver exactamente como estaban.
+local PASOS = { "Running", "Climbing", "FreeFalling", "Landing", "Jumping" }
+
+local function ajustarSonidoDePasos(estado: any)
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or estado == nil then
+		return
+	end
+	local montado = estado.montado ~= false and estado.vehiculo ~= nil and estado.vehiculo ~= "a_pie"
+	for _, nombre in PASOS do
+		local sonido = root:FindFirstChild(nombre)
+		if sonido and sonido:IsA("Sound") then
+			if sonido:GetAttribute("volumenOriginal") == nil then
+				sonido:SetAttribute("volumenOriginal", sonido.Volume)
+			end
+			local original = sonido:GetAttribute("volumenOriginal") :: number?
+			sonido.Volume = if montado then 0 else (original or 0.65)
+		end
+	end
+end
+
 local function refrescarSelector()
 	local root = raizDelJugador()
 	local vallaCerrada = refrescarValla(root)
@@ -208,6 +241,9 @@ local function refrescarSelector()
 		Hud.update(ultimoEstado)
 	end
 	Hud.mision(misionActual(ultimoEstado))
+	-- Aquí y no sólo al sincronizar: los sonidos los crea Roblox cuando le parece
+	-- (al reaparecer, al cambiar de estado), así que hay que volver a callarlos.
+	ajustarSonidoDePasos(ultimoEstado)
 	if mostrar then
 		RoutePicker.mostrar()
 	else

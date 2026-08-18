@@ -239,6 +239,22 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		viejo:Destroy()
 	end
 
+	-- A QUÉ ALTURA PISA ESTE PERSONAJE. No es una constante: depende del rig, y el
+	-- juego ha vivido con los dos -- R6 mientras el place no estaba publicado (los
+	-- avatares R15 son mallas y no se descargaban) y R15 en cuanto se publicó.
+	--
+	-- Los offsets del catálogo se calibraron a ojo sobre R6 y el resultado se vio en
+	-- cuanto hubo avatar de verdad: "parece que la moto no va por encima del terreno"
+	-- (JJ). Medido: entre 0,40 y 0,60 studs ENTERRADOS, los cinco vehículos probados.
+	--
+	-- Así que la altura deja de ser un número escrito a mano y pasa a ser una cuenta:
+	-- la base del vehículo se apoya donde pisa el personaje, sea cual sea su rig.
+	local function cotaDeLosPies(character: Model, root: BasePart): number
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local altura = if humanoid then humanoid.HipHeight else 2
+		return root.Position.Y - (altura + root.Size.Y / 2)
+	end
+
 	local forma = if vehiculoId ~= nil then FORMAS[vehiculoId] else nil
 	if not forma then
 		-- A pie: se devuelve la postura normal antes de salir. Si no, quien se baja
@@ -273,13 +289,48 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 			if modelo.color then
 				m.Color = modelo.color
 			end
-			m.Size = modelo.tamano
+			-- CÓMO SE ORIENTA Y SE ESCALA UNA MALLA AJENA, que es donde se torció
+			-- todo. Cada autor modela mirando a donde le parece y con el eje que le
+			-- parece: medido sobre el catálogo, coche y furgoneta vienen de lado y
+			-- con el morro al revés, y la bicicleta además viene con el eje Z hacia
+			-- arriba. Con un único `giroY = 0` para todas, el resultado fue el que
+			-- vio JJ: "la bicicleta sale tumbada" y "el personaje mira hacia delante
+			-- y el coche hacia atrás".
+			--
+			-- Los ángulos NO se deducen: se miden una vez por modelo y se guardan en
+			-- el catálogo. Se intentó deducirlos de las proporciones y no funciona --
+			-- un coche es más ancho que alto y una bici al revés, así que no hay
+			-- regla que distinga "de lado" de "tumbado" sin mirarlo.
+			--
+			-- EL ORDEN IMPORTA: primero el volteo sobre X, después el giro sobre Y.
+			-- Al revés, el eje largo del vehículo acaba apuntando al cielo (medido
+			-- con las cuatro combinaciones).
+			--
+			-- La ESCALA sí se calcula: proporcional al lado mayor, para que el
+			-- vehículo mida de largo lo que pide el catálogo sin deformarse. Forzar
+			-- los tres ejes a la vez es lo que aplastaba la furgoneta.
+			local nativo = m.Size
+			local escala = math.max(modelo.tamano.X, modelo.tamano.Z) / math.max(nativo.X, nativo.Y, nativo.Z, 0.01)
+			m.Size = nativo * escala
 			m.Anchored = false
 			m.CanCollide = false
 			m.Massless = true
 			m.CFrame = root.CFrame
 				* CFrame.new(modelo.offset.X, modelo.offset.Y, -modelo.offset.Z)
 				* CFrame.Angles(0, math.rad(modelo.giroY), 0)
+				* CFrame.Angles(math.rad(modelo.giroX or 0), 0, 0)
+			-- Y APOYADO: se corrige la altura para que la base del vehículo caiga
+			-- justo donde pisa el personaje. El offset del catálogo sigue mandando
+			-- en X y en Z --dónde queda respecto al cuerpo es una decisión de
+			-- diseño-- pero la altura es una consecuencia del rig, no una opinión.
+			-- El alto REAL en el mundo, no `Size.Y`: en una malla volteada, Size.Y es
+			-- el ancho. Se proyectan los tres ejes de la pieza sobre la vertical.
+			local cf, s3 = m.CFrame, m.Size
+			local alto = math.abs(cf.RightVector.Y) * s3.X
+				+ math.abs(cf.UpVector.Y) * s3.Y
+				+ math.abs(cf.LookVector.Y) * s3.Z
+			local base = m.Position.Y - alto / 2
+			m.CFrame = m.CFrame + Vector3.new(0, cotaDeLosPies(character, root) - base, 0)
 			m.Parent = carpeta
 
 			local weld = Instance.new("WeldConstraint")
@@ -293,6 +344,7 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		end
 	end
 
+	local montadas: { BasePart } = {}
 	for i, pieza in forma do
 		local p = Instance.new("Part")
 		p.Name = "Pieza" .. i
@@ -322,7 +374,20 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		-- primera versión de la moto.
 		p.CFrame = root.CFrame * CFrame.new(pieza.offset.X, pieza.offset.Y, -pieza.offset.Z)
 		p.Parent = carpeta
+		table.insert(montadas, p)
+	end
 
+	-- Y el conjunto, apoyado en el suelo igual que la malla. Se hace DESPUÉS de
+	-- colocarlas todas y ANTES de soldarlas: un WeldConstraint congela la posición
+	-- relativa en el instante en que se crea, así que mover una pieza ya soldada no
+	-- movería nada.
+	local masBaja = math.huge
+	for _, p in montadas do
+		masBaja = math.min(masBaja, p.Position.Y - p.Size.Y / 2)
+	end
+	local ajuste = if masBaja < math.huge then cotaDeLosPies(character, root) - masBaja else 0
+	for _, p in montadas do
+		p.CFrame = p.CFrame + Vector3.new(0, ajuste, 0)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = root
 		weld.Part1 = p

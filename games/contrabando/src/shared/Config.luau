@@ -47,6 +47,16 @@ Config.TAMANOS = {
 	{ id = "enorme", nombre = "enorme", nivel = 4, huecos = 8 },
 }
 
+-- `soloCalzada` marca los que NO pueden salirse del asfalto (ver Roads.luau). Es
+-- lo que convierte el vehículo en una decisión en vez de en una mejora pasiva: los
+-- caros corren, pero van por donde va todo el mundo; los baratos son lentos y
+-- entran en cualquier callejón. Y si te sales con uno de motor, se queda aparcado
+-- donde lo dejaste y hay que volver a por él.
+--
+-- POR ESO las velocidades ya no son casi planas. La regla vieja las mantenía entre
+-- 16 y 22 para que nadie fuera inatrapable; esa regla SIGUE VIGENTE pero ahora se
+-- sostiene por otro sitio -- quien te persigue puede cortar por donde tú no
+-- puedes-- y eso permite que comprar una moto se note de verdad.
 Config.VEHICULOS = {
 	{
 		id = "a_pie",
@@ -61,7 +71,7 @@ Config.VEHICULOS = {
 		id = "patines",
 		nombre = "Patines",
 		capacidad = 4,
-		velocidadBase = 17,
+		velocidadBase = 18,
 		penalizacionPorPeso = 1.2,
 		tamanoMaximo = 1,
 		coste = 150,
@@ -70,7 +80,7 @@ Config.VEHICULOS = {
 		id = "monopatin",
 		nombre = "Monopatín",
 		capacidad = 5,
-		velocidadBase = 18,
+		velocidadBase = 19,
 		penalizacionPorPeso = 1.0,
 		tamanoMaximo = 2,
 		coste = 350,
@@ -79,7 +89,7 @@ Config.VEHICULOS = {
 		id = "patinete",
 		nombre = "Patinete",
 		capacidad = 6,
-		velocidadBase = 18.5,
+		velocidadBase = 20,
 		penalizacionPorPeso = 0.9,
 		tamanoMaximo = 2,
 		coste = 700,
@@ -88,45 +98,50 @@ Config.VEHICULOS = {
 		id = "patinete_electrico",
 		nombre = "Patinete eléctrico",
 		capacidad = 7,
-		velocidadBase = 19.5,
+		velocidadBase = 24,
 		penalizacionPorPeso = 0.8,
 		tamanoMaximo = 2,
+		soloCalzada = true,
 		coste = 1400,
 	},
 	{
 		id = "bicicleta",
 		nombre = "Bicicleta",
 		capacidad = 9,
-		velocidadBase = 20,
+		velocidadBase = 26,
 		penalizacionPorPeso = 0.7,
 		tamanoMaximo = 3,
+		soloCalzada = true,
 		coste = 2500,
 	},
 	{
 		id = "moto",
 		nombre = "Moto",
 		capacidad = 12,
-		velocidadBase = 21,
+		velocidadBase = 32,
 		penalizacionPorPeso = 0.55,
 		tamanoMaximo = 3,
+		soloCalzada = true,
 		coste = 4500,
 	},
 	{
 		id = "coche",
 		nombre = "Coche",
 		capacidad = 18,
-		velocidadBase = 21.5,
+		velocidadBase = 34,
 		penalizacionPorPeso = 0.4,
 		tamanoMaximo = 4,
+		soloCalzada = true,
 		coste = 8000,
 	},
 	{
 		id = "furgoneta",
 		nombre = "Furgoneta",
 		capacidad = 26,
-		velocidadBase = 22,
+		velocidadBase = 30,
 		penalizacionPorPeso = 0.28,
 		tamanoMaximo = 4,
+		soloCalzada = true,
 		coste = 15000,
 	},
 }

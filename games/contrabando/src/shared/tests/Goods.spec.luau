@@ -44,15 +44,34 @@ return function(kit)
 		anterior = v
 	end
 
-	-- LA REGLA DE ORO DEL DISEÑO: se progresa por capacidad y acceso, NUNCA por
-	-- potencia. En el momento en que alguien es inalcanzable, el PvP muere y las
-	-- rutas rojas pasan a ser dinero gratis. La capacidad se multiplica por ocho de
-	-- punta a punta; la velocidad no puede ni acercarse a eso.
+	-- LA REGLA DE ORO DEL DISEÑO: nadie puede volverse inalcanzable. En el momento
+	-- en que alguien lo es, el PvP muere y las rutas rojas pasan a ser dinero
+	-- gratis.
+	--
+	-- CÓMO SE SOSTIENE HA CAMBIADO (decisión de JJ, 18/08). Antes se sostenía
+	-- aplastando la velocidad: los nueve vehículos entre 16 y 22, y comprar una
+	-- moto casi no se notaba. Ahora la velocidad SÍ crece --hasta 34-- y lo que la
+	-- paga es el ACCESO: todo lo que corre de verdad va atado al asfalto, así que
+	-- quien te persigue puede cortar por donde tú no puedes (ver Roads.luau).
+	--
+	-- Lo que sigue siendo cierto, y es lo que se prueba aquí: la capacidad crece
+	-- MUCHO más que la velocidad, y todo el que corre lo paga con la calle.
 	local primero = Config.VEHICULOS[1]
 	local ultimo = Config.VEHICULOS[#Config.VEHICULOS]
 	kit.truthy("la capacidad crece mucho", ultimo.capacidad >= primero.capacidad * 6)
-	kit.truthy("pero la velocidad casi nada", ultimo.velocidadBase < primero.velocidadBase * 1.5)
+	kit.truthy(
+		"la velocidad crece mucho menos que la capacidad",
+		(ultimo.velocidadBase / primero.velocidadBase) * 3 < (ultimo.capacidad / primero.capacidad)
+	)
 	kit.truthy("y nadie pasa del tope anticheat", ultimo.velocidadBase < Config.VELOCIDAD_MAXIMA_PLAUSIBLE)
+
+	-- Y el precio del que corre: si un vehículo rápido pudiera ir por todas partes,
+	-- la regla de oro se rompería de verdad.
+	for _, v in Config.VEHICULOS do
+		if v.velocidadBase > primero.velocidadBase * 1.4 then
+			kit.truthy("el rapido " .. v.nombre .. " esta atado a la calzada", v.soloCalzada == true)
+		end
+	end
 
 	-- Todo objeto del catálogo tiene que ser alcanzable por ALGÚN vehículo, o sería
 	-- mercancía que no se puede mover nunca: ocuparía sitio en el almacén y no

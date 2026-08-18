@@ -39,6 +39,11 @@ export type Modelo = {
 	-- modela mirando hacia donde le parece, y sin esto la mitad van de lado.
 	offset: Vector3,
 	giroY: number,
+	-- Y el VOLTEO, para las mallas exportadas con el eje Z hacia arriba (Blender y
+	-- compañía). Sin él la bicicleta salía tumbada en el suelo. Se aplica ANTES que
+	-- el giro sobre Y: al revés, el eje largo del vehículo acaba en vertical --
+	-- comprobado midiendo las cuatro combinaciones.
+	giroX: number?,
 	-- Color de respaldo para las mallas sin textura (el coche viene en gris).
 	color: Color3?,
 }
@@ -81,12 +86,16 @@ RideCatalog.MODELOS = {
 		offset = Vector3.new(0, -1.9, -0.7),
 		giroY = 0,
 	},
+	-- LA BICICLETA viene con el eje Z hacia arriba y el largo en X: de ahí el
+	-- volteo de -90 y el cuarto de vuelta. Medido en el mundo tras rotarla:
+	-- 3,0 de ancho x 4,5 de alto x 7,0 de largo, que es una bici.
 	bicicleta = {
 		mesh = "rbxassetid://475108790",
 		textura = "rbxassetid://475108895",
 		tamano = Vector3.new(2, 4, 6),
 		offset = Vector3.new(0, -1.4, 0),
-		giroY = 0,
+		giroX = -90,
+		giroY = 90,
 	},
 	moto = {
 		mesh = "rbxassetid://7951986269",
@@ -99,14 +108,14 @@ RideCatalog.MODELOS = {
 		mesh = "rbxassetid://3906462734",
 		tamano = Vector3.new(5.5, 4.5, 11),
 		offset = Vector3.new(0, -1.2, 0),
-		giroY = 0,
+		giroY = 270,
 		color = Color3.fromRGB(196, 84, 62),
 	},
 	furgoneta = {
 		mesh = "rbxassetid://18341462777",
 		tamano = Vector3.new(6, 6, 12),
 		offset = Vector3.new(0, -0.6, 0),
-		giroY = 0,
+		giroY = 270,
 		color = Color3.fromRGB(214, 216, 220),
 	},
 } :: { [string]: Modelo }

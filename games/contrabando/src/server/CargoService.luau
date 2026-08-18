@@ -17,6 +17,7 @@ local GoodsLook = require(game.ReplicatedStorage.Shared.GoodsLook)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
+local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local PlayerState = require(script.Parent.PlayerState)
@@ -55,7 +56,13 @@ local function aplicarVelocidad(player: Player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		humanoid.WalkSpeed = Cargo.velocidad(estado.cajas, estado.vehiculo)
+		-- El vehículo que CUENTA, que no siempre es el que has comprado: con la moto
+		-- aparcada al otro lado del parque vas a pie (ver Roads/RoadService). Sin
+		-- esto, recoger una caja te devolvería la velocidad de la moto estando a pie
+		-- -- dos sitios escribiendo la misma propiedad con reglas distintas, que es
+		-- la receta de un fallo imposible de reproducir.
+		local cuenta = Roads.vehiculoQueCuenta(estado.vehiculo, estado.montado ~= false)
+		humanoid.WalkSpeed = Cargo.velocidad(estado.cajas, cuenta)
 	end
 end
 
