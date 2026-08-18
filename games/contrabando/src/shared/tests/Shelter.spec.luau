@@ -71,33 +71,41 @@ return function(kit)
 		kit.truthy("el refugio " .. i .. " esta en el tramo central", avance > 0.2 and avance < 0.8)
 	end
 
-	-- EL REPARTO, que es lo que garantiza que no se amontonen. Cada ruta propone
-	-- los suyos sin saber nada de las demás, y dos rutas que pasan cerca acaban
-	-- plantando refugios casi pegados: tres en el mismo barrio dejan de ser una
-	-- decisión y pasan a ser mobiliario urbano.
-	local juntos = {
-		Vector3.new(0, 20, 0),
-		Vector3.new(40, 20, 0), -- pegado al primero: sobra
-		Vector3.new(600, 20, 0),
-		Vector3.new(620, 20, 30), -- pegado al tercero: sobra
+	-- EL REPARTO. Entra AGRUPADO POR RUTA, y tiene dos trabajos que pelean entre sí:
+	-- que no se amontonen, y que ninguna ruta se quede sin uno.
+	local grupos = {
+		{ Vector3.new(0, 20, 0) },
+		{ Vector3.new(40, 20, 0) }, -- pegado al de la ruta anterior, y es el único que tiene
 	}
-	local repartidos = Shelter.repartir(juntos, 300)
-	kit.eq("los que caen encima de otro se descartan", #repartidos, 2)
-	kit.eq("y sobrevive el primero de cada grupo", repartidos[1], juntos[1])
-	kit.eq("tambien en el segundo grupo", repartidos[2], juntos[3])
+	local repartidos = Shelter.repartir(grupos, 300, 1)
+	-- LA REGLA QUE NO SE ROMPE. Antes esto devolvía uno solo, y la segunda ruta se
+	-- quedaba sin ningún sitio donde bajar el peligro: nada reventaba, esa ruta
+	-- simplemente era peor y no había forma de saber por qué. Un refugio algo cerca
+	-- de otro es un defecto de reparto; una ruta sin refugio es un agujero de juego.
+	kit.eq("ninguna ruta se queda sin refugio", #repartidos, 2)
 
-	-- Y ninguno queda a menos de la separación pedida.
-	for i = 1, #repartidos do
-		for j = i + 1, #repartidos do
-			local dx = repartidos[i].X - repartidos[j].X
-			local dz = repartidos[i].Z - repartidos[j].Z
-			kit.truthy("ningun par queda demasiado cerca", math.sqrt(dx * dx + dz * dz) >= 300)
+	-- Y CUANDO HAY ALTERNATIVA, se coge la que respeta la separación: la ruta de
+	-- abajo propone dos sitios y el bueno es el lejano.
+	local conAlternativa = {
+		{ Vector3.new(0, 20, 0) },
+		{ Vector3.new(40, 20, 0), Vector3.new(600, 20, 0) },
+	}
+	local elegidos = Shelter.repartir(conAlternativa, 300, 1)
+	kit.eq("con alternativa se planta la lejana", elegidos[2], Vector3.new(600, 20, 0))
+	for i = 1, #elegidos do
+		for j = i + 1, #elegidos do
+			local dx = elegidos[i].X - elegidos[j].X
+			local dz = elegidos[i].Z - elegidos[j].Z
+			kit.truthy("y entonces ningun par queda cerca", math.sqrt(dx * dx + dz * dz) >= 300)
 		end
 	end
+
+	-- Dentro de un grupo se respeta el tope de refugios por ruta.
+	local sobrados = { { Vector3.new(0, 20, 0), Vector3.new(900, 20, 0), Vector3.new(1800, 20, 0) } }
+	kit.eq("no se plantan mas de los pedidos por ruta", #Shelter.repartir(sobrados, 300, 2), 2)
+
 	kit.eq("sin propuestas no hay refugios", #Shelter.repartir({}, 300), 0)
-	-- Uno solo siempre sobrevive: si el mapa se quedara sin refugios, esconderse
-	-- dejaría de existir como opción.
-	kit.eq("uno solo siempre vale", #Shelter.repartir({ Vector3.new(0, 20, 0) }, 300), 1)
+	kit.eq("un grupo vacio no cuela un refugio fantasma", #Shelter.repartir({ {} }, 300), 0)
 
 	-- Casos límite que no pueden reventar el arranque del mundo.
 	kit.eq("cero refugios devuelve lista vacia", #Shelter.sitiosDeRuta(origen, destino, 0), 0)

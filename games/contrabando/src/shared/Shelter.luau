@@ -100,7 +100,8 @@ function Shelter.sitiosDeRuta(origen: Vector3, destino: Vector3, cuantos: number
 	return sitios
 end
 
--- TODOS los refugios del mapa, con la separación mínima garantizada.
+-- TODOS los refugios del mapa, con la separación mínima garantizada Y sin dejar
+-- ninguna ruta sin uno.
 --
 -- Cada ruta propone los suyos sin saber nada de las demás, y dos rutas que pasan
 -- cerca acaban plantando refugios casi pegados: tres en el mismo barrio dejan de
@@ -108,25 +109,50 @@ end
 -- más espaciados", JJ). Aquí se descartan los que caen demasiado cerca de uno ya
 -- aceptado.
 --
--- El orden de entrada MANDA: el primero de cada ruta es el que sobrevive, y así
--- ninguna ruta se queda sin refugio por el capricho del orden de descarte.
-function Shelter.repartir(propuestas: { Vector3 }, separacion: number?): { Vector3 }
+-- PERO NUNCA HASTA DEJAR UNA RUTA A SECAS, y esto lo enseñó la sonda del mundo:
+-- la versión anterior recibía una lista plana y confiaba en que "el primero de
+-- cada ruta sobrevive". Con un solo refugio por ruta eso es falso -- el de la
+-- ámbar cayó a 233 studs del de la verde, se descartó, y **la ruta ámbar se quedó
+-- sin ningún sitio donde bajar el peligro**. Nada reventó: simplemente esa ruta
+-- era peor y nadie podía saber por qué.
+--
+-- Por eso ahora entra AGRUPADO por ruta. De cada grupo se cogen los que quepan
+-- respetando la separación; si no cabe ninguno, se coge el primero igualmente. Un
+-- refugio algo cerca de otro es un defecto de reparto; una ruta sin refugio es un
+-- agujero de juego.
+function Shelter.repartir(grupos: { { Vector3 } }, separacion: number?, porGrupo: number?): { Vector3 }
 	local minimo = separacion or Config.REFUGIO_SEPARACION
+	local tope = porGrupo or Config.REFUGIOS_POR_RUTA
 	local aceptados: { Vector3 } = {}
-	for _, sitio in propuestas do
-		local vale = true
+
+	local function lejosDeTodos(sitio: Vector3): boolean
 		for _, puesto in aceptados do
 			local dx = sitio.X - puesto.X
 			local dz = sitio.Z - puesto.Z
 			if math.sqrt(dx * dx + dz * dz) < minimo then
-				vale = false
-				break
+				return false
 			end
 		end
-		if vale then
-			table.insert(aceptados, sitio)
+		return true
+	end
+
+	for _, grupo in grupos do
+		local puestos = 0
+		for _, sitio in grupo do
+			if puestos >= tope then
+				break
+			end
+			if lejosDeTodos(sitio) then
+				table.insert(aceptados, sitio)
+				puestos += 1
+			end
+		end
+		-- La red de seguridad: esta ruta no ha colocado ninguno.
+		if puestos == 0 and #grupo > 0 then
+			table.insert(aceptados, grupo[1])
 		end
 	end
+
 	return aceptados
 end
 

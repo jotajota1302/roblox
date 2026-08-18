@@ -234,6 +234,26 @@ local function cotaDelTrazado(ciudad: Instance?, punto: Vector3, direccion: Vect
 	return alto
 end
 
+-- El punto del BORDE de una losa en la dirección de otro sitio.
+--
+-- Existe porque la carretera de un destino nacía en el CENTRO de su losa y se la
+-- cruzaba entera por encima: la sonda del mundo lo cazó a la primera --"lo que se
+-- pisa encima del destino es Acceso_verde_1"-- y es peor de lo que parece. La losa
+-- de un destino es su señal: verde, ámbar o roja, visible desde lejos, y es lo que
+-- el jugador busca al llegar. Una franja de asfalto gris por el medio la parte en
+-- dos.
+local function bordeDeLosa(losa: BasePart, hacia: Vector3): Vector3
+	local dir = Vector3.new(hacia.X - losa.Position.X, 0, hacia.Z - losa.Position.Z)
+	if dir.Magnitude < 1 then
+		return losa.Position
+	end
+	dir = dir.Unit
+	-- Por qué lado se sale del rectángulo: el que se alcance antes.
+	local tX = if math.abs(dir.X) > 1e-4 then losa.Size.X / 2 / math.abs(dir.X) else math.huge
+	local tZ = if math.abs(dir.Z) > 1e-4 then losa.Size.Z / 2 / math.abs(dir.Z) else math.huge
+	return losa.Position + dir * math.min(tX, tZ)
+end
+
 -- UN ACCESO RODADO entre dos puntos. Lo usa el polígono para engancharse a la
 -- ciudad y, sobre todo, cada DESTINO para engancharse a la calle más cercana.
 --
@@ -1326,7 +1346,7 @@ function CityBuilder.build(): Mundo
 			acceso(
 				ciudad,
 				"Acceso_" .. ruta.id,
-				destino.Position,
+				bordeDeLosa(destino, calle),
 				Vector3.new(calle.X, calle.Y, calle.Z),
 				20,
 				mundo,
@@ -1387,7 +1407,7 @@ function CityBuilder.build(): Mundo
 					acceso(
 						ciudad,
 						"AccesoTaller_" .. ruta.id,
-						tallerZona.Position,
+						bordeDeLosa(tallerZona, calleTaller),
 						Vector3.new(calleTaller.X, calleTaller.Y, calleTaller.Z),
 						18,
 						mundo,
@@ -1450,14 +1470,18 @@ function CityBuilder.build(): Mundo
 	-- Shelter.repartir, que descarta los que caen demasiado cerca de otro: cada
 	-- ruta propone a ciegas y dos que pasen cerca plantarían los suyos casi
 	-- pegados.
-	local propuestas: { Vector3 } = {}
+	--
+	-- Se piden CANDIDATOS DE SOBRA (dos más de los que se van a plantar) y se pasan
+	-- AGRUPADOS POR RUTA. Las dos cosas por el mismo motivo: si el sitio natural de
+	-- una ruta cae cerca del de otra, Shelter puede coger el siguiente de ESA MISMA
+	-- ruta en vez de dejarla sin refugio -- que es lo que pasaba, y lo destapó la
+	-- sonda del mundo.
+	local grupos: { { Vector3 } } = {}
 	for _, ruta in Routes.todas() do
-		for _, sitio in Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.REFUGIOS_POR_RUTA) do
-			table.insert(propuestas, sitio)
-		end
+		table.insert(grupos, Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.REFUGIOS_POR_RUTA + 2))
 	end
 	local refugios: { Vector3 } = {}
-	for _, sitio in Shelter.repartir(propuestas) do
+	for _, sitio in Shelter.repartir(grupos) do
 		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo)
 		if pieza then
 			table.insert(refugios, pieza.Position)
