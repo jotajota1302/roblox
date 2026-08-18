@@ -283,6 +283,7 @@ export type EstadoHud = {
 	capacidad: number?,
 	vehiculoNombre: string?,
 	mejoras: { { id: string, nombre: string, coste: number, capacidad: number } }?,
+	cajasEnVehiculo: { any }?,
 }
 
 function Hud.update(estado: EstadoHud)
@@ -293,7 +294,13 @@ function Hud.update(estado: EstadoHud)
 	-- Carga sobre capacidad, no un número suelto: "2 cajas" no dice si te queda
 	-- sitio, y de ese hueco depende toda la decisión de qué te llevas.
 	local capacidad = estado.capacidad or Config.CAPACIDAD_A_PIE
-	cargaLabel.Text = string.format("%d/%d", #estado.cajas, capacidad)
+	-- Y lo que espera en el vehículo aparcado, entre paréntesis. Sin esto, dejar
+	-- la moto con cuatro bultos dentro y ver "3/3" en el panel hace pensar que se
+	-- han perdido.
+	local enElVehiculo = #(estado.cajasEnVehiculo or {})
+	cargaLabel.Text = if enElVehiculo > 0
+		then string.format("%d/%d  (+%d)", #estado.cajas, capacidad, enElVehiculo)
+		else string.format("%d/%d", #estado.cajas, capacidad)
 	-- La etiqueta de esa línea es el vehículo, no la palabra "Carga": ya se
 	-- entiende que "2/10" es carga, y así el jugador ve en qué va sin gastar una
 	-- cuarta línea en un panel que tiene tres.

@@ -174,6 +174,11 @@ local function misionActual(estado: any): (string, Color3)
 	if #estado.cajas > 0 then
 		return "Elige destino en la salida", Palette.SALIDA
 	end
+	-- Con el zurrón vacío pero carga esperando en el vehículo, lo que toca es ir a
+	-- por él: si no, el jugador se vuelve al almacén creyendo que lo ha perdido.
+	if #(estado.cajasEnVehiculo or {}) > 0 then
+		return "Vuelve a por tu vehículo cargado", Palette.TALLER
+	end
 	-- Con dinero suficiente, lo primero es gastarlo. "No sé dónde se compran los
 	-- vehículos" (JJ) tenía dos mitades: el taller no se veía --ya es un
 	-- concesionario con rótulo y escaparate-- y nadie te decía nunca que ya podías

@@ -25,6 +25,7 @@ local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local PlayerState = require(script.Parent.PlayerState)
+local CargoService = require(script.Parent.CargoService)
 local Ride = require(script.Parent.Ride)
 
 -- Cada cuánto se mira el suelo. Tres veces por segundo: a 34 studs/s eso son 11
@@ -102,6 +103,50 @@ local function sueloBajoLosPies(root: BasePart): (boolean, Vector3?)
 		return true, golpe.Position
 	end
 	return Roads.esCalzada(golpe.Instance.Color), golpe.Position
+end
+
+-- LA CARGA SE QUEDA CON EL VEHÍCULO.
+--
+-- MEDIDO JUGANDO, y es de las cosas que sólo se ven jugando: con la bicicleta
+-- cargada de siete bultos, bajarse al pisar césped dejaba al personaje andando a
+-- OCHO studs por segundo -- el suelo mínimo. El viaje a la ruta verde no se
+-- completó en dos minutos y medio. La regla de la calzada, sin esto, convierte
+-- cualquier vehículo grande en una trampa.
+--
+-- Y la solución es la obvia en cuanto se piensa en lo que representa: un
+-- repartidor no se echa veinte bultos a la espalda al bajarse de la furgoneta.
+-- Lo que no puedes llevar a pie se queda dentro, y vuelve contigo cuando
+-- recuperas el vehículo. De paso, bajarse pasa a ser una decisión con precio:
+-- dejas la carga ahí, a la vista.
+local function descargarEnElVehiculo(player: Player, estado: any): number
+	local aPie = Cargo.capacidad(Config.VEHICULO_INICIAL)
+	local dejadas = {}
+	while Cargo.pesoTotal(estado.cajas) > aPie and #estado.cajas > 0 do
+		table.insert(dejadas, table.remove(estado.cajas))
+	end
+	if #dejadas == 0 then
+		return 0
+	end
+	estado.cajasEnVehiculo = estado.cajasEnVehiculo or {}
+	for _, caja in dejadas do
+		table.insert(estado.cajasEnVehiculo, caja)
+	end
+	CargoService.mostrarCarga(player)
+	return #dejadas
+end
+
+-- Y vuelve contigo al recuperarlo.
+local function recuperarDelVehiculo(player: Player, estado: any): number
+	local guardadas = estado.cajasEnVehiculo or {}
+	if #guardadas == 0 then
+		return 0
+	end
+	for _, caja in guardadas do
+		table.insert(estado.cajas, caja)
+	end
+	estado.cajasEnVehiculo = {}
+	CargoService.mostrarCarga(player)
+	return #guardadas
 end
 
 local function guardarAparcado(player: Player, vehiculo: string, donde: Vector3)
@@ -210,7 +255,14 @@ function RoadService.alternar(player: Player)
 		bajadoAProposito[player] = true
 		Ride.montar(character, nil)
 		guardarAparcado(player, vehiculo, root.Position)
-		avisar(player, "Dejas el vehículo aquí", Color3.fromRGB(232, 176, 64))
+		local dejadas = descargarEnElVehiculo(player, estado)
+		avisar(
+			player,
+			if dejadas > 0
+				then string.format("Dejas el vehículo aquí con %d bultos dentro", dejadas)
+				else "Dejas el vehículo aquí",
+			Color3.fromRGB(232, 176, 64)
+		)
 		PlayerState.sync(player)
 		return
 	end
@@ -236,6 +288,10 @@ function RoadService.alternar(player: Player)
 	bajadoAProposito[player] = nil
 	recoger(player)
 	Ride.montar(character, vehiculo)
+	local recuperadas = recuperarDelVehiculo(player, estado)
+	if recuperadas > 0 then
+		avisar(player, string.format("Recoges tus %d bultos", recuperadas), Color3.fromRGB(150, 220, 160))
+	end
 	PlayerState.sync(player)
 end
 
@@ -278,7 +334,14 @@ local function paso(player: Player)
 		estado.montado = false
 		Ride.montar(character, nil)
 		guardarAparcado(player, vehiculo :: string, ultimaCalzada[player] or root.Position)
-		avisar(player, "Te bajas: aquí no se puede rodar", Color3.fromRGB(232, 176, 64))
+		local dejadas = descargarEnElVehiculo(player, estado)
+		avisar(
+			player,
+			if dejadas > 0
+				then string.format("Te bajas: %d bultos se quedan en el vehículo", dejadas)
+				else "Te bajas: aquí no se puede rodar",
+			Color3.fromRGB(232, 176, 64)
+		)
 		PlayerState.sync(player)
 	elseif not montado and guardado ~= nil then
 		local cerca = (root.Position - guardado.modelo:GetPivot().Position).Magnitude
@@ -293,7 +356,14 @@ local function paso(player: Player)
 			estado.montado = true
 			recoger(player)
 			Ride.montar(character, estado.vehiculo)
-			avisar(player, "De vuelta al volante", Color3.fromRGB(150, 220, 160))
+			local recuperadas = recuperarDelVehiculo(player, estado)
+			avisar(
+				player,
+				if recuperadas > 0
+					then string.format("De vuelta al volante con tus %d bultos", recuperadas)
+					else "De vuelta al volante",
+				Color3.fromRGB(150, 220, 160)
+			)
 			PlayerState.sync(player)
 		end
 	end

@@ -57,6 +57,10 @@ export type Estado = {
 	-- EL GARAJE: todo lo que ha comprado, no sólo lo que lleva puesto. Comprar ya
 	-- no sustituye -- ver Vehicles.posee y el porqué que hay allí.
 	garaje: { string }?,
+	-- LO QUE VA EN EL VEHÍCULO cuando lo dejas aparcado. Un repartidor no se echa
+	-- veinte bultos a la espalda al bajarse de la furgoneta: se quedan dentro (ver
+	-- RoadService, y la medición que lo destapó).
+	cajasEnVehiculo: { Economy.Caja }?,
 }
 
 local estados: { [Player]: Estado } = {}
@@ -81,6 +85,7 @@ function PlayerState.get(player: Player): Estado
 			retornoZona = nil,
 			montado = true,
 			garaje = {},
+			cajasEnVehiculo = {},
 		}
 		estados[player] = estado
 	end
@@ -117,6 +122,7 @@ function PlayerState.sync(player: Player)
 		retornoZona = estado.retornoZona,
 		montado = estado.montado ~= false,
 		garaje = estado.garaje or {},
+		cajasEnVehiculo = estado.cajasEnVehiculo or {},
 		-- El nivel viaja ya calculado: el cliente sólo dibuja, y así no hay dos
 		-- sitios haciendo la misma cuenta con riesgo de discrepar en pantalla.
 		nivel = Levels.nivelDe(estado.xp or 0),
