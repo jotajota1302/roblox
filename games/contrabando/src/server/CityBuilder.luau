@@ -2164,7 +2164,10 @@ function CityBuilder.build(): Mundo
 	local guaridasDeRuta: { [string]: { Vector3 } } = {}
 	for _, ruta in Routes.todas() do
 		guaridasDeRuta[ruta.id] = {}
-		for _, sitio in Lairs.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.GUARIDAS_POR_RUTA) do
+		-- Cuántas, por ruta: el barrio pide cero. Es el primer viaje de la partida y
+		-- perder ahí la primera carga de tu vida es la forma más rápida de que
+		-- alguien cierre el juego.
+		for _, sitio in Lairs.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, ruta.guaridas or Config.GUARIDAS_POR_RUTA) do
 			local pieza = guarida(ciudad, #guaridas + 1, ruta.id, sitio, mundo, guaridas)
 			if pieza then
 				table.insert(guaridas, pieza.Position)

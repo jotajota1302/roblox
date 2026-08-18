@@ -94,17 +94,26 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- manda el id que quiera. Sin esta línea, el ×10 de la roja seguiría siendo
 	-- gratis para cualquiera que sepa abrir la consola.
 	local nivel = Levels.nivelDe(estado.xp or 0)
-	local puede, motivo = Routes.disponible(rutaId, nivel, estado.vehiculo)
+	local puede, motivo = Routes.disponible(rutaId, nivel, estado.vehiculo, estado.hitos)
 	if not puede then
 		-- Y SE DICE POR QUÉ. Cuatro motivos distintos por los que no se sale se ven
 		-- todos igual desde dentro --no pasa nada al pulsar-- y eso se lee como un
 		-- juego roto, no como una regla.
-		avisar(
-			player,
-			if motivo == "nivel_insuficiente"
-				then string.format("Te falta nivel: %s", Routes.requisito(rutaId))
-				else EXPLICACION[motivo] or "Por ahi no puedes salir"
-		)
+		-- If de SENTENCIA y no de expresión: uno de expresión con comentarios dentro
+		-- es ilegible, y además este proyecto ya pagó que un if de expresión trunca a
+		-- un solo valor lo que devuelve una función.
+		local texto
+		if motivo == "nivel_insuficiente" then
+			texto = string.format("Te falta nivel: %s", Routes.requisito(rutaId))
+		elseif motivo == "hito_pendiente" then
+			-- El hito se dice TAL CUAL, sin "te falta": ya es una frase que dice qué
+			-- hacer ("Entrega tu primer paquete"), y anteponerle una excusa la
+			-- convierte en un reproche.
+			texto = Routes.requisitoPara(rutaId, estado.hitos)
+		else
+			texto = EXPLICACION[motivo] or "Por ahi no puedes salir"
+		end
+		avisar(player, texto)
 		return false
 	end
 

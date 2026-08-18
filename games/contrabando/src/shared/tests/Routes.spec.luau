@@ -72,6 +72,27 @@ return function(kit)
 	-- El monopatín no es de motor: va por todas partes, y ésa es su gracia.
 	kit.falsy("el monopatin no abre la roja", (Routes.disponible("roja", 99, "monopatin")))
 
+	-- LOS HITOS, que son el peldaño de más abajo. Sin ellos la función se comporta
+	-- como antes: quien llame sin el parámetro no ve ningún cambio.
+	local sinHitos: { [string]: boolean } = {}
+	kit.falsy("la verde esta cerrada hasta la primera entrega", (Routes.disponible("verde", 1, "a_pie", sinHitos)))
+	kit.eq("y el motivo es el hito", select(2, Routes.disponible("verde", 1, "a_pie", sinHitos)), "hito_pendiente")
+	kit.truthy("con el hito hecho, se sale", (Routes.disponible("verde", 1, "a_pie", { primera = true })))
+	kit.truthy("sin pasar hitos, todo sigue como antes", (Routes.disponible("verde", 1, "a_pie")))
+
+	-- EL HITO VA PRIMERO: decirle que le falta nivel para una ruta que ni siquiera
+	-- ha desbloqueado es mandarle a perseguir lo que no le sirve.
+	kit.eq(
+		"lo que falta se dice en el orden correcto",
+		select(2, Routes.disponible("verde", 0, "a_pie", sinHitos)),
+		"hito_pendiente"
+	)
+
+	-- Y el texto de lo que falta cambia con lo que ya tienes.
+	kit.eq("sin el hito, se pide el hito", Routes.requisitoPara("verde", sinHitos), "Entrega tu primer paquete")
+	kit.eq("con el hito, se pide el nivel", Routes.requisitoPara("verde", { primera = true }), "Nivel 1")
+	kit.eq("y la roja pide sus dos cosas", Routes.requisitoPara("roja", sinHitos), "Nivel 8 y vehículo de motor")
+
 	-- Lo que se lee en el selector sale de la regla, no de un texto a mano.
 	kit.truthy("el requisito de la roja menciona el vehiculo", string.find(Routes.requisito("roja"), "motor") ~= nil)
 	kit.truthy("y el de la ambar solo el nivel", string.find(Routes.requisito("ambar"), "Nivel") ~= nil)

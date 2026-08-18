@@ -11,6 +11,7 @@
 ]]
 
 local Config = require(script.Parent.Config)
+local Goals = require(script.Parent.Goals)
 local Roads = require(script.Parent.Roads)
 
 export type Ruta = {
@@ -21,6 +22,9 @@ export type Ruta = {
 	pvp: string,
 	nivel: number?,
 	exigeMotor: boolean?,
+	-- Cuántas guaridas le tocan. nil = las de siempre; 0 = ninguna, que es lo que
+	-- pide el barrio: ahí el peligro se enseña, no se aplica.
+	guaridas: number?,
 }
 
 local Routes = {}
@@ -103,9 +107,18 @@ end
 -- igual que Vehicles.puedeComprar: cuando alguien diga "le doy y no pasa nada",
 -- el motivo dice qué regla se aplicó. Un botón que no responde cuesta la partida
 -- entera; una línea de texto la salva.
-function Routes.disponible(id: string, nivel: number, vehiculoId: string?): (boolean, string)
+function Routes.disponible(id: string, nivel: number, vehiculoId: string?, hitos: any): (boolean, string)
 	if not Routes.existe(id) then
 		return false, "ruta_desconocida"
+	end
+	-- EL HITO VA PRIMERO porque es el peldaño de más abajo: no tiene sentido decirle
+	-- a alguien que le falta nivel para una ruta que todavía no ha desbloqueado.
+	--
+	-- El parámetro es opcional para no romper a quien llame sin él, pero
+	-- RouteService SÍ lo pasa, y ése es el que decide. Sin hitos, se comporta como
+	-- antes: sólo nivel y vehículo.
+	if hitos ~= nil and not Goals.rutaAbierta(id, hitos) then
+		return false, "hito_pendiente"
 	end
 	local nivelPedido, exigeMotor = Routes.licencia(id)
 	if nivel < nivelPedido then
@@ -125,6 +138,30 @@ end
 -- etiqueta, y el día que se toque el nivel pedido lo que se lee tiene que cambiar
 -- solo.
 function Routes.requisito(id: string): string
+	-- Si lo que falta es el hito, se dice el HITO y no el nivel: "Nivel 1" a alguien
+	-- que ya tiene nivel 1 es una puerta cerrada sin explicación, que es
+	-- exactamente el fallo que este texto vino a arreglar.
+	local hito = Goals.hitoQueAbre(id)
+	if hito then
+		return hito.texto
+	end
+	local nivel, motor = Routes.licencia(id)
+	if motor then
+		return string.format("Nivel %d y vehículo de motor", nivel)
+	end
+	return string.format("Nivel %d", nivel)
+end
+
+-- Igual que requisito, pero sabiendo lo que el jugador YA tiene: una vez cumplido
+-- el hito, lo que falta vuelve a ser el nivel. Sin esto, la verde diría "entrega
+-- tu primer paquete" para siempre.
+function Routes.requisitoPara(id: string, hitos: any): string
+	if hitos ~= nil and not Goals.rutaAbierta(id, hitos) then
+		local hito = Goals.hitoQueAbre(id)
+		if hito then
+			return hito.texto
+		end
+	end
 	local nivel, motor = Routes.licencia(id)
 	if motor then
 		return string.format("Nivel %d y vehículo de motor", nivel)
@@ -138,7 +175,8 @@ end
 -- solo -- y un selector que promete "poco peligrosa" en la zona más sembrada es
 -- peor que no decir nada.
 function Routes.amenazas(id: string): (number, number)
-	return Routes.get(id).detectores, Config.GUARIDAS_POR_RUTA
+	local ruta = Routes.get(id)
+	return ruta.detectores, ruta.guaridas or Config.GUARIDAS_POR_RUTA
 end
 
 function Routes.entregaValida(rutaElegida: string?, rutaDelDestino: string): boolean

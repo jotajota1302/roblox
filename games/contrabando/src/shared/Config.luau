@@ -300,6 +300,36 @@ Config.TALLER_POS = Vector3.new(-540, 19.2, 930)
 -- el jugador nuevo elige la roja en su primer minuto, cobra diez veces más sin
 -- haber hecho nada por merecerlo, y el resto de la progresión se queda sin sentido.
 Config.RUTAS = {
+	-- EL BARRIO: la rampa de entrada, y el único destino que existe al empezar.
+	--
+	-- POR QUÉ. Medido: la primera recompensa del juego llegaba a los ~100 s, y en el
+	-- juego que inspiró esta tanda llega a los 3. La verde son 823 studs ANDANDO
+	-- (camino real, no línea recta), o sea 56 s cargado -- más los 176 studs que ya
+	-- hay del almacén a la salida. Para el que acaba de entrar, eso es todo lo que
+	-- hay antes del primer premio.
+	--
+	-- El ×0,5 NO es un castigo: es lo que impide que domine. Tres cajas comunes son
+	-- 15 monedas en ~45 s (20 por minuto) y la verde da 30 en ~100 s (18 por
+	-- minuto). Casi iguales, así que el barrio es una puerta y no un atajo -- y por
+	-- eso tampoco hace falta cerrarlo nunca.
+	--
+	-- SIN GUARIDAS y con una sola esquina fichada: el peligro se enseña, no se
+	-- aplica. Perder la primera carga de tu vida es la forma más rápida de que
+	-- alguien cierre el juego.
+	--
+	-- ⚠ EL DESTINO ESTÁ ESTIMADO, no medido: sale de interpolar entre el enganche
+	-- del polígono (-593, 679) y el destino verde. La sonda de SelfCheck comprueba
+	-- que tenga calle, que esté apoyado y que el camino a pie desde la salida mida
+	-- entre 200 y 350 studs; si sale rojo, es esta coordenada la que hay que mover.
+	{
+		id = "barrio",
+		multiplicador = 0.5,
+		nivel = 1,
+		destino = Vector3.new(-428, 19.2, 623),
+		detectores = 1,
+		guaridas = 0,
+		pvp = "ninguno",
+	},
 	{
 		id = "verde",
 		multiplicador = 1,
@@ -650,6 +680,9 @@ Config.CONTACTO_RECARGA = 45
 
 -- Cuántos por ruta. Escalan con el peligro, como todo lo demás.
 Config.CONTACTOS_POR_RUTA = {
+	-- El barrio lleva tres y ninguno apartado: es el viaje donde se aprende que hay
+	-- cosas que recoger, no donde se decide si merece la pena desviarse.
+	barrio = { sueltos = 3, racimos = 0 },
 	verde = { sueltos = 6, racimos = 1 },
 	ambar = { sueltos = 10, racimos = 2 },
 	roja = { sueltos = 16, racimos = 3 },

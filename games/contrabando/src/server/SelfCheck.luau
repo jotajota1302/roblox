@@ -906,6 +906,68 @@ local function contactos()
 	end
 end
 
+-- EL BARRIO: la rampa de entrada. Su destino es el ÚNICO del juego que se puso
+-- estimado y no medido -- sale de interpolar entre el enganche del polígono y el
+-- destino verde --, así que esta sonda es la que dice si la estimación valía.
+--
+-- Y mide lo que importa de verdad, que no es que exista sino que se pueda ir
+-- ANDANDO y que sea corto: la razón de ser del barrio es que la primera
+-- recompensa llegue en ~45 s en vez de ~100.
+local function barrio()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local ruta = Routes.get("barrio")
+	if ruta == nil then
+		comprobar("existe la ruta del barrio", false, "no está en Config.RUTAS")
+		return
+	end
+
+	-- Apoyado en el suelo, medido contra lo que tiene DEBAJO y no contra una cota
+	-- fija: la ciudad tiene laderas.
+	local golpe = bajoLosPies(ruta.destino.X, ruta.destino.Y + 6, ruta.destino.Z, 300)
+	comprobar(
+		"el destino del barrio se apoya en el suelo",
+		golpe ~= nil and math.abs(ruta.destino.Y - golpe.Position.Y) <= 10,
+		if golpe == nil
+			then "no hay suelo debajo"
+			else string.format("%.0f studs de desnivel", math.abs(ruta.destino.Y - golpe.Position.Y))
+	)
+	comprobar(
+		"y es pisable",
+		esPisable(golpe),
+		"el destino cae sobre algo que no es suelo: un tejado, una copa o el vacío"
+	)
+
+	-- Y SOBRE TODO: que se pueda ir andando, y que sea corto.
+	local camino = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
+	local ok = pcall(function()
+		camino:ComputeAsync(Config.POLIGONO_SALIDA, ruta.destino)
+	end)
+	if not ok or camino.Status ~= Enum.PathStatus.Success then
+		comprobar("hay camino a pie hasta el barrio", false, tostring(camino.Status))
+		return
+	end
+
+	local largo = 0
+	local puntos = camino:GetWaypoints()
+	for i = 1, #puntos - 1 do
+		local a, b = puntos[i].Position, puntos[i + 1].Position
+		largo += math.sqrt((b.X - a.X) ^ 2 + (b.Z - a.Z) ^ 2)
+	end
+
+	-- Por debajo de 200 la entrega cae dentro de la zona segura y no enseña nada;
+	-- por encima de 350 deja de ser un bucle corto y no arregla lo que vino a
+	-- arreglar.
+	comprobar(
+		"el barrio está a la distancia de una rampa",
+		largo >= 200 and largo <= 350,
+		string.format("%d studs andando: fuera de la horquilla 200-350", math.floor(largo))
+	)
+end
+
 -- 9. INFORME. Números medidos, sin aprobado ni suspenso.
 --
 -- No son comprobaciones porque no hay un valor "correcto": son las cifras con las
@@ -1052,6 +1114,7 @@ function SelfCheck.run(): string
 		{ nombre = "refugios", fn = refugios },
 		{ nombre = "guaridas", fn = guaridas },
 		{ nombre = "contactos", fn = contactos },
+		{ nombre = "barrio", fn = barrio },
 		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },
 		{ nombre = "puente", fn = puente },

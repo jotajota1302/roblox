@@ -88,11 +88,18 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	fila.ZIndex = 2
 	fila.Parent = pantalla
 
+	-- Declaradas ANTES del layout que las usa: en Lua un nombre usado antes de
+	-- existir como local se resuelve como global nil, y `UDim.new(nil, 0)` revienta.
+	-- Este proyecto ya pagó ese error dos veces (en CargoService y en el cierre a
+	-- mano del selector), así que aquí va dicho.
+	local cuantas = #Routes.todas()
+	local separacion = 0.02
+
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Padding = UDim.new(0.02, 0)
+	layout.Padding = UDim.new(separacion, 0)
 	-- Por LayoutOrder, no por nombre. Con el orden por defecto los botones salían
 	-- alfabéticos -- AMBAR, ROJA, VERDE -- y el gradiente de riesgo, que es lo
 	-- único que esta pantalla tiene que comunicar de un vistazo, quedaba
@@ -100,12 +107,19 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = fila
 
+	-- EL ANCHO SE REPARTE, no se cablea. Con tres rutas cabían tres tarjetas de
+	-- 0,3 y una separación de 0,02 (0,94 en total); al entrar el barrio pasaron a
+	-- ser cuatro y la suma se fue a 1,26 -- y un UIListLayout horizontal NO encoge
+	-- a sus hijos, los deja salirse. El día que se añada una quinta ruta, esto
+	-- sigue funcionando solo.
+	local anchoTarjeta = (1 - separacion * math.max(cuantas - 1, 0)) / math.max(cuantas, 1)
+
 	for orden, ruta in Routes.todas() do
 		local boton = Instance.new("TextButton")
 		boton.Name = ruta.id
 		boton.LayoutOrder = orden
 		boton.ZIndex = 2
-		boton.Size = UDim2.fromScale(0.3, 1)
+		boton.Size = UDim2.fromScale(anchoTarjeta, 1)
 		boton.BackgroundColor3 = Palette.ruta(ruta.id)
 		boton.AutoButtonColor = true
 		-- El texto va en tres etiquetas hijas, no en una cadena con saltos de
@@ -246,7 +260,10 @@ function RoutePicker.actualizar(estado: any)
 	end
 	local nivel = estado.nivel or 1
 	for id, boton in tarjetas do
-		local puede = Routes.disponible(id, nivel, estado.vehiculo)
+		-- Con los hitos: la verde está cerrada hasta la primera entrega, y el
+		-- selector tiene que decirlo. Pinta, no decide -- el servidor vuelve a
+		-- comprobarlo cuando se pulsa.
+		local puede = Routes.disponible(id, nivel, estado.vehiculo, estado.hitos)
 		local color = Palette.ruta(id)
 		boton.BackgroundColor3 = if puede then color else UiKit.oscurecer(color, 0.62)
 		local detalle = boton:FindFirstChild("Detalle") :: TextLabel?
@@ -261,7 +278,10 @@ function RoutePicker.actualizar(estado: any)
 					fichadas,
 					madrigueras
 				)
-				else Routes.requisito(id)
+				-- Lo que falta DE VERDAD, sabiendo lo que ya tiene: una vez hecho el
+				-- hito, lo que falta vuelve a ser el nivel. Sin esto, la verde diría
+				-- "entrega tu primer paquete" para siempre.
+				else Routes.requisitoPara(id, estado.hitos)
 			detalle.TextTransparency = if puede then 0.35 else 0
 		end
 		if multiplicador then
