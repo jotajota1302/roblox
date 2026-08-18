@@ -114,7 +114,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto
 		aviso.Name = "PromptCaja"
 		aviso.ActionText = "Cargar"
 		aviso.ObjectText = Goods.etiqueta(objeto, rareza)
-		aviso.MaxActivationDistance = 9
+		aviso.MaxActivationDistance = 12
 		aviso.HoldDuration = 0
 		aviso.RequiresLineOfSight = false
 		aviso.Parent = caja

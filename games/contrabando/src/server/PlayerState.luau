@@ -106,6 +106,9 @@ end
 function PlayerState.sync(player: Player)
 	local estado = PlayerState.get(player)
 	local vehiculo = Vehicles.deEstado(estado.vehiculo)
+	-- Va montado salvo que lo haya dejado aparcado (ver RoadService).
+	local montado = estado.montado ~= false
+	local aPie = Vehicles.get(Vehicles.A_PIE)
 	Remotes.event(Remotes.SYNC_STATE):FireClient(player, {
 		dinero = estado.dinero,
 		cajas = estado.cajas,
@@ -131,8 +134,13 @@ function PlayerState.sync(player: Player)
 		-- capacidad calculada: dibujar "2/10" no debe requerir que el cliente
 		-- sepa ninguna regla, porque el cliente no decide nada en este juego.
 		vehiculo = vehiculo.id,
-		vehiculoNombre = vehiculo.nombre,
-		capacidad = vehiculo.capacidad,
+		-- EL NOMBRE Y LA CAPACIDAD SON LOS DE LO QUE LLEVAS PUESTO, no los de lo que
+		-- tienes. "Pone que voy en bicicleta pero voy andando" (JJ): al dejar el
+		-- vehículo aparcado, el panel seguía anunciando la bici y su capacidad de
+		-- nueve mientras el personaje iba a pie con tres huecos. El HUD estaba
+		-- describiendo el garaje, no al jugador.
+		vehiculoNombre = if montado then vehiculo.nombre else aPie.nombre,
+		capacidad = if montado then vehiculo.capacidad else aPie.capacidad,
 		-- Lo que le queda por comprar, ya filtrado por su estado: el taller no
 		-- ofrece nada que no sea una mejora.
 		mejoras = Vehicles.mejorasPara(estado.garaje),

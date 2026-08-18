@@ -978,6 +978,11 @@ function CityBuilder.build(): Mundo
 	poligono(mundo)
 	local almacen = losa(ciudad, "Almacen", Vector3.new(90, ALTO_LOSA, 90), Config.ALMACEN_POS, Palette.ALMACEN, mundo)
 	-- La boca mira a la SALIDA: es de donde vienes y a donde vas cada viaje.
+	-- DEJAR CARGA, en la propia losa del almacén. El muelle sólo daba y nunca
+	-- recibía ("no puedo dejar paquetes en el almacén", JJ), así que elegir mal lo
+	-- que cargabas no tenía marcha atrás.
+	prompt(almacen, "Dejar carga aquí", "Almacén", 30).Name = "PromptDevolver"
+
 	local frenteCasa = if Config.POLIGONO_SALIDA.Z < Config.ALMACEN_POS.Z then -1 else 1
 	nave(almacen, mundo, frenteCasa)
 	muelle(almacen, frenteCasa)

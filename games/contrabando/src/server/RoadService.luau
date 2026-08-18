@@ -328,7 +328,21 @@ local function paso(player: Player)
 		ultimaCalzada[player] = punto
 	end
 
-	if montado and Roads.exigeCalzada(vehiculo) and not enCalzada then
+	if guardado ~= nil and Perimeter.dentro(root.Position) then
+		-- EL VEHÍCULO VUELVE A CASA CONTIGO. "Si he vuelto al almacén debería estar
+		-- en el taller ya" (JJ), y tiene razón: obligar a cruzar media ciudad a pie
+		-- para recuperar la moto que dejaste tirada es un castigo que no decide
+		-- nada -- ya pagaste el precio al bajarte, que fue hacer el resto del viaje
+		-- andando.
+		--
+		-- Vuelve AL GARAJE, no a tus manos: lo sacas en el taller cuando quieras,
+		-- con la carga que llevara dentro. Y así el garaje sigue siendo el único
+		-- sitio donde se cambia de vehículo.
+		recoger(player)
+		bajadoAProposito[player] = nil
+		avisar(player, "Tu vehículo ha vuelto al taller", Color3.fromRGB(150, 220, 160))
+		PlayerState.sync(player)
+	elseif montado and Roads.exigeCalzada(vehiculo) and not enCalzada then
 		-- SE BAJA, y el vehículo se queda en el último asfalto que pisó: dejarlo
 		-- donde te saliste es dejarlo dentro del seto.
 		estado.montado = false

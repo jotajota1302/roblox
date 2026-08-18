@@ -429,7 +429,11 @@ local function recogerSiEstasEncima()
 		return
 	end
 	local ahora = os.clock()
-	if ahora - ultimaRecogida < 1 then
+	-- Cada 0,4 s y no cada segundo: cargar cinco cosas tardaba CINCO SEGUNDOS de
+	-- pie encima del montón, y eso es lo que se siente como que "no va fino" (JJ).
+	-- Sigue habiendo freno --sin él, plantarse en el muelle vacía el almacén en un
+	-- suspiro y deja de haber elección-- pero al ritmo de una persona cargando.
+	if ahora - ultimaRecogida < 0.4 then
 		return
 	end
 
@@ -448,7 +452,10 @@ local function recogerSiEstasEncima()
 	for _, caja in pila:GetChildren() do
 		if caja:IsA("BasePart") then
 			local d = (root.Position - caja.Position).Magnitude
-			if d <= 7 and d < masCerca then
+			-- 10 studs y no 7: el radio viejo obligaba a plantarse casi encima de la
+			-- pieza, y con la mercancía grande (un sofá mide 6) el centro de la caja
+			-- quedaba fuera de alcance aunque la estuvieras tocando.
+			if d <= 10 and d < masCerca then
 				elegida, masCerca = caja, d
 			end
 		end
@@ -503,6 +510,8 @@ ProximityPromptService.PromptTriggered:Connect(function(aviso, jugador)
 		if siguiente then
 			Remotes.event(Remotes.COMPRAR):FireServer(siguiente.id)
 		end
+	elseif aviso.Name == "PromptDevolver" then
+		Remotes.event(Remotes.DEVOLVER):FireServer()
 	elseif aviso.Name == "PromptComprar" then
 		-- El id lo pone el mundo (lo escribió el servidor al construir el
 		-- escaparate) y el cliente sólo lo devuelve: aquí no se decide nada.

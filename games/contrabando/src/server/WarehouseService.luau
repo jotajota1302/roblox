@@ -177,7 +177,55 @@ function WarehouseService.reclamar(player: Player, indice: number?): number
 	return cogidas
 end
 
+-- DEJAR CARGA EN EL ALMACÉN. "No puedo dejar paquetes en el almacén" (JJ), y no
+-- se podía: el muelle sólo daba, nunca recibía.
+--
+-- Y hacía falta por una razón que no es comodidad sino DECISIÓN: al almacén se
+-- baja a elegir qué te llevas, y elegir mal no tenía marcha atrás -- cargabas una
+-- nevera, veías que no te cabía la urna que de verdad querías, y ya no había nada
+-- que hacer salvo el viaje entero. Poder soltar convierte el muelle en una mesa
+-- donde se prueba, en vez de en una máquina expendedora.
+--
+-- Vuelve al almacén, no desaparece: es tuya, y el contador la recupera igual que
+-- si la hubiera producido.
+function WarehouseService.devolver(player: Player): (boolean, string)
+	local estado = PlayerState.get(player)
+	if #estado.cajas == 0 then
+		return false, "sin_carga"
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root or not almacen then
+		return false, "lejos"
+	end
+	if (root.Position - (almacen :: BasePart).Position).Magnitude > DISTANCIA_ALMACEN then
+		return false, "lejos"
+	end
+	-- Con ruta elegida NO: sería salir, ver que la ruta pinta mal y devolver la
+	-- carga sin coste. La decisión de ruta se toma con la carga ya hecha.
+	if estado.ruta ~= nil or estado.retornoZona ~= nil then
+		return false, "ya_en_ruta"
+	end
+
+	local cuantas = #estado.cajas
+	estado.cajas = {}
+	estado.almacenCajas = math.min(Config.ALMACEN_TOPE, (estado.almacenCajas or 0) + cuantas)
+	CargoService.aplicarVelocidad(player)
+	CargoService.mostrarCarga(player)
+	PlayerState.sync(player)
+	Remotes.event(Remotes.AVISO)
+		:FireClient(player, string.format("Dejas %d cosas en el almacén", cuantas), Color3.fromRGB(150, 220, 160))
+	return true, "ok"
+end
+
 function WarehouseService.start()
+	Remotes.event(Remotes.DEVOLVER).OnServerEvent:Connect(function(player)
+		local ok, motivo = pcall(WarehouseService.devolver, player)
+		if not ok then
+			warn("[Contrabando] fallo al devolver carga: " .. tostring(motivo))
+		end
+	end)
+
 	Remotes.event(Remotes.RECLAMAR).OnServerEvent:Connect(function(player, indice)
 		-- El índice se pasa tal cual y se valida DENTRO de reclamar, que es donde
 		-- están los datos con los que se puede juzgar. Lo único que se hace aquí es
