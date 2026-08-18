@@ -169,6 +169,16 @@ Avisos verificados:
   código, usa `Players.CharacterAutoLoads = false` durante el arranque.
 - Un `require` que falla se propaga: protege los del punto de entrada.
 - Los emojis en `TextLabel` suelen salir como `□`. No usarlos.
+- **Un `if` de expresión devuelve UN valor y trunca lo que devuelva la función.**
+  `local a, b = if cond then nil else f()` deja `b` en `nil` aunque `f` devuelva dos cosas.
+  No es un error de sintaxis y no avisa nadie: en `CityBuilder` hacía que cada losa se
+  apoyara en la muestra del centro en vez de en el punto alto de su huella, y sólo se vio
+  midiendo el mundo ya construido. Si necesitas varios valores, `if` de sentencia.
+- **Un rayo desde el cielo se para en la copa de un árbol.** La ciudad del Creator Store
+  tiene 2.048 hojas y 2.720 troncos (`Model` llamado `Tree`), así que "el suelo" en un
+  parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
+  bajando saltándose el árbol -- y con margen: cuatro rebotes se agotan donde hay dos
+  árboles en la misma vertical.
 
 ## Trabajo en paralelo: quién es dueño de qué
 
