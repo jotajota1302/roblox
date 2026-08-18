@@ -679,4 +679,27 @@ Config.SENUELO_DURACION = 6 -- segundos que los ladrones van al señuelo y no a 
 Config.SENUELO_RECARGA = 45
 Config.SENUELO_RADIO = 120 -- a quién despista
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- LOS HITOS: qué toca hacer ahora, y qué se gana al hacerlo.
+--
+-- POR QUÉ EXISTEN. Medido: la primera recompensa del juego llegaba a los ~100 s,
+-- y en el juego que lo inspiró llega a los 3. Además, un jugador nuevo no tenía
+-- forma de saber qué se esperaba de él ni cuánto faltaba para lo siguiente: la
+-- licencia por nivel existía desde el 18/08 pero sólo se descubría chocando.
+--
+-- SE CUENTAN ENTREGAS, NO NIVEL, en los peldaños de abajo: el nivel sube con el
+-- dinero cobrado, así que su ritmo depende de qué llevabas encima y no de cuánto
+-- has jugado. Uno con suerte en el sorteo de rarezas saltaría dos peldaños en su
+-- primer viaje y otro se quedaría atascado haciendo exactamente lo mismo.
+--
+-- `abre` es una LLAVE: la ruta verde no existe hasta el primer hito. Por eso el
+-- servidor lo comprueba y no se fía del selector.
+Config.HITOS = {
+	{ id = "primera", texto = "Entrega tu primer paquete", entregas = 1, monedas = 50, abre = "verde" },
+	{ id = "tres", texto = "Entrega 3 paquetes", entregas = 3, monedas = 250 },
+	{ id = "ambar", texto = "Sube a nivel 3 para la ruta ambar", nivel = 3 },
+	{ id = "ocho", texto = "Entrega 8 paquetes", entregas = 8, monedas = 1000 },
+	{ id = "roja", texto = "Nivel 8 y un vehiculo de motor para la roja", nivel = 8, exigeMotor = true },
+}
+
 return Config
