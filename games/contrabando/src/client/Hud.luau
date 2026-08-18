@@ -13,6 +13,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -32,6 +33,8 @@ local metaLabel: TextLabel
 local metaFila: Frame
 local contactosLabel: TextLabel
 local contactosFila: Frame
+local dineroObjetivo = 0
+local dineroMostrado: number? = nil
 local avisoLabel: TextLabel
 local misionLabel: TextLabel
 local accionesPanel: Frame
@@ -55,6 +58,34 @@ local function acabado(boton: TextButton, base: Color3): UIStroke
 	boton.AutoButtonColor = true
 	boton.TextStrokeTransparency = 0.6
 	return trazo
+end
+
+-- El contador del dinero. Persigue al objetivo con un paso proporcional a lo que
+-- falta, así que un salto pequeño se resuelve enseguida y uno grande no tarda una
+-- eternidad: contar de 0 a 15.000 moneda a moneda sería peor que no contar.
+--
+-- En Heartbeat y no en RenderStepped: esto es información, y con la ventana sin
+-- foco RenderStepped da CERO llamadas por segundo -- el contador se quedaría
+-- congelado a mitad de cuenta sin ningún error.
+local function arrancarContador()
+	RunService.Heartbeat:Connect(function(dt)
+		if not dineroLabel or dineroMostrado == nil then
+			return
+		end
+		local actual = dineroMostrado :: number
+		if actual == dineroObjetivo then
+			return
+		end
+		local paso = (dineroObjetivo - actual) * math.min(1, dt * 6)
+		-- Sin este mínimo, el último tramo se acerca infinitamente sin llegar y el
+		-- HUD se queda un euro por debajo para siempre.
+		if math.abs(dineroObjetivo - actual) < 1 or math.abs(paso) < 1 then
+			dineroMostrado = dineroObjetivo
+		else
+			dineroMostrado = actual + paso
+		end
+		dineroLabel.Text = UiKit.millares(math.floor(dineroMostrado :: number))
+	end)
 end
 
 function Hud.build()
@@ -313,6 +344,8 @@ function Hud.build()
 	misionSize.MinSize = Vector2.new(150, 26)
 	misionSize.MaxSize = Vector2.new(300, 38)
 	misionSize.Parent = misionLabel
+
+	arrancarContador()
 end
 
 -- LOS CONTROLES QUE SIRVEN AHORA MISMO, uno por fila y con su botón dibujado.
@@ -385,7 +418,17 @@ function Hud.update(estado: EstadoHud)
 	if not dineroLabel then
 		return
 	end
-	dineroLabel.Text = UiKit.millares(estado.dinero)
+	-- EL DINERO NO SE ESCRIBE: SE PERSIGUE. Un número que salta de 300 a 540 se
+	-- entera el HUD; uno que sube se entera el jugador, y es la misma cifra. El
+	-- contador vive en su propio Heartbeat (abajo) porque el refresco general va a
+	-- cuatro veces por segundo y a esa cadencia contar se ve a trompicones.
+	dineroObjetivo = estado.dinero
+	if dineroMostrado == nil then
+		-- La primera vez se pone entero: entrar con 7.777 guardadas no es haber
+		-- ganado 7.777, y verlas contar desde cero sería mentir.
+		dineroMostrado = estado.dinero
+		dineroLabel.Text = UiKit.millares(estado.dinero)
+	end
 	-- Carga sobre capacidad, no un número suelto: "2 cajas" no dice si te queda
 	-- sitio, y de ese hueco depende toda la decisión de qué te llevas.
 	local capacidad = estado.capacidad or Config.CAPACIDAD_A_PIE

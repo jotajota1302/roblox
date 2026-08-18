@@ -21,6 +21,7 @@ local Garage = require(script.Parent:WaitForChild("Garage"))
 local Gate = require(script.Parent:WaitForChild("Gate"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Menu = require(script.Parent:WaitForChild("Menu"))
+local Popups = require(script.Parent:WaitForChild("Popups"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
@@ -62,6 +63,7 @@ construir("Gate", Gate.build)
 construir("Compass", Compass.build)
 construir("Minimap", Minimap.build)
 construir("Menu", Menu.build)
+construir("Popups", Popups.build)
 
 construir("RoutePicker", function()
 	RoutePicker.build(function(rutaId)
@@ -433,7 +435,31 @@ local function intentar(nombre: string, fn: (any) -> (), estado: any)
 	end
 end
 
+-- Lo que valia el estado ANTES de este sync, para poder pintar la diferencia. Se
+-- guardan sueltos y no el estado entero: es lo unico que se compara, y quedarse
+-- con la tabla vieja invitaria a que alguien empezara a leer de ella creyendo que
+-- esta al dia.
+local dineroAnterior: number? = nil
+local contactosAnterior: number? = nil
+
 Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
+	-- LOS NUMEROS FLOTANTES. El cliente no decide nada: pinta la diferencia entre
+	-- dos estados que le ha mandado el servidor. La primera vez no pinta nada --
+	-- entrar al juego con 7.777 monedas guardadas no es haber ganado 7.777.
+	intentar("popups", function(e)
+		local dinero = e.dinero or 0
+		if dineroAnterior ~= nil and dinero > dineroAnterior then
+			Popups.mostrar("+" .. tostring(dinero - dineroAnterior), Color3.fromRGB(238, 202, 122))
+		end
+		dineroAnterior = dinero
+
+		local contactos = e.contactos or 0
+		if contactosAnterior ~= nil and contactos > contactosAnterior then
+			Popups.mostrar("+" .. tostring(contactos - contactosAnterior), Color3.fromRGB(255, 214, 130), true)
+		end
+		contactosAnterior = contactos
+	end, estado)
+
 	ultimoEstado = estado
 	-- LO QUE CUESTA LA SIGUIENTE MEJORA, escrito en el propio aviso de la oficina.
 	-- Se pone desde el cliente y no al construir el mundo porque el precio depende
