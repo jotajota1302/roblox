@@ -22,6 +22,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
+local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
 
@@ -187,7 +188,92 @@ end
 --
 -- Se marca RODABLE entero: es una explanada de asfalto, y además es la zona
 -- segura, así que bajarse del vehículo aquí no tendría ningún sentido.
-local function poligono(padre: Instance)
+-- UN ACCESO RODADO entre dos puntos. Lo usa el polígono para engancharse a la
+-- ciudad y, sobre todo, cada DESTINO para engancharse a la calle más cercana.
+--
+-- POR QUÉ EXISTE EL SEGUNDO USO, que es el que importa: la mercancía grande
+-- EXIGE vehículo (un piano no se lleva a pie) y los vehículos grandes sólo ruedan
+-- por asfalto. Si el último tramo hasta el destino era césped, el juego te pedía
+-- una cosa y su contraria: llevar el piano en furgoneta y llegar a un sitio donde
+-- la furgoneta no entra. Lo dijo JJ: "que las cargas grandes vayan a sitios donde
+-- pueden llegar los vehículos".
+--
+-- Se marca RODABLE explícitamente en vez de fiarlo a su color: el asfalto se
+-- reconoce por gris (ver Roads.esCalzada), y una vía nuestra que un día se pinte
+-- de otro color dejaría de contar sin que nadie tocara esta línea.
+local function acceso(
+	ciudad: Instance?,
+	nombre: string,
+	desde: Vector3,
+	hasta: Vector3,
+	ancho: number,
+	padre: Instance
+): number
+	local plano = Vector3.new(hasta.X - desde.X, 0, hasta.Z - desde.Z)
+	local largo = plano.Magnitude
+	if largo < 6 then
+		-- Ya se tocan: una vía de cero studs sólo sería una pieza más que dibujar.
+		return 0
+	end
+
+	-- POR SEGMENTOS, SIGUIENDO EL SUELO. La primera versión era una sola losa a la
+	-- cota del destino, y el resultado se midió: el acceso a la ruta ámbar quedó
+	-- ENTERRADO bajo el césped en la mitad de su recorrido, porque el terreno sube
+	-- por el camino. Una vía que no se pisa no es una vía.
+	--
+	-- Cada tramo se planta sobre el suelo que tenga debajo, así que la carretera
+	-- sube y baja con el relieve en vez de atravesarlo.
+	local tramos = math.max(2, math.ceil(largo / 18))
+	local direccion = plano.Unit
+	local puestos = 0
+	for i = 1, tramos do
+		local t = (i - 0.5) / tramos
+		local centro = desde:Lerp(hasta, t)
+		local y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
+		local tramo = part(
+			string.format("%s_%d", nombre, i),
+			-- Un poco más largo que su parte proporcional, para que dos tramos
+			-- seguidos se solapen y no quede una junta de césped entre ellos.
+			Vector3.new(ancho, 2.4, largo / tramos + 6),
+			Vector3.new(centro.X, y + 0.4, centro.Z),
+			Color3.fromRGB(96, 96, 102),
+			padre
+		)
+		tramo.Material = Enum.Material.Asphalt
+		tramo.CFrame = CFrame.lookAt(tramo.Position, tramo.Position + direccion)
+		-- RODABLE explícito y no por color: el asfalto se reconoce por gris (ver
+		-- Roads.esCalzada), y una vía nuestra que un día se pinte de otro color
+		-- dejaría de contar sin que nadie tocara esta línea.
+		tramo:SetAttribute("rodable", true)
+		puestos += 1
+	end
+	return puestos
+end
+
+-- La calzada de la ciudad más cercana a un punto. Devuelve nil si no hay ninguna
+-- a tiro, que es la señal de que ese sitio no vale para un destino.
+local function calleMasCercana(ciudad: Instance?, centro: Vector3, alcance: number): Vector3?
+	if ciudad == nil then
+		return nil
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { ciudad }
+	for radio = 30, alcance, 10 do
+		for k = 0, 17 do
+			local angulo = k * math.pi / 9
+			local x = centro.X + math.cos(angulo) * radio
+			local z = centro.Z + math.sin(angulo) * radio
+			local golpe = workspace:Raycast(Vector3.new(x, centro.Y + 120, z), Vector3.new(0, -300, 0), params)
+			if golpe ~= nil and Roads.esCalzada(golpe.Instance.Color) then
+				return golpe.Position
+			end
+		end
+	end
+	return nil
+end
+
+local function poligono(ciudad: Instance?, padre: Instance)
 	local centro = Config.POLIGONO_CENTRO
 	local medida = Config.POLIGONO_TAMANO
 	local cota = centro.Y
@@ -217,20 +303,18 @@ local function poligono(padre: Instance)
 	-- LA CARRETERA DE ACCESO, de la salida del polígono a la calle más cercana.
 	-- Es la frontera del juego: cruzarla es salir de casa, y por eso la salida se
 	-- planta justo aquí.
-	local desde = Config.POLIGONO_SALIDA
-	local hasta = Config.POLIGONO_ENGANCHE
-	local medio = (desde + hasta) / 2
-	local largo = (Vector3.new(hasta.X, 0, hasta.Z) - Vector3.new(desde.X, 0, desde.Z)).Magnitude
-	local via = part(
+	-- Se le pasa la ciudad aunque el primer tramo salga de nuestra explanada:
+	-- sueloDeLaCiudad devuelve nil donde la ciudad no llega, y ahí el tramo se
+	-- queda en la cota que le damos. Medido: sin esto, los últimos metros antes de
+	-- enganchar con la calle quedaban por debajo del césped.
+	acceso(
+		ciudad,
 		"PoligonoAcceso",
-		Vector3.new(26, 3, largo + 20),
-		Vector3.new(medio.X, cota - 1.5, medio.Z),
-		Color3.fromRGB(96, 96, 102),
+		Vector3.new(Config.POLIGONO_SALIDA.X, cota, Config.POLIGONO_SALIDA.Z),
+		Vector3.new(Config.POLIGONO_ENGANCHE.X, cota, Config.POLIGONO_ENGANCHE.Z),
+		26,
 		padre
 	)
-	via.Material = Enum.Material.Asphalt
-	via.CFrame = CFrame.lookAt(via.Position, Vector3.new(hasta.X, cota - 1.5, hasta.Z))
-	via:SetAttribute("rodable", true)
 
 	-- Muro perimetral bajo en tres lados: cierra el recinto sin encerrar (la valla
 	-- de verdad, la que frena, es la del recinto y sólo aparece con carga sin
@@ -975,7 +1059,7 @@ function CityBuilder.build(): Mundo
 	-- plancha de respaldo para cuando no hay ciudad. Dos funciones locales con el
 	-- mismo nombre no dan ningún error en Luau -- la segunda pisa a la primera-- y
 	-- el resultado fue que el polígono no se construía y nadie se enteraba.
-	poligono(mundo)
+	poligono(ciudad, mundo)
 	local almacen = losa(ciudad, "Almacen", Vector3.new(90, ALTO_LOSA, 90), Config.ALMACEN_POS, Palette.ALMACEN, mundo)
 	-- La boca mira a la SALIDA: es de donde vienes y a donde vas cada viaje.
 	-- DEJAR CARGA, en la propia losa del almacén. El muelle sólo daba y nunca
@@ -1116,6 +1200,16 @@ function CityBuilder.build(): Mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
 
+		-- Y SU ACCESO RODADO hasta la calle más cercana. Sin esto, la mercancía
+		-- grande era una contradicción: exige vehículo, y el vehículo no podía
+		-- llegar hasta la losa.
+		local calle = calleMasCercana(ciudad, destino.Position, 220)
+		if calle ~= nil then
+			acceso(ciudad, "Acceso_" .. ruta.id, destino.Position, Vector3.new(calle.X, calle.Y, calle.Z), 20, mundo)
+		else
+			warn("[Contrabando] el destino " .. ruta.id .. " no tiene calle a menos de 220 studs")
+		end
+
 		-- Y SU TALLER AL LADO. Decisión de JJ: cambiar de vehículo no puede costar
 		-- un viaje entero de vuelta a casa, sobre todo ahora que tener varios
 		-- significa elegir el bueno para el trayecto (ver el garaje en
@@ -1145,6 +1239,17 @@ function CityBuilder.build(): Mundo
 				prompt(tallerZona, "Comprar vehículo", "Concesionario", 26).Name = "PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.
 				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
+				local calleTaller = calleMasCercana(ciudad, tallerZona.Position, 200)
+				if calleTaller ~= nil then
+					acceso(
+						ciudad,
+						"AccesoTaller_" .. ruta.id,
+						tallerZona.Position,
+						Vector3.new(calleTaller.X, calleTaller.Y, calleTaller.Z),
+						18,
+						mundo
+					)
+				end
 				table.insert(talleres, tallerZona)
 			end
 		end
