@@ -15,6 +15,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 
 local Goals = require(game.ReplicatedStorage.Shared.Goals)
+local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
@@ -94,6 +95,33 @@ function Persistence.cargar(player: Player)
 	-- el almacén sin responder. Warehouse.mejora ya sanea, pero el número que se
 	-- guarda tiene que estar sano también, o al volver a guardar se propaga.
 	estado.naveNivel = math.clamp(math.floor(tonumber(datos.naveNivel) or 1), 1, Warehouse.maximo())
+
+	-- MIGRACIÓN DE LAS PARTIDAS DE ANTES DE LOS HITOS. Va aquí, al final, porque
+	-- necesita el garaje y el vehículo ya cargados.
+	--
+	-- Sin esto, un veterano con nivel 10 y furgoneta vuelve a entrar y se encuentra
+	-- la ruta verde CERRADA --su tabla de hitos está vacía-- y sólo puede ir al
+	-- barrio, que es el viaje de tutorial. Castigar por haber jugado antes es la
+	-- peor forma posible de estrenar una funcionalidad.
+	--
+	-- Se dan por hechos los que su estado YA cumple, SIN pagar la recompensa: el
+	-- dinero se gana jugando, y regalarle 1.300 monedas por una migración
+	-- desequilibraría una economía que está medida. Sólo se le devuelve el acceso
+	-- que ya tenía.
+	if datos.hitos == nil then
+		local nivel = Levels.nivelDe(estado.xp or 0)
+		for _, hito in Goals.cumplidos(estado.entregas or 0, nivel, estado.vehiculo, estado.hitos) do
+			estado.hitos[hito.id] = true
+		end
+		-- Y el que abre la verde, si ya había jugado. Sus entregas no se contaban
+		-- antes de esta tanda, así que llega con cero y ese hito no se cumpliría
+		-- solo: lo que demuestra que ya jugó es el nivel o el garaje, no un contador
+		-- que no existía.
+		if (estado.xp or 0) > 0 or #(estado.garaje or {}) > 0 then
+			estado.hitos.primera = true
+		end
+	end
+
 	PlayerState.sync(player)
 
 	-- Y AHORA, no antes: la bienvenida cuenta lo que ha producido la nave mientras
