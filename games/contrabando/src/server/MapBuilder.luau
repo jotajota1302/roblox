@@ -18,7 +18,7 @@
 	  aprender dónde están los edificios y los cruces.
 
 	Lo que NO hace este módulo (queda para fases posteriores):
-	- Callejones con geometría específica (fase 2 — ✅ hecho vía plantarEdificioEnFila).
+	- Callejones con geometría específica (✅ uno por manzana, en sitio fijo).
 	- Plaza vacía como atajo (fase 2 — ✅ hecho vía PLAZA).
 	- Solares en ámbar/roja como vías de escape (fase 2.5 — ✅ hecho vía LOTES_VACANTES).
 	- Hitos de zona + verificación de conectividad (fase 3 lite — ✅ hecho).
@@ -100,34 +100,26 @@ local LOTES_VACANTES: { { col: number, fila: number } } = {
 	{ col = 1, fila = 0 }, -- roja: escape de la banda densa hacia el oeste
 }
 
--- Características por zona. Ahora con **rango de densidad** (no un número
--- fijo): cada manzana tira los dados y sale con 1-2, 2-3 o 3-5 edificios según
--- la zona. La repetición de la semilla hace que el resultado sea estable entre
--- partidas, así que la variabilidad es por manzana, no por sesión.
+-- Características por zona. La DENSIDAD desapareció con los edificios sueltos: desde
+-- que la manzana se construye por el perímetro, lo que distingue una zona de otra es
+-- lo ALTO que es el caserío y lo hondo que son sus alas, no cuántos cubos caben.
 --
--- La plantación pasa a ser **en fila** cuando la zona tiene más de un edificio
--- por manzana (ver plantarEdificioEnFila). Eso es lo que crea los callejones
--- visibles: huecos consistentes de `GAP_ENTRE_EDIFICIOS` studs entre
--- contiguos, no paquetes de edificios apilados al azar.
-local ZONA_CONFIG: {
-	[string]: { densidadMin: number, densidadMax: number, alturaMin: number, alturaMax: number },
-} =
-	{
-		verde = { densidadMin = 1, densidadMax = 2, alturaMin = 12, alturaMax = 24 },
-		ambar = { densidadMin = 2, densidadMax = 3, alturaMin = 24, alturaMax = 44 },
-		roja = { densidadMin = 3, densidadMax = 5, alturaMin = 44, alturaMax = 80 },
-	}
+-- Es una simplificación que además arregla algo: con densidad por rango, dos manzanas
+-- de la misma zona podían salir una llena y otra casi vacía, y la zona dejaba de
+-- leerse como una zona.
+local ZONA_CONFIG: { [string]: { alturaMin: number, alturaMax: number } } = {
+	verde = { alturaMin = 12, alturaMax = 24 },
+	ambar = { alturaMin = 24, alturaMax = 44 },
+	roja = { alturaMin = 44, alturaMax = 80 },
+}
 
 -- Hueco entre edificios cuando se plantan en fila. Lo bastante estrecho para
 -- que sea claramente un callejón (no un patio), lo bastante ancho para que un
 -- personaje y una patrulla quepan a la vez: el patrullaje en callejones de la
 -- roja es la habilidad de lectura que el viaje pide.
-local GAP_ENTRE_EDIFICIOS = 8
-
--- Lo más estrecho que puede salir un edificio de una fila. Bajó de 40 a 24 con la
--- manzana (de 240 a 120): con 40 sobre 120 studs, la roja no podía plantar más de
--- dos edificios por manzana y su densidad --lo único que la distingue-- se perdía.
-local ANCHO_MINIMO_EDIFICIO = 24
+-- Lo ancho que es el callejón que atraviesa una manzana. Cabe una persona holgada y
+-- un vehículo de calzada NO: es lo que hace que el atajo sea del que va a pie.
+local CALLEJON = 14
 
 -- Paleta. Cubos de colores a propósito — la estética se elige cuando el bucle
 -- esté medido. Tres tonos por zona para que el ojo distinga edificios sin
@@ -305,109 +297,96 @@ local function plantarLosaManzana(col: number, fila: number, padre: Instance)
 	)
 end
 
--- Un edificio dentro de una manzana, en posición libre. Tamaño en planta,
--- altura y color elegidos por la zona. Se usa para los casos con un solo
--- edificio por manzana (la mayoría de la verde): no necesita fila.
-local function plantarEdificio(col: number, fila: number, indice: number, zona: string, padre: Instance): Part
-	local cfg = ZONA_CONFIG[zona]
-	local paleta = COLOR_EDIFICIO[zona]
-
-	-- Tamaño en planta: 50-80% de la manzana, con un mínimo de 40 studs para
-	-- que el jugador no se lo encuentre microscópico.
-	local ancho = rng:NextNumber(0.5, 0.8) * TAMANO_MANZANA
-	local largo = rng:NextNumber(0.5, 0.8) * TAMANO_MANZANA
-	local alto = rng:NextNumber(cfg.alturaMin, cfg.alturaMax)
-
-	local xManzana = xDeColumna(col)
-	local zManzana = zDeFila(fila)
-	-- MÁS AIRE JUNTO AL BORDILLO. Con 10 studs, un edificio podía asomarse lo
-	-- bastante a la calle como para taparle al jugador el siguiente eslabón de la fila
-	-- de luces que le marca la ruta -- la sonda lo cazó en la verde. La fila es la
-	-- única señal que le dice por dónde seguir; taparla es peor que no plantar nada.
-	local margen = 16
-	local dx = rng:NextNumber(margen, TAMANO_MANZANA - margen - ancho)
-	local dz = rng:NextNumber(margen, TAMANO_MANZANA - margen - largo)
-
-	local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
-
-	return pieza(
-		string.format("Edificio_%d_%d_%d", col, fila, indice),
-		Vector3.new(ancho, alto, largo),
-		Vector3.new(xManzana + dx + ancho / 2, Y_CALZADA + ACERA_ALTURA + alto / 2, zManzana + dz + largo / 2),
-		color,
-		padre
-	)
-end
-
--- Un edificio dentro de una fila de N, todos en la misma manzana. Los
--- edificios se reparten el ancho útil con huecos `GAP_ENTRE_EDIFICIOS` entre
--- ellos — esos huecos son los callejones visibles desde el aire y desde el
--- suelo, y el sitio por donde la patrulla no cabe y el jugador sí.
+-- LA MANZANA CERRADA: cuatro bloques por el perímetro, patio dentro, y un callejón.
 --
--- La fila se orienta en X o en Z según el `rng`, así la ciudad no parece un
--- tablero cuadriculado perfecto sino una mezcla de orientaciones. La altura
--- sigue la del rango de la zona.
-local function plantarEdificioEnFila(
-	col: number,
-	fila: number,
-	indice: number,
-	n: number,
-	zona: string,
-	padre: Instance
-): Part
+-- Antes se plantaban entre uno y cinco edificios sueltos en medio de la manzana, con
+-- dieciséis studs de margen contra el bordillo. Eso dejaba la manzana MEDIO VACÍA, y
+-- medio vacía significa que se cruza en diagonal: el pathfinder lo hacía --sus caminos
+-- salían un 15-20 % más cortos que por las calles-- y un jugador lo descubre a la
+-- segunda partida. Y en cuanto se descubre, la fila de migas deja de ser el camino y
+-- pasa a ser un rodeo con premio, que es lo contrario de lo que hace falta.
+--
+-- Con el perímetro construido, la calle vuelve a ser la calle. El atajo no desaparece:
+-- se convierte en UN callejón por manzana, en un sitio fijo que se puede aprender --
+-- que es exactamente la habilidad que el juego decía pedir y no pedía.
+--
+-- El patio interior es de propina, y es el sitio donde esconderse de una patrulla que
+-- va por la calle.
+local function plantarManzanaCerrada(col: number, fila: number, zona: string, padre: Instance): { Part }
 	local cfg = ZONA_CONFIG[zona]
 	local paleta = COLOR_EDIFICIO[zona]
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	local piezas: { Part } = {}
+	local indice = 0
 
-	-- Orientación: 0 = fila en X, 1 = fila en Z. La orientación se deriva
-	-- de (col, fila) con una fórmula determinista, así **todos los edificios
-	-- de la misma manzana se orientan igual** (y los callejones son paralelos
-	-- dentro de la manzana, no se entrecruzan). Sin estado entre llamadas:
-	-- cada plantación es independiente.
-	local orientacion = ((col * 7 + fila) % 2 == 0) and "X" or "Z"
+	-- Lo hondo que es cada ala. Más en la roja: es lo que deja el patio pequeño y la
+	-- sensación de encajonado que la zona promete.
+	local fondo = if zona == "roja" then 40 elseif zona == "ambar" then 34 else 28
 
-	local margen = 16
-	local anchoUtil = TAMANO_MANZANA - 2 * margen
-	-- Reparto equitativo: los huecos entre edificios se reparten a partes
-	-- iguales. Si por la densidad impuesta no caben todos a 40 studs mínimo,
-	-- se reduce n al máximo que sí quepa: la densidad es un rango, no un
-	-- fijo, y el suelo gana a la estética.
-	local anchoUnitario = (anchoUtil - (n - 1) * GAP_ENTRE_EDIFICIOS) / n
-	if anchoUnitario < ANCHO_MINIMO_EDIFICIO then
-		n = math.max(1, math.floor((anchoUtil + GAP_ENTRE_EDIFICIOS) / (ANCHO_MINIMO_EDIFICIO + GAP_ENTRE_EDIFICIOS)))
-		anchoUnitario = (anchoUtil - (n - 1) * GAP_ENTRE_EDIFICIOS) / n
+	-- POR QUÉ LADO SE ENTRA. Determinista por (col, fila) y no aleatorio: un callejón
+	-- sólo sirve si el jugador puede acordarse de dónde está, y para eso tiene que
+	-- estar SIEMPRE en el mismo sitio. Con la semilla fija bastaría, pero derivarlo de
+	-- la coordenada lo hace además legible desde el código.
+	local ladoAbierto = (col * 3 + fila) % 4
+
+	-- La roja no tiene callejón en todas: una de cada dos queda cerrada, y eso es lo
+	-- que hace que rodearla cueste de verdad.
+	if zona == "roja" and (col + fila) % 2 == 0 then
+		ladoAbierto = -1
 	end
 
-	-- El "largo" del edificio ocupa la dimensión perpendicular a la fila, con
-	-- un margen mayor (15 studs) para que asome algo de suelo entre la fila y
-	-- la acera opuesta — visualmente más rico que pegado a la otra acera.
-	local largo = TAMANO_MANZANA - 2 * 15
-	local alto = rng:NextNumber(cfg.alturaMin, cfg.alturaMax)
-
-	local xManzana = xDeColumna(col)
-	local zManzana = zDeFila(fila)
-
-	local xCentro: number
-	local zCentro: number
-	if orientacion == "X" then
-		-- Fila en X: los edificios se reparten a lo largo del eje X, comparten
-		-- el mismo centro Z.
-		xCentro = xManzana + margen + (indice - 0.5) * anchoUnitario + (indice - 1) * GAP_ENTRE_EDIFICIOS
-		zCentro = zManzana + TAMANO_MANZANA / 2
-	else
-		-- Fila en Z: análogo.
-		xCentro = xManzana + TAMANO_MANZANA / 2
-		zCentro = zManzana + margen + (indice - 0.5) * anchoUnitario + (indice - 1) * GAP_ENTRE_EDIFICIOS
+	local function ala(nombre: string, ax0: number, ax1: number, az0: number, az1: number)
+		if ax1 - ax0 < 6 or az1 - az0 < 6 then
+			return
+		end
+		indice += 1
+		local alto = rng:NextNumber(cfg.alturaMin, cfg.alturaMax)
+		local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
+		local levantado = pieza(
+			string.format("Edificio_%d_%d_%d", col, fila, indice),
+			Vector3.new(ax1 - ax0, alto, az1 - az0),
+			Vector3.new((ax0 + ax1) / 2, Y_CALZADA + ACERA_ALTURA + alto / 2, (az0 + az1) / 2),
+			color,
+			padre
+		)
+		-- DERRIBABLE: un edificio puede quitarse para hacerle sitio a una pieza del
+		-- juego (una guarida, un refugio, un taller). El suelo y las calles NO -- se
+		-- marcan igual con `delMapa` pero sin esto, y la primera versión del derribo
+		-- se llevó por delante dos losas de manzana y el asfalto de dos cruces.
+		levantado:SetAttribute("derribable", true)
+		table.insert(piezas, levantado)
+		_ = nombre
 	end
 
-	local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
+	-- Cada ala se parte en dos si es la que lleva el callejón, dejando el hueco en el
+	-- centro. Partirla y no quitarla entera: un lado ausente sería una manzana en U y
+	-- se leería como un descampado, no como un paso.
+	local function aloLargoDeX(nombre: string, az0: number, az1: number, abierto: boolean)
+		if not abierto then
+			ala(nombre, x0, x1, az0, az1)
+			return
+		end
+		local centro = (x0 + x1) / 2
+		ala(nombre .. "A", x0, centro - CALLEJON / 2, az0, az1)
+		ala(nombre .. "B", centro + CALLEJON / 2, x1, az0, az1)
+	end
 
-	return pieza(
-		string.format("Edificio_%d_%d_%d", col, fila, indice),
-		Vector3.new(anchoUnitario, alto, largo),
-		Vector3.new(xCentro, Y_CALZADA + ACERA_ALTURA + alto / 2, zCentro),
-		color,
-		padre
-	)
+	local function aloLargoDeZ(nombre: string, ax0: number, ax1: number, abierto: boolean)
+		if not abierto then
+			ala(nombre, ax0, ax1, z0 + fondo, z1 - fondo)
+			return
+		end
+		local centro = (z0 + z1) / 2
+		ala(nombre .. "A", ax0, ax1, z0 + fondo, centro - CALLEJON / 2)
+		ala(nombre .. "B", ax0, ax1, centro + CALLEJON / 2, z1 - fondo)
+	end
+
+	aloLargoDeX("Sur", z0, z0 + fondo, ladoAbierto == 0)
+	aloLargoDeX("Norte", z1 - fondo, z1, ladoAbierto == 1)
+	aloLargoDeZ("Oeste", x0, x0 + fondo, ladoAbierto == 2)
+	aloLargoDeZ("Este", x1 - fondo, x1, ladoAbierto == 3)
+
+	return piezas
 end
 
 -- ¿Esta posición (x, z) cae dentro de un edificio? Para no plantar el
@@ -448,37 +427,47 @@ local function manzanasDe(zona: string): { { col: number, fila: number } }
 	return lista
 end
 
--- Puntos fijos del juego: los lee de Config. Si alguno cae dentro de una
--- manzana de su zona, ese edificio se retira y se avisa. La regla: el juego
--- siempre tiene prioridad sobre la estética.
+-- QUE NADA DEL MAPA SE PLANTE ENCIMA DE UN SITIO DEL JUEGO.
+--
+-- Esto miraba en qué MANZANA caía cada punto fijo y retiraba los edificios de esa
+-- manzana. Servía mientras los destinos estaban donde hubiera hueco; desde que van en
+-- CRUCES DE CALLE, ningún punto fijo cae dentro de una manzana -- y la comprobación
+-- dejó de retirar nada sin dejar de dar verde.
+--
+-- Lo que pasa entonces se vio en cuanto las manzanas se cerraron: la losa del destino
+-- mide 44 studs y desde un cruce invade las cuatro manzanas de alrededor, así que el
+-- ala del edificio se plantaba justo encima. Destino_verde quedó 22 studs bajo tierra
+-- y las rutas verde y barrio se quedaron sin camino a pie.
+--
+-- Ahora se mide por solape real en el plano, que es lo que importaba desde el
+-- principio: da igual de qué manzana sea el edificio si está encima de la losa.
 local function validarPuntosFijos(edificios: { Part })
-	-- Lista de (x, z) que el juego necesita tener despejados.
-	local fijos: { { id: string, x: number, z: number } } = {
-		{ id = "almacen", x = Config.ALMACEN_POS.X, z = Config.ALMACEN_POS.Z },
-		{ id = "taller", x = Config.TALLER_POS.X, z = Config.TALLER_POS.Z },
+	-- El sitio que cada cosa necesita despejado, en radio. La losa de un destino mide
+	-- 44 (22 de medio) y el almacén y el taller son mayores; se les da margen para que
+	-- no sólo quepan, sino que se pueda entrar y salir de ellos.
+	local fijos: { { id: string, pos: Vector3, radio: number } } = {
+		{ id = "almacen", pos = Config.ALMACEN_POS, radio = 70 },
+		{ id = "taller", pos = Config.TALLER_POS, radio = 60 },
 	}
 	for _, ruta in Config.RUTAS do
-		table.insert(fijos, { id = "destino_" .. ruta.id, x = ruta.destino.X, z = ruta.destino.Z })
+		table.insert(fijos, { id = "destino_" .. ruta.id, pos = ruta.destino, radio = 40 })
 	end
 
 	for _, punto in fijos do
-		local mz = manzanaEn(punto.x, punto.z)
-		if mz then
-			for _, edificio in edificios do
-				-- El nombre lleva el (col, fila) como "Edificio_col_fila_indice".
-				local partes = string.split(edificio.Name, "_")
-				if #partes >= 3 and tonumber(partes[2]) == mz.col and tonumber(partes[3]) == mz.fila then
-					warn(
-						string.format(
-							"[MapBuilder] edificio %s retirado: el %s cae en (col=%d, fila=%d)",
-							edificio.Name,
-							punto.id,
-							mz.col,
-							mz.fila
-						)
-					)
-					edificio:Destroy()
-				end
+		for _, edificio in edificios do
+			if edificio.Parent == nil then
+				continue
+			end
+			-- Distancia del punto a la caja del edificio, en planta: se recorta el punto
+			-- contra los bordes y se mide lo que queda. Con la distancia entre CENTROS,
+			-- un ala de 120 studs de largo parecería lejos estando encima.
+			local mitadX, mitadZ = edificio.Size.X / 2, edificio.Size.Z / 2
+			local cx = math.clamp(punto.pos.X, edificio.Position.X - mitadX, edificio.Position.X + mitadX)
+			local cz = math.clamp(punto.pos.Z, edificio.Position.Z - mitadZ, edificio.Position.Z + mitadZ)
+			local dx, dz = punto.pos.X - cx, punto.pos.Z - cz
+			if math.sqrt(dx * dx + dz * dz) < punto.radio then
+				warn(string.format("[MapBuilder] edificio %s retirado: se solapa con el %s", edificio.Name, punto.id))
+				edificio:Destroy()
 			end
 		end
 	end
@@ -598,21 +587,8 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 			end
 
 			plantarLosaManzana(mz.col, mz.fila, carpetaManzanas)
-			local cfg = ZONA_CONFIG[zonaNombre]
-			-- Densidad por rango, no fija: la semilla hace que sea estable
-			-- entre partidas, pero cada manzana es distinta.
-			local n = rng:NextInteger(cfg.densidadMin, cfg.densidadMax)
-
-			if n == 1 then
-				table.insert(edificiosGenerados, plantarEdificio(mz.col, mz.fila, 1, zonaNombre, carpetaEdificios))
-			else
-				-- En fila: crea los callejones visibles.
-				for i = 1, n do
-					table.insert(
-						edificiosGenerados,
-						plantarEdificioEnFila(mz.col, mz.fila, i, n, zonaNombre, carpetaEdificios)
-					)
-				end
+			for _, p in plantarManzanaCerrada(mz.col, mz.fila, zonaNombre, carpetaEdificios) do
+				table.insert(edificiosGenerados, p)
 			end
 		end
 	end

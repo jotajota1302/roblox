@@ -373,7 +373,18 @@ local function despejarCuenta(ciudad: Instance?, centro: Vector3, lado: number):
 	return cuenta
 end
 
-local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: number): number
+-- `arrasar` = también se lleva por delante lo que plantó el mapa.
+--
+-- Por defecto NO se toca: el mapa es nuestro y sus aceras y edificios no son chatarra
+-- que apartar (ver esDespejable). Pero cuando lo que se planta es una PIEZA DEL JUEGO
+-- --una guarida, un refugio, un taller-- el juego manda sobre la estética, y sin esto
+-- no encuentra hueco en una ciudad con las manzanas cerradas: los refugios se alejaban
+-- del camino buscando sitio hasta quedar a 63 studs, y una guarida acabó encima del
+-- destino del barrio.
+--
+-- Son cuatro o cinco piezas en todo el mapa. Que le hagan un hueco al caserío es
+-- exactamente lo que pasa en una ciudad cuando se construye una comisaría.
+local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: number, arrasar: boolean?): number
 	if ciudad == nil then
 		return 0
 	end
@@ -392,7 +403,7 @@ local function despejar(ciudad: Instance?, centro: Vector3, lado: number, alto: 
 
 	local quitadas = 0
 	for _, pieza in dentro do
-		if esDespejable(pieza) then
+		if esDespejable(pieza) or (arrasar == true and pieza:GetAttribute("derribable") == true) then
 			pieza:Destroy()
 			quitadas += 1
 		end
@@ -958,8 +969,39 @@ local function sitiosSobreElCamino(
 		return sitios
 	end
 
-	for i = 1, cuantos do
-		local d = dMin + (dMax - dMin) * ((i - 0.5) / cuantos)
+	-- Y NUNCA ENCIMA DE UN DESTINO. Los destinos están en cruces, y por un cruce pasan
+	-- los caminos de varias rutas: sin este filtro, una guarida de la ámbar se plantó
+	-- justo sobre la losa del barrio -- el sitio de cobrar siendo el sitio del que
+	-- salen los ladrones.
+	local function pisaUnDestino(sitio: Vector3): boolean
+		for _, ruta in Config.RUTAS do
+			-- 80 y no 55: se mide contra el CENTRO de la pieza que se va a plantar, y un
+			-- refugio son 54 studs de lado. Con 55 su centro quedaba justo fuera y su
+			-- esquina, encima de la losa del destino.
+			if (Vector2.new(sitio.X, sitio.Z) - Vector2.new(ruta.destino.X, ruta.destino.Z)).Magnitude < 80 then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- SE TANTEAN MÁS POSICIONES DE LAS QUE HACEN FALTA, y se paran al llenar el cupo.
+	--
+	-- Antes se calculaba exactamente una posición por pieza, y si un filtro la
+	-- descartaba, esa pieza no existía: la ruta verde se quedó sin guarida porque su
+	-- única posición caía a 16 studs del cruce del barrio y la descartaba el filtro de
+	-- destinos. Sin repuestos, un filtro no aparta una pieza: la borra.
+	-- POR OCHO y no por cuatro. La ruta verde comparte su primera mitad con la del
+	-- barrio, así que el destino del barrio le parte el tramo útil en dos trozos con
+	-- un agujero de 160 studs en medio -- y con cuatro tanteos repartidos por igual,
+	-- los cuatro caían dentro del agujero. No es que no hubiera sitio: es que no se
+	-- miraba con bastante detalle.
+	local intentos = cuantos * 8
+	for i = 1, intentos do
+		if #sitios >= cuantos then
+			break
+		end
+		local d = dMin + (dMax - dMin) * ((i - 0.5) / intentos)
 		-- Buscar en qué tramo cae esa distancia.
 		local recorrido = 0
 		for t = 1, #largos do
@@ -972,12 +1014,18 @@ local function sitiosSobreElCamino(
 				if plano.Magnitude > 0.01 then
 					-- Perpendicular en el plano: girar 90 grados es (z, -x).
 					local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
-					local signo = if i % 2 == 1 then 1 else -1
+					-- El lado alterna por PIEZA colocada y no por intento: con intentos
+					-- descartados de por medio, alternar por intento dejaba las dos
+					-- guaridas de una ruta en el mismo lado de la calle.
+					local signo = if #sitios % 2 == 0 then 1 else -1
 					local sitio = sobre + lado * (desvio * signo)
 					-- Y fuera de la zona segura, que se mide desde el ALMACÉN y no
 					-- desde donde empiece a contar el camino: dentro de ella no se
 					-- roba ni se calienta nadie, así que un refugio ahí no decide nada.
-					if (sitio - Config.ALMACEN_POS).Magnitude > Config.ZONA_SEGURA_RADIO + 10 then
+					if
+						(sitio - Config.ALMACEN_POS).Magnitude > Config.ZONA_SEGURA_RADIO + 10
+						and not pisaUnDestino(sitio)
+					then
 						table.insert(sitios, sitio)
 					end
 				end
@@ -1551,7 +1599,7 @@ local function guarida(
 
 	-- Se despeja su parcela, igual que la del almacén: es un edificio, y un edificio
 	-- con un árbol saliéndole por el tejado se lee como un fallo aunque no lo sea.
-	despejar(ciudad, Vector3.new(x, y, z), 38, 45)
+	despejar(ciudad, Vector3.new(x, y, z), 38, 45, true)
 
 	local ROJO = Color3.fromRGB(150, 58, 52)
 	local ROJO_OSCURO = Color3.fromRGB(92, 34, 32)
@@ -1642,7 +1690,7 @@ local function refugio(
 		return nil
 	end
 	local y, x, z = sitio.Y, sitio.X, sitio.Z
-	despejar(ciudad, Vector3.new(x, y, z), LADO + 4, 45)
+	despejar(ciudad, Vector3.new(x, y, z), LADO + 4, 45, true)
 
 	local AZUL = Color3.fromRGB(74, 118, 176)
 	local AZUL_OSCURO = Color3.fromRGB(44, 70, 108)
@@ -2097,7 +2145,7 @@ function CityBuilder.build(): Mundo
 				warn("[Contrabando] la zona " .. ruta.id .. " no tiene sitio despejado con calle: se queda sin taller")
 			end
 			if sitio ~= nil then
-				despejar(ciudad, sitio, 110, 45)
+				despejar(ciudad, sitio, 110, 45, true)
 				local tallerZona =
 					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(96, ALTO_LOSA, 60), sitio, Palette.TALLER, mundo)
 				prompt(tallerZona, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 26).Name =

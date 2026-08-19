@@ -406,6 +406,22 @@ Config.RUTAS = {
 		id = "verde",
 		multiplicador = 1,
 		nivel = 1,
+		-- SIN GUARIDA NI REFUGIO PROPIOS, y no es un olvido: es que no caben.
+		--
+		-- La verde mide 293 studs de camino y comparte su primera mitad con el barrio,
+		-- así que su tramo útil lo parten tres cosas -- la zona segura de casa, el
+		-- cruce del tutorial y su propio destino-- y lo que queda son dos trozos de
+		-- veinte studs. Se intentó repartir con más resolución y con márgenes menores,
+		-- y lo único que se conseguía era plantar el refugio encima de la losa del
+		-- barrio: el sitio al que corres siendo el sitio donde cobras.
+		--
+		-- Que sea así encaja con lo que la verde ES: la segunda rampa, ×1, sin robo
+		-- entre jugadores. Los ladrones siguen apareciendo --el respaldo los saca por
+		-- delante, sobre el camino-- y el calor se apaga entregando, que ahora te
+		-- devuelve a casa al instante. El peligro con sitios fijos que aprender
+		-- empieza en la ámbar, que es donde el mapa tiene sitio para ponerlos.
+		guaridas = 0,
+		refugios = 0,
 		-- ACERCADO EL 19/08, y el motivo está medido con el pathfinder dentro del
 		-- juego: el destino viejo (-180, 540) quedaba a 436 studs en línea recta
 		-- pero a **768 andando** -- un factor ×1,76, el peor de las cuatro rutas.
@@ -592,7 +608,14 @@ Config.REFUGIOS_POR_RUTA = 1
 -- --85 de casa, 55 del destino-- el hueco útil quedaba en seis studs y el refugio se
 -- plantaba ENCIMA de la losa del destino. Lo cazó la sonda: "Destino_verde se pisa por
 -- arriba, lo que se pisa ahí es Refugio_1".
-Config.REFUGIO_DESVIO = 45
+-- 18 y no 45: desde que las manzanas se construyen por el perímetro, sus alas tienen
+-- entre 28 y 40 studs de fondo, así que apartarse 45 del eje de la calle mete el
+-- refugio DENTRO de un edificio. Y esos edificios ya no se pueden despejar --el mapa
+-- es nuestro y se marca con `delMapa`-- así que el refugio se quedaría enterrado.
+--
+-- Con 18, el sitio al que corres está pegado al bordillo: se entra desde la calle, que
+-- es lo que uno espera de un portal.
+Config.REFUGIO_DESVIO = 18
 
 -- LO QUE TIENE QUE APARTARSE DE CASA, medido en studs desde el borde de la zona
 -- segura. Lo destapó JJ jugando: *"hay un refugio justo a la salida del almacén,
@@ -683,7 +706,7 @@ Config.GUARIDAS_POR_RUTA = 1
 
 -- Cuánto se apartan del camino recto. Menos que los refugios (100): una guarida
 -- pegada al corredor es un obstáculo que hay que rodear, y ése es su trabajo.
-Config.GUARIDA_DESVIO = 32
+Config.GUARIDA_DESVIO = 16
 
 -- A qué distancia del jugador una guarida sirve para soltar a un ladrón. Por
 -- debajo de APARICION_MIN sería una emboscada; por encima de esto el ladrón
