@@ -1773,7 +1773,7 @@ local function guarida(
 	-- hay altura que valga. Así que 170 -- que además sigue siendo MÁS BAJO que el
 	-- faro de la comisaría (190), y esa diferencia es información: el sitio al que
 	-- corres tiene que verse desde más lejos que el sitio que hay que rodear.
-	local farol = part("GuaridaFarol_" .. indice, Vector3.new(4, 170, 4), Vector3.new(x, y + 85, z), ROJO, padre)
+	local farol = part("GuaridaFarol_" .. indice, Vector3.new(4, 120, 4), Vector3.new(x, y + 60, z), ROJO, padre)
 	farol.Material = Enum.Material.Neon
 	farol.CanCollide = false
 	farol.Transparency = 0.35
@@ -1893,7 +1893,7 @@ local function refugio(
 
 	-- Y el pilar de luz por encima de los edificios (llegan a 175 studs), para
 	-- verlo desde la otra punta del barrio.
-	local faro = part("RefugioFaro_" .. indice, Vector3.new(5, 190, 5), Vector3.new(x, y + 95, z), AZUL, padre)
+	local faro = part("RefugioFaro_" .. indice, Vector3.new(5, 145, 5), Vector3.new(x, y + 72.5, z), AZUL, padre)
 	faro.Material = Enum.Material.Neon
 	faro.CanCollide = false
 	faro.Transparency = 0.25
@@ -2316,8 +2316,11 @@ function CityBuilder.build(): Mundo
 		-- hay manzanas de por medio y es fácil perder el norte a mitad de viaje.
 		local baliza = part(
 			"Baliza_" .. ruta.id,
-			Vector3.new(8, 300, 8),
-			destino.Position + Vector3.new(0, 150, 0),
+			Vector3.new(8, 210, 8),
+			-- Centrada a la MITAD de su alto para que nazca en el suelo. Al bajarla
+			-- de 300 a 210 hubo que mover esto con ella: una columna de 210 studs
+			-- centrada a 150 arranca a 45 del suelo, o sea flotando.
+			destino.Position + Vector3.new(0, 105, 0),
 			Palette.ruta(ruta.id),
 			mundo
 		)
