@@ -369,14 +369,15 @@ Config.RUTAS = {
 		-- equivocada es perder el viaje entero--. Los puntos más cercanos del
 		-- camino caían a 206-245 del barrio.
 		--
-		-- Y ESTÁ EN LLANO, que fue la segunda vuelta. El primer sitio elegido
-		-- (-170, 669) cumplía las distancias pero caía en una cuesta: su carretera
-		-- de acceso salía con un escalón de 4,2 studs y la sonda lo cazó -- "ahí se
-		-- traba el vehículo". Además dejaba el trayecto de la verde casi paralelo al
-		-- de la ámbar (los dos a z≈620-670), y como Shelter descarta los refugios
-		-- que caen a menos de 320 studs entre sí, LA ÁMBAR SE QUEDABA SIN NINGUNO.
-		-- Bajarlo al sur separa los dos corredores y arregla las dos cosas de una
-		-- vez. Medido: desnivel 0,0 en 25 studs a la redonda.
+		-- Y ESTÁ EN LLANO, que fue la segunda vuelta y se volvió a confirmar el 19/08.
+		-- El otro sitio candidato, (-170, 669), cumple todas las distancias y además
+		-- da un camino bastante más corto --511 studs contra 679, o sea 77 segundos
+		-- de ciclo contra 96--, pero cae en cuesta: su carretera de acceso deja un
+		-- canto de 2,6 studs donde nace, y ahí se traba el vehículo. Se probó a
+		-- suavizar la pendiente máxima de las vías (0,21 → 0,17) y el canto sigue.
+		--
+		-- Se elige el llano: diecinueve segundos de viaje valen menos que un sitio
+		-- donde el jugador se queda enganchado sin entender por qué.
 		destino = Vector3.new(-230, 19.2, 580),
 		detectores = 3,
 		pvp = "ninguno",

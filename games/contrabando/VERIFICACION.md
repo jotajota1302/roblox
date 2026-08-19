@@ -471,28 +471,50 @@ pasó al asentado de los detectores, cuya primera versión era correcta y no ser
 por estar en el sitio equivocado del orden. Lo que dependa del estado final del mundo va al
 final de la construcción, y punto.
 
+### Resuelto: la joroba del acceso verde
+
+**Era un solo rayo despistado, y lo encontró una sonda que volcaba las cotas fase por fase**
+en vez de más conjeturas. El perfil bruto de esa vía salía así:
+
+```
+21,0  20,6 … 20,6  20,6  **27,5**  19,4
+```
+
+Trece juntas a ras de una explanada llana, la penúltima **siete studs más arriba**, y la
+calle final a 19,4. Ese 27,5 es el rayo **central** de esa junta cayendo sobre una calle
+elevada de la ciudad que pasa justo por encima antes de llegar. Y por eso apretar el tope de
+los rayos laterales no cambiaba nada: el central manda sin límite, que es lo correcto en
+general porque es el que va por donde de verdad pasa la vía.
+
+Lo que hacía daño no era el pico sino lo que venía después: **la envolvente de conos hace su
+trabajo y lo reparte a las juntas vecinas**, así que un rayo levantaba cuatro tramos.
+
+**El arreglo** (`limitarDesdeExtremos`, en `acceso`): una junta no puede estar más alto de lo
+que se alcanza desde un extremo subiendo a la pendiente máxima. Los extremos son los dos
+datos que sí conocemos —la losa de la que sale la vía y la calle a la que llega— y una cuesta
+de verdad siempre cumple ese límite porque sube tramo a tramo. Lo que no lo cumple no se
+puede recorrer, así que tampoco hay que construirlo. Se aplica antes de los conos (para que
+el pico no contamine) y después (para que no queden escalones contra los extremos).
+
+Medido: el acceso verde pasa de sobresalir **4,5 studs a 1,8**.
+
+**Lo que NO era** (descartado con medida, para no repetirlo): el terreno (los cinco rayos dan
+19,00 en todo el trazado), los rayos laterales (bajado su tope de 4 a 1,6 con el cambio
+verificado en Studio antes de reconstruir: perfil idéntico al decimal) y los extremos
+impuestos (21,00 y 20,43, los dos bajos).
+
 ### Abierto
 
-- [ ] **El acceso a la verde se eleva 4,5 studs sobre terreno llano**, y su canto hace que el
-      pathfinder **rodee la propia carretera**: el camino de la verde pasa de 512 a 679 studs,
-      un tercio más de viaje en la ruta que más se juega. Arreglarlo devolvería el ciclo verde
-      de 96 s a ~78 s.
+- [ ] **Un destino verde alternativo daría 19 s menos de ciclo**, y se descartó a propósito.
+      `(-170, 669)` cumple todas las distancias y da un camino de 511 studs contra los 679 del
+      actual — **77 s de ciclo contra 96**. Pero cae en cuesta, y su carretera de acceso deja
+      un canto de **2,6 studs justo donde nace**, que es donde la sonda dice "ahí se traba el
+      vehículo". Probado suavizar la pendiente máxima de las vías (0,21 → 0,17): el canto
+      sigue, así que no viene de ahí.
 
-      Perfil medido, en studs sobre el terreno: `1,8 1,6 1,6 1,6 1,6 1,6 1,6 1,6 1,6 2,0 3,4
-      4,5 3,5 1,4`. La joroba está en el último tercio.
-
-      **Lo ya descartado** (para no repetirlo):
-
-      | Sospechoso | Cómo se descartó |
-      |---|---|
-      | El terreno | Los cinco rayos dan **19,00 en todo el trazado**. Es una explanada llana |
-      | Los rayos laterales de `cotaDelTrazado` | Bajado su tope de 4 a 1,6 **con el cambio verificado en Studio antes de reconstruir**: perfil idéntico al decimal |
-      | El rayo central | Mide 19,00 |
-      | Los extremos impuestos | La losa del destino está a 21,00 y la última losa acaba a 20,43: los dos bajos |
-
-      Queda por mirar la **envolvente de conos** que alisa el perfil (`acceso`, la cuenta
-      `max sobre j de suelo[j] − |i−j|·SALTO_MAXIMO`), que es lo único que puede levantar una
-      junta por encima de su propio suelo.
+      Se eligió el llano porque un sitio donde el jugador se queda enganchado sin entender por
+      qué cuesta más que diecinueve segundos. Si algún día se arregla el canto en el nacimiento
+      de las vías, este destino vale 19 s de regalo.
 
       **Y una trampa de método que costó una medición entera**, ver abajo.
 

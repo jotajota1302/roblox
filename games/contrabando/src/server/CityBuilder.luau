@@ -432,25 +432,11 @@ end
 -- y cuatro alrededor-- para que la calzada no quede enterrada cuando el terreno
 -- sube por un costado. El tope es lo que impide que ese máximo recoja un tejado.
 --
--- ⚠ Y NO ES EL CULPABLE DE LA JOROBA DEL ACCESO VERDE, aunque lo parecía. Queda
--- escrito aquí para que nadie vuelva a gastar la tarde en ello.
---
--- El síntoma: ese acceso cruza una explanada COMPLETAMENTE LLANA --medido punto por
--- punto con los cinco rayos, el suelo da 19,00 en TODO el trazado-- y aun así la
--- calzada se levanta hasta 4,5 studs sobre la hierba en su último tercio (perfil
--- 1,6 · 1,6 · 2,0 · 3,4 · 4,5 · 3,5 · 1,4). El coste no es estético: ese canto es
--- un obstáculo para el navmesh, así que el pathfinder RODEA la propia carretera
--- que le hemos puesto y el camino de la verde pasa de 512 a 679 studs -- un tercio
--- más de viaje en la ruta que más se juega, causado por su propio acceso.
---
--- La sospecha razonable era este tope: hay una calle elevada de la ciudad
--- (`Stone`, superficie a 29,42) pasando junto al final del trazado, y 4 studs de
--- margen dan de sobra para recogerla. **Probado bajarlo a 1,6 y el perfil sale
--- IDÉNTICO al decimal.** Así que la elevación no entra por los rayos laterales.
---
--- Descartado también: el rayo central (mide 19,00), y los dos extremos impuestos
--- (la losa del destino está a 21,00 y la última losa acaba a 20,43, los dos bajos).
--- Lo que queda por mirar es la envolvente de conos que alisa el perfil más abajo.
+-- ⚠ NO ES ESTE TOPE lo que levantaba el acceso a la verde, aunque lo parecía. Se
+-- probó bajarlo de 4 a 1,6 y el perfil salió idéntico al decimal: el pico entraba
+-- por el rayo CENTRAL, que no lleva tope --ni debe llevarlo, porque es el que va
+-- por donde de verdad pasa la vía-- y se arregla más abajo, limitando las cotas
+-- desde los extremos. Queda escrito para que nadie repita el intento.
 local LEVANTE_MAXIMO = 4
 
 local function cotaDelTrazado(ciudad: Instance?, punto: Vector3, direccion: Vector3, ancho: number): number?
@@ -613,9 +599,62 @@ local function acceso(
 	-- lomas se suben rodando y las vaguadas se cruzan volando, que es lo que hace
 	-- una carretera de verdad.
 	local pasoLargo = largo / tramos
-	-- 12 grados: una cuesta empinada de ciudad. Por encima, un vehículo con la
-	-- colisión desactivada seguiría subiendo, pero el PERSONAJE tropieza con el canto.
-	local SALTO_MAXIMO = pasoLargo * 0.21
+	-- 10 grados, bajado de 12 el 19/08. Es la pendiente máxima que se le permite a
+	-- una vía, y de ella sale lo que puede subir de un tramo al siguiente.
+	--
+	-- El motivo del ajuste es que la pendiente **también decide el canto**: dos
+	-- tramos seguidos se solapan un poco para no dejar juntas abiertas, y en la
+	-- zona solapada el de atrás asoma sobre el de delante en proporción a lo que
+	-- se diferencien sus inclinaciones. Con 0,21, el acceso a la verde --que sube
+	-- una cuesta de verdad-- dejaba justo en el límite un canto de 2,5 studs, que
+	-- es donde la sonda dice "ahí se traba el vehículo".
+	--
+	-- Bajarla cuesta poco: una rampa algo más larga y tendida. Y lo que compra es
+	-- que las cuestas reales de esta ciudad dejen de producir cantos, en vez de
+	-- ir buscando destinos llanos para esquivar el problema.
+	local SALTO_MAXIMO = pasoLargo * 0.17
+
+	-- LO QUE NO SE PUEDE ALCANZAR DESDE NINGÚN EXTREMO NO ES TERRENO: ES UN
+	-- ARTEFACTO, y se recorta ANTES de que los conos lo repartan.
+	--
+	-- Esto es lo que cerró la joroba del acceso a la verde, y costó encontrarlo
+	-- porque el sospechoso obvio era otro. Volcadas las cotas fase por fase, el
+	-- perfil bruto de esa vía salía así:
+	--
+	--     21,0  20,6 … 20,6  20,6  **27,5**  19,4
+	--
+	-- Trece juntas a ras de una explanada llana, la penúltima SIETE STUDS más
+	-- arriba, y la calle final a 19,4. Ese 27,5 no es una cuesta: es el rayo
+	-- CENTRAL de esa junta cayendo sobre una calle elevada de la ciudad que pasa
+	-- justo por encima antes de llegar. Y por eso apretar el tope de los rayos
+	-- laterales no cambiaba nada -- el central manda sin límite, que es lo correcto
+	-- en general porque es el que va por donde de verdad pasa la vía.
+	--
+	-- Lo que hacía daño no era el pico en sí sino lo que venía después: la
+	-- envolvente de conos hace su trabajo y lo reparte a las juntas vecinas, así
+	-- que un solo rayo despistado levantaba cuatro tramos y dejaba la calzada 4,5
+	-- studs sobre la hierba. Ese canto es un obstáculo para el navmesh, el
+	-- pathfinder rodeaba nuestra propia carretera, y el camino de la ruta verde
+	-- pasaba de 512 a 679 studs.
+	--
+	-- El criterio no es un número a ojo: **una junta no puede estar más alto de lo
+	-- que se alcanza desde un extremo subiendo a la pendiente máxima**. Los
+	-- extremos son los dos datos que sí conocemos (la losa de la que sale la vía y
+	-- la calle a la que llega), y una cuesta de verdad siempre cumple ese límite
+	-- porque sube tramo a tramo. Lo que no lo cumple no se puede recorrer, así que
+	-- tampoco hay que construirlo.
+	--
+	-- Se aplica dos veces, antes y después de los conos: antes para que el pico no
+	-- contamine, después para garantizar que el resultado no tenga escalones contra
+	-- los extremos.
+	local function limitarDesdeExtremos()
+		for i = 1, tramos - 1 do
+			local desdeElPrincipio = cotas[0] + i * SALTO_MAXIMO
+			local desdeElFinal = cotas[tramos] + (tramos - i) * SALTO_MAXIMO
+			cotas[i] = math.min(cotas[i], math.min(desdeElPrincipio, desdeElFinal))
+		end
+	end
+	limitarDesdeExtremos()
 
 	local suelo = table.clone(cotas)
 	for i = 1, tramos - 1 do
@@ -626,29 +665,14 @@ local function acceso(
 		cotas[i] = mejor
 	end
 
-	-- Y LOS DOS EXTREMOS TAMBIÉN LIMITAN, que es el agujero que dejaba la envolvente.
-	--
-	-- Los conos sólo SUBEN juntas (son un máximo), así que garantizan la pendiente
-	-- entre las de enmedio... pero no contra cotas[0] y cotas[tramos], que no se
-	-- calculan: se imponen desde fuera --la losa de la que sale la vía y la calle a
-	-- la que llega--. Una junta levantada por su cono junto a un extremo bajo deja
-	-- justo ahí la caída que todo lo demás venía a evitar.
-	--
-	-- Medido en el acceso a la verde: sus últimas juntas subían a un montículo
-	-- (24,4 → 26,5) y la calle esperaba abajo, a 23,5. Tres studs de golpe contra
-	-- la calzada, o sea el final del camino convertido en un bordillo alto -- y en
-	-- el peor sitio posible, porque es donde el jugador llega a entregar.
-	--
-	-- Se baja en vez de subir el extremo porque el extremo es el dato bueno: la
-	-- calle está donde está. Puede dejar la vía un poco enterrada en la loma, y ese
-	-- cambio es el correcto: una vía hundida se pisa igual, un escalón para el
-	-- vehículo en seco.
-	for i = 1, tramos - 1 do
-		cotas[i] = math.min(cotas[i], cotas[0] + i * SALTO_MAXIMO)
-	end
-	for i = tramos - 1, 1, -1 do
-		cotas[i] = math.min(cotas[i], cotas[tramos] + (tramos - i) * SALTO_MAXIMO)
-	end
+	-- Y OTRA VEZ DESPUÉS DE LOS CONOS, porque los conos sólo SUBEN juntas (son un
+	-- máximo): garantizan la pendiente entre las de enmedio, pero pueden dejar una
+	-- levantada junto a un extremo bajo, y ahí queda la caída que todo lo demás
+	-- venía a evitar. Medido en el acceso a la verde antes de esto: sus últimas
+	-- juntas subían a 26,5 con la calle esperando abajo a 23,5 -- tres studs de
+	-- golpe contra la calzada, y en el peor sitio posible, porque es donde el
+	-- jugador llega a entregar.
+	limitarDesdeExtremos()
 
 	local estorbos = OverlapParams.new()
 	estorbos.FilterType = Enum.RaycastFilterType.Include
@@ -1067,29 +1091,49 @@ end
 -- se apoyan legítimamente sobre la losa del polígono, y buscarles suelo ignorando
 -- lo que construimos nosotros los declararía en el aire estando bien puestos. Lo
 -- que sostiene al poste vale, sea de quien sea.
+-- Cuánto se puede subir una pieza enterrada. Con tope, porque enterrado y "debajo
+-- de un edificio" se miden igual desde aquí: sacar a la calle un poste que quedó
+-- dentro de una nave sería cambiar un fallo invisible por uno que se ve.
+local RESCATE_MAXIMO = 8
+
 local function asentar(piezas: { BasePart })
 	for _, pieza in piezas do
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = { pieza }
 		local base = pieza.Position.Y - pieza.Size.Y / 2
+
+		-- SE MIRA DESDE ARRIBA DE LA PIEZA, no desde su base, y eso es lo que hace
+		-- que valga para los dos casos. Un rayo que sale de la base sólo puede
+		-- encontrar lo que hay por debajo, así que ve la pieza que flota y es ciego
+		-- a la que está enterrada -- que es exactamente lo que pasó: `asentar`
+		-- dejaba las guaridas hundidas hasta 3,3 studs en el terreno y la sonda las
+		-- cazaba una por una según se movían los destinos.
+		local desde = pieza.Position.Y + pieza.Size.Y / 2 + 2
 		local golpe =
-			workspace:Raycast(Vector3.new(pieza.Position.X, base + 1, pieza.Position.Z), Vector3.new(0, -60, 0), params)
+			workspace:Raycast(Vector3.new(pieza.Position.X, desde, pieza.Position.Z), Vector3.new(0, -80, 0), params)
 		if not golpe then
 			continue
 		end
-		local vuelo = base - golpe.Position.Y
-		if vuelo <= 1 then
+
+		-- Positivo = flota y hay que bajarla; negativo = está enterrada y hay que
+		-- subirla. Una sola cuenta para las dos cosas.
+		local desajuste = base - golpe.Position.Y
+		if math.abs(desajuste) <= 1 then
 			continue
 		end
-		local caida = Vector3.new(0, vuelo, 0)
-		pieza.Position -= caida
-		-- Los hijos con cuerpo bajan con ella: son partes sueltas emparentadas, no
-		-- un Model, así que mover al padre no los arrastra. La lente que se queda
+		if desajuste < -RESCATE_MAXIMO then
+			continue
+		end
+
+		local movimiento = Vector3.new(0, desajuste, 0)
+		pieza.Position -= movimiento
+		-- Los hijos con cuerpo se mueven con ella: son partes sueltas emparentadas,
+		-- no un Model, así que mover al padre no los arrastra. La lente que se queda
 		-- flotando sobre su poste es el mismo fallo con otra cara.
 		for _, hijo in pieza:GetChildren() do
 			if hijo:IsA("BasePart") then
-				hijo.Position -= caida
+				hijo.Position -= movimiento
 			end
 		end
 	end
