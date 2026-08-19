@@ -204,6 +204,21 @@ Avisos verificados:
   parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
   bajando saltándose el árbol -- y con margen: cuatro rebotes se agotan donde hay dos
   árboles en la misma vertical.
+- **Editar mientras Studio está en Play NO llega al juego.** Rojo sincroniza contra el
+  datamodel de **Edit**, y una sesión de Play corre sobre el snapshot que se hizo al
+  arrancarla. Guardar un fichero con Studio jugando deja el disco, el `.rbxl` y la sesión
+  diciendo tres cosas distintas. El síntoma no se parece a un fallo -- `rojo build` dice
+  `BUILD OK`, las pruebas pasan, y lo que se está midiendo es el código de antes; así se da
+  por bueno un "lo he probado y no cambia nada" sin haberlo probado. **El ciclo correcto es:
+  editar, `rojo build`, PARAR el Play, leer el `Source` del módulo en el datamodel `Edit`
+  para confirmar que el cambio está, y sólo entonces arrancar y medir.**
+- **Cada cosa que se planta cambia el mundo que la siguiente mide.** Si algo se coloca según
+  el terreno, el pathfinding o lo que haya alrededor, va **al final** de la construcción. Ya
+  se pagó dos veces el mismo día: un rastro de recogibles sembrado antes que los refugios
+  acabó marcando un camino que una comisaría cortaba después (19 de 55 piezas fuera de
+  alcance), y una rutina que bajaba al suelo lo que flotaba no servía de nada porque el rayo
+  encontraba debajo algo que más tarde desaparecía -- el mismo código, movido al final,
+  funcionó a la primera.
 
 ## Trabajo en paralelo: quién es dueño de qué
 
