@@ -1268,7 +1268,15 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	local suelo = base.Position.Y + base.Size.Y / 2
 	-- Grande de verdad: tiene que caber el escaparate Y el garaje entero (ocho
 	-- vehículos), y con 40x26 las plazas se salían por detrás del cobertizo.
-	local ancho, largo, alto = 72, 44, 17
+	-- 88 DE ANCHO, Y SALE DE UNA MEDIDA. Con 72 el último expositor se salía por la
+	-- pared: los siete podios van desplazados media plaza (ver abajo, es
+	-- deliberado), así que el séptimo cae en x=+35 y con sus 8,4 de lado llega a
+	-- +39,2 -- cuando la pared estaba en +36. La furgoneta, de seis de ancho,
+	-- asomaba fuera del cobertizo. Lo dijo JJ: "la furgoneta se sale del almacén,
+	-- hay que hacerlo más grande para que quepan los vehículos".
+	--
+	-- Con 88, la pared queda en +44 y sobran 4,8 studs por el lado apretado.
+	local ancho, largo, alto = 88, 44, 17
 
 	local function pieza(nombre: string, tamano: Vector3, offset: Vector3, color: Color3): Part
 		local p = part(
@@ -1822,7 +1830,7 @@ function CityBuilder.build(): Mundo
 		texto.TextStrokeTransparency = 0.35
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = "OFICINA"
+		texto.Text = "OFFICE"
 		texto.Parent = cartel
 	end
 
