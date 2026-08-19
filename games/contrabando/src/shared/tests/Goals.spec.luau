@@ -3,6 +3,7 @@
 -- cobren dos veces, y que un estado corrupto no abra nada: el primer hito abre la
 -- ruta verde, así que es una llave y se trata como tal.
 
+local Config = require(script.Parent.Parent.Config)
 local Goals = require(script.Parent.Parent.Goals)
 
 return function(kit)
@@ -30,6 +31,17 @@ return function(kit)
 	kit.truthy("y se abre con el primer hito", Goals.rutaAbierta("verde", { primera = true }))
 	kit.truthy("el barrio esta abierto desde el principio", Goals.rutaAbierta("barrio", ninguno))
 	kit.truthy("y las de arriba no dependen de hitos", Goals.rutaAbierta("roja", ninguno))
+
+	-- LA RUTA QUE SE PONE SOLA EN EL PRIMER REPARTO tiene que poder recorrerse en el
+	-- primer segundo de la partida. Es un regalo al que acaba de entrar, y un regalo
+	-- que resulta ser una puerta cerrada --por hito o por licencia-- seria peor que
+	-- no regalar nada: el juego le pondria un destino y acto seguido le diria que no
+	-- puede ir. Se comprueba aqui y no se fia al comentario de Config.
+	local Routes = require(script.Parent.Parent.Routes)
+	kit.truthy("la ruta del primer reparto existe", Routes.existe(Config.RUTA_PRIMERA))
+	kit.truthy("y esta abierta sin ningun hito", Goals.rutaAbierta(Config.RUTA_PRIMERA, ninguno))
+	local puedeNovato = Routes.disponible(Config.RUTA_PRIMERA, 1, nil, ninguno)
+	kit.truthy("y un novato a pie y de nivel 1 puede salir por ella", puedeNovato)
 
 	-- El de nivel no se cumple por entregar, por muchas que lleves.
 	local sinNivel = Goals.cumplidos(99, 1, nil, { primera = true, tres = true })

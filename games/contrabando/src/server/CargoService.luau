@@ -122,6 +122,33 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 	end
 	table.insert(estado.cajas, caja)
 	aplicarVelocidad(player)
+
+	-- EL PRIMER REPARTO VIENE YA ELEGIDO (`V1.md` §4, y Config.RUTA_PRIMERA).
+	--
+	-- Al que acaba de entrar no se le pide que decida: coge lo que hay en la nave y
+	-- el destino ya está puesto. Hoy, sin esto, lo primero que se encuentra un
+	-- jugador nuevo es una valla que le frena con un "elige destino" -- una pantalla
+	-- de decisión ANTES de la primera recompensa, cuando todavía no sabe qué está
+	-- eligiendo porque no ha hecho un solo viaje.
+	--
+	-- Sólo la primera vez de la partida (entregas == 0) y sólo si no ha elegido ya:
+	-- quien vuelve mañana no quiere que le pongan la ruta, quiere elegirla, y
+	-- pisársela sería quitarle el juego. Se hace al RECOGER y no al aparecer porque
+	-- sin carga no hay viaje que dirigir -- es la misma regla que ya aplica `elegir`.
+	if (estado.entregas or 0) == 0 and estado.ruta == nil then
+		-- Por RouteService y no escribiendo `estado.ruta` a mano: allí viven la
+		-- licencia, los hitos y el aviso al cliente. Un atajo aquí sería una segunda
+		-- puerta de entrada a la misma regla, que es como se abren los agujeros.
+		if RouteService.elegir(player, Config.RUTA_PRIMERA) then
+			avisar(
+				player,
+				"ROUTE_FIRST_SET",
+				{ ruta = Strings.ref("ROUTE_" .. Config.RUTA_PRIMERA) },
+				Palette.AVISO_BUENO
+			)
+		end
+	end
+
 	PlayerState.sync(player)
 	CargoService.marcarLegendaria(player, tieneLegendaria(estado.cajas))
 	CargoService.mostrarCarga(player)

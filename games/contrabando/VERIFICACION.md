@@ -562,8 +562,8 @@ probado.
 - [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de
       caja rara, ritmo del almacén. Son deliberadamente generosos para poder medir en una
       sesión lo que en producción tardaría horas.
-- [ ] Al revertir el tope del almacén, **corregir el HUD**: escribe `/10` a mano en vez de
-      leerlo de la configuración, así que mentiría en silencio.
+- [x] ~~Al revertir el tope del almacén, corregir el HUD~~ — ya lee el tope de **tu** nave,
+      no la constante de partida. Comprobado el 19/08.
 - [ ] Publicar el place, sin lo cual no hay guardado en la nube.
 - [ ] Jugar el robo con dos personas.
 - [ ] Aguantar diez minutos seguidos en solitario.

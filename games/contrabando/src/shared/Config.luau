@@ -873,6 +873,23 @@ Config.SENUELO_RADIO = 120 -- a quién despista
 --
 -- `abre` es una LLAVE: la ruta verde no existe hasta el primer hito. Por eso el
 -- servidor lo comprueba y no se fía del selector.
+-- LA RUTA DEL PRIMER REPARTO, la que se pone sola.
+--
+-- Al jugador que acaba de entrar no se le pide que decida: coge lo que hay en la
+-- nave, sale, y el destino ya está puesto. Decidir viene DESPUÉS de haber cobrado
+-- una vez, cuando "×0,4 contra ×1" significa algo porque ya sabes lo que es un
+-- viaje.
+--
+-- Es la primera de las ideas de `V1.md` §4 ("los primeros treinta segundos no
+-- tienen gancho"), y el motivo es medible: hoy el que entra se encuentra una valla
+-- que le frena con un "elige destino" antes de haber ganado nada. Una pantalla de
+-- decisión antes de la primera recompensa es fricción pura -- no puede elegir bien
+-- porque todavía no sabe qué está eligiendo.
+--
+-- Tiene que ser una ruta SIN LICENCIA ni hito, o el regalo sería una puerta
+-- cerrada. Una prueba lo comprueba contra Goals en vez de fiarlo a este comentario.
+Config.RUTA_PRIMERA = "barrio"
+
 Config.HITOS = {
 	{ id = "primera", entregas = 1, monedas = 50, abre = "verde" },
 	{ id = "tres", entregas = 3, monedas = 250 },

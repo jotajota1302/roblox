@@ -110,6 +110,9 @@ local TEXTOS: { [string]: string } = {
 	ROUTE_roja = "RED",
 	ROUTE_REQ_LEVEL = "Level {nivel}",
 	ROUTE_REQ_LEVEL_RIDE = "Level {nivel} and a road vehicle",
+	-- El primer reparto viene ya elegido: al que acaba de entrar no se le pide que
+	-- decida antes de haber cobrado nunca. Se le dice a dónde va y cuánto paga.
+	ROUTE_FIRST_SET = "First run: {ruta}  ·  follow the lights",
 
 	-- ---- Los hitos --------------------------------------------------------
 	GOAL_primera = "Deliver your first package",

@@ -47,7 +47,7 @@ La vuelta no es tiempo muerto: se paga al 60 % de la ida y también te la pueden
 | 0-5 s | Apareces en el polígono, tu zona propia fuera de la ciudad. La nave tiene 3 piezas esperando |
 | 5-15 s | Las coges por su aviso de "pulsa aquí". El zurrón cabe **3** — hay que elegir cuál dejas |
 | 15-25 s | Sales hacia la boca del polígono. **Si llevas carga y no has elegido ruta, una valla ámbar te frena**: "ELIGE DESTINO PARA SALIR" |
-| 25-30 s | Eliges destino. Se ven los cuatro con su multiplicador y su nivel de peligro |
+| 25-30 s | **La primera vez no eliges: el destino ya viene puesto** (el barrio). A partir de la segunda entrega, eliges tú entre los cuatro |
 | 30-45 s | Viaje por el **rastro**: una píldora cada 1,4 s, y cada una te acelera. Las esquinas fichadas te ven pasar, el peligro sube de 0 a 3, salen ladrones |
 | 45-55 s | Entregas en el barrio. Número grande, XP, y el destino te ofrece carga de vuelta |
 
@@ -366,6 +366,14 @@ la batería, no confiado a un comentario.
   los contactos, porque es literalmente lo que has recogido convertido en velocidad. Existía
   un problema de lectura concreto: ir a 12 studs/s y a 22 se veía **exactamente igual**, y
   desde que entró el rastro la velocidad es la moneda del viaje.
+- **El peligro tiñe la pantalla**: a partir del nivel 2, los bordes se ponen rojos y laten
+  —despacio a 2, deprisa a 3—. A partir de 2 y no de 1 porque con uno sólo te han visto
+  pasar, y un aviso encendido medio viaje deja de ser un aviso. El centro queda limpio: es
+  ambiente, no algo que haya que leer.
+- **El primer reparto viene ya elegido.** Con cero entregas, coger carga te pone el destino
+  del barrio y sales directo. Decidir viene después de haber cobrado una vez — antes, lo
+  primero que se encontraba un jugador nuevo era una valla pidiéndole que eligiera entre
+  cuatro rutas sin haber hecho un solo viaje.
 
 ## 6. Lo que está guardado
 

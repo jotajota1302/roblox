@@ -31,6 +31,10 @@ local cargaLabel: TextLabel
 local almacenLabel: TextLabel
 local calorLabel: TextLabel
 local calorFila: Frame
+-- El halo rojo del borde de la pantalla. Ver `Hud.build` y el bloque del calor en
+-- `Hud.update`.
+local calorHalo: Frame?
+local calorLatido = 0
 local metaLabel: TextLabel
 local metaFila: Frame
 local contactosLabel: TextLabel
@@ -99,11 +103,82 @@ function Hud.build()
 	gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
+	-- EL HALO DE PELIGRO: el borde de la pantalla se tiñe y late cuando aprietan.
+	--
+	-- POR QUÉ, y está escrito en `V1.md` §7: *"el paso de peligro 1 a 3 no cambia la
+	-- pantalla lo suficiente; la tensión está en los números, no en los ojos"*. Hoy
+	-- el calor sólo se ve en una línea del panel de arriba a la izquierda, y lo que
+	-- estás mirando cuando te persiguen es el centro de la pantalla.
+	--
+	-- Va PRIMERO en el árbol y con ZIndex bajo para quedar DEBAJO de todo lo demás:
+	-- es ambiente, no información que haya que leer. Y `Active = false` para que no
+	-- se coma un solo toque en móvil, donde toda la pantalla es un botón.
+	-- SE MONTA CON CUATRO FRANJAS Y UN DEGRADADO, no con una textura.
+	--
+	-- El primer intento usaba una imagen del cliente (`inspect_gradient.png`)
+	-- estirada a pantalla completa, y la captura lo desmintió: es un degradado
+	-- LINEAL, así que salía una banda naranja cruzando el centro en vez de un
+	-- viñeteado. Cuatro franjas --una por borde-- con su `UIGradient` de opaco a
+	-- transparente hacia dentro dan la forma correcta, no dependen de ningún asset
+	-- y dejan el centro de la pantalla completamente limpio, que es donde el
+	-- jugador está mirando cuando le persiguen.
+	local halo = Instance.new("Frame")
+	halo.Name = "HaloPeligro"
+	halo.BackgroundTransparency = 1
+	halo.Active = false
+	halo.ZIndex = 0
+	halo.Size = UDim2.fromScale(1, 1)
+	halo.Visible = false
+	halo.Parent = gui
+	calorHalo = halo
+
+	-- Cada franja: de dónde nace, cómo de gruesa, y hacia dónde se desvanece.
+	local bordes = {
+		{ pos = UDim2.fromScale(0, 0), size = UDim2.new(1, 0, 0.17, 0), anchor = Vector2.new(0, 0), rot = 90 },
+		{ pos = UDim2.fromScale(0, 1), size = UDim2.new(1, 0, 0.17, 0), anchor = Vector2.new(0, 1), rot = 270 },
+		{ pos = UDim2.fromScale(0, 0), size = UDim2.new(0.11, 0, 1, 0), anchor = Vector2.new(0, 0), rot = 0 },
+		{ pos = UDim2.fromScale(1, 0), size = UDim2.new(0.11, 0, 1, 0), anchor = Vector2.new(1, 0), rot = 180 },
+	}
+	for i, borde in bordes do
+		local franja = Instance.new("Frame")
+		franja.Name = "Franja" .. i
+		franja.AnchorPoint = borde.anchor
+		franja.Position = borde.pos
+		franja.Size = borde.size
+		franja.BackgroundColor3 = Color3.fromRGB(190, 30, 25)
+		franja.BorderSizePixel = 0
+		franja.ZIndex = 0
+		franja.Parent = halo
+
+		local grad = Instance.new("UIGradient")
+		-- Opaca pegada al borde y transparente del todo hacia el centro. La rotación
+		-- es lo que orienta cada franja hacia dentro de la pantalla.
+		grad.Rotation = borde.rot
+		grad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		grad.Parent = franja
+	end
+
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0, 0)
 	panel.Position = UDim2.fromScale(0.02, 0.03)
-	panel.Size = UDim2.fromScale(0.3, 0.19)
+	-- EL ALTO LO PONE EL CONTENIDO, no una fracción de la pantalla.
+	--
+	-- Antes era `fromScale(0.3, 0.19)` con cada fila al 33 % del panel, y eso sólo
+	-- cuadra con TRES filas. El panel tiene tres fijas (dinero, carga, nave) y hasta
+	-- cuatro condicionales (peligro, meta, contactos, objetivo): con cinco visibles
+	-- las filas sumaban el 165 % del panel y se salían por abajo, encima del mundo y
+	-- unas sobre otras. Se vio en una captura -- "Skateboard 150", "Goal" y "0 of 1
+	-- deliveries" pisándose. Un HUD que se desordena según lo que te pasa en la
+	-- partida es de las cosas que más barato se arreglan y peor se ven.
+	--
+	-- Con AutomaticSize.Y el panel mide exactamente lo que ocupan sus filas, así que
+	-- añadir o quitar líneas condicionales no puede volver a romperlo.
+	panel.AutomaticSize = Enum.AutomaticSize.Y
+	panel.Size = UDim2.new(0.3, 0, 0, 0)
 	panel.BackgroundColor3 = UiKit.TINTA
 	panel.BackgroundTransparency = 0.18
 	panel.BorderSizePixel = 0
@@ -113,12 +188,10 @@ function Hud.build()
 	UiKit.margen(panel, 8)
 
 	local panelSize = Instance.new("UISizeConstraint")
-	panelSize.MinSize = Vector2.new(140, 78)
-	-- El tope sube con las líneas nuevas. El panel se dimensiona para TRES (las
-	-- fijas) y se estira con el layout; con contactos y objetivo puestos son cinco,
-	-- y a 110 px cada una se quedaba en veintidós -- legible en un portátil y no en
-	-- un móvil.
-	panelSize.MaxSize = Vector2.new(280, 150)
+	-- Sólo limita el ANCHO. El alto lo decide AutomaticSize contando filas, así que
+	-- un máximo aquí volvería a recortarlas: es lo que hacía el tope de 150 px.
+	panelSize.MinSize = Vector2.new(140, 0)
+	panelSize.MaxSize = Vector2.new(280, math.huge)
 	panelSize.Parent = panel
 
 	local layout = Instance.new("UIListLayout")
@@ -134,7 +207,10 @@ function Hud.build()
 		local fila = Instance.new("Frame")
 		fila.Name = nombre
 		fila.LayoutOrder = orden
-		fila.Size = UDim2.fromScale(1, 0.33)
+		-- Alto FIJO en píxeles, no una fracción del panel: es lo que permite que el
+		-- panel crezca contando filas en vez de repartirse entre ellas. 26 px es lo
+		-- mínimo que se lee de un vistazo en un móvil sin mirar fijamente.
+		fila.Size = UDim2.new(1, 0, 0, 26)
 		fila.BackgroundTransparency = 1
 		fila.Parent = panel
 
@@ -493,6 +569,40 @@ function Hud.update(estado: EstadoHud)
 			then Color3.fromRGB(235, 75, 70)
 			elseif nivel == 2 then Color3.fromRGB(235, 140, 60)
 			else Color3.fromRGB(230, 190, 80)
+	end
+
+	-- Y EL BORDE DE LA PANTALLA CON ÉL. A partir del nivel 2 y no del 1: con uno
+	-- sólo te han visto pasar, y teñir la pantalla por eso la dejaría teñida medio
+	-- viaje -- un aviso que está siempre encendido deja de ser un aviso. Dos es
+	-- cuando ya hay alguien detrás.
+	--
+	-- El latido va con el nivel: a 2 respira, a 3 va deprisa. Es información sin
+	-- números, que es lo que sirve cuando estás corriendo y mirando al frente.
+	if calorHalo then
+		local halo = calorHalo :: Frame
+		if nivel >= 2 then
+			halo.Visible = true
+			-- El latido sale del RELOJ, no de un contador que suba una pizca en cada
+			-- llamada: `Hud.update` lo llama el bucle del cliente (cada 0,25 s) pero
+			-- también cada estado que llega del servidor, así que acumular ataría la
+			-- velocidad del latido al tráfico de red -- iría más deprisa cuanto más
+			-- pasara en la partida, que es exactamente lo que no se quiere.
+			local ritmo = if nivel >= Config.CALOR_MAXIMO then 5.2 else 2.6
+			local fuerza = if nivel >= Config.CALOR_MAXIMO then 0.16 else 0.09
+			calorLatido = os.clock() * ritmo
+			-- Entre el 80 % y el 100 % de la fuerza: nunca se apaga del todo entre
+			-- latidos, o parpadearía en vez de respirar.
+			local onda = 0.9 + 0.1 * math.sin(calorLatido)
+			-- La transparencia va en las franjas, no en el contenedor: el Frame de
+			-- fuera no pinta nada, sólo las agrupa para poder encenderlas de una vez.
+			for _, franja in halo:GetChildren() do
+				if franja:IsA("Frame") then
+					franja.BackgroundTransparency = 1 - fuerza * onda
+				end
+			end
+		else
+			halo.Visible = false
+		end
 	end
 
 	-- Los contactos, con la racha al lado cuando la hay. "12  (+2,0)" dice a la vez
