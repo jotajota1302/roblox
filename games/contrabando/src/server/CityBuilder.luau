@@ -1455,10 +1455,21 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 
 	-- Y su baliza, como la de la salida: hay que poder encontrarlo desde el otro
 	-- lado del recinto sin dar vueltas.
+	--
+	-- ARRANCA POR ENCIMA DEL TEJADO, y no desde el suelo como estaba. Lo dijo JJ:
+	-- "cuando entras al almacén hay un rectángulo azul que va hasta muy alto para
+	-- ver el almacén, pero que se vea en el interior molesta y no aporta nada". Y es
+	-- exacto: medía 46 studs desde el suelo con un cobertizo de 17 de alto, así que
+	-- lo atravesaba entero y te la encontrabas en medio del taller.
+	--
+	-- Su trabajo es verse DESDE FUERA. Empezando sobre el techo lo sigue haciendo
+	-- --la cima queda a la misma altura de siempre-- y por dentro desaparece.
+	local baseBaliza = alto + 3
+	local altoBaliza = 46 - baseBaliza
 	local baliza = part(
 		"Baliza_Taller",
-		Vector3.new(5, 46, 5),
-		Vector3.new(base.Position.X, suelo + 23, base.Position.Z),
+		Vector3.new(5, altoBaliza, 5),
+		Vector3.new(base.Position.X, suelo + baseBaliza + altoBaliza / 2, base.Position.Z),
 		Palette.TALLER,
 		padre
 	)
