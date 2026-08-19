@@ -158,11 +158,22 @@ local function debeElegir(root: BasePart?, vallaCerrada: boolean): boolean
 	if root == nil then
 		return false
 	end
-	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
-	if salida and (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA then
-		return true
-	end
-	return vallaCerrada and Perimeter.tocando(root.Position)
+	-- EN CUANTO COGES ALGO, no al llegar a la salida.
+	--
+	-- Antes había que caminar hasta la losa o chocar con la valla para que
+	-- apareciera la pregunta, y eso repartía el arranque en tres gestos separados:
+	-- coge, anda, decide. JJ lo pidió al revés y es mejor -- "cuando quieras coger un
+	-- paquete que te diga qué ruta quieres, eliges, y en función de eso ya se pinta el
+	-- camino con las migas y empiezas".
+	--
+	-- Coger carga ES decir "me voy": no hay ninguna otra razón para llenarse el
+	-- zurrón. Preguntar ahí junta la decisión con el gesto que la provoca, y de paso
+	-- el camino aparece dibujado antes de dar el primer paso en vez de a mitad.
+	--
+	-- Los dos sitios de antes siguen valiendo, porque el selector se puede cerrar con
+	-- "ahora no" y hay que poder recuperarlo: la valla y la losa lo reabren.
+	local _ = vallaCerrada
+	return true
 end
 
 -- Aviso al cruzar la salida con carga y sin ruta. Sin esto, salir sin elegir es

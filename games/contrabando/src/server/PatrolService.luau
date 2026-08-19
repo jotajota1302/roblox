@@ -31,6 +31,7 @@ local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
@@ -331,7 +332,7 @@ end
 -- ángulos y se coge el primero que tenga suelo: soltar un agente sobre un hueco lo
 -- deja cayendo al vacío, y una patrulla que se suicida al aparecer no persigue a
 -- nadie -- y encima el jugador no se entera de nada.
-local function puntoDeAparicion(centro: Vector3, rng: Random): Vector3?
+local function puntoDeAparicion(centro: Vector3, rng: Random, haciaDonde: Vector3?): Vector3?
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { contenedor() }
@@ -353,8 +354,32 @@ local function puntoDeAparicion(centro: Vector3, rng: Random): Vector3?
 		end
 	end
 
+	-- SI NO HAY GUARIDA ÚTIL, POR DELANTE. No en un ángulo cualquiera.
+	--
+	-- El respaldo repartía la aparición por todo el círculo, así que la mitad de las
+	-- veces el ladrón salía a la espalda del jugador y lo primero que se sabía de él
+	-- era que ya te estaba encima. JJ lo dijo dos veces con las mismas palabras --
+	-- "los enemigos aparecen de repente y no los veo a distancia", "enemigos por el
+	-- camino que se vean"-- y no es un problema de distancia: a noventa studs se ve
+	-- perfectamente CUALQUIER cosa, si está delante.
+	--
+	-- Con un cono de sesenta grados hacia donde vas, el ladrón aparece en tu campo de
+	-- visión y la persecución empieza cuando tú lo ves, no cuando él te alcanza. Eso
+	-- convierte el peligro en una decisión --rodeo, acelero, me meto por otra calle--
+	-- que es lo que un impuesto no es.
+	local rumbo: number? = nil
+	if haciaDonde ~= nil then
+		local d = haciaDonde - centro
+		local plano = Vector3.new(d.X, 0, d.Z)
+		if plano.Magnitude > 1 then
+			rumbo = math.atan2(plano.Z, plano.X)
+		end
+	end
+
 	for _ = 1, 8 do
-		local angulo = rng:NextNumber(0, math.pi * 2)
+		local angulo = if rumbo ~= nil
+			then rumbo + rng:NextNumber(-math.pi / 3, math.pi / 3)
+			else rng:NextNumber(0, math.pi * 2)
 		local radio = rng:NextNumber(APARICION_MIN, APARICION_MAX)
 		local x = centro.X + math.cos(angulo) * radio
 		local z = centro.Z + math.sin(angulo) * radio
@@ -672,7 +697,13 @@ local function ajustar(player: Player)
 	HeatService.marcarPerseguido(player, alguienTeVe)
 
 	while #lista < quieren do
-		local donde = puntoDeAparicion(objetivo.Position, rng)
+		-- Hacia donde va: el destino de su ruta. Si va de vacío o sin ruta, no hay
+		-- rumbo que respetar y se cae al círculo completo.
+		local rutaActual = PlayerState.get(player).ruta
+		local haciaDonde = if typeof(rutaActual) == "string" and Routes.existe(rutaActual)
+			then Routes.get(rutaActual).destino
+			else nil
+		local donde = puntoDeAparicion(objetivo.Position, rng, haciaDonde)
 		if not donde then
 			break
 		end

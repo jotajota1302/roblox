@@ -972,6 +972,11 @@ Config.SENUELO_RADIO = 120 -- a quién despista
 --
 -- Tiene que ser una ruta SIN LICENCIA ni hito, o el regalo sería una puerta
 -- cerrada. Una prueba lo comprueba contra Goals en vez de fiarlo a este comentario.
+-- LA RUTA CON LA QUE SE EMPIEZA. Ya no se asigna sola al coger el primer paquete
+-- --desde el 19/08 el selector aparece en ese momento y elige el jugador-- pero sigue
+-- siendo la que tiene que estar abierta sin nivel ni hitos, y eso lo comprueban las
+-- pruebas: si un día se cierra, el jugador nuevo se queda con el zurrón lleno y sin
+-- ningún destino que pueda elegir.
 Config.RUTA_PRIMERA = "barrio"
 
 Config.HITOS = {
