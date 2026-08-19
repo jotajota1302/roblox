@@ -630,6 +630,20 @@ Config.PATRULLAS = {
 	[3] = { cantidad = 3, velocidad = 22 },
 } :: { [number]: { cantidad: number, velocidad: number } }
 
+-- CUÁNTOS LADRONES MÁS SALEN SI LLEVAS ALGO CARO (sellada o legendaria).
+--
+-- Es `RUMBO.md` §3.B, y su gracia está en de dónde NO viene: no salen más porque
+-- hayas subido de nivel. Escalar la amenaza con el nivel enseña al jugador que
+-- progresar le empeora la vida, que es justo lo contrario de lo que tiene que
+-- aprender. Escalarla con **lo que ha decidido cargar** es una consecuencia suya,
+-- y es la tensión que el diseño buscaba desde el principio: una legendaria por la
+-- roja vale 13.500, y tu haz de luz se ve desde el otro extremo del mapa.
+--
+-- Uno, no dos: con calor 3 ya hay tres encima, y cuatro es el techo de lo que se
+-- puede esquivar antes de que dejar de ser tensión y pase a ser atropello. Y sólo
+-- suma si el calor ya había sacado a alguien -- ver Heat.patrullas.
+Config.PATRULLAS_EXTRA_CARGA_CARA = 1
+
 -- A cuánto te alcanza una patrulla, y qué te cuesta. NO MATA: morir es que te
 -- echen de la sesión, y perder mercancía es que te salga mal un viaje y quieras
 -- otro. La mitad, y no todo, para que un mal viaje siga valiendo la pena terminarlo.

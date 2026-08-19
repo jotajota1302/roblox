@@ -597,7 +597,9 @@ end
 -- Ajusta cuántas patrullas hay encima de un jugador a lo que pide su calor.
 local function ajustar(player: Player)
 	local nivel = HeatService.nivel(player)
-	local quieren = Heat.patrullas(nivel)
+	-- Y UNO MÁS SI LLEVA ALGO CARO. La decisión es del jugador --se la ha cargado él
+	-- a la espalda-- y por eso puede escalar la amenaza sin castigar el progreso.
+	local quieren = Heat.patrullas(nivel, Heat.cargaLlamativa(PlayerState.get(player).cajas))
 
 	if quieren == 0 then
 		if escoltas[player] then

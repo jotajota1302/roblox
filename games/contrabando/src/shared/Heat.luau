@@ -22,6 +22,7 @@
 ]]
 
 local Config = require(script.Parent.Config)
+local Rarity = require(script.Parent.Rarity)
 
 export type Estado = {
 	nivel: number,
@@ -134,11 +135,46 @@ local function recortar(nivel: number): number
 	return math.clamp(math.floor(nivel), 0, Config.CALOR_MAXIMO)
 end
 
+-- ¿LLEVAS ALGO QUE LLAME LA ATENCIÓN? Sellada o legendaria, o sea lo que paga ×50
+-- y ×135. Vive aquí y no en el sitio donde se cuenta porque es una regla del
+-- juego, no una consulta: el día que cambie qué se considera valioso, lo que sale
+-- a por ti tiene que cambiar solo.
+function Heat.cargaLlamativa(cajas: { { rareza: string } }?): boolean
+	if cajas == nil then
+		return false
+	end
+	for _, caja in cajas do
+		if Rarity.esLlamativa(caja.rareza) then
+			return true
+		end
+	end
+	return false
+end
+
 -- Un nivel imposible no puede tumbar el servidor. No es paranoia: este número va a
 -- llegar aquí desde un estado guardado en la nube que puede ser de otra versión
 -- del juego, con otro máximo.
-function Heat.patrullas(nivel: number): number
-	return Config.PATRULLAS[recortar(nivel)].cantidad
+--
+-- Y UNO MÁS SI LLEVAS ALGO CARO (`RUMBO.md` §3.B). Es la diferencia entre un
+-- peligro que te cae encima y uno que has elegido: los ladrones no salen porque
+-- hayas subido de nivel --eso enseñaría que progresar empeora tu vida-- sino
+-- porque has decidido cargarte una legendaria a la espalda.
+--
+-- No hay que explicárselo a nadie, y ésa es la prueba de que es la regla correcta:
+-- lo caro YA se ve desde lejos (la legendaria lleva su haz de luz, y el catálogo
+-- da a cada rareza su propio aspecto). Lo que atrae a los ladrones es exactamente
+-- lo que el jugador ve que atrae.
+--
+-- Sólo suma si YA había alguno. Con calor 0 no hay nadie mirando, y hacer que una
+-- caja cara conjure un ladrón de la nada convertiría el sistema entero en un dado:
+-- el calor sube por lo que haces, y esto multiplica esa consecuencia, no la
+-- sustituye.
+function Heat.patrullas(nivel: number, cargaLlamativa: boolean?): number
+	local cuantas = Config.PATRULLAS[recortar(nivel)].cantidad
+	if cuantas > 0 and cargaLlamativa == true then
+		cuantas += Config.PATRULLAS_EXTRA_CARGA_CARA
+	end
+	return cuantas
 end
 
 function Heat.velocidadPatrulla(nivel: number): number

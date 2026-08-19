@@ -494,10 +494,27 @@ final de la construcción, y punto.
       `max sobre j de suelo[j] − |i−j|·SALTO_MAXIMO`), que es lo único que puede levantar una
       junta por encima de su propio suelo.
 
-      **Y una trampa de método que costó una medición entera**: el plugin de Rojo se
-      desconecta sin avisar, y entonces se reconstruye el mundo con el código viejo y se mide
-      otra cosa. Antes de dar por bueno un "no cambia nada", **comprobar que Studio tiene el
-      cambio** leyendo el `Source` del módulo, no que el `rojo build` haya ido bien.
+      **Y una trampa de método que costó una medición entera**, ver abajo.
+
+### La trampa: editar durante un Play no llega
+
+Costó dar por buena una medición que no valía, y es puro funcionamiento de Rojo:
+**sincroniza contra el datamodel de Edit, y un Play en curso corre sobre el snapshot que
+se hizo al arrancarlo**. Guardar un fichero con Studio jugando deja el disco, el `.rbxl` y
+la sesión de Play diciendo tres cosas distintas.
+
+El síntoma es el peor posible porque no se parece a un fallo: el `rojo build` dice `BUILD
+OK`, la sonda pasa, y lo que se está midiendo es el código de antes.
+
+**El ciclo correcto para probar un cambio del mundo:**
+
+1. editar y `rojo build`;
+2. **parar el Play**;
+3. leer el `Source` del módulo en el datamodel **Edit** y comprobar que el cambio está;
+4. arrancar el Play y medir.
+
+Saltarse el paso 3 es cómo se llega a "lo he probado y no cambia nada" sin haberlo
+probado.
 
 ## 4. Antes de publicar
 

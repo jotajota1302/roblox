@@ -85,6 +85,36 @@ return function(kit)
 	kit.eq("un nivel fuera de rango se recorta", Heat.patrullas(99), 3)
 	kit.eq("y por abajo tambien", Heat.patrullas(-4), 0)
 
+	-- LO CARO ATRAE (RUMBO §3.B). Lo que se comprueba no es que salga uno mas: es
+	-- que sale por lo que el jugador DECIDE CARGAR y no por lo que el jugador ES.
+	-- Escalar con el nivel enseñaria que progresar empeora tu vida.
+	local comunes = { { rareza = "comun" }, { rareza = "comun" } }
+	local conSellada = { { rareza = "comun" }, { rareza = "sellada" } }
+	local conLegendaria = { { rareza = "legendaria" } }
+
+	kit.falsy("una carga de comunes no llama la atencion", Heat.cargaLlamativa(comunes))
+	kit.truthy("una sellada si", Heat.cargaLlamativa(conSellada))
+	kit.truthy("y una legendaria tambien", Heat.cargaLlamativa(conLegendaria))
+	kit.falsy("sin carga no hay nada que llame la atencion", Heat.cargaLlamativa(nil))
+	kit.falsy("ni con el zurron vacio", Heat.cargaLlamativa({}))
+
+	kit.eq("con carga corriente salen los de siempre", Heat.patrullas(2, false), 2)
+	kit.eq("con algo caro encima sale uno mas", Heat.patrullas(2, true), 3)
+	kit.eq("y a tope de calor, cuatro", Heat.patrullas(Config.CALOR_MAXIMO, true), 4)
+
+	-- PERO NUNCA CONJURA UNO DE LA NADA. Sin calor no hay nadie mirando, y que una
+	-- caja cara sacara un ladron con calor 0 convertiria el sistema en un dado: el
+	-- calor sube por lo que HACES, y esto multiplica esa consecuencia, no la
+	-- sustituye. Ademas dejaria sin salida al jugador que ya cumplio -- no hay
+	-- forma de bajar de cero.
+	kit.eq("con calor 0 no sale nadie, por caro que sea lo que lleves", Heat.patrullas(0, true), 0)
+
+	-- Y el tope se respeta: cuatro es lo que se puede esquivar; cinco es atropello.
+	kit.truthy("nunca salen mas de cuatro", Heat.patrullas(Config.CALOR_MAXIMO, true) <= 4)
+	-- Omitir el parametro se comporta como antes: una regla nueva no puede cambiar
+	-- lo que hacen las llamadas que ya existian.
+	kit.eq("sin decir nada de la carga, los de siempre", Heat.patrullas(3), Heat.patrullas(3, false))
+
 	-- Lo que te cuesta que te alcancen: la MITAD, redondeando hacia arriba. Con 1
 	-- caja pierdes esa; que un alcance salga gratis convertiría la patrulla en un
 	-- susto sin consecuencia.

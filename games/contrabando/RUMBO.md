@@ -224,7 +224,16 @@ arregla.
    acelera al seguirla, con una **cadena** que se cae si dejas de recoger. Ciclo verde de
    160 s a **96 s**; a pie cargado se pasa de 11,8 a 17,8 studs/s. Las doradas siguen siendo
    3/6/10/16, así que la economía de habilidades no se mueve.
-9. **Ladrones que crecen con lo que llevas** (§3.B).
+9. ~~**Ladrones que crecen con lo que llevas**~~ (§3.B) — **hecho el 19/08**, la primera
+   mitad. Llevar sellada o legendaria saca **un ladrón más** (tope 4), y sólo si el calor ya
+   había sacado a alguien: con calor 0 no sale nadie por caro que sea lo que lleves.
+
+   **La segunda mitad —que su velocidad suba con tu nivel— no se implementa, y es una
+   decisión, no un olvido.** Ya existe algo mejor haciendo ese trabajo: la velocidad del
+   perseguidor es `max(la de su nivel de calor, tu velocidad cargada + 3)`, así que el
+   mundo escala solo cuando compras una furgoneta, sin tocar el nivel para nada. Añadir
+   encima un bono por nivel sería escalar la amenaza con lo que el jugador **es**, que es
+   justo lo que §3.B decía que no había que hacer.
 10. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
 11. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
 

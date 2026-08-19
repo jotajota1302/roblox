@@ -153,6 +153,17 @@ hay un mejor sino un mejor **para este viaje**.
 | Baja solo | 1 nivel cada 20 s… |
 | …o en comisaría | 1 nivel cada 5 s |
 | Ladrones por nivel | 0 / 1 / 2 / 3 |
+| …y uno más | si llevas **sellada o legendaria** encima (máximo 4) |
+
+**Lo caro atrae.** Llevar algo de ×50 o ×135 saca un ladrón más. Sale de una regla que el
+diseño tenía clara: los ladrones **no** crecen porque hayas subido de nivel —eso enseñaría
+que progresar te empeora la vida— sino porque **has decidido** cargarte una legendaria a la
+espalda. Es una consecuencia tuya, no un impuesto.
+
+Y no hay que explicarlo: lo caro **ya se ve** desde lejos —la legendaria lleva su haz de
+luz y cada rareza tiene su aspecto—, así que lo que atrae a los ladrones es exactamente lo
+que ves que atrae. Con calor 0 no sale nadie por muy caro que sea lo que lleves: el calor
+sube por lo que haces, y esto multiplica esa consecuencia en vez de sustituirla.
 
 **Las comisarías son los refugios.** Un ladrón no entra en una comisaría, y eso no hay que
 explicárselo a nadie. **El azul está reservado entero para ellas**: si el que te persigue y
