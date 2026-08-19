@@ -599,6 +599,30 @@ local function acceso(
 		cotas[i] = mejor
 	end
 
+	-- Y LOS DOS EXTREMOS TAMBIÉN LIMITAN, que es el agujero que dejaba la envolvente.
+	--
+	-- Los conos sólo SUBEN juntas (son un máximo), así que garantizan la pendiente
+	-- entre las de enmedio... pero no contra cotas[0] y cotas[tramos], que no se
+	-- calculan: se imponen desde fuera --la losa de la que sale la vía y la calle a
+	-- la que llega--. Una junta levantada por su cono junto a un extremo bajo deja
+	-- justo ahí la caída que todo lo demás venía a evitar.
+	--
+	-- Medido en el acceso a la verde: sus últimas juntas subían a un montículo
+	-- (24,4 → 26,5) y la calle esperaba abajo, a 23,5. Tres studs de golpe contra
+	-- la calzada, o sea el final del camino convertido en un bordillo alto -- y en
+	-- el peor sitio posible, porque es donde el jugador llega a entregar.
+	--
+	-- Se baja en vez de subir el extremo porque el extremo es el dato bueno: la
+	-- calle está donde está. Puede dejar la vía un poco enterrada en la loma, y ese
+	-- cambio es el correcto: una vía hundida se pisa igual, un escalón para el
+	-- vehículo en seco.
+	for i = 1, tramos - 1 do
+		cotas[i] = math.min(cotas[i], cotas[0] + i * SALTO_MAXIMO)
+	end
+	for i = tramos - 1, 1, -1 do
+		cotas[i] = math.min(cotas[i], cotas[tramos] + (tramos - i) * SALTO_MAXIMO)
+	end
+
 	local estorbos = OverlapParams.new()
 	estorbos.FilterType = Enum.RaycastFilterType.Include
 	estorbos.FilterDescendantsInstances = if ciudad then { ciudad } else {}
@@ -993,45 +1017,55 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		table.insert(puestos, poste)
 	end
 
-	-- Y SE ASIENTAN, en una pasada aparte y con la pieza ya construida.
-	--
-	-- Todo lo de arriba elige un SITIO; esto arregla la ALTURA, que es otra cosa y
-	-- puede venir mal por tres caminos distintos: de un punto vecino (cuando se
-	-- busca calle y luego se rechaza el desplazamiento), del fallback --que cae a
-	-- la Y del trayecto, 19,2, sin mirar si ahí abajo hay algo-- o simplemente de
-	-- un relieve que cambió al acortar las rutas. Medido el 19/08: cuatro postes
-	-- de la verde, la ámbar y la roja flotaban entre 3,5 y 6,8 studs.
-	--
-	-- Y NO ES ESTÉTICO. HeatService mide `(root.Position - poste.Position).Magnitude`
-	-- en 3D, así que la altura se come radio: un poste con 6,8 studs de vuelo pasa
-	-- de alcanzar 34 studs a ras de suelo a alcanzar 31,6. La ruta vigila menos de
-	-- lo que su selector promete, y --como siempre en este fichero-- sin que nada
-	-- reviente.
-	--
-	-- El rayo excluye SÓLO el propio poste, no nuestra carpeta entera: hay postes
-	-- que se apoyan legítimamente sobre la losa del polígono, y buscarles suelo
-	-- ignorando lo que construimos nosotros los declararía "en el aire" estando
-	-- perfectamente puestos. Lo que sostiene al poste vale, sea de quien sea.
-	for _, poste in puestos do
+	return puestos
+end
+
+-- ASENTAR: bajar al suelo lo que haya quedado flotando.
+--
+-- SE LLAMA AL FINAL DE LA CONSTRUCCIÓN, y ese detalle ES la función. La primera
+-- versión de esto vivía dentro de sembrarDetectores, justo después de plantar los
+-- postes, y NO SERVÍA DE NADA: los mismos tres postes seguían en el aire. El
+-- código era correcto --ejecutado a mano sobre el mundo terminado los bajaba a los
+-- cinco-- pero en su sitio original el rayo encontraba debajo algo que más tarde
+-- desaparecía. Es exactamente la lección que ya habían enseñado los contactos:
+-- **cada cosa que se planta cambia el mundo que la siguiente mide**, así que lo
+-- que dependa del estado final va al final, y punto.
+--
+-- Y no es estético. HeatService mide `(root.Position - poste.Position).Magnitude`
+-- en 3D, así que la altura se come radio: un poste con 6,8 studs de vuelo pasa de
+-- alcanzar 34 studs a ras de suelo a alcanzar 31,6. La ruta vigila menos de lo que
+-- su selector promete, sin que nada reviente -- la firma de siempre.
+--
+-- El rayo excluye SÓLO la propia pieza, no nuestra carpeta entera: hay postes que
+-- se apoyan legítimamente sobre la losa del polígono, y buscarles suelo ignorando
+-- lo que construimos nosotros los declararía en el aire estando bien puestos. Lo
+-- que sostiene al poste vale, sea de quien sea.
+local function asentar(piezas: { BasePart })
+	for _, pieza in piezas do
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { poste }
-		local base = poste.Position.Y - poste.Size.Y / 2
+		params.FilterDescendantsInstances = { pieza }
+		local base = pieza.Position.Y - pieza.Size.Y / 2
 		local golpe =
-			workspace:Raycast(Vector3.new(poste.Position.X, base + 1, poste.Position.Z), Vector3.new(0, -60, 0), params)
-		if golpe then
-			local vuelo = base - golpe.Position.Y
-			if vuelo > 1 then
-				poste.Position -= Vector3.new(0, vuelo, 0)
-				local lente = poste:FindFirstChild("Lente")
-				if lente and lente:IsA("BasePart") then
-					lente.Position -= Vector3.new(0, vuelo, 0)
-				end
+			workspace:Raycast(Vector3.new(pieza.Position.X, base + 1, pieza.Position.Z), Vector3.new(0, -60, 0), params)
+		if not golpe then
+			continue
+		end
+		local vuelo = base - golpe.Position.Y
+		if vuelo <= 1 then
+			continue
+		end
+		local caida = Vector3.new(0, vuelo, 0)
+		pieza.Position -= caida
+		-- Los hijos con cuerpo bajan con ella: son partes sueltas emparentadas, no
+		-- un Model, así que mover al padre no los arrastra. La lente que se queda
+		-- flotando sobre su poste es el mismo fallo con otra cara.
+		for _, hijo in pieza:GetChildren() do
+			if hijo:IsA("BasePart") then
+				hijo.Position -= caida
 			end
 		end
 	end
-
-	return puestos
 end
 
 -- EL CAMINO REAL de una ruta: por dónde se va de verdad, no la recta.
@@ -2321,6 +2355,24 @@ function CityBuilder.build(): Mundo
 			table.insert(contactos, pieza)
 		end
 	end
+
+	-- Y LO ÚLTIMO DE LO ÚLTIMO: bajar al suelo lo que haya quedado flotando.
+	--
+	-- Va aquí, con la ciudad ya quieta, porque asentar contra un mundo que todavía
+	-- se está construyendo es medir contra algo que va a cambiar (ver `asentar`).
+	-- Los detectores son los que lo pedían --tres flotaban entre 5 y 7 studs, y la
+	-- altura les come radio de detección-- pero se les pasa también a las guaridas
+	-- por lo mismo: un farol suspendido no señala de dónde sale el ladrón.
+	local postes: { BasePart } = {}
+	for _, poste in detectores do
+		table.insert(postes, poste)
+	end
+	for _, pieza in mundo:GetChildren() do
+		if pieza:IsA("BasePart") and pieza.Name:match("^Guarida") then
+			table.insert(postes, pieza)
+		end
+	end
+	asentar(postes)
 
 	return {
 		almacen = almacen,
