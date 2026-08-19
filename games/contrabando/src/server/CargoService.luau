@@ -473,6 +473,30 @@ local function destinoParaCobrar(estado, root: BasePart): (BasePart?, string)
 		if (root.Position - Config.ALMACEN_POS).Magnitude <= DISTANCIA_ALMACEN_ENTREGA then
 			return almacenComoDestino, "ok"
 		end
+		-- Y TAMBIÉN VALE CUALQUIER OTRO DESTINO, que es lo que quita la vuelta
+		-- obligatoria a casa.
+		--
+		-- Medido antes de esto: el ciclo del reparto más corto eran 87 segundos y
+		-- **37 de ellos era el camino de vuelta** -- casi la mitad del viaje andando
+		-- por donde ya habías andado, con la única gracia de que la carga de retorno
+		-- también se puede perder. JJ lo resumió jugando: "tardamos mucho en
+		-- completar algo".
+		--
+		-- Ahora entregar te deja EN OTRO SITIO desde el que seguir: coges lo que te
+		-- dan y decides el siguiente destino, en vez de deshacer el camino. Volver a
+		-- la nave sigue existiendo --es donde está la mercancía que de verdad paga--
+		-- pero pasa a ser una decisión y no un peaje.
+		--
+		-- No vale el mismo del que salió: entregar donde acabas de recoger sería
+		-- cobrar por dar dos pasos.
+		for _, destino in destinos do
+			if (root.Position - destino.Position).Magnitude > DISTANCIA_ENTREGA then
+				continue
+			end
+			if destino:GetAttribute("ruta") ~= estado.retornoZona then
+				return destino, "ok"
+			end
+		end
 		return nil, "no_has_llegado_al_almacen"
 	end
 
@@ -498,7 +522,13 @@ end
 local function cobrar(player: Player, destino: BasePart)
 	local estado = PlayerState.get(player)
 	local esRetorno = estado.retornoZona ~= nil
-	local rutaDelDestino = if esRetorno then estado.retornoZona :: string else destino:GetAttribute("ruta") :: string
+	-- QUÉ RUTA PAGA. Manda el sitio DONDE ENTREGAS, no de dónde salió la carga: si
+	-- llevas el retorno del barrio hasta la roja te has cruzado media ciudad con
+	-- ella encima y tiene que notarse. El almacén no tiene atributo de ruta, así que
+	-- ahí se cae a la de origen -- que es lo que hacía siempre antes de que el
+	-- retorno pudiera entregarse en otro destino.
+	local rutaEntregada = destino:GetAttribute("ruta")
+	local rutaDelDestino = if typeof(rutaEntregada) == "string" then rutaEntregada else estado.retornoZona :: string
 	-- El retorno paga una fracción: si rindiera igual que la ida, la ruta elegida
 	-- daría lo mismo y la decisión de destino --que es el corazón del juego-- se
 	-- quedaría sin peso.

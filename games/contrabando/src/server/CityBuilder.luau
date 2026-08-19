@@ -814,6 +814,21 @@ local function poligono(ciudad: Instance?, padre: Instance)
 	-- boca quedaría enterrada debajo de ella y volvería a asomar --dos studs y medio
 	-- más abajo-- justo donde la losa se acaba. Ese escalón se midió.
 	local bordeSalida = Config.POLIGONO_SALIDA.Z - LADO_SALIDA / 2
+	-- Y SE LE DICE DÓNDE TERMINA, que es lo que le faltaba y costó caro.
+	--
+	-- Ésta era la única vía del juego que se tendía sin `cotaFinal`: las de los
+	-- destinos reciben la cota de la calle a la que llegan, y ésta se quedaba con lo
+	-- que midiera el trazado en su último punto. Resultado medido al encoger el
+	-- mundo: la carretera del recinto **moría volando 3,4 studs sobre el césped**, y
+	-- ese canto CORTA EL NAVMESH -- el pathfinder no podía salir del recinto, así
+	-- que las CUATRO rutas se quedaron sin camino a la vez. Nada reventó: el mundo
+	-- se construyó entero, las losas y las balizas en su sitio, y simplemente no se
+	-- podía llegar a ninguna parte andando.
+	--
+	-- Es la misma lección que las vías de los destinos ya tenían aprendida: los dos
+	-- extremos son los únicos puntos de los que se sabe la respuesta sin medirla, y
+	-- callarse uno es dejar que lo adivine un rayo.
+	local sueloEnganche = sueloDeLaCiudad(ciudad, Config.POLIGONO_ENGANCHE.X, Config.POLIGONO_ENGANCHE.Z)
 	acceso(
 		ciudad,
 		"PoligonoAcceso",
@@ -822,7 +837,9 @@ local function poligono(ciudad: Instance?, padre: Instance)
 		26,
 		padre,
 		-- Al ras de la losa: su cara de arriba, que es por donde se viene pisando.
-		cota + ALTO_LOSA
+		cota + ALTO_LOSA,
+		-- Y al ras del césped al llegar, para que se pueda pisar desde la ciudad.
+		(sueloEnganche or Config.POLIGONO_ENGANCHE.Y) + 0.2
 	)
 
 	-- Muro perimetral bajo en tres lados: cierra el recinto sin encerrar (la valla
@@ -2198,7 +2215,18 @@ function CityBuilder.build(): Mundo
 		-- El sitio se busca en un anillo alrededor del destino y se queda con el
 		-- primero que esté LIMPIO: plantarlo a ciegas a una distancia fija es como
 		-- acabó el primero encima de una pista de baloncesto.
-		do
+		-- SALVO SI EL DESTINO ESTÁ EN CASA. Al encoger el mundo, el barrio quedó a
+		-- 119 studs de la salida, y su taller de zona --que se busca en un anillo de
+		-- 58 a 105 studs alrededor del destino-- se plantó ENCIMA de la losa de
+		-- salida del recinto. La sonda lo cazó: "lo que se pisa en Salida es
+		-- Taller_barrio".
+		--
+		-- Y sobra por diseño, no sólo por sitio: el taller de zona existe para que
+		-- cambiar de vehículo no cueste un viaje de vuelta a casa. A dos pasos de
+		-- casa eso no es un viaje, así que sería un segundo concesionario a la vista
+		-- del primero.
+		local lejosDeCasa = (ruta.destino - Config.TALLER_POS).Magnitude > 200
+		if lejosDeCasa then
 			-- CON CALLE, no sólo despejado. Es el segundo requisito y llegó midiendo:
 			-- el taller de la ámbar cayó en un descampado a sesenta studs por debajo
 			-- de la ciudad, sin una calzada a doscientos studs a la redonda. Estaba

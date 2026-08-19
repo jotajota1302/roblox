@@ -61,8 +61,15 @@ function Lairs.sitiosDeRuta(origen: Vector3, destino: Vector3, cuantas: number):
 	-- antes del destino: perder la carga a las puertas de la entrega no se lee como
 	-- riesgo sino como tomadura de pelo.
 	local largo = plano.Magnitude
-	local tMin = math.max(0.2, (Config.ZONA_SEGURA_RADIO + 90) / largo)
-	local tMax = math.min(0.85, 1 - 120 / largo)
+	-- LOS MÁRGENES BAJARON CON EL MUNDO (19/08: 90 y 120 -> 45 y 60). Eran studs
+	-- fijos calibrados para rutas del doble de largas, y al encoger dejaron de
+	-- caber: en la ruta verde --264 studs en recta-- pedían 90 al principio y 120
+	-- al final sobre un total de 264, así que tMax salía POR DEBAJO de tMin y la
+	-- ruta se quedaba con CERO guaridas. Sin guaridas no salen ladrones de ningún
+	-- sitio, o sea que esa ruta perdía su amenaza entera, y no lo dijo nada: la
+	-- función devolvía una lista vacía y todo siguió.
+	local tMin = math.max(0.2, (Config.ZONA_SEGURA_RADIO + 45) / largo)
+	local tMax = math.min(0.85, 1 - 60 / largo)
 	if tMax <= tMin then
 		-- Ruta tan corta que no hay tramo donde ponerlas sin pisar la casa o el
 		-- destino. Antes ninguna que una mal puesta.

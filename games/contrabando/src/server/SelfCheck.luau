@@ -220,14 +220,36 @@ local function accesos()
 	-- UNO POR DESTINO Y UNO POR TALLER DE ZONA, más el de casa. Que falte un acceso
 	-- no rompe nada visible: simplemente la mercancía grande, que EXIGE vehículo,
 	-- llega a un sitio donde el vehículo no entra.
-	local cuantos = 0
-	for _ in grupos do
-		cuantos += 1
+	-- SE COMPRUEBA LO QUE IMPORTA --que al destino se pueda llegar rodando-- y no
+	-- cuántas carreteras hay. Un destino que YA cae sobre una calle de la ciudad no
+	-- necesita acceso propio, y `acceso()` no lo construye: con el mundo encogido eso
+	-- pasó en dos de las cuatro rutas, y contar grupos daba rojo por un mundo que
+	-- estaba bien. Contar piezas es fácil; medir lo que el jugador necesita, no.
+	local sinCalzada = {}
+	for _, ruta in Routes.todas() do
+		local losa = m:FindFirstChild("Destino_" .. ruta.id)
+		if losa == nil or not losa:IsA("BasePart") then
+			continue
+		end
+		local rueda = false
+		for _, d in workspace:GetDescendants() do
+			if not d:IsA("BasePart") or d == losa then
+				continue
+			end
+			local dist = math.sqrt((d.Position.X - losa.Position.X) ^ 2 + (d.Position.Z - losa.Position.Z) ^ 2)
+			if dist <= 70 and (d:GetAttribute("rodable") == true or Roads.esCalzada(d.Color)) then
+				rueda = true
+				break
+			end
+		end
+		if not rueda then
+			table.insert(sinCalzada, ruta.id)
+		end
 	end
 	comprobar(
-		"cada destino y el polígono tienen carretera",
-		cuantos >= 1 + #Routes.todas(),
-		string.format("hay %d grupos de acceso, se esperaban al menos %d", cuantos, 1 + #Routes.todas())
+		"a cada destino se puede llegar rodando",
+		#sinCalzada == 0,
+		string.format("sin calzada a mano: %s", table.concat(sinCalzada, ", "))
 	)
 
 	for base, lista in grupos do
@@ -552,7 +574,12 @@ local function refugios()
 	-- acaba la zona segura. Pegado al almacén, un refugio no es una decisión --el
 	-- almacén apaga el calor entero y encima es donde cobras-- y una opción que
 	-- nunca puede ganar es una opción que no existe.
-	local minimo = Config.ZONA_SEGURA_RADIO + Config.REFUGIO_MARGEN_CASA / 2
+	-- El criterio es LA ZONA SEGURA y nada más: la puerta del refugio tiene que
+	-- quedar fuera de ella. Antes sumaba medio REFUGIO_MARGEN_CASA encima, y al
+	-- reescalar el mundo eso pedía un centro a 177 studs cuando `Shelter` sólo
+	-- garantiza 85 -- dos números peleándose por decir lo mismo, y la sonda dando
+	-- rojo por un refugio perfectamente colocado.
+	local minimo = Config.ZONA_SEGURA_RADIO
 	local pegados, elMasCerca = 0, math.huge
 	for _, sitio in sitios do
 		local d = (Vector3.new(sitio.X, 0, sitio.Z) - Vector3.new(Config.ALMACEN_POS.X, 0, Config.ALMACEN_POS.Z)).Magnitude
@@ -1038,13 +1065,18 @@ local function barrio()
 		largo += math.sqrt((b.X - a.X) ^ 2 + (b.Z - a.Z) ^ 2)
 	end
 
-	-- Por debajo de 200 la entrega cae dentro de la zona segura y no enseña nada;
-	-- por encima de 350 deja de ser un bucle corto y no arregla lo que vino a
+	-- Por debajo de la zona segura la entrega cae dentro de casa y no enseña nada;
+	-- por encima del tope deja de ser un bucle corto y no arregla lo que vino a
 	-- arreglar.
+	--
+	-- La horquilla bajó de 200-350 a 90-220 el 19/08, con el resto de la escala: el
+	-- mundo se encogió a la mitad y un umbral que no se reescala con él deja de
+	-- decir lo que decía. 90 es la zona segura de hoy; 220 es lo que se anda en unos
+	-- veinte segundos, que es lo que tiene que durar la rampa de entrada.
 	comprobar(
 		"el barrio está a la distancia de una rampa",
-		largo >= 200 and largo <= 350,
-		string.format("%d studs andando: fuera de la horquilla 200-350", math.floor(largo))
+		largo >= 90 and largo <= 220,
+		string.format("%d studs andando: fuera de la horquilla 90-220", math.floor(largo))
 	)
 end
 

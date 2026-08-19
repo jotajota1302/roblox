@@ -52,14 +52,19 @@ return function(kit)
 	kit.truthy("la roja esta MUCHO mas lejos, no un poco", roja > ambar * 1.4)
 	kit.truthy("y la ambar mucho mas que la verde", ambar > verde * 1.4)
 
-	-- Los destinos, separados entre sí: dos a cien studs uno de otro se
-	-- confundirían al llegar, y entregar en el equivocado es perder el viaje.
+	-- Los destinos, separados entre sí: dos demasiado juntos se confundirían al
+	-- llegar, y entregar en el equivocado es perder el viaje.
+	--
+	-- El listón bajó de 250 a 120 el 19/08 con el resto de la escala. No es
+	-- aflojar: era el 16 % de la ruta más larga de entonces y es el 19 % de la de
+	-- ahora, o sea que separa MÁS en proporción al viaje. Una constante de
+	-- distancia que no se reescala con el mundo deja de decir lo que decía.
 	for _, a in Routes.todas() do
 		for _, b in Routes.todas() do
 			if a.id < b.id then
 				kit.truthy(
 					string.format("%s y %s no estan pegados", a.id, b.id),
-					(a.destino - b.destino).Magnitude > 250
+					(a.destino - b.destino).Magnitude > 120
 				)
 			end
 		end

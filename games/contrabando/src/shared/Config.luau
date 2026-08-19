@@ -298,8 +298,17 @@ Config.POLIGONO_SALIDA = Vector3.new(
 )
 Config.POLIGONO_ENGANCHE = Vector3.new(-593, 19.2, 679) -- la calle de la ciudad más cercana (medida)
 
-Config.ALMACEN_POS = Vector3.new(-668, 19.2, 925)
-Config.TALLER_POS = Vector3.new(-540, 19.2, 930)
+-- EL ALMACÉN Y EL TALLER, PEGADOS A LA BOCA DEL RECINTO (19/08).
+--
+-- Estaban en el fondo del polígono, a 177 studs de la salida: **quince segundos de
+-- andar por tu propio patio antes de que empiece el juego**, y otros quince al
+-- volver. Medido el ciclo del reparto más corto que existe --el del tutorial-- eran
+-- 87 segundos, y más de la mitad era desplazamiento sin nada que decidir.
+--
+-- Ahora están a 77 studs de la boca. No es un ajuste de estética: es la mitad de
+-- los treinta segundos que se iban en entrar y salir de casa.
+Config.ALMACEN_POS = Vector3.new(-668, 19.2, 815)
+Config.TALLER_POS = Vector3.new(-580, 19.2, 815)
 
 -- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
 -- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles
@@ -366,7 +375,7 @@ Config.RUTAS = {
 		id = "barrio",
 		multiplicador = 0.4,
 		nivel = 1,
-		destino = Vector3.new(-518, 19.2, 583),
+		destino = Vector3.new(-650, 19.2, 680),
 		detectores = 1,
 		guaridas = 0,
 		-- SIN REFUGIOS, y no es un olvido: un refugio es el sitio donde te salvas de
@@ -407,7 +416,7 @@ Config.RUTAS = {
 		--
 		-- Se elige el llano: diecinueve segundos de viaje valen menos que un sitio
 		-- donde el jugador se queda enganchado sin entender por qué.
-		destino = Vector3.new(-230, 19.2, 580),
+		destino = Vector3.new(-620, 19.2, 555),
 		detectores = 3,
 		pvp = "ninguno",
 	},
@@ -418,7 +427,7 @@ Config.RUTAS = {
 		-- ACERCADA igual que la verde: 1.034 studs de camino real eran 129 s de ida
 		-- y vuelta a pie. El punto nuevo está a 740 del enganche sobre ese mismo
 		-- camino -- 46 s de ida a pie, 31 con patinete eléctrico.
-		destino = Vector3.new(100, 19.2, 624),
+		destino = Vector3.new(-481, 19.2, 456),
 		detectores = 9,
 		pvp = "transportistas",
 	},
@@ -441,7 +450,7 @@ Config.RUTAS = {
 		-- natural para emboscadas. Aquí no lo hay. Se acepta porque el cuello de
 		-- botella era un regalo de un mapa ajeno y la duración es un problema
 		-- medido; cuando el mapa se haga a medida, se recupera a propósito.
-		destino = Vector3.new(242, 19.2, 191),
+		destino = Vector3.new(-222, 19.2, 421),
 		detectores = 18,
 		pvp = "libre",
 	},
@@ -563,7 +572,7 @@ Config.REFUGIO_SEGUNDOS_POR_NIVEL = 5
 -- ser menos y estar más espaciados" (JJ). Un refugio sólo significa algo si
 -- llegar a él es una decisión, y para eso tiene que ser el único que tienes cerca.
 Config.REFUGIOS_POR_RUTA = 1
-Config.REFUGIO_DESVIO = 100
+Config.REFUGIO_DESVIO = 85
 
 -- LO QUE TIENE QUE APARTARSE DE CASA, medido en studs desde el borde de la zona
 -- segura. Lo destapó JJ jugando: *"hay un refugio justo a la salida del almacén,
@@ -580,10 +589,10 @@ Config.REFUGIO_DESVIO = 100
 -- doble de la zona segura. El motivo de que esto se mida en STUDS y no en fracción
 -- del trayecto es el mismo que ya enseñaron las guaridas: un 0,33 dice cosas muy
 -- distintas en una ruta de 600 y en una de 1.700.
-Config.REFUGIO_MARGEN_CASA = 200
+Config.REFUGIO_MARGEN_CASA = 85
 -- Y lo que se aparta del destino, por el otro lado: un refugio a las puertas de la
 -- entrega llega cuando el viaje ya está hecho.
-Config.REFUGIO_MARGEN_DESTINO = 140
+Config.REFUGIO_MARGEN_DESTINO = 55
 -- Y la distancia mínima entre dos refugios cualesquiera, aunque sean de rutas
 -- distintas: sin ella, dos rutas que pasan cerca plantan los suyos casi pegados
 -- y vuelven a parecer mobiliario urbano.
@@ -600,7 +609,7 @@ Config.REFUGIO_MARGEN_DESTINO = 140
 -- Una ruta con ladrones y sin sitio donde refugiarse es una promesa rota, así que
 -- entre "no pegados" y "que exista", manda que exista. 240 sigue siendo más de
 -- cinco veces el radio de un refugio (45): no se tocan ni se confunden.
-Config.REFUGIO_SEPARACION = 240
+Config.REFUGIO_SEPARACION = 100
 
 -- Patrullas por nivel de calor, y a qué velocidad van.
 --
@@ -642,7 +651,7 @@ Config.GUARIDAS_POR_RUTA = 3
 
 -- Cuánto se apartan del camino recto. Menos que los refugios (100): una guarida
 -- pegada al corredor es un obstáculo que hay que rodear, y ése es su trabajo.
-Config.GUARIDA_DESVIO = 70
+Config.GUARIDA_DESVIO = 45
 
 -- A qué distancia del jugador una guarida sirve para soltar a un ladrón. Por
 -- debajo de APARICION_MIN sería una emboscada; por encima de esto el ladrón
@@ -653,7 +662,7 @@ Config.GUARIDA_DESVIO = 70
 -- del viaje se quedaba sin guarida útil. Un ladrón que sale a 380 studs tarda unos
 -- veinte segundos en plantarse encima -- va más rápido que tú cargado, así que
 -- llega igual, y llega desde un sitio que estaba en el mapa.
-Config.GUARIDA_ALCANCE = 380
+Config.GUARIDA_ALCANCE = 250
 
 Config.PATRULLAS = {
 	[0] = { cantidad = 0, velocidad = 0 },
@@ -695,7 +704,19 @@ Config.INTERCEPT_HZ = 5
 -- elegirla, antes de dar un paso -- no viola "el almacén no es asaltable" a la
 -- letra (su contenido sigue intocable), pero rompe el espíritu: la zona de partida
 -- tiene que ser segura.
-Config.ZONA_SEGURA_RADIO = 150
+-- ⚠ ESTA CONSTANTE Y LAS DE ABAJO (márgenes y desvíos de refugios, guaridas y
+-- racimos) SE REESCALARON JUNTAS el 19/08 al encoger el mundo, y tienen que seguir
+-- moviéndose juntas: todas dicen "cuánto es lejos" y todas se calibraron para unas
+-- rutas que medían el doble. Una sola sin reescalar no da un error -- da un juego
+-- donde media ruta cabe dentro de la zona segura, o donde ningún refugio encuentra
+-- sitio, y nada avisa.
+--
+-- Bajada de 150 a 90 al encoger el mundo, y es aritmética: la zona segura es el
+-- trozo del mapa donde no pasa nada, y con las rutas a la mitad de distancia un
+-- radio de 150 se comía el principio de todos los viajes -- ni contactos, ni
+-- detectores, ni guaridas pueden plantarse dentro. 90 sigue cubriendo el recinto
+-- entero y su carretera de acceso, que es lo que tiene que proteger.
+Config.ZONA_SEGURA_RADIO = 90
 
 -- EL RECINTO DEL ALMACÉN: la valla que no te deja salir a la ciudad con carga y
 -- sin destino elegido (ver Perimeter.luau, que tiene el porqué entero).
@@ -843,7 +864,7 @@ Config.CONTACTOS_POR_RUTA = {
 -- Los racimos van apartados, pegados a un peligro, y son la decisión: el premio
 -- está donde está el riesgo. El desvío es menor que el de una guarida (70) para
 -- que ir a por uno sea un rodeo y no una expedición.
-Config.CONTACTO_RACIMO_DESVIO = 55
+Config.CONTACTO_RACIMO_DESVIO = 38
 
 -- LA RACHA: cada pieza recogida te acelera, y la velocidad es DEL VIAJE, no
 -- tuya. La velocidad permanente está descartada desde el principio (ver la

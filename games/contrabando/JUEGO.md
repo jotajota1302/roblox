@@ -87,18 +87,36 @@ Las distancias son **camino real medido con el pathfinder dentro del juego**, no
 recta: en una ciudad con manzanas las dos cosas se parecen poco, y la que el jugador anda
 es ésta. El ciclo es ida y vuelta, contando el tramo de casa a la boca del polígono.
 
-| Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Camino | Ciclo a pie | Siguiendo el rastro |
+| Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Camino | Ciclo | Con el rastro |
 |---|---|---|---|---|---|---|---|
-| ⬜ Barrio | ×0,4 | — | 1 | ninguno | 257 | 74 s | **49 s** |
-| 🟢 Verde | ×1 | — | 3 | ninguno | 679 | 145 s | **96 s** |
-| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | 854 | 175 s | **116 s** (61 s en coche) |
-| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | 1.224 | 237 s | **157 s** (82 s en coche) |
+| ⬜ Barrio | ×0,4 | — | 1 | ninguno | 147 | 32 s | **26 s** |
+| 🟢 Verde | ×1 | — | 3 | ninguno | 322 | 47 s | **35 s** |
+| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | 338 | 48 s | **36 s** |
+| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | 631 | 73 s | **53 s** |
 
-**Se acortaron el 19/08 porque el viaje era demasiado largo**, y no por opinión: JJ lo jugó
-y dijo "es muy largo, nada atractivo". Medido entonces, la ruta verde —la primera que juega
-cualquiera— eran 768 studs de camino, o sea 160 s de ida y vuelta antes de sumar cargar,
-elegir y entregar; la roja, 227 s. Los destinos nuevos son puntos **del camino real viejo**,
-así que no se han inventado: es por donde ya se pasaba.
+El ciclo ya **no incluye volver a casa**: al entregar puedes seguir desde donde estás.
+
+**EL MUNDO SE ENCOGIÓ A LA MITAD el 19/08**, y no por opinión: JJ lo jugó dos veces y las
+dos dijo lo mismo — *"es muy largo, nada atractivo"* y *"tardamos mucho en completar algo"*.
+
+Medido antes: **el ciclo del reparto más corto que existe eran 87 segundos**, y más de la
+mitad era andar sin que pasara nada — 15 s cruzando tu propio patio para salir y 37
+volviendo por donde ya habías ido. Ahora son **26**.
+
+Tres cambios, y el tercero es el que más quita:
+
+1. **El almacén y el taller, pegados a la boca del recinto** (177 studs → 77).
+2. **Los cuatro destinos, mucho más cerca**, todos medidos con el pathfinder dentro del
+   juego y sobre terreno llano.
+3. **La vuelta a casa deja de ser obligatoria**: la carga de retorno se puede entregar en
+   cualquier otro destino, así que entregar te deja EN OTRO SITIO desde el que seguir en vez
+   de deshacer el camino. Volver a la nave sigue existiendo —es donde está la mercancía que
+   de verdad paga— pero pasa a ser una decisión y no un peaje.
+
+Y con el mundo se reescalaron **todas las constantes que dicen "cuánto es lejos"**: zona
+segura, márgenes y desvíos de refugios y guaridas, separación entre destinos. Una sola sin
+reescalar no da un error — da un juego donde media ruta cabe dentro de la zona segura, o
+donde una ruta se queda sin guaridas y por tanto sin ladrones. Pasaron las dos.
 
 Y al medirlo apareció algo que llevaba ahí sin que nadie lo supiera: **el barrio no tenía
 camino desde ninguna parte**. Su destino caía debajo de un árbol de la ciudad y la zona no
