@@ -2,12 +2,30 @@
 --[[
 	Config.luau — todas las constantes del juego en un único sitio. Sin lógica.
 
-	Las marcadas con PROTOTIPO: difieren a propósito de DISENO.md para
-	poder medir en una sesión lo que en producción tardaría horas. Revertirlas antes
-	de publicar.
+	LOS VALORES DE PROTOTIPO SE ELIGEN CON UN INTERRUPTOR, `Config.PROTOTIPO`, y no
+	editando números a mano. Antes eran cinco constantes con un comentario al lado
+	que decía a cuánto había que devolverlas -- o sea cinco ediciones que había que
+	acordarse de hacer, todas juntas, el día de publicar, y ninguna de las cuales
+	avisa si se olvida: el juego sale a producción con las legendarias diez veces
+	más frecuentes de lo diseñado y la nave produciendo seis veces más deprisa, y
+	todo funciona. Con el interruptor, publicar es cambiar `true` por `false`.
+
+	Y las dos tablas están SIEMPRE presentes, así que las pruebas comprueban también
+	la de producción -- que hasta ahora vivía en comentarios y no la había validado
+	nadie nunca.
 ]]
 
 local Config = {}
+
+-- ¿Estamos midiendo o estamos jugando?
+--
+-- En prototipo, la mercancía buena sale mucho más a menudo y la nave produce cada
+-- 30 s en vez de cada 3 min: es la única forma de ver una legendaria o un almacén
+-- lleno sin jugar una hora, y sin verlos no se puede ajustar nada.
+--
+-- **A `false` antes de publicar.** Lo recuerda `VERIFICACION.md` §4, y ahora es una
+-- sola línea en vez de cinco.
+Config.PROTOTIPO = true
 
 -- Economía
 Config.CAJA_VALOR_BASE = 10
@@ -205,12 +223,23 @@ Config.VEHICULO_INICIAL = "a_pie"
 
 -- Rarezas: multiplicador de valor, peso que ocupa y probabilidad.
 -- El peso de la legendaria es exactamente CAPACIDAD_A_PIE: cabe, pero te ocupa todo.
-Config.RAREZAS = {
-	{ id = "comun", multiplicador = 1, peso = 1, probabilidad = 0.70 }, -- PROTOTIPO: 0.90
-	{ id = "marcada", multiplicador = 10, peso = 1, probabilidad = 0.20 }, -- PROTOTIPO: 0.08
-	{ id = "sellada", multiplicador = 50, peso = 2, probabilidad = 0.08 }, -- PROTOTIPO: 0.018
-	{ id = "legendaria", multiplicador = 135, peso = 3, probabilidad = 0.02 }, -- PROTOTIPO: 0.002
+--
+-- Las dos repartidas están aquí a la vez, y el interruptor elige. Las de producción
+-- son las de `DISENO.md`; las de medir aflojan la cola para que una legendaria salga
+-- en una sesión y no en una tarde.
+Config.RAREZAS_PRODUCCION = {
+	{ id = "comun", multiplicador = 1, peso = 1, probabilidad = 0.90 },
+	{ id = "marcada", multiplicador = 10, peso = 1, probabilidad = 0.08 },
+	{ id = "sellada", multiplicador = 50, peso = 2, probabilidad = 0.018 },
+	{ id = "legendaria", multiplicador = 135, peso = 3, probabilidad = 0.002 },
 }
+Config.RAREZAS_PROTOTIPO = {
+	{ id = "comun", multiplicador = 1, peso = 1, probabilidad = 0.70 },
+	{ id = "marcada", multiplicador = 10, peso = 1, probabilidad = 0.20 },
+	{ id = "sellada", multiplicador = 50, peso = 2, probabilidad = 0.08 },
+	{ id = "legendaria", multiplicador = 135, peso = 3, probabilidad = 0.02 },
+}
+Config.RAREZAS = if Config.PROTOTIPO then Config.RAREZAS_PROTOTIPO else Config.RAREZAS_PRODUCCION
 
 -- Dónde se planta el juego DENTRO de la ciudad (ver DISENO-CIUDAD.md §3).
 --
@@ -444,8 +473,10 @@ Config.RETORNO_FRACCION = 0.6
 -- igual y no habríamos arreglado nada.
 Config.RETORNO_PIEZAS = 3
 
--- Almacén
-Config.ALMACEN_RITMO = 30 -- PROTOTIPO: 180 (1 caja cada 3 min)
+-- Almacén. Cada cuántos segundos aparece una pieza: 3 minutos en producción, 30
+-- segundos mientras se mide -- esperar tres minutos por caja hace imposible probar
+-- nada de lo que cuelga del almacén en una sesión. Lo elige `Config.PROTOTIPO`.
+Config.ALMACEN_RITMO = if Config.PROTOTIPO then 30 else 180
 Config.ALMACEN_TOPE = 10
 
 -- LA NAVE SE MEJORA: el sumidero que no se acaba (RUMBO.md §3.C).

@@ -11,6 +11,44 @@ return function(kit)
 	end
 	kit.near("las probabilidades suman uno", suma, 1, 0.0001)
 
+	-- Y LAS DOS REPARTIDAS, no solo la que esta puesta hoy.
+	--
+	-- `Config.PROTOTIPO` elige entre la tabla de medir y la de produccion, asi que la
+	-- que NO esta activa no la ejecuta nadie hasta el dia de publicar -- que es el
+	-- peor dia para descubrir que sus probabilidades no suman uno. Antes de esto, las
+	-- cifras de produccion ni siquiera eran codigo: vivian en un comentario al lado
+	-- de cada linea.
+	for etiqueta, tabla in { produccion = Config.RAREZAS_PRODUCCION, prototipo = Config.RAREZAS_PROTOTIPO } do
+		local total, ids = 0, {}
+		for _, def in tabla do
+			total += def.probabilidad
+			ids[def.id] = true
+			kit.truthy(
+				string.format("en %s, la rareza %s tiene probabilidad positiva", etiqueta, def.id),
+				def.probabilidad > 0
+			)
+		end
+		kit.near(string.format("las probabilidades de %s suman uno", etiqueta), total, 1, 0.0001)
+		-- Y las dos tablas describen LAS MISMAS rarezas: si una tuviera una de mas,
+		-- cambiar el interruptor haria aparecer o desaparecer mercancia del juego.
+		for _, def in Config.RAREZAS do
+			kit.truthy(string.format("%s conoce la rareza %s", etiqueta, def.id), ids[def.id] == true)
+		end
+	end
+
+	-- Lo raro tiene que seguir siendo raro EN PRODUCCION, que es donde importa: si
+	-- la legendaria no fuera la menos frecuente, el eje entero de riesgo del juego
+	-- --llevar algo caro te señala-- dejaria de significar nada.
+	local prod = {}
+	for _, def in Config.RAREZAS_PRODUCCION do
+		prod[def.id] = def.probabilidad
+	end
+	kit.truthy("en produccion la comun domina", prod.comun > 0.5)
+	kit.truthy(
+		"y la legendaria es la mas rara de todas",
+		prod.legendaria < prod.sellada and prod.sellada < prod.marcada
+	)
+
 	-- Con semilla fija la tirada es determinista, así que se puede probar de verdad.
 	local rng = Random.new(1302)
 	local conteo = { comun = 0, marcada = 0, sellada = 0, legendaria = 0 }

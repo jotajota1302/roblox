@@ -884,13 +884,25 @@ local function contactos()
 			table.insert(puntos, w.Position)
 		end
 
-		local sueltos: { Contacts.Contacto } = {}
-		local racimos: { Contacts.Contacto } = {}
+		-- Tipo propio y no `Contacts.Contacto`: aquí hace falta además el ORDEN en que
+		-- se plantaron, que el módulo puro no tiene por qué conocer.
+		type Sembrado = { pos: Vector3, valor: number, tipo: string, orden: number }
+		local sueltos: { Sembrado } = {}
+		local racimos: { Sembrado } = {}
 		for _, p in piezas do
 			if p:GetAttribute("ruta") ~= ruta.id then
 				continue
 			end
-			local c = { pos = p.Position, valor = 1, tipo = tostring(p:GetAttribute("tipo")) }
+			-- El ORDEN sale del nombre (`Contacto_verde_12`), que es donde CityBuilder
+			-- lo dejó al sembrar. Hace falta para la comprobación de la fila: sin él,
+			-- "la luz siguiente" sería la siguiente que devuelva GetDescendants, que
+			-- no tiene nada que ver con el camino.
+			local c = {
+				pos = p.Position,
+				valor = 1,
+				tipo = tostring(p:GetAttribute("tipo")),
+				orden = tonumber(string.match(p.Name, "(%d+)$")) or 0,
+			}
 			if c.tipo == "racimo" then
 				table.insert(racimos, c)
 			else
@@ -917,6 +929,58 @@ local function contactos()
 				string.format("los racimos de la %s piden desviarse", ruta.id),
 				enElCamino == 0,
 				string.format("%d de %d caen sobre el camino: se cogen sin decidir nada", enElCamino, #racimos)
+			)
+		end
+
+		-- ¿Y SE PUEDE SEGUIR LA FILA? Que las píldoras estén cerca del camino no
+		-- basta: lo que el rastro promete es "ve de una luz a la siguiente", y si
+		-- entre dos hay una pared, el jugador que se fía se estampa.
+		--
+		-- Existe porque el rastro es la única guía que se le da a alguien que no
+		-- conoce la ciudad, y una guía que miente es peor que ninguna -- con el mapa
+		-- a oscuras al menos vas con cuidado. Se mide con un rayo de luz a luz
+		-- contra la ciudad, saltándose lo nuestro (las propias píldoras, las losas,
+		-- los postes) porque nada de eso frena a nadie.
+		if #sueltos > 1 then
+			-- En el orden en que se plantaron, que es el orden del camino: sus
+			-- nombres llevan el índice.
+			table.sort(sueltos, function(a, b)
+				return a.orden < b.orden
+			end)
+			local ciudad = workspace:FindFirstChild("Ciudad")
+			local cortes = 0
+			local donde = ""
+			if ciudad ~= nil then
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Include
+				params.FilterDescendantsInstances = { ciudad }
+				for i = 2, #sueltos do
+					local a, b = sueltos[i - 1].pos, sueltos[i].pos
+					local golpe = workspace:Raycast(a, b - a, params)
+					if golpe ~= nil then
+						cortes += 1
+						if donde == "" then
+							donde = string.format("%s cerca de (%.0f, %.0f)", golpe.Instance.Name, a.X, a.Z)
+						end
+					end
+				end
+			end
+			-- EL LISTÓN ES EL 90 % DE LOS TRAMOS, no todos, y la primera versión
+			-- --exigiendo cero cortes-- falló en las cuatro rutas por el mismo sitio:
+			-- `Dirt` en el borde del polígono. Es el desnivel del terreno donde acaba
+			-- nuestra explanada y empieza la ciudad, y **un montículo no rompe un
+			-- rastro**: subes la cuesta y la siguiente luz aparece.
+			--
+			-- Lo que esta comprobación tiene que cazar es una fila partida por un
+			-- EDIFICIO -- un rastro que promete un camino que no existe. Eso no da uno
+			-- ni dos cortes sueltos: parte la ruta y se lleva por delante un tramo
+			-- entero. Con el 90 %, un relieve pasa y una pared no.
+			local tramos = #sueltos - 1
+			local limpios = tramos - cortes
+			comprobar(
+				string.format("la fila de la %s se puede seguir de luz en luz", ruta.id),
+				limpios >= math.ceil(tramos * 0.9),
+				string.format("%d de %d tramos con algo por medio -- el primero, %s", cortes, tramos, donde)
 			)
 		end
 	end

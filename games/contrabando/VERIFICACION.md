@@ -559,9 +559,13 @@ probado.
 
 ## 4. Antes de publicar
 
-- [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de
-      caja rara, ritmo del almacén. Son deliberadamente generosos para poder medir en una
-      sesión lo que en producción tardaría horas.
+- [ ] **Poner `Config.PROTOTIPO = false`.** Una línea, y con eso las probabilidades de caja
+      rara y el ritmo del almacén vuelven a los de `DISENO.md`. Antes eran cinco constantes
+      con un comentario al lado diciendo a cuánto había que devolverlas: cinco ediciones a
+      mano el día de publicar, y ninguna avisa si se olvida — el juego sale con las
+      legendarias diez veces más frecuentes de lo diseñado y todo funciona. Las dos tablas
+      están ahora en el código y **las pruebas comprueban también la de producción**, que
+      hasta el 19/08 vivía en comentarios y no la había ejecutado nadie nunca.
 - [x] ~~Al revertir el tope del almacén, corregir el HUD~~ — ya lee el tope de **tu** nave,
       no la constante de partida. Comprobado el 19/08.
 - [ ] Publicar el place, sin lo cual no hay guardado en la nube.
