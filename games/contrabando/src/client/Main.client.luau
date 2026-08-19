@@ -25,6 +25,7 @@ local Hud = require(script.Parent:WaitForChild("Hud"))
 local Menu = require(script.Parent:WaitForChild("Menu"))
 local Popups = require(script.Parent:WaitForChild("Popups"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
+local Rastro = require(script.Parent:WaitForChild("Rastro"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Stock = require(script.Parent:WaitForChild("Stock"))
@@ -534,6 +535,10 @@ Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	refrescarSelector()
 	intentar("apuntarBrujula", apuntarBrujula, estado)
 	intentar("Minimap.actualizar", Minimap.actualizar, estado)
+	-- QUÉ PÍLDORAS VES TÚ: sólo las de tu ruta y sólo con algo que entregar. Va por
+	-- `intentar` como las demás -- un fallo pintando el rastro no puede costar el
+	-- HUD ni el selector.
+	intentar("Rastro.actualizar", Rastro.actualizar, estado)
 	-- La pila del muelle, que ES el contador del almacén. Protegida por su cuenta:
 	-- un fallo dibujando cajas no puede costar el HUD ni el selector de ruta.
 	pcall(function()

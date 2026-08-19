@@ -58,8 +58,20 @@ function ContactService.registrar(nuevas: { BasePart })
 	piezas = nuevas
 end
 
+-- APAGAR Y ENCENDER SE MARCA, NO SE PINTA.
+--
+-- El servidor no puede decidir la transparencia de una pieza del mundo, porque esa
+-- decisión es DISTINTA PARA CADA JUGADOR: el rastro de la roja no le sirve de nada
+-- a quien va por la verde. Antes se pintaba desde aquí y el resultado lo describió
+-- JJ jugando: *"los cuadraditos que salen, aunque suene el sonido al cogerlos, no
+-- desaparecen"*. Y no era que no desaparecieran -- desaparecía la que cogía, y
+-- seguían a la vista las otras **139 de las tres rutas que no había elegido**.
+--
+-- Así que aquí sólo se deja la marca (`apagada`) y la pinta cada cliente con su
+-- propio estado: ver `Rastro.luau`. El servidor mantiene la pieza visible para que,
+-- si el cliente fallara, el fallo sea ver de más y no quedarse sin rastro.
 local function encender(pieza: BasePart, encendida: boolean)
-	pieza.Transparency = if encendida then 0 else 1
+	pieza:SetAttribute("apagada", if encendida then nil else true)
 	local luz = pieza:FindFirstChildOfClass("PointLight")
 	if luz then
 		luz.Enabled = encendida

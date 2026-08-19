@@ -31,6 +31,24 @@ local cargaLabel: TextLabel
 local almacenLabel: TextLabel
 local calorLabel: TextLabel
 local calorFila: Frame
+-- EL ALTO DE CADA LÍNEA DEL PANEL, y por qué no es una constante.
+--
+-- El panel tiene tres líneas fijas (dinero, carga, nave) y hasta cuatro
+-- condicionales (peligro, meta, contactos, objetivo): siete en el peor caso. Con
+-- un alto fijo de 26 px eso son 210 px de panel, y ahí está el problema — medido
+-- contra el Galaxy A06 que ya cita el minimapa (705×338 apaisado), **210 px son el
+-- 62 % del alto de la pantalla**. El panel de estado tapando dos tercios del juego.
+--
+-- La solución no es recortarlo con un máximo: eso es lo que había antes y es lo que
+-- hacía que las filas se salieran unas sobre otras. Es que la línea mida según la
+-- pantalla que la va a enseñar. Con el 5 %: en ese móvil son 17 px (43 % con las
+-- siete, aceptable para un pico) y en un monitor 28 (18 %).
+--
+-- El mínimo de 17 no es negociable hacia abajo: por debajo, el texto de la fila
+-- --que va con TextScaled, o sea atado a este alto-- deja de leerse de un vistazo,
+-- y un HUD que hay que mirar fijamente mientras te persiguen no sirve de nada.
+local ALTO_FILA_MIN, ALTO_FILA_MAX = 17, 28
+
 -- El halo rojo del borde de la pantalla. Ver `Hud.build` y el bloque del calor en
 -- `Hud.update`.
 local calorHalo: Frame?
@@ -207,10 +225,11 @@ function Hud.build()
 		local fila = Instance.new("Frame")
 		fila.Name = nombre
 		fila.LayoutOrder = orden
-		-- Alto FIJO en píxeles, no una fracción del panel: es lo que permite que el
-		-- panel crezca contando filas en vez de repartirse entre ellas. 26 px es lo
-		-- mínimo que se lee de un vistazo en un móvil sin mirar fijamente.
-		fila.Size = UDim2.new(1, 0, 0, 26)
+		-- Alto en PÍXELES y no en fracción del panel: es lo que permite que el panel
+		-- crezca contando filas en vez de repartirse entre ellas. Lo pone
+		-- `ajustarFilas` según el alto de la pantalla, y aquí sólo se deja un valor
+		-- de arranque para que la fila exista con tamaño desde el primer fotograma.
+		fila.Size = UDim2.new(1, 0, 0, ALTO_FILA_MAX)
 		fila.BackgroundTransparency = 1
 		fila.Parent = panel
 
@@ -283,6 +302,31 @@ function Hud.build()
 	-- El dinero es el número que más se mira: se le da el color del oro para que
 	-- destaque entre los otros dos sin necesidad de leer la etiqueta.
 	dineroLabel.TextColor3 = Color3.fromRGB(238, 202, 122)
+
+	-- Y AHORA LAS FILAS SE MIDEN CONTRA LA PANTALLA QUE LES HA TOCADO.
+	--
+	-- Se recalcula al cambiar `AbsoluteSize` y no una sola vez al construir, por dos
+	-- motivos que pasan de verdad: al arrancar, el ScreenGui todavía no tiene su
+	-- tamaño final (sale 0 y luego se ajusta), y girar el móvil cambia el alto de
+	-- pantalla a la mitad sin recargar nada.
+	--
+	-- Se mide contra `gui.AbsoluteSize` y NO contra `Camera.ViewportSize`: con los
+	-- insets de dispositivo puestos no coinciden, y ésa es una confusión que este
+	-- proyecto ya pagó midiendo interfaces.
+	local function ajustarFilas()
+		local area = gui.AbsoluteSize
+		if area.Y <= 0 then
+			return
+		end
+		local alto = math.clamp(math.floor(area.Y * 0.05), ALTO_FILA_MIN, ALTO_FILA_MAX)
+		for _, hijo in panel:GetChildren() do
+			if hijo:IsA("Frame") then
+				hijo.Size = UDim2.new(1, 0, 0, alto)
+			end
+		end
+	end
+	ajustarFilas()
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(ajustarFilas)
 
 	-- SIN BOTONES DE ACCIÓN. Los tenía --Recoger, Entregar, Comprar-- y los tres
 	-- se han ido al mundo como ProximityPrompt, que es la pieza nativa de Roblox

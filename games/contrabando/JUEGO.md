@@ -282,6 +282,7 @@ eso ni marcaba camino ni se sentía como premio continuo.
 | Cuántas | Las que caben: el número sale del largo del camino, no de una tabla |
 | Plantadas hoy | barrio **9** · verde **24** · ámbar **41** · roja **58** (antes 3 · 7 · 12 · 19) |
 | Ritmo | A pie, una cada **1,4 segundos** |
+| Cuándo se ven | **Sólo las de TU ruta, y sólo llevando algo que entregar.** Sin misión, la ciudad está a oscuras |
 | Doradas | Unas cuantas del rastro pagan contacto: 3 · 6 · 10 · 16, **las mismas de antes** |
 | Racimos | Apartados 55 studs hacia una guarida, valor 5. Dan la **decisión** |
 | Qué son los contactos | Fichas que **no ocupan hueco** y **no se pueden robar**. Solo se gastan en habilidades |
