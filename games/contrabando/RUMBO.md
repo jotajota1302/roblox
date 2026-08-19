@@ -211,14 +211,22 @@ arregla.
    se pierde al entregar y al ser alcanzado, y menú 2D para las tres tiendas. Spec y plan en
    `docs/specs/` y `docs/plans/` del 18/08. Nació de comparar el juego con *+1 Speed Keyboard
    Escape*: allí cada paso da algo y aquí los 54-100 s de viaje no daban nada.
-7. **El primer bucle** — *en marcha, 18/08*. Numeritos flotantes al cobrar, hitos con
-   objetivo visible, y la ruta de **barrio** (×0,5, ~250 studs) que se abre por entregas.
-   Spec y plan del 18/08 en `docs/`. **Pendiente de verificar en Studio**: el destino del
-   barrio está estimado, no medido, y falta cronometrar la primera entrega (objetivo ≤50 s
-   frente a los ~100 de hoy).
-8. **Ladrones que crecen con lo que llevas** (§3.B).
-9. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
-10. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
+7. ~~**El primer bucle**~~ — **hecho y verificado el 19/08**. Numeritos flotantes al cobrar,
+   hitos con objetivo visible, y la ruta de **barrio** que se abre por entregas. La
+   verificación en Studio que quedaba pendiente encontró lo peor posible: **el destino del
+   barrio no tenía camino desde ninguna parte** —caía debajo de un árbol de la ciudad— así
+   que la ruta del tutorial era imposible de recorrer. Movido a calzada medida. La primera
+   entrega cronometrada: **49 s**, contra el objetivo de ≤50 y los ~100 de entonces.
+8. ~~**El viaje era demasiado largo**~~ — **hecho el 19/08**, y salió de jugarlo: *"es muy
+   largo, nada atractivo"*. Dos cosas a la vez. **Las rutas se acortan** a puntos del camino
+   real viejo (verde 768 → 679 studs, roja 1.813 → 1.224). Y **el rastro**: los contactos
+   pasan de seis piezas sueltas a una fila continua cada 22 studs que dibuja el camino y
+   acelera al seguirla, con una **cadena** que se cae si dejas de recoger. Ciclo verde de
+   160 s a **96 s**; a pie cargado se pasa de 11,8 a 17,8 studs/s. Las doradas siguen siendo
+   3/6/10/16, así que la economía de habilidades no se mueve.
+9. **Ladrones que crecen con lo que llevas** (§3.B).
+10. **Probar el robo con dos jugadores** — la mitad de la promesa sigue sin jugarse nunca.
+11. **Portada: icono, miniatura, nombre, descripción** — en paralelo, no depende del código.
 
 Y sólo entonces publicar y mirar los números. Lo de después —Redada, precios rotativos,
 monetización, mapa procedural— **no significa nada hasta que haya gente**.

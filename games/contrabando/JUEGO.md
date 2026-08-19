@@ -47,9 +47,13 @@ La vuelta no es tiempo muerto: se paga al 60 % de la ida y también te la pueden
 | 0-5 s | Apareces en el polígono, tu zona propia fuera de la ciudad. La nave tiene 3 piezas esperando |
 | 5-15 s | Las coges por su aviso de "pulsa aquí". El zurrón cabe **3** — hay que elegir cuál dejas |
 | 15-25 s | Sales hacia la boca del polígono. **Si llevas carga y no has elegido ruta, una valla ámbar te frena**: "ELIGE DESTINO PARA SALIR" |
-| 25-30 s | Eliges destino. Se ven los tres con su multiplicador y su nivel de peligro |
-| 30-90 s | Viaje. Las esquinas fichadas te ven pasar, el peligro sube de 0 a 3, salen ladrones |
-| 90-110 s | Entregas. Número grande, XP, y el destino te ofrece carga de vuelta |
+| 25-30 s | Eliges destino. Se ven los cuatro con su multiplicador y su nivel de peligro |
+| 30-45 s | Viaje por el **rastro**: una píldora cada 1,4 s, y cada una te acelera. Las esquinas fichadas te ven pasar, el peligro sube de 0 a 3, salen ladrones |
+| 45-55 s | Entregas en el barrio. Número grande, XP, y el destino te ofrece carga de vuelta |
+
+El ciclo completo del barrio son **49 segundos** siguiendo el rastro. Antes del 19/08 la
+primera entrega llegaba a los ~100 s… en la ruta verde, porque **el barrio no tenía camino**
+y no se podía completar de ninguna manera.
 
 ## 3. Los números de hoy
 
@@ -79,12 +83,27 @@ pie. Ésa es la razón de ser del dinero — el vehículo no es "una caja más",
 
 ### Rutas
 
-| Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Distancia recta |
-|---|---|---|---|---|---|
-| ⬜ Barrio | ×0,5 | — | 1 | ninguno | ~250 desde la salida |
-| 🟢 Verde | ×1 | — | 3 | ninguno | ~420 studs |
-| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | ~848 |
-| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | ~1.399 |
+Las distancias son **camino real medido con el pathfinder dentro del juego**, no línea
+recta: en una ciudad con manzanas las dos cosas se parecen poco, y la que el jugador anda
+es ésta. El ciclo es ida y vuelta, contando el tramo de casa a la boca del polígono.
+
+| Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Camino | Ciclo a pie | Siguiendo el rastro |
+|---|---|---|---|---|---|---|---|
+| ⬜ Barrio | ×0,4 | — | 1 | ninguno | 257 | 74 s | **49 s** |
+| 🟢 Verde | ×1 | — | 3 | ninguno | 679 | 145 s | **96 s** |
+| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | 854 | 175 s | **116 s** (61 s en coche) |
+| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | 1.224 | 237 s | **157 s** (82 s en coche) |
+
+**Se acortaron el 19/08 porque el viaje era demasiado largo**, y no por opinión: JJ lo jugó
+y dijo "es muy largo, nada atractivo". Medido entonces, la ruta verde —la primera que juega
+cualquiera— eran 768 studs de camino, o sea 160 s de ida y vuelta antes de sumar cargar,
+elegir y entregar; la roja, 227 s. Los destinos nuevos son puntos **del camino real viejo**,
+así que no se han inventado: es por donde ya se pasaba.
+
+Y al medirlo apareció algo que llevaba ahí sin que nadie lo supiera: **el barrio no tenía
+camino desde ninguna parte**. Su destino caía debajo de un árbol de la ciudad y la zona no
+era navegable en cincuenta studs a la redonda. La ruta del tutorial era imposible de
+recorrer andando, con su losa plantada y su baliza encendida.
 
 El selector de ruta las anuncia con sus números — "9 esquinas · 3 guaridas" — y no con una
 palabra: nadie sabe qué significa "peligrosa" hasta que le cuesta una carga.
@@ -235,28 +254,52 @@ hacer **ahora** (ve a la salida, entrega aquí) y el objetivo **a qué aspiras**
 Y **cobrar se nota**: número flotante sobre el personaje al entregar y al recoger un
 contacto, y el dinero del HUD contando hacia arriba en vez de saltar.
 
-### Los contactos y las habilidades
+### El rastro, los contactos y las habilidades
 
 **El viaje ya no es solo peligro.** Antes, toda la experiencia del juego se otorgaba en una
 sola línea de código —al entregar—, así que durante los 54-100 segundos de camino el jugador
 no ganaba nada y solo podía perder. Ahora hay algo bueno **dentro** del viaje.
 
+**EL RASTRO** (19/08) es una **fila continua de píldoras cada 22 studs sobre el camino
+real**. Nació de jugarlo: *"para que enganche a seguir la ruta deberíamos poner la ruta
+indicada con píldoras que se van recogiendo y aumentan la velocidad, más seguidos"* (JJ).
+Antes eran seis piezas sueltas en la verde —una cada 128 studs, una cada ocho segundos—, y
+eso ni marcaba camino ni se sentía como premio continuo.
+
 | | |
 |---|---|
-| Qué son | Fichas que **no ocupan hueco** y **no se pueden robar**. Solo se gastan en habilidades |
-| Cuándo cuentan | Solo con misión activa (carga + ruta). Pasar sin nada no da nada |
-| Sueltos | Sobre el camino, valor 1. Dan el **ritmo** |
+| Cuántas | Las que caben: el número sale del largo del camino, no de una tabla |
+| Plantadas hoy | barrio **9** · verde **24** · ámbar **41** · roja **58** (antes 3 · 7 · 12 · 19) |
+| Ritmo | A pie, una cada **1,4 segundos** |
+| Doradas | Unas cuantas del rastro pagan contacto: 3 · 6 · 10 · 16, **las mismas de antes** |
 | Racimos | Apartados 55 studs hacia una guarida, valor 5. Dan la **decisión** |
-| Por ruta | verde 6+1 · ámbar 10+2 · roja 16+3 |
+| Qué son los contactos | Fichas que **no ocupan hueco** y **no se pueden robar**. Solo se gastan en habilidades |
+| Cuándo cuentan | Solo con misión activa (carga + ruta). Pasar sin nada no da nada |
 
-Y **se reparten sobre el camino real** que calcula el pathfinder, no sobre la recta
-casa-destino. No es un detalle: con la recta, medidos contra el camino de verdad, caían en él
-el 0 % de la ruta verde. Treinta y ocho piezas plantadas y ninguna al alcance de nadie.
+Que las doradas sigan siendo 3/6/10/16 es deliberado: **el rastro cambia lo que se siente,
+no lo que se gana**. La economía de habilidades no se movió ni un contacto.
 
-**La racha.** Cada contacto recogido da **+0,5 studs/s** hasta un tope de **+4**, y se pierde
-entera al entregar y al ser alcanzado. La velocidad es **del viaje, no tuya** — la permanente
-está descartada porque nadie puede volverse inalcanzable. Los ladrones escalan con tu
-velocidad actual, racha incluida.
+Y hace algo que no era un premio sino orientación: la brújula dice **hacia dónde**, pero no
+**por dónde**. La fila de luces sí.
+
+Se reparte sobre el **camino real** del pathfinder, no sobre la recta casa-destino. No es un
+detalle: con la recta caían en el camino el 0 % de la ruta verde. Y se siembra **la última de
+todo**, después de guaridas y refugios, porque cada cosa que se planta cambia el camino que
+la siguiente mide — sembrándolo antes, una comisaría de 54×54 cortaba después el recorrido
+que el rastro acababa de dibujar y 19 de las 55 piezas de la roja quedaban fuera de alcance.
+
+**La racha.** Cada pieza recogida da **+0,4 studs/s** hasta un tope de **+6**, y se pierde
+entera al entregar y al ser alcanzado. A pie cargado eso son **11,8 → 17,8 studs/s, un 51 %
+más rápido**: el rastro no solo entretiene, **acorta el viaje**. La velocidad es **del viaje,
+no tuya** — la permanente está descartada porque nadie puede volverse inalcanzable. Los
+ladrones escalan con tu velocidad actual, racha incluida.
+
+**La cadena.** Si dejas de recoger, la racha **se cae sola**: 4 segundos de gracia y luego
+una pieza por segundo, hasta cero. Es lo que convierte el rastro en un juego en vez de en un
+pasillo decorado — sin ella, recoger seis al principio rendiría igual que seguir la fila
+entera, y entonces el rastro no pediría nada. Los 4 segundos salen del paso: a 22 studs y
+16 studs/s se pisa una cada 1,4 s, así que quien va por la fila no la pierde nunca y quien
+la abandona lo nota enseguida.
 
 **Las habilidades**, pagadas con contactos:
 

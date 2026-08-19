@@ -452,6 +452,35 @@ Y la gemela, que costó otro rato: **medir distancias en 3D cuando lo que import
 plano**. Un detector en una azotea daba "83 studs de la línea" cuando su desviación real era
 0; los 83 eran altura.
 
+## 3-bis. Lo que la sonda del mundo dejó cerrado el 19/08 (y lo que no)
+
+Al acortar las rutas y meter el rastro, la sonda pasó de 4 fallos a **80 de 80 en verde**.
+Lo que cazó, porque es el catálogo de cómo se rompe este mundo sin que nada reviente:
+
+| Qué | Por qué pasaba |
+|---|---|
+| **El barrio no tenía camino** | Su destino caía debajo de un árbol; el rayo desde el cielo se para en la copa y "el suelo" salía a 87 studs. La ruta del tutorial no se podía recorrer |
+| **19 de 55 píldoras de la roja, fuera de alcance** | El rastro se sembraba antes que los refugios, y una comisaría de 54×54 cortaba después el camino que acababa de dibujar |
+| **La ámbar sin refugio** | Los tres corredores salen del mismo almacén; con 320 studs de separación mínima sólo cabían dos para tres rutas |
+| **Tres detectores flotando 5-7 studs** | `HeatService` mide en 3D, así que la altura come radio: 34 studs de alcance pasan a 31,6 |
+| **Escalón de 3 studs en el acceso verde** | La envolvente que alisa el perfil sólo sube juntas, y no controlaba la caída contra los extremos impuestos |
+
+**Y una lección que ya había aparecido y volvió a aparecer**: *cada cosa que se planta cambia
+el mundo que la siguiente mide*. Le pasó al rastro (sembrado antes que los refugios) y le
+pasó al asentado de los detectores, cuya primera versión era correcta y no servía de nada
+por estar en el sitio equivocado del orden. Lo que dependa del estado final del mundo va al
+final de la construcción, y punto.
+
+### Abierto
+
+- [ ] **El acceso a la verde se eleva 4,5 studs sobre terreno llano.** `cotaDelTrazado` toma
+      el máximo de los rayos laterales, y en una explanada a cota 19,00 la calzada sube a
+      23,46. El canto resultante es un obstáculo para el navmesh, así que **el pathfinder
+      rodea la propia carretera** y el camino de la verde se alarga de 512 a 679 studs — un
+      tercio más de viaje en la ruta que más se juega. Probado bajar el tope lateral de 4 a
+      1,6: no cambia nada, así que la elevación viene del rayo central o de la envolvente, no
+      de los laterales. Arreglarlo devolvería el ciclo verde de 96 s a ~78 s.
+
 ## 4. Antes de publicar
 
 - [ ] **Revertir los valores marcados `PROTOTIPO:` en `Config.luau`** — probabilidades de
