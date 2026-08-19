@@ -284,7 +284,16 @@ function RoutePicker.actualizar(estado: any)
 			detalle.Text = if puede
 				then Strings.get(
 					"PICKER_DETAIL",
-					{ metros = Routes.distancia(id), fichadas = fichadas, guaridas = madrigueras }
+					-- REDONDEADO. La plantilla interpola el valor tal cual, así que una
+					-- magnitud entraba con sus catorce decimales: "212.4923553466797m".
+					-- Es el segundo sitio que pinta esta línea y el que de verdad se ve
+					-- --el otro sólo corre al construir la tarjeta-- así que arreglar
+					-- aquel no cambió nada en pantalla. Lo desmintió una captura.
+					{
+						metros = math.floor(Routes.distancia(id) + 0.5),
+						fichadas = fichadas,
+						guaridas = madrigueras,
+					}
 				)
 				-- Lo que falta DE VERDAD, sabiendo lo que ya tiene: una vez hecho el
 				-- hito, lo que falta vuelve a ser el nivel. Sin esto, la verde diría

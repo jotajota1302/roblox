@@ -40,7 +40,8 @@ local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiK
 -- 1.600 studs; con 610, el plano entero ocupaba un tercio del panel y el resto era
 -- negro -- que es lo que se veía en la captura de JJ: un recuadro claro en una esquina
 -- y él, el punto blanco, fuera de él.
-local ESCALA = 0.45
+-- Ya no hay escala fija: el plano se dibuja en fracción del panel y por eso cabe
+-- entero en cualquier pantalla. La constante desapareció con el lienzo móvil.
 
 -- Sólo se pintan las piezas que aportan silueta. Un plano con las 7161 partes de
 -- la ciudad sería una mancha gris, además de tardar en construirse.
@@ -52,6 +53,20 @@ local lienzo: Frame? = nil
 local puntos: { [string]: Frame } = {}
 local estado: any = nil
 local origenMapa = Vector2.new(0, 0)
+local tamanoMapa = Vector2.new(1, 1)
+
+-- DEL MUNDO AL PANEL, en fracción y no en píxeles.
+--
+-- Antes el plano se dibujaba a una escala fija y era el LIENZO el que se movía para
+-- centrarse en el jugador -- lo correcto cuando el mapa era mucho mayor que el panel.
+-- Con una ciudad de 630 studs cabe entera, y verla entera vale más que verla de
+-- cerca: se sabe dónde está uno, a dónde va y qué hay en medio de un vistazo, que es
+-- justo lo que se le pide a un plano y lo que JJ echaba en falta.
+--
+-- En fracción, además, el plano encaja solo en cualquier pantalla sin recalcular nada.
+local function aEscala(x: number, z: number): UDim2
+	return UDim2.fromScale((x - origenMapa.X) / tamanoMapa.X, (z - origenMapa.Y) / tamanoMapa.Y)
+end
 
 local function punto(nombre: string, color: Color3, tamano: number, orden: number): Frame
 	local p = puntos[nombre]
@@ -103,13 +118,16 @@ local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
 	local xMin, xMax = math.min(gx0, rx0), math.max(gx1, rx1)
 	local zMin, zMax = math.min(gz0, rz0), math.max(gz1, rz1)
 
-	capa.Size = UDim2.fromOffset((xMax - xMin) * ESCALA, (zMax - zMin) * ESCALA)
+	origenMapa = Vector2.new(xMin, zMin)
+	tamanoMapa = Vector2.new(xMax - xMin, zMax - zMin)
+	capa.Position = UDim2.fromScale(0, 0)
+	capa.Size = UDim2.fromScale(1, 1)
 
 	local function rect(nombre: string, x0: number, x1: number, z0: number, z1: number, color: Color3, orden: number)
 		local r = Instance.new("Frame")
 		r.Name = nombre
-		r.Position = UDim2.fromOffset((x0 - xMin) * ESCALA, (z0 - zMin) * ESCALA)
-		r.Size = UDim2.fromOffset((x1 - x0) * ESCALA, (z1 - z0) * ESCALA)
+		r.Position = aEscala(x0, z0)
+		r.Size = UDim2.fromScale((x1 - x0) / tamanoMapa.X, (z1 - z0) / tamanoMapa.Y)
 		r.BorderSizePixel = 0
 		r.BackgroundColor3 = color
 		r.ZIndex = orden
@@ -195,11 +213,11 @@ function Minimap.build()
 	-- minimapa se quedaba vacío para siempre.
 	origenMapa = pintarPlano(nil, capa)
 
-	-- El jugador SIEMPRE en el centro: es el mapa el que se mueve. Así no hay que
-	-- buscarse a uno mismo cada vez que se mira, que es lo último que quieres hacer
-	-- mientras corres.
+	-- El jugador se mueve por el plano, y no al revés. Con el mapa entero a la vista,
+	-- clavarlo en el centro obligaba a mover la ciudad debajo y eso escondía la mitad
+	-- de lo que hace falta ver -- dónde está uno RESPECTO al destino, que es la única
+	-- pregunta que se le hace a un plano mientras se corre.
 	local yo = punto("Yo", Color3.fromRGB(255, 255, 255), 9, 8)
-	yo.Position = UDim2.fromScale(0.5, 0.5)
 	yo.Visible = true
 
 	-- A 12 Hz, no en cada fotograma: los puntos se desplazan menos de un píxel
@@ -244,8 +262,8 @@ local function pintarPeligros(capa: Frame)
 		local f = Instance.new("Frame")
 		f.Name = nombre
 		f.AnchorPoint = Vector2.new(0.5, 0.5)
-		f.Position = UDim2.fromOffset((centro.X - origenMapa.X) * ESCALA, (centro.Z - origenMapa.Y) * ESCALA)
-		f.Size = UDim2.fromOffset(radio * 2 * ESCALA, radio * 2 * ESCALA)
+		f.Position = aEscala(centro.X, centro.Z)
+		f.Size = UDim2.fromScale(radio * 2 / tamanoMapa.X, radio * 2 / tamanoMapa.Y)
 		f.BackgroundColor3 = color
 		f.BackgroundTransparency = opacidad
 		f.BorderSizePixel = 0
@@ -266,14 +284,22 @@ local function pintarPeligros(capa: Frame)
 			-- SU RADIO DE VERDAD, no un punto. Un punto dice dónde está; el círculo
 			-- dice por dónde NO pasar, que es lo único que sirve para trazar un
 			-- camino. Es el mismo número que usa el servidor para dispararlas.
+			-- MUY TENUE, y con un núcleo encima. El disco a 0,72 tapaba media retícula:
+			-- son 35 studs de radio sobre un mapa de 630, o sea un 11 % del ancho cada
+			-- uno, y hay treinta. Con el mapa entero a la vista eso deja de informar y
+			-- pasa a ser una mancha naranja donde estaba la ciudad.
+			--
+			-- El disco sigue diciendo por dónde NO pasar --que es lo que sirve para
+			-- trazar un camino-- y el núcleo dice dónde está exactamente.
 			mancha(
 				"Fichada_" .. pieza.Name,
 				pieza.Position,
 				Config.DETECTOR_RADIO,
 				Color3.fromRGB(255, 170, 60),
-				0.72,
+				0.88,
 				2
 			)
+			mancha("FichadaNucleo_" .. pieza.Name, pieza.Position, 7, Color3.fromRGB(255, 170, 60), 0.15, 3)
 			fichadas += 1
 		elseif pieza:GetAttribute("guarida") == true then
 			-- SU ALCANCE VA COMO ANILLO, NO COMO MANCHA. Es la distancia a la que esa
@@ -309,16 +335,16 @@ end
 -- cae DENTRO del trozo visible: lo que se sale no se borra, se pega al borde
 -- apuntando hacia dónde queda -- que es lo que hace un radar y lo que un plano
 -- recortado, por sí solo, no haría.
-local function aPantalla(centro: Vector3, sitio: Vector3, lado: number): (UDim2, boolean)
-	local dx = (sitio.X - centro.X) * ESCALA
-	local dz = (sitio.Z - centro.Z) * ESCALA
-	local limite = lado / 2 - 6
-	local dentro = math.abs(dx) <= limite and math.abs(dz) <= limite
-	if not dentro then
-		local m = math.max(math.abs(dx), math.abs(dz))
-		dx, dz = dx / m * limite, dz / m * limite
-	end
-	return UDim2.new(0.5, dx, 0.5, dz), dentro
+-- Dónde cae un sitio del mundo dentro del panel. `centro` y `lado` ya no se usan --se
+-- conservan en la firma porque los llamadores los pasan-- desde que el plano es fijo:
+-- la posición de algo en el mapa no depende de dónde esté mirando el jugador.
+local function aPantalla(_centro: Vector3, sitio: Vector3, _lado: number): (UDim2, boolean)
+	local fx = (sitio.X - origenMapa.X) / tamanoMapa.X
+	local fz = (sitio.Z - origenMapa.Y) / tamanoMapa.Y
+	local dentro = fx >= 0 and fx <= 1 and fz >= 0 and fz <= 1
+	-- Lo que se sale del plano se pega al borde en vez de desaparecer: un ladrón
+	-- fuera del mapa sigue siendo información, y saber por qué lado viene basta.
+	return UDim2.fromScale(math.clamp(fx, 0.02, 0.98), math.clamp(fz, 0.02, 0.98)), dentro
 end
 
 function Minimap.refrescar()
@@ -338,9 +364,16 @@ function Minimap.refrescar()
 	local centro = root.Position
 	local lado = panel.AbsoluteSize.X
 
-	-- Se mueve el LIENZO, no sus cientos de hijos: es lo que hace que un plano de
-	-- verdad quepa en el presupuesto de un móvil.
-	capa.Position = UDim2.new(0.5, -(centro.X - origenMapa.X) * ESCALA, 0.5, -(centro.Z - origenMapa.Y) * ESCALA)
+	-- El lienzo ya no se mueve: el mapa entero está siempre a la vista y lo que se
+	-- mueve son los puntos. Un mapa de 630 studs cabe en el panel, así que centrarlo
+	-- en el jugador sólo servía para esconderle la mitad de lo que necesita ver.
+
+	-- Y el jugador, en su sitio del plano.
+	local yo = puntos["Yo"]
+	if yo then
+		yo.Position = aEscala(centro.X, centro.Z)
+		yo.Visible = true
+	end
 
 	-- Los peligros fijos, en cuanto el mundo haya llegado al cliente. Se protege
 	-- sola: en cuanto pinta algo, no vuelve a hacer nada.
@@ -415,7 +448,7 @@ function Minimap.refrescar()
 			-- lo tienes detrás, así que el círculo dibuja exactamente el momento en
 			-- que dejas de poder ignorarlo.
 			local aura = punto("Aura_" .. i, Color3.fromRGB(255, 110, 100), 1, 6)
-			local lo = Config.ALERTA_DISTANCIA * 2 * ESCALA
+			local lo = Config.ALERTA_DISTANCIA * 2 / tamanoMapa.X
 			aura.Size = UDim2.fromOffset(lo, lo)
 			aura.BackgroundTransparency = 0.82
 			aura.Position = donde
