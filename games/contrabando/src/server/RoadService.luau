@@ -64,6 +64,15 @@ local ultimaCalzada: { [Player]: Vector3 } = {}
 -- te alejas, que es la forma de decir "ya no lo quiero aquí".
 local bajadoAProposito: { [Player]: boolean } = {}
 
+-- Dónde estaba cada uno en la vuelta anterior del bucle. Lo usa `velocidadReal`
+-- para saber quién se está moviendo de verdad (ver su cabecera).
+--
+-- Se declara AQUÍ ARRIBA, con las demás tablas, y no junto a la función que la
+-- usa: `RoadService.olvidar` la limpia y está por encima, y en Lua un nombre usado
+-- antes de declararse como local se resuelve como global nil -- sin error, sin
+-- aviso, y con la limpieza escribiendo en una tabla que no es ésta.
+local ultimoSitio: { [Player]: Vector3 } = {}
+
 local function contenedor(): Folder
 	local f = workspace:FindFirstChild("VehiculosAparcados")
 	if f then
@@ -307,6 +316,134 @@ function RoadService.olvidar(player: Player)
 	recoger(player)
 	bajadoAProposito[player] = nil
 	ultimaCalzada[player] = nil
+	ultimoSitio[player] = nil
+end
+
+-- LOS EFECTOS DE MOVERSE: polvo bajo los pies y estela cuando vas lanzado.
+--
+-- POR QUÉ, dicho por JJ: *"mejorar los efectos cuando vamos en vehículo o
+-- movimientos"*. Y no es sólo vistosidad -- el juego tenía un problema concreto de
+-- lectura: ir a 12 studs/s y a 22 se veía **exactamente igual**. El motor cambiaba
+-- de tono, sí, pero la velocidad es la moneda del viaje desde que entró el rastro
+-- (la racha da +51 %) y no se notaba en pantalla en absoluto.
+--
+-- Se montan en el SERVIDOR, como la carga visible y por lo mismo: la velocidad del
+-- otro es información. Ver pasar a alguien dejando estela dice "ése lleva racha" y
+-- eso decide si te merece la pena perseguirle.
+--
+-- BARATOS A PROPÓSITO. Se crean UNA vez por personaje y después sólo se les mueve
+-- un número; nada de crear y destruir por fotograma. Las texturas son `rbxasset://`
+-- --las que trae el propio cliente-- y no `rbxassetid://`: las segundas hay que
+-- publicarlas y no se ven hasta entonces, que es una trampa que este proyecto ya
+-- pagó con los meshes.
+-- CUÁNTO SE MUEVE DE VERDAD, medido por dónde estaba hace un tercio de segundo.
+--
+-- Es la tercera forma de preguntarlo y la única que funciona desde el servidor. Las
+-- dos anteriores se probaron y se midieron fallando:
+--
+--   · `MoveDirection` dice si el jugador está pulsando algo. Vale para el sonido
+--     del motor --un ralentí es que tienes el vehículo encendido, no que te
+--     muevas-- pero el personaje es propiedad de RED DEL CLIENTE, así que en el
+--     servidor se queda a cero salvo que haya alguien pulsando de verdad;
+--   · `AssemblyLinearVelocity` tiene el mismo dueño y el mismo problema: se le
+--     puede escribir un 18 desde aquí y leer un 0 al instante siguiente.
+--
+-- La POSICIÓN sí se replica siempre --es lo que ve todo el mundo-- así que restar
+-- dos posiciones seguidas da la velocidad real sin depender de quién manda en la
+-- física. Y de paso sale un dato mejor que WalkSpeed: WalkSpeed es lo que PODRÍAS
+-- correr, y esto es lo que estás corriendo.
+local function velocidadReal(player: Player, root: BasePart): number
+	local antes = ultimoSitio[player]
+	ultimoSitio[player] = root.Position
+	if antes == nil then
+		return 0
+	end
+	local dx, dz = root.Position.X - antes.X, root.Position.Z - antes.Z
+	return math.sqrt(dx * dx + dz * dz) / PERIODO
+end
+
+local function efectos(root: BasePart, velocidad: number, quieto: boolean, racha: number, motor: boolean)
+	local polvo = root:FindFirstChild("PolvoPies") :: ParticleEmitter?
+	if polvo == nil then
+		local pies = Instance.new("Attachment")
+		pies.Name = "AnclaPies"
+		pies.Position = Vector3.new(0, -2.6, 0)
+		pies.Parent = root
+
+		polvo = Instance.new("ParticleEmitter")
+		local p = polvo :: ParticleEmitter
+		p.Name = "PolvoPies"
+		p.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		p.Color = ColorSequence.new(Color3.fromRGB(150, 140, 122))
+		p.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.5),
+			NumberSequenceKeypoint.new(1, 1.7),
+		})
+		p.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.55),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		p.Lifetime = NumberRange.new(0.32, 0.55)
+		p.Speed = NumberRange.new(0.5, 1.6)
+		p.SpreadAngle = Vector2.new(24, 24)
+		p.Rate = 0
+		p.LightEmission = 0.1
+		p.Parent = pies
+	end
+
+	local estela = root:FindFirstChild("EstelaRacha") :: Trail?
+	if estela == nil then
+		local a0 = Instance.new("Attachment")
+		a0.Name = "EstelaA"
+		a0.Position = Vector3.new(-0.7, 0.4, 0.4)
+		a0.Parent = root
+		local a1 = Instance.new("Attachment")
+		a1.Name = "EstelaB"
+		a1.Position = Vector3.new(0.7, -0.7, 0.4)
+		a1.Parent = root
+
+		estela = Instance.new("Trail")
+		local t = estela :: Trail
+		t.Name = "EstelaRacha"
+		t.Attachment0 = a0
+		t.Attachment1 = a1
+		-- Del color de los contactos: la estela es LO QUE HAS RECOGIDO convertido en
+		-- velocidad, así que tiene que leerse como lo mismo.
+		t.Color = ColorSequence.new(Color3.fromRGB(255, 214, 130))
+		t.Lifetime = 0.32
+		t.MinLength = 0.4
+		t.LightEmission = 0.6
+		t.Enabled = false
+		t.Parent = root
+	end
+
+	-- EL POLVO SE CALLA PARADO, igual que el motor y por el mismo motivo: una nube
+	-- permanente alrededor de alguien quieto es ruido visual, no información.
+	local emisor = polvo :: ParticleEmitter
+	if quieto then
+		emisor.Rate = 0
+	else
+		-- Escala con lo rápido que vas de verdad, no con lo que podrías ir. Y algo
+		-- más si llevas motor: una moto levanta más que unas zapatillas.
+		local intensidad = math.clamp((velocidad - 8) / 18, 0, 1)
+		emisor.Rate = intensidad * (if motor then 26 else 14)
+	end
+
+	-- LA ESTELA SÓLO CON RACHA DE VERDAD. A partir de la mitad del tope: si saliera
+	-- con la primera píldora estaría encendida todo el viaje y dejaría de decir
+	-- nada. Encendida significa "éste va lanzado", y tiene que costar.
+	local t = estela :: Trail
+	local encendida = not quieto and racha >= Config.RACHA_MAXIMA / 2
+	t.Enabled = encendida
+	if encendida then
+		-- Y crece con la racha, para que el tope se vea: entre media y una vez el
+		-- ancho, según lo cerca que estés del máximo.
+		local cuanto = math.clamp(racha / Config.RACHA_MAXIMA, 0, 1)
+		t.WidthScale = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.45 + 0.55 * cuanto),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+	end
 end
 
 local function paso(player: Player)
@@ -416,6 +553,16 @@ local function paso(player: Player)
 				ruido.Volume = def.volumen
 			end
 		end
+
+		-- Y LO QUE SE VE, con los mismos números que acaban de decidir lo que se
+		-- oye. Van juntos porque son la misma pregunta --¿cómo de rápido va éste?--
+		-- y separarlos garantizaría que un día el motor diga una cosa y el polvo
+		-- otra. Se calcula el estar quieto aquí porque arriba vive dentro del `if`
+		-- del sonido, que sólo existe cuando hay vehículo con ruido.
+		-- Con la velocidad MEDIDA, no la teórica: el polvo responde a lo que está
+		-- pasando, no a lo que el vehículo podría dar si el jugador acelerase.
+		local real = velocidadReal(player, root)
+		efectos(root, real, real < 2, Contacts.racha(estado.recogidos or 0), def ~= nil and def.motor == true)
 	end
 end
 

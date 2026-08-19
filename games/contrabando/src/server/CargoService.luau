@@ -197,11 +197,70 @@ function CargoService.mostrarCarga(player: Player)
 	bulto.Name = "CargaVisible"
 	bulto.Parent = character
 
-	-- Apiladas a la espalda, en dos columnas. Se limita a 6 a la vista aunque la
-	-- furgoneta lleve 10: más allá de eso la torre tapa la cámara del propio
-	-- jugador, y lo que se quiere transmitir --"éste va cargado"-- ya se transmite
-	-- con seis. El número exacto lo da el HUD.
-	local visibles = math.min(#estado.cajas, 6)
+	-- LA MOCHILA, y no es adorno: es lo que convierte seis cubos flotando en una
+	-- persona que carga algo.
+	--
+	-- Lo dijo JJ mirándolo: *"si podemos llevar una mochila con los paquetes y no
+	-- los paquetes flotando"*. Tenía razón y el defecto era literal -- las cajas
+	-- iban soldadas al aire treinta centímetros detrás de la espalda, sin nada que
+	-- las sujetara. De lejos no se leía "va cargado", se leía "a ése le persiguen
+	-- unas cajas".
+	--
+	-- Y ADEMÁS ABULTA CON LO QUE LLEVAS. Ésa es la parte que hace trabajo de juego
+	-- y no de decorado: el diseño entero se apoya en que ver a alguien por la calle
+	-- diga si merece la pena perseguirle, y una mochila reventada se lee a distancia
+	-- mucho antes que contar cajitas. Crece con los HUECOS ocupados, no con el
+	-- número de piezas, porque es el bulto lo que se ve: un piano abulta lo que
+	-- ocho sobres.
+	local torso = character:FindFirstChild("Torso") :: BasePart? or root
+	local gordura = math.clamp(Cargo.pesoTotal(estado.cajas) / 12, 0, 1)
+
+	local mochila = Instance.new("Part")
+	mochila.Name = "Mochila"
+	mochila.Size = Vector3.new(1.5 + gordura * 0.7, 1.5 + gordura * 0.9, 0.6 + gordura * 0.55)
+	mochila.Color = Color3.fromRGB(78, 68, 56)
+	mochila.Material = Enum.Material.Fabric
+	mochila.Anchored = false
+	mochila.CanCollide = false
+	-- Sin masa, por lo mismo que las cajas: el coste de cargar se cobra en la
+	-- velocidad, que es una regla del juego. Cobrarlo otra vez en la física sería
+	-- un impuesto que nadie decidió.
+	mochila.Massless = true
+	mochila.CFrame = torso.CFrame * CFrame.new(0, 0.15, 0.55 + mochila.Size.Z / 2)
+	mochila.Parent = bulto
+
+	local anclaMochila = Instance.new("WeldConstraint")
+	anclaMochila.Part0 = torso
+	anclaMochila.Part1 = mochila
+	anclaMochila.Parent = mochila
+
+	-- Las dos correas por encima del hombro. Son lo que hace que se lea como
+	-- mochila y no como una caja pegada a la espalda, y salen baratas: dos tiras.
+	for _, lado in { -0.55, 0.55 } do
+		local correa = Instance.new("Part")
+		correa.Name = "Correa"
+		correa.Size = Vector3.new(0.22, 1.9, 0.18)
+		correa.Color = Color3.fromRGB(56, 48, 40)
+		correa.Material = Enum.Material.Fabric
+		correa.CanCollide = false
+		correa.Massless = true
+		correa.CFrame = torso.CFrame * CFrame.new(lado, 0.35, 0.42) * CFrame.Angles(math.rad(-14), 0, 0)
+		correa.Parent = bulto
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = torso
+		w.Part1 = correa
+		w.Parent = correa
+	end
+
+	-- Y LO QUE LLEVAS ASOMA POR LA BOCA DE LA MOCHILA, en vez de flotar detrás.
+	--
+	-- Cuatro a la vista y no seis: ahora el volumen lo cuenta la mochila, así que
+	-- las piezas ya no tienen que hacer ese trabajo -- sólo decir QUÉ es lo que
+	-- llevas, que es la decisión que le importa a quien te mira. Con menos encima,
+	-- además, dejan de taparle la cámara al propio jugador. El número exacto
+	-- sigue estando en el HUD.
+	local altoMochila = mochila.Size.Y
+	local visibles = math.min(#estado.cajas, 4)
 	for i = 1, visibles do
 		local caja = estado.cajas[i]
 		local fila = math.floor((i - 1) / 2)
@@ -225,11 +284,15 @@ function CargoService.mostrarCarga(player: Player)
 		-- es una regla del juego; cobrarlo otra vez por la puerta de atrás en la
 		-- física sería un impuesto que nadie decidió.
 		p.Massless = true
-		p.CFrame = root.CFrame * CFrame.new(-0.6 + columna * 1.2, 0.2 + fila * 1.15, 1.1)
+		-- Metidas EN la mochila: sobre su boca y un poco hundidas, para que se lea
+		-- que salen de dentro en vez de ir pegadas por fuera. Se colocan respecto a
+		-- la mochila y no al torso, así que cuando ella abulta más, lo que asoma
+		-- sube con ella sin tener que repetir la cuenta en dos sitios.
+		p.CFrame = mochila.CFrame * CFrame.new(-0.42 + columna * 0.84, altoMochila / 2 - 0.15 + fila * 0.62, 0)
 		p.Parent = bulto
 
 		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = root
+		weld.Part0 = mochila
 		weld.Part1 = p
 		weld.Parent = p
 

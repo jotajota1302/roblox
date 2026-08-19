@@ -503,6 +503,25 @@ Medido: el acceso verde pasa de sobresalir **4,5 studs a 1,8**.
 verificado en Studio antes de reconstruir: perfil idéntico al decimal) y los extremos
 impuestos (21,00 y 20,43, los dos bajos).
 
+### Sin verificar: el encendido de los efectos de movimiento
+
+La mochila y los efectos (polvo, estela) **están montados y comprobados en el mundo**: los
+objetos se crean en el personaje con sus attachments y sus texturas correctas. Lo que **no**
+está comprobado es que se enciendan al moverse, y no por falta de intentos:
+
+| Cómo se intentó medir | Por qué no vale |
+|---|---|
+| `Humanoid:Move()` desde el servidor | `MoveDirection` se queda a cero: el personaje es propiedad de red del **cliente** |
+| Escribir `AssemblyLinearVelocity` | Mismo dueño, mismo resultado: se escribe un 18 y se lee un 0 al instante |
+| Mover el `CFrame` del root | El cliente lo devuelve a su sitio entre vueltas del bucle |
+| `character_navigation` del MCP | Responde `Success` y el personaje no se mueve (0,0 studs/s medidos) |
+
+Por eso la detección final mide **posiciones entre vueltas del bucle** en vez de propiedades
+que el cliente controla, que es lo único que funciona desde el servidor con un jugador real.
+Pero confirmarlo **requiere a alguien moviéndose con el teclado**. Es lo primero que hay que
+mirar al jugar: al andar debe salir polvo, y al encadenar píldoras hasta media racha, estela
+dorada.
+
 ### Abierto
 
 - [ ] **Un destino verde alternativo daría 19 s menos de ciclo**, y se descartó a propósito.

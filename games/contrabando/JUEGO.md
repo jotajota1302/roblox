@@ -357,6 +357,15 @@ la batería, no confiado a un comentario.
 - **Garaje** dibujado en las plazas del taller: cada vehículo con sus huecos y si puede
   salirse del asfalto.
 - **Avisos** cortos en pantalla y sonidos por vehículo (motor, ruedas, pedales).
+- **La carga va en una MOCHILA**, no flotando. Las piezas asoman por su boca, y la mochila
+  **abulta con los huecos ocupados**: un piano se lee de lejos y ocho sobres también. No es
+  decorado — el diseño se apoya en que ver a alguien por la calle diga si merece la pena
+  perseguirle, y una mochila reventada se lee mucho antes que contar cajitas.
+- **Efectos de movimiento**: polvo bajo los pies que sube con la velocidad real (más si
+  llevas motor) y **estela dorada cuando la racha pasa de la mitad del tope**, del color de
+  los contactos, porque es literalmente lo que has recogido convertido en velocidad. Existía
+  un problema de lectura concreto: ir a 12 studs/s y a 22 se veía **exactamente igual**, y
+  desde que entró el rastro la velocidad es la moneda del viaje.
 
 ## 6. Lo que está guardado
 
