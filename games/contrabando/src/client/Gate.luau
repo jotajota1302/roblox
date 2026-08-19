@@ -56,16 +56,18 @@ function Gate.build()
 		panel.CastShadow = false
 		panel.Parent = f
 
-		-- El motivo, escrito en la propia valla y sólo en una de cada seis: es lo
-		-- que convierte un obstáculo en una instrucción. Repetirlo en las
-		-- veinticuatro sería un anillo de carteles ilegible.
-		if i % 2 == 1 then
+		-- El motivo, escrito en la propia valla. UNA DE CADA SEIS y no una de cada
+		-- dos: el comentario ya decía seis y el código ponía la mitad de los paneles,
+		-- así que salía un anillo de carteles amarillos que se leía desde el patio
+		-- entero. Con el selector saltando al coger la carga, además, esta valla casi
+		-- no se ve -- sólo la encuentra quien pulsó "ahora no".
+		if i % 6 == 1 then
 			local cartel = Instance.new("BillboardGui")
 			cartel.Name = "Cartel"
 			cartel.Size = UDim2.fromScale(22, 4)
 			cartel.StudsOffsetWorldSpace = Vector3.new(0, Config.RECINTO_ALTO / 2 + 2, 0)
 			cartel.AlwaysOnTop = false
-			cartel.MaxDistance = 260
+			cartel.MaxDistance = 110
 			cartel.Adornee = panel
 			cartel.Parent = panel
 

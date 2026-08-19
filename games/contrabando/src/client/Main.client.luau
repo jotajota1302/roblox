@@ -176,6 +176,29 @@ local function debeElegir(root: BasePart?, vallaCerrada: boolean): boolean
 	return true
 end
 
+-- EL GESTO DE "QUIERO SALIR", que es lo que devuelve el selector cerrado a mano.
+--
+-- Hace falta desde que la pregunta salta al coger la carga: antes el selector sólo
+-- aparecía en la salida o en la valla, así que alejarse de allí ya era decir "ahora
+-- no" y volver era decir "ahora sí". Ahora la zona de elegir es TODO el mapa mientras
+-- lleves algo sin destino, y con eso el olvido del cierre manual dejó de dispararse
+-- nunca: quien pulsaba "ahora no" se quedaba con el zurrón lleno, sin ruta y sin
+-- forma de volver a abrir la pantalla. Bloqueo completo, y de los que no dan error.
+--
+-- Estos dos sitios siguen significando lo mismo que significaban: plantarse en la
+-- losa de salida, o llegar a la valla que te frena, ES pedir salir. Y de paso la losa
+-- vuelve a servir para algo, que era otra queja.
+local function quiereSalir(root: BasePart?, vallaCerrada: boolean): boolean
+	if root == nil then
+		return false
+	end
+	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
+	if salida and (root.Position - salida.Position).Magnitude <= Config.DISTANCIA_SALIDA then
+		return true
+	end
+	return vallaCerrada and Perimeter.tocando(root.Position)
+end
+
 -- Aviso al cruzar la salida con carga y sin ruta. Sin esto, salir sin elegir es
 -- un error MUDO que sólo se descubre dos minutos después, al llegar al destino y
 -- ver que no cobras: has hecho el viaje entero para nada y el juego no te ha
@@ -389,9 +412,10 @@ local function refrescarSelector()
 	local vallaCerrada = refrescarValla(root)
 	local eligiendo = debeElegir(root, vallaCerrada)
 	vigilarSalidaSinRuta(eligiendo)
-	if not eligiendo then
-		-- Al salir de la zona se olvida el cierre manual: volver a la salida --o
-		-- llegar a la valla-- es justamente decir "ahora sí quiero elegir".
+	if not eligiendo or quiereSalir(root, vallaCerrada) then
+		-- Se olvida el cierre manual al dejar de tener nada que decidir (entregaste o
+		-- soltaste la carga) y también al hacer el gesto de salir. Sin la segunda
+		-- mitad, "ahora no" era para siempre.
 		cerradoAMano = false
 	end
 	local mostrar = eligiendo and not cerradoAMano
