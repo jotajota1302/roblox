@@ -40,9 +40,20 @@ local ANCHO_CALLE = Grid.ANCHO_CALLE
 local ALTO_CALLE = 0.5
 local ALTO_ACERA = 2
 -- Lo que la acera sobresale de la calzada. Es la cota sobre la que se apoyan los
--- edificios, así que vive fuera de plantarAcerasManzana: tenerla dentro obligaba a
--- que los edificios se apoyaran en un número repetido a mano.
-local ACERA_ALTURA = ALTO_ACERA - ALTO_CALLE
+-- edificios, así que vive fuera de plantarLosaManzana: tenerla dentro obligaba a que
+-- los edificios se apoyaran en un número repetido a mano.
+-- LO QUE LA MANZANA SE LEVANTA SOBRE EL ASFALTO. Bajó de 1,5 a 0,8 el 19/08 y el
+-- motivo es de navegación, no de estética: las losas del juego (destinos, guaridas,
+-- refugios) se apoyan en el PUNTO MÁS ALTO de su huella --una regla heredada del
+-- terreno irregular, donde apoyarse en el centro las dejaba enterradas-- y como los
+-- destinos están en cruces, su huella de 44 studs pisa las cuatro manzanas de
+-- alrededor. Con 1,5 la losa del barrio quedaba 3,5 studs sobre la calzada y el
+-- camino a pie SIN SALTAR se cortaba: el pathfinder decía NoPath a un destino al que
+-- se llegaba perfectamente dando un brinco, que es justo la clase de fallo que no
+-- reventa nada.
+--
+-- 0,8 se sigue viendo como bordillo y el navmesh lo cruza sin saltar.
+local ACERA_ALTURA = 0.8
 
 -- LA COTA POR LA QUE SE ANDA, y todo lo que se planta se cuelga de ella. Antes el
 -- mapa vivía en y=0 y el resto del juego en 19,2, porque el mapa se generaba para
@@ -88,63 +99,6 @@ local LOTES_VACANTES: { { col: number, fila: number } } = {
 	{ col = 2, fila = 1 }, -- ámbar: pegado al destino ámbar, la salida si te pisan
 	{ col = 1, fila = 0 }, -- roja: escape de la banda densa hacia el oeste
 }
-
--- Hitos de zona: una pieza **alta y delgada** en el centro visual de cada zona,
--- pensada para que el jugador se oriente de un vistazo. NO son estética: son
--- mecánica de navegación, igual que las balizas de los destinos. Se diferencian
--- entre sí por altura y material:
---
---   · Verde: 4x30x4, SmoothPlastic verde claro — bajo y discreto, el barrio es
---     seguro y el hito se ve desde la plaza.
---   · Ámbar: 4x50x4, SmoothPlastic ocre — visible desde el centro de la ciudad.
---   · Roja: 6x80x6, Neon azul claro — el más alto, visible desde la otra punta
---     del mapa, sobresale entre los edificios de 50-100 studs como referencia.
---
--- La torre roja se planta con Neon a propósito: no es "bonita", es un **faro
--- funcional** que indica la zona desde lejos. Mismo principio que los conos de
--- una obra: el color chillón sirve para que el ojo lo encuentre, no para
--- decorar.
-local HITOS: { [string]: { tamano: Vector3, color: Color3, material: Enum.Material } } = {
-	verde = {
-		tamano = Vector3.new(4, 30, 4),
-		color = Color3.fromRGB(180, 200, 140),
-		material = Enum.Material.SmoothPlastic,
-	},
-	ambar = {
-		tamano = Vector3.new(4, 50, 4),
-		color = Color3.fromRGB(200, 180, 120),
-		material = Enum.Material.SmoothPlastic,
-	},
-	roja = { tamano = Vector3.new(6, 80, 6), color = Color3.fromRGB(160, 180, 220), material = Enum.Material.Neon },
-}
-
--- Centro de cada zona, en coordenadas del mundo. El centro cae en la
--- intersección de las calles que separan 4 manzanas — la coordenada más
--- visible del mapa, y que no choca con ningún edificio (las calles están
--- libres). El cálculo es simétrico: la columna y fila son el promedio de los
--- índices de la zona, y la intersección está entre medias.
-local function centroDeZona(zona: string): Vector3
-	-- LOS TRES EN LA MISMA CALLE, la que sale del recinto. Así, al salir de casa se
-	-- ven las tres en fila -- cada una más lejos y más alta-- y se sabe de un vistazo
-	-- cuánto hay hasta cada zona sin leer nada. Repartidos por el centro de su banda
-	-- cada uno se veía solo, que es lo que había hasta ahora y lo que dejaba al
-	-- jugador diciendo "no sé a dónde tengo que ir".
-	--
-	-- PEGADOS AL BORDILLO, no en mitad de la calzada. La primera versión los puso en
-	-- el eje de la calle y la sonda lo cazó a la primera: esa calle es también el
-	-- camino al barrio, y el hito verde se plantaba justo encima de la fila de luces
-	-- que marca la ruta -- tapaba el tramo que el jugador tiene que ver para saber
-	-- por dónde seguir. Un mojón de orientación que estorba a la orientación.
-	local centro = Grid.centroManzana(0, Grid.filaDeZona(zona))
-	-- FUERA DE LA CALZADA, en el margen de la manzana. Con el hito dentro de la
-	-- calle, la sonda encontró dos cosas a la vez: el verde tapaba la fila de luces
-	-- del barrio, y desde la boca del recinto la baliza del barrio tapaba a los otros
-	-- dos -- todo estaba alineado en el mismo eje, que era justo la gracia y también
-	-- el problema. Cinco studs pasado el bordillo, el eje de la calle queda limpio y
-	-- la línea de visión va en diagonal, que es lo que los separa.
-	local aUnLado = Grid.ANCHO_CALLE / 2 + 5
-	return Vector3.new(Grid.xDeCalle(1) + aUnLado, Y_CALZADA, centro.Z)
-end
 
 -- Características por zona. Ahora con **rango de densidad** (no un número
 -- fijo): cada manzana tira los dados y sale con 1-2, 2-3 o 3-5 edificios según
@@ -271,7 +225,12 @@ local function plantarSueloBase(padre: Instance)
 			pieza(
 				string.format("Suelo_%d", indice),
 				Vector3.new(ancho, 1, largo),
-				Vector3.new(x + ancho / 2, Y_CALZADA - ALTO_CALLE - 0.5, z + largo / 2),
+				-- DOS STUDS POR DEBAJO de la calzada y no pegado a ella. Pegado, su cara
+				-- de arriba y la de abajo del asfalto quedan en el mismo plano, y dos
+				-- superficies en el mismo plano PARPADEAN: la tarjeta gráfica no
+				-- puede decidir cuál está delante y va alternando fotograma a
+				-- fotograma. Es lo que JJ vio como "parpadea el suelo".
+				Vector3.new(x + ancho / 2, Y_CALZADA - 2.5, z + largo / 2),
 				COLOR_SUELO_BASE,
 				padre
 			)
@@ -284,76 +243,63 @@ end
 -- Una calle entre dos hileras de manzanas. Se planta como una pieza larga en
 -- X (calles verticales) o en Z (calles horizontales). En fase 1 todas las
 -- calles son del mismo ancho — la variación por zona entra en fase 2.
--- Las calles van de borde a borde del mapa, incluidas las de los extremos: son lo
--- que permite rodear la ciudad por fuera en vez de encontrarse el final del mundo.
--- La cara SUPERIOR queda exactamente en Y_CALZADA, no la inferior -- si se cuelga
--- por abajo, el suelo transitable queda medio stud por encima de lo que cree el
--- resto del juego y aparecen escalones donde el plano dice que no los hay.
-local function plantarCalleX(indice: number, padre: Instance)
-	local _, _, zMin, zMax = Grid.limites()
-	pieza(
-		string.format("CalleX_%d", indice),
-		Vector3.new(ANCHO_CALLE, ALTO_CALLE, zMax - zMin),
-		Vector3.new(Grid.xDeCalle(indice), Y_CALZADA - ALTO_CALLE / 2, (zMin + zMax) / 2),
-		COLOR_CALLE,
-		padre
-	)
+-- LA CALZADA ES UNA ALFOMBRA CONTINUA, y las manzanas van encima.
+--
+-- La primera versión plantaba una tira por calle, nueve en total, cruzándose entre
+-- sí. En cada uno de los veinte cruces dos tiras ocupaban el MISMO volumen con la
+-- cara superior a la MISMA altura, y dos superficies coplanares parpadean: la
+-- tarjeta gráfica no puede decidir cuál está delante y alterna fotograma a
+-- fotograma. Veinte cruces parpadeando es lo que JJ vio nada más entrar.
+--
+-- Se arregla invirtiendo el planteamiento: en vez de dibujar las calles, se cubre
+-- el mapa entero de asfalto y se levantan las manzanas por encima. Lo que queda sin
+-- tapar ES la calle. Cero solapes, y de regalo el canto de cada manzana hace de
+-- bordillo sin tener que plantarlo.
+--
+-- Segmentada y no una losa única porque el raycast del suelo se hace en cada siembra
+-- de CityBuilder, y cuanto más pequeña es la pieza que devuelve, más barato sale.
+local function plantarCalzada(padre: Instance)
+	local xMin, xMax, zMin, zMax = Grid.limites()
+	local PASO = 160
+	local indice = 0
+	local x = xMin
+	while x < xMax - 0.01 do
+		local ancho = math.min(PASO, xMax - x)
+		local z = zMin
+		while z < zMax - 0.01 do
+			local largo = math.min(PASO, zMax - z)
+			indice += 1
+			pieza(
+				string.format("Calzada_%d", indice),
+				Vector3.new(ancho, ALTO_CALLE, largo),
+				Vector3.new(x + ancho / 2, Y_CALZADA - ALTO_CALLE / 2, z + largo / 2),
+				COLOR_CALLE,
+				padre
+			)
+			z += PASO
+		end
+		x += PASO
+	end
 end
 
-local function plantarCalleZ(indice: number, padre: Instance)
-	local xMin, xMax = Grid.limites()
+-- LA MANZANA, una plataforma que se levanta sobre el asfalto.
+--
+-- Antes eran cuatro aceras sueltas bordeando un interior que se quedaba al nivel del
+-- suelo base -- o sea que cada manzana era un hoyo rodeado de bordillo, y por dentro
+-- se andaba metro y medio por debajo de la calle. Ahora es una losa: el canto hace de
+-- bordillo, el interior queda al nivel correcto, y donde no hay manzana queda a la
+-- vista el asfalto de debajo, que es la calle.
+--
+-- Baja hasta por debajo de la cara del asfalto a propósito. Si las dos caras se
+-- tocaran exactamente quedarían coplanares y volvería el parpadeo, esta vez por el
+-- canto.
+local function plantarLosaManzana(col: number, fila: number, padre: Instance)
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	local alto = ACERA_ALTURA + 0.3
 	pieza(
-		string.format("CalleZ_%d", indice),
-		Vector3.new(xMax - xMin, ALTO_CALLE, ANCHO_CALLE),
-		Vector3.new((xMin + xMax) / 2, Y_CALZADA - ALTO_CALLE / 2, Grid.zDeCalle(indice)),
-		COLOR_CALLE,
-		padre
-	)
-end
-
--- Aceras que bordean UNA manzana. Van sobre el suelo de la manzana, a la
--- altura de acera (y=2), dejando libre el interior. La losa de la manzana
--- sigue plantándose aparte por CityBuilder cuando el juego la necesita.
-local function plantarAcerasManzana(col: number, fila: number, padre: Instance)
-	local x0 = xDeColumna(col)
-	local z0 = zDeFila(fila)
-	local xc = x0 + TAMANO_MANZANA / 2
-	local zc = z0 + TAMANO_MANZANA / 2
-
-	-- 4 aceras, una por lado. Las aceras norte y sur cubren todo el ancho; las
-	-- este y oeste van ENTRE las aceras norte/sur para no solaparse en las
-	-- esquinas (ahí se ven dos aceras a la vez y queda mejor).
-	local ACERA_ESPESOR = 6
-	local y = Y_CALZADA + ACERA_ALTURA / 2
-
-	-- Norte y sur: ancho completo
-	pieza(
-		string.format("Acera_%d_%d_N", col, fila),
-		Vector3.new(TAMANO_MANZANA, ACERA_ALTURA, ACERA_ESPESOR),
-		Vector3.new(xc, y, z0 + TAMANO_MANZANA - ACERA_ESPESOR / 2),
-		COLOR_ACERA,
-		padre
-	)
-	pieza(
-		string.format("Acera_%d_%d_S", col, fila),
-		Vector3.new(TAMANO_MANZANA, ACERA_ALTURA, ACERA_ESPESOR),
-		Vector3.new(xc, y, z0 + ACERA_ESPESOR / 2),
-		COLOR_ACERA,
-		padre
-	)
-	-- Este y oeste: largo sin las esquinas
-	local largoLado = TAMANO_MANZANA - 2 * ACERA_ESPESOR
-	pieza(
-		string.format("Acera_%d_%d_E", col, fila),
-		Vector3.new(ACERA_ESPESOR, ACERA_ALTURA, largoLado),
-		Vector3.new(x0 + TAMANO_MANZANA - ACERA_ESPESOR / 2, y, z0 + TAMANO_MANZANA / 2),
-		COLOR_ACERA,
-		padre
-	)
-	pieza(
-		string.format("Acera_%d_%d_O", col, fila),
-		Vector3.new(ACERA_ESPESOR, ACERA_ALTURA, largoLado),
-		Vector3.new(x0 + ACERA_ESPESOR / 2, y, z0 + TAMANO_MANZANA / 2),
+		string.format("Manzana_%d_%d", col, fila),
+		Vector3.new(x1 - x0, alto, z1 - z0),
+		Vector3.new((x0 + x1) / 2, Y_CALZADA + ACERA_ALTURA - alto / 2, (z0 + z1) / 2),
 		COLOR_ACERA,
 		padre
 	)
@@ -374,7 +320,11 @@ local function plantarEdificio(col: number, fila: number, indice: number, zona: 
 
 	local xManzana = xDeColumna(col)
 	local zManzana = zDeFila(fila)
-	local margen = 10
+	-- MÁS AIRE JUNTO AL BORDILLO. Con 10 studs, un edificio podía asomarse lo
+	-- bastante a la calle como para taparle al jugador el siguiente eslabón de la fila
+	-- de luces que le marca la ruta -- la sonda lo cazó en la verde. La fila es la
+	-- única señal que le dice por dónde seguir; taparla es peor que no plantar nada.
+	local margen = 16
 	local dx = rng:NextNumber(margen, TAMANO_MANZANA - margen - ancho)
 	local dz = rng:NextNumber(margen, TAMANO_MANZANA - margen - largo)
 
@@ -415,7 +365,7 @@ local function plantarEdificioEnFila(
 	-- cada plantación es independiente.
 	local orientacion = ((col * 7 + fila) % 2 == 0) and "X" or "Z"
 
-	local margen = 10
+	local margen = 16
 	local anchoUtil = TAMANO_MANZANA - 2 * margen
 	-- Reparto equitativo: los huecos entre edificios se reparten a partes
 	-- iguales. Si por la densidad impuesta no caben todos a 40 studs mínimo,
@@ -534,24 +484,6 @@ local function validarPuntosFijos(edificios: { Part })
 	end
 end
 
--- Hito de zona: la pieza distintiva de una zona. Se planta **flotando** sobre
--- la calle (su base está en y=0 y sube), así no choca con el asfalto.
-local function plantarHito(zona: string, padre: Instance): Part
-	local cfg = HITOS[zona]
-	local centro = centroDeZona(zona)
-	local p = pieza(
-		"Hito_" .. zona,
-		cfg.tamano,
-		Vector3.new(centro.X, Y_CALZADA + cfg.tamano.Y / 2, centro.Z),
-		cfg.color,
-		padre
-	)
-	p.Material = cfg.material
-	p.CanCollide = false -- los hitos no bloquean calles ni pathfinding
-	p:SetAttribute("hitoDeZona", zona)
-	return p
-end
-
 -- Verificación de conectividad por PathfindingService. Cara (~0,6-1,3 s por
 -- path según DISENO-CIUDAD.md), así se hace UNA vez al construir y dentro
 -- de pcall — si PathfindingService falla por cualquier motivo, el juego
@@ -621,30 +553,21 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	carpetaCalles.Name = "Calles"
 	carpetaCalles.Parent = ciudad
 
-	local carpetaAceras = Instance.new("Folder")
-	carpetaAceras.Name = "Aceras"
-	carpetaAceras.Parent = ciudad
+	local carpetaManzanas = Instance.new("Folder")
+	carpetaManzanas.Name = "Manzanas"
+	carpetaManzanas.Parent = ciudad
 
 	local carpetaEdificios = Instance.new("Folder")
 	carpetaEdificios.Name = "Edificios"
 	carpetaEdificios.Parent = ciudad
 
-	local carpetaHitos = Instance.new("Folder")
-	carpetaHitos.Name = "Hitos"
-	carpetaHitos.Parent = ciudad
-
 	-- 1. Suelo base (red de seguridad)
 	plantarSueloBase(carpetaSuelo)
 
-	-- 2. Calles, LAS DE LOS EXTREMOS INCLUIDAS. Antes sólo se plantaban las
-	-- interiores y el mapa no tenía borde por el que rodear: quien huía hacia fuera
-	-- se encontraba el césped y el final del mundo.
-	for i = 0, Grid.COLUMNAS do
-		plantarCalleX(i, carpetaCalles)
-	end
-	for j = 0, Grid.FILAS do
-		plantarCalleZ(j, carpetaCalles)
-	end
+	-- 2. El asfalto, de borde a borde. Lo que quede sin manzana encima es calle,
+	-- incluidas las de los extremos: son las que permiten rodear la ciudad por fuera
+	-- en vez de encontrarse el final del mundo.
+	plantarCalzada(carpetaCalles)
 
 	-- 3. Para cada zona, plantar sus manzanas con sus edificios
 	local edificiosGenerados: { Part } = {}
@@ -670,11 +593,11 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 			-- aprendizaje (verde), los solares son vías de escape (ámbar y
 			-- roja). La función mecánica es la misma.
 			if esSolar(mz.col, mz.fila) then
-				plantarAcerasManzana(mz.col, mz.fila, carpetaAceras)
+				plantarLosaManzana(mz.col, mz.fila, carpetaManzanas)
 				continue
 			end
 
-			plantarAcerasManzana(mz.col, mz.fila, carpetaAceras)
+			plantarLosaManzana(mz.col, mz.fila, carpetaManzanas)
 			local cfg = ZONA_CONFIG[zonaNombre]
 			-- Densidad por rango, no fija: la semilla hace que sea estable
 			-- entre partidas, pero cada manzana es distinta.
@@ -697,10 +620,15 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	-- 4. Validar que los puntos fijos del juego no quedan encerrados
 	validarPuntosFijos(edificiosGenerados)
 
-	-- 5. Hitos de zona (orientación, no estética — ver DISENO-MAPA.md)
-	for _, zonaNombre in { "verde", "ambar", "roja" } do
-		plantarHito(zonaNombre, carpetaHitos)
-	end
+	-- 5. SIN HITOS DE ZONA. Se plantaron y se quitaron el mismo día. La idea era buena
+	-- sobre el papel --tres torres en fila al salir de casa, cada una más lejos y más
+	-- alta, para saber de un vistazo cuánto hay hasta cada zona-- y el mundo real la
+	-- desmintió dos veces: la sonda las cazó tapando la fila de luces del barrio y
+	-- tapándose entre ellas, y JJ pidió quitar TODO lo vertical.
+	--
+	-- Lo que las sustituye ya existía: las migas de pan marcan la ruta por la calle, y
+	-- el mapa pequeño enseña dónde está cada cosa. Una torre no decía nada que esos
+	-- dos no dijeran mejor.
 
 	-- 6. Resumen de build — el desarrollador lo ve en la consola de Studio
 	-- y verifica de un vistazo que la semilla y las densidades están dando
@@ -728,7 +656,6 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	print(string.format("  · ámbar: %d", edificiosPorZona.ambar or 0))
 	print(string.format("  · roja:  %d", edificiosPorZona.roja or 0))
 	print(string.format("  · solares: %d (1 plaza verde + %d ámbar/roja)", 1 + #LOTES_VACANTES, #LOTES_VACANTES))
-	print(string.format("  · hitos: 3 (verde 30, ámbar 50, roja 80 studs)"))
 
 	-- 7. Verificación de conectividad: solar → almacén. Cara, dentro de pcall.
 	local issues = verificarConectividad(Config.ALMACEN_POS)

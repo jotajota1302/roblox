@@ -157,4 +157,25 @@ function Grid.camino(desde: Vector3, hasta: Vector3): number
 	return math.abs(desde.X - hasta.X) + math.abs(desde.Z - hasta.Z)
 end
 
+-- EL CAMINO POR CALLES, en L: se avanza por la calle en la que ya estás hasta la
+-- altura del destino, y allí se gira una vez.
+--
+-- Lo pide la fila de luces que marca la ruta. Hasta ahora se repartía sobre el camino
+-- del pathfinder, y el pathfinder es un bot omnisciente: corta por dentro de las
+-- manzanas entre edificio y edificio, por donde ningún jugador sabe que puede pasar.
+-- El resultado, medido: la fila de la verde se perdía detrás de un edificio en dos de
+-- sus nueve tramos -- y una fila de luces que se corta es peor que no tener fila,
+-- porque el jugador se fía de ella.
+--
+-- Por las calles, la fila enseña el camino que se puede seguir mirando. Que además
+-- exista un atajo por dentro de las manzanas no es un problema: es lo que se descubre
+-- andando, y es justo el aprendizaje que el mapa tenía que pedir.
+function Grid.porCalles(desde: Vector3, hasta: Vector3): { Vector3 }
+	return {
+		Vector3.new(desde.X, Grid.Y, desde.Z),
+		Vector3.new(desde.X, Grid.Y, hasta.Z),
+		Vector3.new(hasta.X, Grid.Y, hasta.Z),
+	}
+end
+
 return Grid

@@ -230,9 +230,14 @@ function Contacts.deRuta(rutaId: string, camino: { Vector3 }, peligros: { Vector
 	-- El rastro va SIN dorar: quién paga se decide al plantar, sobre las que de
 	-- verdad encontraron calle (ver indicesDorados).
 	local salida = Contacts.rastro(camino)
-	for _, c in Contacts.racimos(camino, peligros, cuantos.racimos) do
-		table.insert(salida, c)
-	end
+	-- SIN RACIMOS. Eran grupos de piezas apartados del camino, junto a un peligro:
+	-- pagaban más a cambio de desviarte. La idea era buena y el resultado, jugado, fue
+	-- "salen paquetes fuera de la ruta y no se pueden coger" -- porque desde el camino
+	-- se VEN, y lo que se ve y no se alcanza no se lee como una decisión sino como un
+	-- fallo.
+	--
+	-- Vuelven cuando el desvío se pueda entender de un vistazo. Hoy la fila de la
+	-- calle es todo lo que hay, y es lo que hace falta que funcione.
 	return salida
 end
 

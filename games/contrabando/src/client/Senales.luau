@@ -30,12 +30,11 @@
 local Senales = {}
 
 local piezas: { BasePart } = {}
-local balizas: { [string]: BasePart } = {}
+
 -- Cada farol de guarida con la ruta de SU guarida. El farol no lleva el atributo
 -- (es una pieza aparte), pero comparte índice con ella: `GuaridaFarol_3` alumbra
 -- `Guarida_3`. Se resuelve una vez al reunir y no en cada vuelta del bucle.
-local faroles: { { pieza: BasePart, ruta: string? } } = {}
-local faros: { BasePart } = {}
+
 local mundoVisto: Instance? = nil
 
 -- Se recogen del mundo una vez y se recuerdan. Volver a recorrer el workspace
@@ -47,9 +46,8 @@ local function reunir()
 		return
 	end
 	mundoVisto = mundo
-	piezas, balizas, faroles, faros = {}, {}, {}, {}
+	piezas = {}
 
-	local rutaDeGuarida: { [string]: string } = {}
 	for _, d in mundo:GetDescendants() do
 		local indice = string.match(d.Name, "^Guarida_(%d+)$")
 		if indice ~= nil then
@@ -67,17 +65,13 @@ local function reunir()
 		if string.find(d.Name, "^Contacto_") then
 			table.insert(piezas, d)
 		end
-		local ruta = string.match(d.Name, "^Baliza_(%a+)$")
-		if ruta ~= nil and ruta ~= "Salida" then
-			balizas[ruta] = d
-		end
-		local indice = string.match(d.Name, "^GuaridaFarol_(%d+)$")
-		if indice ~= nil then
-			table.insert(faroles, { pieza = d, ruta = rutaDeGuarida[indice] })
-		end
-		if string.find(d.Name, "^RefugioFaro") then
-			table.insert(faros, d)
-		end
+		-- Balizas, faroles y faros ya no existen: el 19/08 se quitó del mapa todo lo
+		-- vertical, a petición de JJ y con el argumento que lo cierra -- los puntos
+		-- importantes ya salen en el mapa pequeño, así que una columna en pantalla no
+		-- añadía información, sólo tapaba el camino.
+		--
+		-- Lo único que este módulo enciende y apaga son las MIGAS DE PAN, que es lo
+		-- que marca la ruta.
 	end
 end
 
@@ -105,24 +99,6 @@ function Senales.actualizar(estado: any)
 	for _, pieza in piezas do
 		local mia = hayViaje and pieza:GetAttribute("ruta") == ruta
 		pintar(pieza, mia and pieza:GetAttribute("apagada") ~= true, 0)
-	end
-
-	-- LA BALIZA DE TU DESTINO, y sólo la tuya. Cuatro encendidas a la vez no
-	-- señalan: preguntan.
-	for id, baliza in balizas do
-		pintar(baliza, hayViaje and id == ruta, 0)
-	end
-
-	-- LOS PELIGROS DE TU RUTA. Los de las otras no son información: son ruido que
-	-- tapa al ladrón que sí te viene detrás.
-	for _, farol in faroles do
-		pintar(farol.pieza, hayViaje and farol.ruta == ruta, 0.3)
-	end
-
-	-- Y LOS REFUGIOS, sólo mientras hay de qué refugiarse. Sin viaje no hay
-	-- ladrones, y una comisaría alumbrando de fondo es una columna más en pantalla.
-	for _, faro in faros do
-		pintar(faro, hayViaje, 0.2)
 	end
 end
 

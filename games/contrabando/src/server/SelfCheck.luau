@@ -95,13 +95,30 @@ end
 
 -- Distancia de un punto al trayecto almacén→destino, medida en el plano. Es la
 -- cuenta que decide si un poste vigila algo o es un adorno.
+-- DISTANCIA AL CAMINO, y el camino es una L por las calles.
+--
+-- Esto medía contra la RECTA del almacén al destino, que era el camino de verdad
+-- mientras el mapa fue una explanada. Desde que la ciudad es una retícula, la recta es
+-- la diagonal de la L: por ahí no pasa nadie. La sonda daba rojo a guaridas y refugios
+-- que estaban exactamente donde tenían que estar -- sobre el corredor-- porque los
+-- medía contra un camino que ya no existe.
+--
+-- Es el mismo fallo que tuvieron las migas de pan hoy mismo, y por el mismo motivo:
+-- cuando cambia por dónde se va, hay que cambiar contra qué se mide.
 local function alTrayecto(punto: Vector3, destino: Vector3): number
-	local a = Vector2.new(Config.ALMACEN_POS.X, Config.ALMACEN_POS.Z)
-	local b = Vector2.new(destino.X, destino.Z)
+	local puntos = Grid.porCalles(Config.POLIGONO_SALIDA, destino)
 	local p = Vector2.new(punto.X, punto.Z)
-	local ab = b - a
-	local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
-	return (p - (a + ab * t)).Magnitude
+	local mejor = math.huge
+	for i = 2, #puntos do
+		local a = Vector2.new(puntos[i - 1].X, puntos[i - 1].Z)
+		local b = Vector2.new(puntos[i].X, puntos[i].Z)
+		local ab = b - a
+		if ab:Dot(ab) > 0.01 then
+			local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
+			mejor = math.min(mejor, (p - (a + ab * t)).Magnitude)
+		end
+	end
+	return mejor
 end
 
 --------------------------------------------------------------------------------
@@ -143,7 +160,10 @@ local function piezasDelJuego()
 		)
 	end
 
-	comprobar("la salida tiene baliza", m:FindFirstChild("Baliza_Salida") ~= nil, "no se ve desde dentro del recinto")
+	-- La salida ya no lleva baliza: el 19/08 se quitó todo lo vertical del mapa. Lo que
+	-- se comprueba ahora es que la losa esté, que es lo que se pisa y lo que lleva el
+	-- cartel.
+	comprobar("la salida existe", m:FindFirstChild("Salida") ~= nil, "no hay losa de salida")
 end
 
 --------------------------------------------------------------------------------
@@ -505,58 +525,11 @@ local function guaridas()
 	end
 	comprobar("las guaridas están apoyadas en el suelo", malas == 0, string.format("%d flotando o enterradas", malas))
 
-	-- SE VEN POR ENCIMA DEL BARRIO. Su trabajo entero es que las rodees, y una
-	-- guarida que no se distingue desde lejos no se rodea: se descubre cuando ya te
-	-- ha soltado un ladrón encima, que es exactamente lo que venía a arreglar. El
-	-- farol medía 46 studs cuando los tejados de alrededor pasan de 80, así que la
-	-- guarida sólo existía en el minimapa -- *"no los veo a lo lejos"* (JJ).
-	--
-	-- Se compara contra los EDIFICIOS DE SU MANZANA, no contra una constante: lo que
-	-- importa no es la altura del farol sino si asoma por encima de lo que tiene al
-	-- lado, y eso depende de dónde haya caído.
-	--
-	-- Y contra el percentil 80 de los tejados de alrededor, no contra el más alto:
-	-- una torre suelta puede taparlo desde UN ángulo y eso no es un defecto --es la
-	-- ciudad haciendo de ciudad--. Lo que sí lo es, y es lo que se mide, es que el
-	-- farol quede por debajo del caserío normal y no se vea desde ninguna parte.
-	local ciudad = workspace:FindFirstChild("Ciudad")
-	local altos: { BasePart } = {}
-	if ciudad then
-		for _, p in ciudad:GetDescendants() do
-			if p:IsA("BasePart") and p.Size.Y > 20 then
-				table.insert(altos, p)
-			end
-		end
-	end
-
-	local tapadas, peor = 0, 0
-	for _, g in sitios do
-		local farol = m:FindFirstChild("GuaridaFarol_" .. string.match(g.Name, "%d+"))
-		if farol == nil or not farol:IsA("BasePart") then
-			continue
-		end
-		local cima = farol.Position.Y + farol.Size.Y / 2
-
-		local cimas: { number } = {}
-		for _, p in altos do
-			local d = (Vector3.new(p.Position.X, 0, p.Position.Z) - Vector3.new(g.Position.X, 0, g.Position.Z)).Magnitude
-			if d <= 150 then
-				table.insert(cimas, p.Position.Y + p.Size.Y / 2)
-			end
-		end
-		table.sort(cimas)
-		local barrio = if #cimas > 0 then cimas[math.max(1, math.ceil(#cimas * 0.8))] else g.Position.Y
-
-		if cima < barrio then
-			tapadas += 1
-			peor = math.max(peor, barrio - cima)
-		end
-	end
-	comprobar(
-		"las guaridas asoman sobre su manzana",
-		tapadas == 0,
-		string.format("%d tapadas por los edificios de al lado (hasta %.0f studs por debajo)", tapadas, peor)
-	)
+	-- SIN FAROL QUE COMPROBAR. Aquí se medía que el farol de cada guarida asomara por
+	-- encima del caserío, para que se pudiera ver y rodear. Las guaridas ya no llevan
+	-- columna --se quitó todo lo vertical el 19/08-- así que la comprobación se va con
+	-- ella. Lo que hace falta en su lugar es que al ladrón se le VEA venir, y eso se
+	-- mide sobre el ladrón, no sobre su casa.
 end
 
 --------------------------------------------------------------------------------
@@ -740,9 +713,18 @@ local function encaje()
 			continue
 		end
 
-		-- ENTERRADA: el terreno sube por encima de su base, o sea que un trozo de la
-		-- pieza está dentro de la loma.
-		local enterrada = alto - base
+		-- ENTERRADA: el terreno sube por encima de su CARA, o sea que la losa no se ve
+		-- y se pisa un hoyo al llegar.
+		--
+		-- Medía contra la BASE hasta el 19/08, y con razón mientras las losas se
+		-- apoyaban encima del terreno: entonces base hundida = losa metida en una
+		-- loma. Desde que el suelo es plano las losas van EMPOTRADAS a propósito --su
+		-- cara al ras del asfalto, porque apoyadas encima hacían un muro de dos studs
+		-- que cortaba el camino a pie de las cuatro rutas-- así que el criterio viejo
+		-- daba ocho rojos por un mundo correcto. Lo que importa no es dónde acaba la
+		-- pieza por abajo: es si su cara queda bajo el suelo que la rodea.
+		local cara = pieza.Position.Y + pieza.Size.Y / 2
+		local enterrada = alto - cara
 		if enterrada > 1.5 then
 			enterradas += 1
 			if enterrada > maxEnterrada then
@@ -917,7 +899,18 @@ local function contactos()
 		string.format("%d en el aire o sobre un tejado -- ahí no los pisa nadie", flotando)
 	)
 
-	-- Y EL CAMINO REAL, ruta por ruta.
+	-- Y EL CAMINO, ruta por ruta. Dos caminos distintos y los dos importan:
+	--
+	--   · el del PATHFINDER, para comprobar que al destino se llega andando y sin
+	--     saltar -- si eso falla, las patrullas y los ladrones no pueden seguirte y el
+	--     juego se rompe por dentro sin dar un error;
+	--   · el de las CALLES, para medir si las migas de pan caen donde va el jugador.
+	--
+	-- Medirlas contra el del pathfinder daba siete rojos por un mundo correcto: el
+	-- pathfinder es un bot omnisciente que corta en diagonal por dentro de las
+	-- manzanas, y las migas se plantan por la calle a propósito, que es por donde
+	-- puede seguirlas alguien que sólo mira. La sonda tiene que medir contra lo que ve
+	-- el jugador, no contra lo que sabe el motor.
 	for _, ruta in Routes.todas() do
 		local camino = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
 		local ok = pcall(function()
@@ -928,10 +921,7 @@ local function contactos()
 			continue
 		end
 
-		local puntos: { Vector3 } = {}
-		for _, w in camino:GetWaypoints() do
-			table.insert(puntos, w.Position)
-		end
+		local puntos: { Vector3 } = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
 
 		-- Tipo propio y no `Contacts.Contacto`: aquí hace falta además el ORDEN en que
 		-- se plantaron, que el módulo puro no tiene por qué conocer.
@@ -1250,12 +1240,90 @@ local function reticula()
 	end
 
 	local calles = ciudad:FindFirstChild("Calles")
-	local esperadas = (Grid.COLUMNAS + 1) + (Grid.FILAS + 1)
+
+	-- HAY ASFALTO BAJO CADA CRUCE. Sustituye a un recuento de piezas ("¿hay nueve
+	-- calles?"), que dejó de significar nada en cuanto la calzada pasó de ser nueve
+	-- tiras a una alfombra segmentada. Contar piezas mide la implementación; esto mide
+	-- lo que pisa el jugador, que es lo que la sonda tiene que mirar.
+	local sinAsfalto = {}
+	for i = 0, Grid.COLUMNAS do
+		for j = 0, Grid.FILAS do
+			local cruce = Grid.cruce(i, j)
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Include
+			params.FilterDescendantsInstances = { ciudad }
+			local r = workspace:Raycast(cruce + Vector3.new(0, 40, 0), Vector3.new(0, -80, 0), params)
+			if r == nil or math.abs(r.Position.Y - Grid.Y) > 0.2 then
+				table.insert(sinAsfalto, string.format("(%d,%d)", i, j))
+			end
+		end
+	end
 	comprobar(
-		"estan todas las calles, las de los bordes incluidas",
-		calles ~= nil and #calles:GetChildren() == esperadas,
-		string.format("hay %d, se esperaban %d", if calles then #calles:GetChildren() else 0, esperadas)
+		"hay calzada bajo cada cruce de la reticula",
+		#sinAsfalto == 0,
+		"cruces sin asfalto a su cota: " .. table.concat(sinAsfalto, " ")
 	)
+
+	-- NADA PARPADEA. Dos superficies planas a la misma altura y con la misma huella
+	-- hacen que la tarjeta gráfica no pueda decidir cuál está delante, y alterna
+	-- fotograma a fotograma. Es un defecto que se VE al instante y que ninguna prueba
+	-- podía cazar: el mundo se construye igual, la sonda daba verde, y JJ lo describió
+	-- a los diez segundos de entrar como "parpadea el suelo".
+	--
+	-- Lo tenía la primera retícula: una tira por calle, cruzándose, y en cada uno de
+	-- los veinte cruces dos piezas ocupando el mismo volumen con la cara superior a la
+	-- misma cota.
+	local piezas: { BasePart } = {}
+	for _, d in ciudad:GetDescendants() do
+		if d:IsA("BasePart") then
+			table.insert(piezas, d)
+		end
+	end
+	local parpadeos = 0
+	local ejemplo = ""
+	for i = 1, #piezas do
+		for j = i + 1, #piezas do
+			local a, b = piezas[i], piezas[j]
+			local caraA = a.Position.Y + a.Size.Y / 2
+			local caraB = b.Position.Y + b.Size.Y / 2
+			if math.abs(caraA - caraB) < 0.02 then
+				local solapaX = math.abs(a.Position.X - b.Position.X) < (a.Size.X + b.Size.X) / 2 - 0.02
+				local solapaZ = math.abs(a.Position.Z - b.Position.Z) < (a.Size.Z + b.Size.Z) / 2 - 0.02
+				if solapaX and solapaZ then
+					parpadeos += 1
+					if ejemplo == "" then
+						ejemplo = string.format("%s y %s a cota %.2f", a.Name, b.Name, caraA)
+					end
+				end
+			end
+		end
+	end
+	comprobar(
+		"ninguna superficie del mapa parpadea contra otra",
+		parpadeos == 0,
+		string.format("%d pares coplanares, p.ej. %s", parpadeos, ejemplo)
+	)
+
+	-- Y LAS MANZANAS SE LEVANTAN SOBRE EL ASFALTO. Si quedan al ras, la ciudad es una
+	-- explanada pintada y el jugador no distingue por dónde se anda; si quedan por
+	-- debajo, cada manzana es un hoyo -- que es lo que había hasta hoy, con el interior
+	-- metro y medio bajo la calle.
+	local manzanas = ciudad:FindFirstChild("Manzanas")
+	local esperadas = Grid.COLUMNAS * Grid.FILAS
+	comprobar(
+		"hay una losa por manzana",
+		manzanas ~= nil and #manzanas:GetChildren() == esperadas,
+		string.format("hay %d, se esperaban %d", if manzanas then #manzanas:GetChildren() else 0, esperadas)
+	)
+	if manzanas then
+		local bajas = 0
+		for _, m in manzanas:GetChildren() do
+			if m:IsA("BasePart") and m.Position.Y + m.Size.Y / 2 <= Grid.Y + 0.5 then
+				bajas += 1
+			end
+		end
+		comprobar("y todas se levantan sobre la calzada", bajas == 0, string.format("%d al ras o por debajo", bajas))
+	end
 
 	-- EL SUELO ES LLANO DONDE SE ANDA. Con retícula propia esto debería ser
 	-- trivialmente cierto; si falla, hay un fallo de generación y no un terreno
@@ -1293,36 +1361,10 @@ local function reticula()
 		)
 	end
 
-	-- LOS HITOS SE VEN DESDE LA BOCA. Los tres están en fila en la calle que sale
-	-- del recinto, cada uno más lejos y más alto: al salir de casa se sabe cuánto
-	-- hay hasta cada zona sin leer nada. Si uno queda tapado, esa señal se pierde y
-	-- nadie se entera, porque el mundo se construye igual.
-	local hitos = ciudad:FindFirstChild("Hitos")
-	comprobar(
-		"hay un hito por zona",
-		hitos ~= nil and #hitos:GetChildren() == 3,
-		string.format("hay %d", if hitos then #hitos:GetChildren() else 0)
-	)
-	if hitos then
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { hitos }
-		local ojo = Config.POLIGONO_SALIDA + Vector3.new(0, 6, 0)
-		for _, h in hitos:GetChildren() do
-			if h:IsA("BasePart") then
-				-- Se mira a media altura del hito: al pie lo tapa cualquier bordillo
-				-- y por la punta no lo tapa nada, así que ninguno de los dos extremos
-				-- dice la verdad sobre si se ve.
-				local mirilla = Vector3.new(h.Position.X, h.Position.Y, h.Position.Z)
-				local r = workspace:Raycast(ojo, mirilla - ojo, params)
-				comprobar(
-					"desde la boca se ve el " .. h.Name,
-					r == nil,
-					if r then "lo tapa " .. r.Instance:GetFullName() else ""
-				)
-			end
-		end
-	end
+	-- SIN HITOS QUE COMPROBAR. Aquí se verificaba que los tres se vieran desde la boca
+	-- del recinto. Se quitaron del mapa el mismo día que se pusieron, con el resto de
+	-- lo vertical, así que la comprobación se va con ellos: una sonda que busca algo
+	-- que ya no existe sólo puede dar rojo o mentir.
 end
 
 function SelfCheck.run(): string

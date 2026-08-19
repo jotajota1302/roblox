@@ -19,6 +19,7 @@
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local PathfindingService = game:GetService("PathfindingService")
 
@@ -477,73 +478,18 @@ local function bordeDeLosa(losa: BasePart, hacia: Vector3): Vector3
 	local tZ = if math.abs(dir.Z) > 1e-4 then losa.Size.Z / 2 / math.abs(dir.Z) else math.huge
 	return losa.Position + dir * math.min(tX, tZ)
 end
-
--- UN ACCESO RODADO entre dos puntos. Lo usa el polígono para engancharse a la
--- ciudad y, sobre todo, cada DESTINO para engancharse a la calle más cercana.
+-- LAS VÍAS DE ACCESO SE ELIMINARON EL 19/08. Aquí vivía acceso(), que tendía una
+-- carretera desde cada losa del juego hasta la calle más cercana.
 --
--- POR QUÉ EXISTE EL SEGUNDO USO, que es el que importa: la mercancía grande
--- EXIGE vehículo (un piano no se lleva a pie) y los vehículos grandes sólo ruedan
--- por asfalto. Si el último tramo hasta el destino era césped, el juego te pedía
--- una cosa y su contraria: llevar el piano en furgoneta y llegar a un sitio donde
--- la furgoneta no entra. Lo dijo JJ: "que las cargas grandes vayan a sitios donde
--- pueden llegar los vehículos".
+-- Existía porque en la ciudad prestada una losa caía donde cabía --sobre césped,
+-- sobre una loma, en mitad de un parque-- y había que unirla al asfalto a mano. En
+-- la retícula propia la calzada cubre el mapa entero y los destinos están EN cruces
+-- de calle: no hay nada que unir, la vía se tendía encima del asfalto que ya estaba
+-- y las dos superficies, a dos décimas una de otra, PARPADEABAN. Fue lo primero que
+-- dijo JJ al entrar: "no para de parpadear la carretera".
 --
--- Se marca RODABLE explícitamente en vez de fiarlo a su color: el asfalto se
--- reconoce por gris (ver Roads.esCalzada), y una vía nuestra que un día se pinte
--- de otro color dejaría de contar sin que nadie tocara esta línea.
--- UNA VÍA RECTA ENTRE DOS PUNTOS. Antes esto eran doscientas veinticinco líneas.
---
--- Lo que hacían: muestrear el suelo cada pocos studs, suavizar el perfil con una
--- envolvente de conos, limitar la pendiente desde los dos extremos, solapar los
--- tramos lo justo para que no asomara el césped por las juntas, y despejar vallas
--- del corredor. Todo eso existía por una única razón -- que el terreno era de otro
--- y no se sabía qué había debajo-- y cada pieza se pagó con una sesión: el acceso
--- enterrado bajo el césped, el muro de cuatro studs en la junta, la joroba de la
--- verde, y la vía del recinto que murió volando y dejó las cuatro rutas sin camino.
---
--- Sobre una retícula propia el suelo es plano y su cota se sabe sin medirla, así
--- que una vía es una losa. La primera pasada de la sonda sobre el mapa nuevo
--- todavía cazó un escalón de cuatro studs que ponía la versión vieja: el código que
--- servía para sobrevivir a un terreno ajeno hace daño cuando el terreno es tuyo.
-local function acceso(
-	ciudad: Instance?,
-	nombre: string,
-	desde: Vector3,
-	hasta: Vector3,
-	ancho: number,
-	padre: Instance,
-	cotaInicial: number?,
-	cotaFinal: number?
-): number
-	local plano = Vector3.new(hasta.X - desde.X, 0, hasta.Z - desde.Z)
-	if plano.Magnitude < 6 then
-		-- Ya se tocan: una vía de cero studs sólo sería una pieza más que dibujar.
-		return 0
-	end
-
-	-- Los dos extremos mandan, y son los únicos puntos de los que se sabe la
-	-- respuesta sin medirla. Callarse uno es lo que dejó la vía del recinto volando
-	-- tres studs sobre el césped, con el canto cortando el navmesh.
-	local a = Vector3.new(desde.X, (cotaInicial or desde.Y) - GROSOR_VIA / 2, desde.Z)
-	local b = Vector3.new(hasta.X, (cotaFinal or hasta.Y) - GROSOR_VIA / 2, hasta.Z)
-	local centro = (a + b) / 2
-
-	local tramo = part(
-		nombre .. "_1",
-		Vector3.new(ancho, GROSOR_VIA, (b - a).Magnitude),
-		centro,
-		Color3.fromRGB(96, 96, 102),
-		padre
-	)
-	tramo.Material = Enum.Material.Asphalt
-	tramo.CFrame = CFrame.lookAt(centro, b)
-	-- RODABLE explícito y no por color: el asfalto se reconoce por gris (ver
-	-- Roads.esCalzada), y una vía nuestra que un día se pinte de otro color dejaría
-	-- de contar sin que nadie tocara esta línea.
-	tramo:SetAttribute("rodable", true)
-	tramo:SetAttribute("delMapa", true)
-	return 1
-end
+-- Doscientas veinticinco líneas primero, cincuenta y tres después de simplificarla,
+-- y al final ninguna: la solución de un problema que el mapa nuevo ya no tiene.
 
 -- La calzada de la ciudad más cercana a un punto. Devuelve nil si no hay ninguna
 -- a tiro, que es la señal de que ese sitio no vale para un destino.
@@ -640,19 +586,8 @@ local function poligono(ciudad: Instance?, padre: Instance)
 	-- Es la misma lección que las vías de los destinos ya tenían aprendida: los dos
 	-- extremos son los únicos puntos de los que se sabe la respuesta sin medirla, y
 	-- callarse uno es dejar que lo adivine un rayo.
-	local sueloEnganche = sueloDeLaCiudad(ciudad, Config.POLIGONO_ENGANCHE.X, Config.POLIGONO_ENGANCHE.Z)
-	acceso(
-		ciudad,
-		"PoligonoAcceso",
-		Vector3.new(Config.POLIGONO_SALIDA.X, cota, bordeSalida),
-		Vector3.new(Config.POLIGONO_ENGANCHE.X, cota, Config.POLIGONO_ENGANCHE.Z),
-		26,
-		padre,
-		-- Al ras de la losa: su cara de arriba, que es por donde se viene pisando.
-		cota + ALTO_LOSA,
-		-- Y al ras del césped al llegar, para que se pueda pisar desde la ciudad.
-		(sueloEnganche or Config.POLIGONO_ENGANCHE.Y) + 0.2
-	)
+	-- Sin carretera de enganche: la boca del recinto ESTÁ en la calle 1 de la retícula
+	-- (Config.POLIGONO_ENGANCHE se deriva de ahí), así que se sale pisando asfalto.
 
 	-- Muro perimetral bajo en tres lados: cierra el recinto sin encerrar (la valla
 	-- de verdad, la que frena, es la del recinto y sólo aparece con carga sin
@@ -729,7 +664,22 @@ local function losa(
 	local y = if enCasa
 		then Config.POLIGONO_CENTRO.Y
 		else (alto or sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y)
-	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + ALTO_LOSA / 2, centro.Z), color, padre)
+	-- EMPOTRADA EN EL SUELO, NO APOYADA ENCIMA. Esto ponía la base de la losa en `y`,
+	-- así que la pieza sobresalía ALTO_LOSA entera: sobre el terreno irregular de la
+	-- ciudad prestada eso era una plataforma --lo que se quería-- y sobre asfalto
+	-- plano es un muro de dos studs alrededor de cada sitio del juego.
+	--
+	-- Medido el 19/08 con un perfil del suelo desde la boca del recinto: la losa de la
+	-- salida quedaba a 21,2 con la calzada a 19,2, y ese escalón cortaba el camino a
+	-- pie SIN SALTAR de las CUATRO rutas a la vez, nada más salir de casa. El destino
+	-- del barrio hacía lo mismo 2,8 studs más arriba. Nada revienta: se llega dando un
+	-- brinco, el mundo se construye igual, y sólo el pathfinder --o sea las patrullas
+	-- y los ladrones-- se queda fuera.
+	--
+	-- Los cinco centímetros son para que la cara de la losa no quede EXACTAMENTE en el
+	-- plano del asfalto: dos superficies coplanares parpadean, y ese defecto también
+	-- se pagó hoy.
+	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + 0.05 - ALTO_LOSA / 2, centro.Z), color, padre)
 
 	if bajo ~= nil then
 		zocalo(pieza, bajo, padre)
@@ -968,6 +918,78 @@ local function asentar(piezas: { BasePart })
 	end
 end
 
+-- REPARTIR SITIOS A LO LARGO DEL CAMINO REAL.
+--
+-- Refugios y guaridas se colocaban con Shelter.sitiosDeRuta / Lairs.sitiosDeRuta, que
+-- interpolan sobre la RECTA del almacén al destino. Con el camino en L de la retícula
+-- esa recta es la diagonal: el sitio por el que nadie pasa. Y pasarles un tramo de la
+-- L en vez del almacén tampoco vale, porque miden la zona segura desde el origen que
+-- se les da -- con la esquina como origen, la cuenta sale negativa y no plantan nada.
+-- Las dos cosas se probaron y las dos las cazó la sonda.
+--
+-- Aquí se recorre la polilínea de verdad: se avanza una distancia por el camino, se
+-- coge ese punto y se aparta perpendicularmente. Las constantes son las mismas, así
+-- que lo que cambia es DÓNDE se mide, no cuánto.
+local function sitiosSobreElCamino(
+	destino: Vector3,
+	cuantos: number,
+	margenCasa: number,
+	margenDestino: number,
+	desvio: number
+): { Vector3 }
+	local sitios: { Vector3 } = {}
+	if cuantos <= 0 then
+		return sitios
+	end
+
+	local puntos = Grid.porCalles(Config.POLIGONO_SALIDA, destino)
+	local largos: { number } = {}
+	local total = 0
+	for i = 2, #puntos do
+		local l = (puntos[i] - puntos[i - 1]).Magnitude
+		table.insert(largos, l)
+		total += l
+	end
+
+	local dMin, dMax = margenCasa, total - margenDestino
+	if dMax <= dMin then
+		-- Ruta tan corta que no hay tramo donde plantar sin pisar la casa o el
+		-- destino. Es el caso del barrio, y ahí el almacén ya hace de refugio.
+		return sitios
+	end
+
+	for i = 1, cuantos do
+		local d = dMin + (dMax - dMin) * ((i - 0.5) / cuantos)
+		-- Buscar en qué tramo cae esa distancia.
+		local recorrido = 0
+		for t = 1, #largos do
+			if recorrido + largos[t] >= d or t == #largos then
+				local dentro = math.clamp((d - recorrido) / largos[t], 0, 1)
+				local a, b = puntos[t], puntos[t + 1]
+				local sobre = a:Lerp(b, dentro)
+				local dir = (b - a)
+				local plano = Vector3.new(dir.X, 0, dir.Z)
+				if plano.Magnitude > 0.01 then
+					-- Perpendicular en el plano: girar 90 grados es (z, -x).
+					local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
+					local signo = if i % 2 == 1 then 1 else -1
+					local sitio = sobre + lado * (desvio * signo)
+					-- Y fuera de la zona segura, que se mide desde el ALMACÉN y no
+					-- desde donde empiece a contar el camino: dentro de ella no se
+					-- roba ni se calienta nadie, así que un refugio ahí no decide nada.
+					if (sitio - Config.ALMACEN_POS).Magnitude > Config.ZONA_SEGURA_RADIO + 10 then
+						table.insert(sitios, sitio)
+					end
+				end
+				break
+			end
+			recorrido += largos[t]
+		end
+	end
+
+	return sitios
+end
+
 -- EL CAMINO REAL de una ruta: por dónde se va de verdad, no la recta.
 --
 -- Existe porque los contactos repartidos sobre la recta caían en el camino el
@@ -977,25 +999,20 @@ end
 -- Si el pathfinder no encuentra camino se devuelve la recta: mejor un reparto
 -- imperfecto que ninguno, y el aviso queda en la consola para que se vea.
 local function caminoDeRuta(ruta: Routes.Ruta): { Vector3 }
-	local recta = { Config.ALMACEN_POS, ruta.destino }
-
-	-- Un peatón: radio y altura de persona, y SIN saltar. Un camino que sólo
-	-- existe saltando un bordillo no es el camino por el que va la gente.
-	local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
-	local ok = pcall(function()
-		path:ComputeAsync(Config.POLIGONO_SALIDA, ruta.destino)
-	end)
-	if not ok or path.Status ~= Enum.PathStatus.Success then
-		warn("[Contrabando] sin camino para los contactos de " .. ruta.id .. ", se reparten en recta")
-		return recta
-	end
-
+	-- POR LAS CALLES, no por donde iría un bot.
+	--
+	-- Esto le pedía el camino al pathfinder, y era lo correcto contra la ciudad
+	-- prestada: allí no sabíamos por dónde se podía pasar, así que había que
+	-- preguntarlo. Con retícula propia lo sabemos, y preguntárselo es ahora PEOR que
+	-- saberlo -- el pathfinder es un bot omnisciente y corta en diagonal por dentro de
+	-- las manzanas, entre edificio y edificio, por donde ningún jugador sabe que se
+	-- puede ir. La fila de luces salía por ahí y se perdía detrás de un edificio en dos
+	-- de sus nueve tramos.
+	--
+	-- De regalo, plantar el rastro deja de costar cuatro ComputeAsync al arrancar.
 	local puntos: { Vector3 } = { Config.ALMACEN_POS }
-	for _, w in path:GetWaypoints() do
-		table.insert(puntos, w.Position)
-	end
-	if #puntos < 2 then
-		return recta
+	for _, p in Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino) do
+		table.insert(puntos, p)
 	end
 	return puntos
 end
@@ -1210,8 +1227,8 @@ local function nave(base: Part, padre: Instance, frente: number)
 	rotulo.Name = "Rotulo"
 	rotulo.Size = UDim2.fromScale(34, 7)
 	rotulo.StudsOffsetWorldSpace = Vector3.new(0, alto + 8, 0)
-	rotulo.AlwaysOnTop = true
-	rotulo.MaxDistance = 1200
+	rotulo.AlwaysOnTop = false
+	rotulo.MaxDistance = 120
 	rotulo.Adornee = base
 	rotulo.Parent = base
 
@@ -1417,7 +1434,7 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		etiqueta.Size = UDim2.fromOffset(300, 54)
 		etiqueta.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
 		etiqueta.AlwaysOnTop = false
-		etiqueta.MaxDistance = 160
+		etiqueta.MaxDistance = 70
 		etiqueta.Adornee = bulto
 		etiqueta.Parent = bulto
 
@@ -1482,18 +1499,8 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	--
 	-- Su trabajo es verse DESDE FUERA. Empezando sobre el techo lo sigue haciendo
 	-- --la cima queda a la misma altura de siempre-- y por dentro desaparece.
-	local baseBaliza = alto + 3
-	local altoBaliza = 46 - baseBaliza
-	local baliza = part(
-		"Baliza_Taller",
-		Vector3.new(5, altoBaliza, 5),
-		Vector3.new(base.Position.X, suelo + baseBaliza + altoBaliza / 2, base.Position.Z),
-		Palette.TALLER,
-		padre
-	)
-	baliza.CanCollide = false
-	baliza.Material = Enum.Material.Neon
-	baliza.Transparency = 0.25
+	-- Sin baliza: el taller se reconoce por su nave y su cartel, y el 19/08 se quitó
+	-- todo lo vertical del mapa.
 end
 
 -- UNA GUARIDA: de dónde salen los ladrones (ver Lairs.luau).
@@ -1581,31 +1588,11 @@ local function guarida(
 		part("GuaridaPorton_" .. indice, Vector3.new(12, 11, 1.5), Vector3.new(x, suelo + 5.5, z + 13), HIERRO, padre)
 	porton.Material = Enum.Material.DiamondPlate
 
-	-- Y una luz roja encima, MÁS ALTA QUE LOS TEJADOS. Empezó midiendo 46 studs y
-	-- eso era, en la práctica, no tenerla: la ciudad tiene 2.944 piezas de más de
-	-- 20 studs de alto, con la cumbrera mediana a 86 y el 90% por debajo de 101. Un
-	-- farol de 46 no asoma por encima de casi nada, así que la guarida sólo existía
-	-- en el minimapa -- *"los enemigos no se ven, sólo en el plano del mapa"* (JJ).
-	--
-	-- La altura se eligió MIDIENDO, no a ojo: 218 rayos desde el camino de las tres
-	-- rutas hacia cada guarida que tuvieran a menos de 400 studs, contando desde qué
-	-- fracción del trayecto hay línea de visión limpia.
-	--
-	--     46 studs (lo que había) ... se ve el 39% de las veces
-	--     90 .......................... 50%
-	--    130 .......................... 54%
-	--    170 .......................... 62%
-	--    210 .......................... 67%
-	--
-	-- Sube deprisa hasta 170 y luego se aplana: a partir de ahí lo que tapa la
-	-- guarida no es un tejado sino el edificio que tienes delante, y contra eso no
-	-- hay altura que valga. Así que 170 -- que además sigue siendo MÁS BAJO que el
-	-- faro de la comisaría (190), y esa diferencia es información: el sitio al que
-	-- corres tiene que verse desde más lejos que el sitio que hay que rodear.
-	local farol = part("GuaridaFarol_" .. indice, Vector3.new(4, 120, 4), Vector3.new(x, y + 60, z), ROJO, padre)
-	farol.Material = Enum.Material.Neon
-	farol.CanCollide = false
-	farol.Transparency = 0.35
+	-- SIN FAROL. Era una columna roja de 120 studs para ver la guarida desde lejos y
+	-- poder rodearla. Se va con el resto de lo vertical (petición de JJ, 19/08): la
+	-- guarida ya se reconoce por su NAVE, que mide 26x18x26 y es lo bastante distinta
+	-- del resto de edificios, y sale marcada en el mapa pequeño.
+	local farol = nave
 
 	-- Y su nombre arriba del todo, a la altura del tejado: un pilar rojo dice "algo
 	-- pasa aquí", pero no dice qué. Sin AlwaysOnTop, igual que el resto de placas:
@@ -1613,8 +1600,8 @@ local function guarida(
 	local cartel = Instance.new("BillboardGui")
 	cartel.Name = "Cartel"
 	cartel.Size = UDim2.fromScale(20, 5)
-	cartel.StudsOffsetWorldSpace = Vector3.new(0, 92, 0)
-	cartel.MaxDistance = 900
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 22, 0)
+	cartel.MaxDistance = 90
 	cartel.Adornee = farol
 	cartel.Parent = farol
 
@@ -1720,12 +1707,10 @@ local function refugio(
 	franja.Material = Enum.Material.Neon
 	franja.CanCollide = false
 
-	-- Y el pilar de luz por encima de los edificios (llegan a 175 studs), para
-	-- verlo desde la otra punta del barrio.
-	local faro = part("RefugioFaro_" .. indice, Vector3.new(5, 145, 5), Vector3.new(x, y + 72.5, z), AZUL, padre)
-	faro.Material = Enum.Material.Neon
-	faro.CanCollide = false
-	faro.Transparency = 0.25
+	-- SIN FARO. Era una columna azul de 145 studs. El refugio se reconoce por su techo
+	-- sobre pilares --una silueta que no tiene ninguna otra cosa del mapa-- y por su
+	-- luz, que se queda porque ilumina el sitio en vez de señalarlo desde el cielo.
+	local faro = losa
 
 	local luz = Instance.new("PointLight")
 	luz.Color = Color3.fromRGB(120, 180, 255)
@@ -1736,9 +1721,9 @@ local function refugio(
 	local cartel = Instance.new("BillboardGui")
 	cartel.Name = "Cartel"
 	cartel.Size = UDim2.fromScale(22, 6)
-	cartel.StudsOffsetWorldSpace = Vector3.new(0, 110, 0)
-	cartel.AlwaysOnTop = true
-	cartel.MaxDistance = 1400
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 14, 0)
+	cartel.AlwaysOnTop = false
+	cartel.MaxDistance = 90
 	cartel.Adornee = faro
 	cartel.Parent = faro
 
@@ -1817,7 +1802,10 @@ function CityBuilder.build(): Mundo
 	-- DEJAR CARGA, en la propia losa del almacén. El muelle sólo daba y nunca
 	-- recibía ("no puedo dejar paquetes en el almacén", JJ), así que elegir mal lo
 	-- que cargabas no tenía marcha atrás.
-	prompt(almacen, Strings.get("PROMPT_DROP_CARGO"), Strings.get("HUD_WAREHOUSE"), 30).Name = "PromptDevolver"
+	-- SIN "Drop cargo here". La entrega se cobra sola al llegar
+	-- (CargoService.arrancarEntregaAutomatica), así que el botón no hacía falta para
+	-- nada y sí estorbaba: un prompt flotando dice "tienes que pulsar esto", y no hay
+	-- nada que pulsar. JJ: "los botones de Drop cargo here lían mucho".
 
 	-- LA OFICINA: donde se paga la mejora de la nave (ver Config.NAVE_MEJORAS).
 	--
@@ -1848,7 +1836,7 @@ function CityBuilder.build(): Mundo
 		cartel.Size = UDim2.fromOffset(210, 48)
 		cartel.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
 		cartel.AlwaysOnTop = false
-		cartel.MaxDistance = 140
+		cartel.MaxDistance = 70
 		cartel.Adornee = oficina
 		cartel.Parent = oficina
 
@@ -1907,9 +1895,10 @@ function CityBuilder.build(): Mundo
 	-- carga puesta era también la única invisible. Más baja que las de destino
 	-- (60 studs frente a 300) porque se busca desde dentro del recinto, no desde
 	-- el otro extremo del mapa.
-	local balizaSalida =
-		part("Baliza_Salida", Vector3.new(5, 55, 5), salida.Position + Vector3.new(0, 27, 0), Palette.SALIDA, mundo)
-	balizaSalida.CanCollide = false
+	-- SIN BALIZA DE SALIDA. La losa ya se ve por su color y su cartel; la columna era
+	-- una más del bosque vertical que JJ pidió quitar entero.
+	local balizaSalida = salida
+	balizaSalida.CanCollide = true
 	balizaSalida.Material = Enum.Material.Neon
 	-- Más baja y menos encendida que antes (110 studs y opaca). Tenía que gritar
 	-- cuando la salida era una losa perdida entre edificios; ahora está en la boca
@@ -1920,13 +1909,12 @@ function CityBuilder.build(): Mundo
 	local cartelSalida = Instance.new("BillboardGui")
 	cartelSalida.Name = "Cartel"
 	cartelSalida.Size = UDim2.fromScale(30, 8)
-	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 34, 0)
-	-- POR ENCIMA DE TODO, al contrario que los carteles de los destinos. Los de
-	-- fuera se ocultan tras los edificios a propósito (esconderse tiene que servir
-	-- de algo), pero éste está dentro de tu propio recinto y su único trabajo es
-	-- que no te pierdas al salir de la nave, que es literalmente lo que pasó.
-	cartelSalida.AlwaysOnTop = true
-	cartelSalida.MaxDistance = 700
+	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 8, 0)
+	-- SÓLO AL PIE DE LA LOSA. Se leía a 700 studs y por encima de todo, así que el
+	-- "EXIT · pick a route" te acompañaba durante medio viaje. Y además ya no dice la
+	-- verdad: desde el 19/08 la ruta se elige al coger el paquete, no al salir.
+	cartelSalida.AlwaysOnTop = false
+	cartelSalida.MaxDistance = 60
 	cartelSalida.Adornee = balizaSalida
 	cartelSalida.Parent = balizaSalida
 
@@ -1977,7 +1965,7 @@ function CityBuilder.build(): Mundo
 
 	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
 	local taller = losa(ciudad, "Taller", Vector3.new(96, ALTO_LOSA, 60), Config.TALLER_POS, Palette.TALLER, mundo)
-	prompt(taller, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 26).Name = "PromptTaller"
+	prompt(taller, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 14).Name = "PromptTaller"
 	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
 
@@ -2004,17 +1992,7 @@ function CityBuilder.build(): Mundo
 		local calleDestino = calle
 		local bordeDestino = if calle ~= nil then bordeDeLosa(destino, calle) else destino.Position
 		if calle ~= nil then
-			acceso(
-				ciudad,
-				"Acceso_" .. ruta.id,
-				bordeDeLosa(destino, calle),
-				Vector3.new(calle.X, calle.Y, calle.Z),
-				20,
-				mundo,
-				-- Sale al ras de la losa del destino y muere al ras de la calle.
-				destino.Position.Y + ALTO_LOSA / 2,
-				calle.Y + 0.2
-			)
+			-- Sin carretera: el destino es un cruce de calle, ya está sobre asfalto.
 		else
 			warn("[Contrabando] el destino " .. ruta.id .. " no tiene calle a menos de 220 studs")
 		end
@@ -2130,49 +2108,32 @@ function CityBuilder.build(): Mundo
 				-- desde la losa ya construida es darle la ocasión de contestar otra
 				-- cosa, y entonces el taller y su carretera dejan de casar.
 				if calleTaller ~= nil then
-					acceso(
-						ciudad,
-						"AccesoTaller_" .. ruta.id,
-						bordeDeLosa(tallerZona, calleTaller),
-						Vector3.new(calleTaller.X, calleTaller.Y, calleTaller.Z),
-						18,
-						mundo,
-						tallerZona.Position.Y + ALTO_LOSA / 2,
-						calleTaller.Y + 0.2
-					)
+					-- Sin carretera: el taller se planta junto a una calle de la retícula.
 				end
 				table.insert(talleres, tallerZona)
 			end
 		end
-		-- SIN aviso de entrega: llegar al destino con la carga correcta YA cobra
-		-- solo (ver CargoService.arrancarEntregaAutomatica). No existe ninguna razón
-		-- para llegar y no querer entregar, así que pedir confirmación era un paso
-		-- muerto -- y caía justo en el único momento del bucle en que el juego te da
-		-- algo. La tecla E se queda como red de seguridad y como la única vía que
-		-- EXPLICA por qué no puedes cobrar cuando no puedes.
-
-		-- La baliza, visible desde el otro extremo del mapa. En la ciudad importa
-		-- MÁS que en la recta, no menos: allí bastaba con mirar al frente, y aquí
-		-- hay manzanas de por medio y es fácil perder el norte a mitad de viaje.
-		local baliza = part(
-			"Baliza_" .. ruta.id,
-			Vector3.new(8, 210, 8),
-			-- Centrada a la MITAD de su alto para que nazca en el suelo. Al bajarla
-			-- de 300 a 210 hubo que mover esto con ella: una columna de 210 studs
-			-- centrada a 150 arranca a 45 del suelo, o sea flotando.
-			destino.Position + Vector3.new(0, 105, 0),
-			Palette.ruta(ruta.id),
-			mundo
-		)
-		baliza.CanCollide = false
-		baliza.Material = Enum.Material.Neon
+		-- SIN BALIZA. Aquí había una columna de 300 studs, luego 210, luego un mojón de
+		-- 16. JJ dijo tres veces que le sobraba --"me sobran las luces esas hasta el
+		-- cielo", "las torres de colores no aportan nada", "ningún indicador vertical"--
+		-- y la tercera vez traía además el argumento que lo cierra: *los puntos
+		-- importantes ya se ven en el mapa pequeño de abajo*.
+		--
+		-- Lo que marca la ruta es la fila de migas de pan por la calle, y lo que dice
+		-- qué es esto al llegar es el cartel de aquí abajo. Una torre no añadía
+		-- información: tapaba el centro de la pantalla durante todo el viaje.
+		local baliza = destino
 
 		local cartel = Instance.new("BillboardGui")
 		cartel.Name = "Cartel"
 		cartel.Size = UDim2.fromScale(26, 9)
-		cartel.StudsOffsetWorldSpace = Vector3.new(0, 170, 0)
-		cartel.AlwaysOnTop = true
-		cartel.MaxDistance = 2500
+		cartel.StudsOffsetWorldSpace = Vector3.new(0, 9, 0)
+		-- SÓLO DE CERCA. Se leía a 2.500 studs y a través de los edificios, así que
+		-- desde cualquier punto del mapa había cuatro rótulos flotando a la vez. JJ:
+		-- "salen muchos títulos que ahora sobran". Lo que dice el cartel --qué es este
+		-- sitio-- sólo hace falta saberlo al llegar; por dónde ir lo dicen las migas.
+		cartel.AlwaysOnTop = false
+		cartel.MaxDistance = 90
 		cartel.Adornee = baliza
 		cartel.Parent = baliza
 
@@ -2213,7 +2174,16 @@ function CityBuilder.build(): Mundo
 		-- refugio. Un solar pedido por quien no lo necesita se lo quita a quien sí.
 		local cuantos = ruta.refugios or Config.REFUGIOS_POR_RUTA
 		if cuantos > 0 then
-			table.insert(grupos, Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, cuantos + 2))
+			table.insert(
+				grupos,
+				sitiosSobreElCamino(
+					ruta.destino,
+					cuantos + 2,
+					Config.REFUGIO_MARGEN_CASA,
+					Config.REFUGIO_MARGEN_DESTINO,
+					Config.REFUGIO_DESVIO
+				)
+			)
 		end
 	end
 	-- LAS GUARIDAS, dos por ruta. Van antes que los refugios en el código y
@@ -2228,7 +2198,9 @@ function CityBuilder.build(): Mundo
 		-- Cuántas, por ruta: el barrio pide cero. Es el primer viaje de la partida y
 		-- perder ahí la primera carga de tu vida es la forma más rápida de que
 		-- alguien cierre el juego.
-		for _, sitio in Lairs.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, ruta.guaridas or Config.GUARIDAS_POR_RUTA) do
+		local sitiosGuarida =
+			sitiosSobreElCamino(ruta.destino, ruta.guaridas or Config.GUARIDAS_POR_RUTA, 60, 50, Config.GUARIDA_DESVIO)
+		for _, sitio in sitiosGuarida do
 			local pieza = guarida(ciudad, #guaridas + 1, ruta.id, sitio, mundo, guaridas)
 			if pieza then
 				table.insert(guaridas, pieza.Position)

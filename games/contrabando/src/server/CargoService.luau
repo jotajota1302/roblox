@@ -572,48 +572,20 @@ local function cobrar(player: Player, destino: BasePart)
 
 	RouteService.limpiar(player)
 
-	if esRetorno then
-		-- Se cierra el ciclo: ya no llevas nada de vuelta y el almacén vuelve a ser
-		-- el punto de partida.
-		estado.retornoZona = nil
-		estado.retorno = {}
-	else
-		-- Y aquí se abre el siguiente: el destino te ofrece carga para el camino de
-		-- vuelta. Es lo que convierte los 90 segundos de volver de vacío en otro
-		-- viaje con algo que perder.
-		--
-		-- SIEMPRE pequeñas (nivel 1): si hiciera falta vehículo para moverlas, el
-		-- jugador nuevo volvería de vacío igual y no habríamos arreglado nada.
-		--
-		-- Y SE SUBEN SOLAS al zurrón, igual que la entrega se cobra sola. La primera
-		-- versión las dejaba en el suelo esperando a que las recogieras, y eso
-		-- producía justo lo que contó JJ jugando: "en la vuelta al almacén la
-		-- brújula sigue apuntando al primer destino". No era un fallo de la brújula
-		-- -- apuntaba a la carga que se había dejado atrás-- pero da igual: si el
-		-- juego tiene que explicar por qué su flecha señala el sitio del que acabas
-		-- de salir, la flecha está mal. Nadie entrega y decide NO llevarse el
-		-- encargo de vuelta.
-		estado.retorno = {}
-		local capacidad = Cargo.capacidad(estado.vehiculo)
-		local subidas = 0
-		for _ = 1, Config.RETORNO_PIEZAS do
-			local pieza = CargoService.nuevaCaja(1)
-			if Cargo.cabe(estado.cajas, pieza, capacidad, estado.vehiculo) then
-				table.insert(estado.cajas, pieza)
-				subidas += 1
-			else
-				-- Lo que no cabe se queda en el muelle del destino, con su aviso: es
-				-- el caso raro (zurrón lleno de carga robada) y ahí sí toca elegir.
-				table.insert(estado.retorno, pieza)
-			end
-		end
-		estado.retornoZona = rutaDelDestino
-		if subidas > 0 then
-			task.delay(0.8, function()
-				avisar(player, "CARGO_LOADED_RETURN", { cuantas = subidas }, Palette.AVISO_BUENO)
-			end)
-		end
-	end
+	-- DE VUELTA A CASA, AL INSTANTE.
+	--
+	-- Aquí se cargaba el encargo de retorno, que era el arreglo anterior al mismo
+	-- problema: la vuelta al almacén eran noventa segundos de andar de vacío, la mitad
+	-- del ciclo sin una sola decisión. Darle carga a esa vuelta la hacía menos muerta,
+	-- pero seguía siendo un trayecto que ya te sabías, por un camino que acababas de
+	-- hacer, y JJ lo dijo de la forma más clara posible: "que sea ágil".
+	--
+	-- No se arregla haciendo la vuelta más entretenida: se arregla quitándola. El
+	-- ciclo pasa a ser cargar, ir, entregar y estar otra vez en el muelle -- y todo lo
+	-- que se gana en el viaje se conserva, que es lo que hace que valga la pena.
+	estado.retornoZona = nil
+	estado.retorno = {}
+	volverACasa(player)
 
 	-- La velocidad, con el zurrón ya en su sitio y la racha a cero. Va aquí y no
 	-- antes porque `vaciar` la escribió cuando la racha todavía contaba: sin este
@@ -631,6 +603,12 @@ local function cobrar(player: Player, destino: BasePart)
 		valor = cobrado,
 	})
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+	-- Y se dice que ya estás en casa. Sin esto, el jugador cobra y aparece en otro
+	-- sitio de golpe sin que nada le explique por qué: un teletransporte que no se
+	-- anuncia se lee como un fallo, no como una comodidad.
+	task.delay(0.6, function()
+		avisar(player, "CARGO_WARPED_HOME", nil, Palette.AVISO_BUENO)
+	end)
 	-- El cobro también se dice con palabras, no sólo cambiando una cifra en una
 	-- esquina. Es el único momento en que el juego te da algo, y una cifra que
 	-- salta de 0 a 300 sin más se pierde entre lo demás.
@@ -694,6 +672,31 @@ function CargoService.arrancarEntregaAutomatica()
 			end)
 		end
 	end)
+end
+
+-- EL REGRESO INSTANTÁNEO. Se mueve el modelo entero con PivotTo, no el CFrame de la
+-- raíz: el personaje es propiedad de red del cliente y escribirle la posición pieza a
+-- pieza desde el servidor se revierte en cuanto el cliente manda su siguiente
+-- actualización. Un pivote sobre el modelo sí se replica.
+--
+-- Se busca el punto de aparición real en vez de calcular una posición junto al
+-- almacén: la losa tiene la nave ocupándole el fondo, y aparecer dentro de un objeto
+-- es de las primeras cosas que ve un jugador -- ya pasó una vez, encima de la
+-- furgoneta. Si por lo que sea no está, se cae al lado del almacén y se avisa.
+local function volverACasa(player: Player)
+	local char = player.Character
+	if char == nil then
+		return
+	end
+	local mundo = workspace:FindFirstChild("Mundo")
+	local punto = mundo and mundo:FindFirstChild("AparicionAlmacen")
+	local sitio = if punto and punto:IsA("BasePart")
+		then punto.Position + Vector3.new(0, 4, 0)
+		else Config.ALMACEN_POS + Vector3.new(0, 6, 40)
+	if punto == nil then
+		warn("[Contrabando] sin punto de aparición: se vuelve junto al almacén")
+	end
+	char:PivotTo(CFrame.new(sitio))
 end
 
 -- La entrega MANUAL (tecla E). Se queda como red de seguridad y, sobre todo,

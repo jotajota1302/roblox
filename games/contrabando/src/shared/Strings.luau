@@ -232,7 +232,9 @@ local TEXTOS: { [string]: string } = {
 	SIGN_DEN = "DEN",
 	SIGN_POLICE = "POLICE",
 	SIGN_OFFICE = "OFFICE",
-	SIGN_EXIT = "EXIT  ·  pick a route",
+	-- La salida ya no elige nada: desde el 19/08 la ruta se escoge al coger el
+	-- paquete. El cartel se queda diciendo sólo qué es este sitio.
+	SIGN_EXIT = "EXIT",
 	SIGN_PARKED = "you parked here",
 	PROMPT_BUY = "Buy",
 	PROMPT_BUY_VEHICLE = "Buy vehicle",
@@ -250,6 +252,9 @@ local TEXTOS: { [string]: string } = {
 	CARGO_NEED_BIGGER = "You need a bigger vehicle: that one is {tamano}",
 	CARGO_LOADED_RETURN = "You load {cuantas} items to take back",
 	CARGO_PAID = "+{monedas} for {items} items on {ruta}",
+	-- El regreso instantáneo tras entregar. Sustituye a CARGO_LOADED_RETURN, que
+	-- anunciaba la carga del viaje de vuelta: ya no hay viaje de vuelta.
+	CARGO_WARPED_HOME = "Delivered. Back at the warehouse.",
 	CARGO_LEVEL_UP = "Level {nivel}!",
 	CARGO_EMPTY = "You are not carrying anything",
 	CARGO_NO_ROUTE_FAR = "You left with no route: go back to the warehouse exit",

@@ -587,7 +587,12 @@ Config.REFUGIO_SEGUNDOS_POR_NIVEL = 5
 -- ser menos y estar más espaciados" (JJ). Un refugio sólo significa algo si
 -- llegar a él es una decisión, y para eso tiene que ser el único que tienes cerca.
 Config.REFUGIOS_POR_RUTA = 1
-Config.REFUGIO_DESVIO = 85
+-- REESCALADOS AL TRAMO REAL (19/08). Con la retícula, el tramo por el que se reparten
+-- refugios y guaridas mide 146 studs en la verde, no 300: con los márgenes de antes
+-- --85 de casa, 55 del destino-- el hueco útil quedaba en seis studs y el refugio se
+-- plantaba ENCIMA de la losa del destino. Lo cazó la sonda: "Destino_verde se pisa por
+-- arriba, lo que se pisa ahí es Refugio_1".
+Config.REFUGIO_DESVIO = 45
 
 -- LO QUE TIENE QUE APARTARSE DE CASA, medido en studs desde el borde de la zona
 -- segura. Lo destapó JJ jugando: *"hay un refugio justo a la salida del almacén,
@@ -604,10 +609,14 @@ Config.REFUGIO_DESVIO = 85
 -- doble de la zona segura. El motivo de que esto se mida en STUDS y no en fracción
 -- del trayecto es el mismo que ya enseñaron las guaridas: un 0,33 dice cosas muy
 -- distintas en una ruta de 600 y en una de 1.700.
-Config.REFUGIO_MARGEN_CASA = 85
+-- 90 y no 50: el margen se cuenta a lo largo del camino desde la boca del recinto, y
+-- la boca ya está a 60 studs del almacén -- así que 50 dejaba caer un refugio a 84 de
+-- casa, dentro de la zona segura, donde meterse nunca es lo mejor que puedes hacer
+-- porque el almacén está al lado y apaga el calor entero.
+Config.REFUGIO_MARGEN_CASA = 90
 -- Y lo que se aparta del destino, por el otro lado: un refugio a las puertas de la
 -- entrega llega cuando el viaje ya está hecho.
-Config.REFUGIO_MARGEN_DESTINO = 55
+Config.REFUGIO_MARGEN_DESTINO = 50
 -- Y la distancia mínima entre dos refugios cualesquiera, aunque sean de rutas
 -- distintas: sin ella, dos rutas que pasan cerca plantan los suyos casi pegados
 -- y vuelven a parecer mobiliario urbano.
@@ -624,7 +633,7 @@ Config.REFUGIO_MARGEN_DESTINO = 55
 -- Una ruta con ladrones y sin sitio donde refugiarse es una promesa rota, así que
 -- entre "no pegados" y "que exista", manda que exista. 240 sigue siendo más de
 -- cinco veces el radio de un refugio (45): no se tocan ni se confunden.
-Config.REFUGIO_SEPARACION = 100
+Config.REFUGIO_SEPARACION = 70
 
 -- Patrullas por nivel de calor, y a qué velocidad van.
 --
@@ -662,11 +671,19 @@ Config.REFUGIO_SEPARACION = 100
 -- Tres es donde la curva se aplana. Siguen apartadas del camino, así que rodearlas
 -- sigue siendo posible: lo que cambia es que ahora casi siempre hay una de la que
 -- venir, que era el punto.
-Config.GUARIDAS_POR_RUTA = 3
+-- UNA POR RUTA, no tres. Con tres salían TRECE guaridas en un mapa de 610 x 464 --una
+-- cada cuarenta studs de camino-- y dos consecuencias: el sitio del que huyes estaba
+-- en todas partes, y ocupaban tanto que el refugio de la verde ya no encontraba dónde
+-- plantarse (los refugios esquivan a las guaridas a propósito, para no mandarte a
+-- guarecerte encima de lo que te persigue).
+--
+-- Con una por ruta, cada zona tiene un origen de peligro que se puede aprender y
+-- rodear, que es lo que la guarida vino a ser.
+Config.GUARIDAS_POR_RUTA = 1
 
 -- Cuánto se apartan del camino recto. Menos que los refugios (100): una guarida
 -- pegada al corredor es un obstáculo que hay que rodear, y ése es su trabajo.
-Config.GUARIDA_DESVIO = 45
+Config.GUARIDA_DESVIO = 32
 
 -- A qué distancia del jugador una guarida sirve para soltar a un ladrón. Por
 -- debajo de APARICION_MIN sería una emboscada; por encima de esto el ladrón

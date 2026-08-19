@@ -27,6 +27,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Grid = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Grid"))
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
@@ -35,7 +36,11 @@ local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiK
 -- manzana en la que estás y las dos de al lado. Más alcance convierte cada
 -- edificio en un punto de dos píxeles y el plano deja de leerse; menos, y ya no
 -- ves a dónde vas.
-local ESCALA = 0.22
+-- Subió de 0,22 a 0,45 con el mapa nuevo. La escala vieja era para una ciudad de
+-- 1.600 studs; con 610, el plano entero ocupaba un tercio del panel y el resto era
+-- negro -- que es lo que se veía en la captura de JJ: un recuadro claro en una esquina
+-- y él, el punto blanco, fuera de él.
+local ESCALA = 0.45
 
 -- Sólo se pintan las piezas que aportan silueta. Un plano con las 7161 partes de
 -- la ciudad sería una mancha gris, además de tardar en construirse.
@@ -67,113 +72,48 @@ local function punto(nombre: string, color: Color3, tamano: number, orden: numbe
 	return f
 end
 
--- Pinta el plano una vez. Distingue suelo de edificio por la altura de la pieza,
--- que es lo único que hace falta: la silueta de las manzanas contra las calles.
-local function pintarPlano(ciudad: Instance, capa: Frame): Vector2
-	local cf, size = ciudad:GetBoundingBox()
-	local minX = cf.Position.X - size.X / 2
-	local minZ = cf.Position.Z - size.Z / 2
+-- EL PLANO SE DIBUJA DESDE EL PLANO, no adivinándolo del mundo.
+--
+-- La versión anterior recorría la ciudad buscando `Model` hoja y pintaba su contorno.
+-- Era lo único que se podía hacer contra un mapa del Creator Store: allí no había
+-- ninguna descripción de la ciudad, sólo siete mil piezas, y había que deducir qué era
+-- un edificio por su tamaño. Contra la retícula propia esa heurística no encuentra
+-- NADA --nuestra ciudad son carpetas con piezas sueltas, sin un solo Model-- así que
+-- el minimapa salía vacío salvo por los puntos de colores, descentrado, y JJ lo
+-- resumió en cuatro palabras: "ese mapa no se entiende nada".
+--
+-- Ahora se dibuja lo que Grid dice que hay: asfalto claro de borde a borde y las doce
+-- manzanas oscuras encima. Lo claro es por donde se pasa, que es la convención de
+-- cualquier plano y no necesita leyenda. Trece rectángulos en vez de setecientos.
+local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
+	local xMin, xMax, zMin, zMax = Grid.limites()
+	capa.Size = UDim2.fromOffset((xMax - xMin) * ESCALA, (zMax - zMin) * ESCALA)
 
-	capa.Size = UDim2.fromOffset(size.X * ESCALA, size.Z * ESCALA)
+	-- El asfalto: una sola pieza que cubre todo. Lo que no tape una manzana es calle.
+	local asfalto = Instance.new("Frame")
+	asfalto.Name = "Asfalto"
+	asfalto.Position = UDim2.fromOffset(0, 0)
+	asfalto.Size = UDim2.fromScale(1, 1)
+	asfalto.BorderSizePixel = 0
+	asfalto.BackgroundColor3 = Color3.fromRGB(196, 198, 204)
+	asfalto.ZIndex = 1
+	asfalto.Parent = capa
 
-	local pintadas = 0
-
-	local function rectangulo(centroX: number, centroZ: number, anchoX: number, anchoZ: number, esEdificio: boolean)
-		local r = Instance.new("Frame")
-		r.Name = "P" .. pintadas
-		r.AnchorPoint = Vector2.new(0.5, 0.5)
-		r.Position = UDim2.fromOffset((centroX - minX) * ESCALA, (centroZ - minZ) * ESCALA)
-		r.Size = UDim2.fromOffset(math.max(2, anchoX * ESCALA), math.max(2, anchoZ * ESCALA))
-		r.BorderSizePixel = 0
-		-- Edificios claros sobre calle oscura: es la convención de cualquier plano y
-		-- se lee sin explicación. El color real de la pieza no sirve -- media ciudad
-		-- es del mismo gris y el plano saldría plano.
-		-- CALLES CLARAS SOBRE FONDO OSCURO, y los edificios en un tono medio encima.
-		-- Es la convención de cualquier plano nocturno y se lee sin explicación: lo
-		-- claro es por donde se pasa. Al revés --edificios claros, como estaba-- el
-		-- ojo se va a las manzanas, que son justo lo que NO se puede cruzar.
-		r.BackgroundColor3 = if esEdificio then Color3.fromRGB(66, 72, 86) else Color3.fromRGB(196, 198, 204)
-		r.BackgroundTransparency = if esEdificio then 0.1 else 0
-		r.ZIndex = if esEdificio then 2 else 1
-		r.Parent = capa
-		pintadas += 1
+	for col = 0, Grid.COLUMNAS - 1 do
+		for fila = 0, Grid.FILAS - 1 do
+			local x0, x1, z0, z1 = Grid.manzana(col, fila)
+			local m = Instance.new("Frame")
+			m.Name = string.format("Manzana_%d_%d", col, fila)
+			m.Position = UDim2.fromOffset((x0 - xMin) * ESCALA, (z0 - zMin) * ESCALA)
+			m.Size = UDim2.fromOffset((x1 - x0) * ESCALA, (z1 - z0) * ESCALA)
+			m.BorderSizePixel = 0
+			m.BackgroundColor3 = Color3.fromRGB(58, 62, 74)
+			m.ZIndex = 2
+			m.Parent = capa
+		end
 	end
 
-	-- UN EDIFICIO ES UN RECTÁNGULO, no cien.
-	--
-	-- La primera versión pintaba pieza a pieza y salían 1716 rectángulos para los
-	-- edificios: cada pared, cada ventana y cada alero por su cuenta. El resultado
-	-- era una masa gris uniforme en la que no se distinguía una manzana de otra --
-	-- justo lo contrario de para lo que sirve un plano. Aquí se pinta el contorno
-	-- de cada MODELO (que es como viene agrupada la ciudad: una casa, un bloque),
-	-- así que salen decenas de formas limpias en vez de miles de manchas.
-	--
-	-- Sólo las hojas: un modelo que contiene otros modelos es una agrupación
-	-- ("House/Tower" son 1250 piezas), y pintar su contorno taparía el barrio entero
-	-- con un solo rectángulo.
-	for _, m in ciudad:GetDescendants() do
-		if pintadas > 700 then
-			break
-		end
-		if not m:IsA("Model") then
-			continue
-		end
-		local tieneHijosModelo = false
-		for _, h in m:GetChildren() do
-			if h:IsA("Model") then
-				tieneHijosModelo = true
-				break
-			end
-		end
-		if tieneHijosModelo then
-			continue
-		end
-
-		local ok, cf, size = pcall(function()
-			return m:GetBoundingBox()
-		end)
-		if not ok or not cf then
-			continue
-		end
-		if size.Y <= 8 or size.X < MINIMO_LADO or size.Z < MINIMO_LADO then
-			continue
-		end
-		rectangulo(cf.Position.X, cf.Position.Z, size.X, size.Z, true)
-	end
-
-	-- LAS CALLES, que es lo que faltaba. "No se ven las calles" (JJ), y tenía razón:
-	-- se estaban pintando todas las losas planas por igual --césped, tierra,
-	-- plazas, asfalto-- en el mismo gris apagado, así que la red viaria quedaba
-	-- disuelta entre el resto del suelo. Y la red viaria es LO ÚNICO que se mira en
-	-- un plano cuando te persiguen: por dónde se puede correr.
-	--
-	-- Se distinguen por el color: el asfalto de esta ciudad son 222 piezas grises
-	-- SIN saturación (rgb 99,95,98), mientras que el césped es verde y la tierra
-	-- marrón. Se comprueba que los tres canales estén juntos, no un RGB exacto: así
-	-- sigue funcionando si el mapa cambia de tono, y no cuela un césped oscuro.
-	for _, p in ciudad:GetDescendants() do
-		if pintadas > 1100 then
-			break
-		end
-		if not p:IsA("BasePart") or p.Size.Y > 8 then
-			continue
-		end
-		if p.Size.X < 12 or p.Size.Z < 12 then
-			continue
-		end
-		local c = p.Color
-		local maximo = math.max(c.R, c.G, c.B)
-		local minimo = math.min(c.R, c.G, c.B)
-		local esGris = (maximo - minimo) < 0.06
-		if not esGris or maximo > 0.85 then
-			-- Césped, tierra y agua no se pintan: son el fondo. Pintarlos sólo
-			-- serviría para tapar las calles con más manchas del mismo tono.
-			continue
-		end
-		rectangulo(p.Position.X, p.Position.Z, p.Size.X, p.Size.Z, false)
-	end
-
-	return Vector2.new(minX, minZ)
+	return Vector2.new(xMin, zMin)
 end
 
 function Minimap.build()
@@ -232,10 +172,10 @@ function Minimap.build()
 
 	marco = panel
 
-	local ciudad = workspace:FindFirstChild("Ciudad")
-	if ciudad then
-		origenMapa = pintarPlano(ciudad, capa)
-	end
+	-- Ya no espera a que exista la ciudad: el plano sale de Grid, que está en el
+	-- cliente desde el primer fotograma. Antes, si el mapa tardaba en replicarse, el
+	-- minimapa se quedaba vacío para siempre.
+	origenMapa = pintarPlano(nil, capa)
 
 	-- El jugador SIEMPRE en el centro: es el mapa el que se mueve. Así no hay que
 	-- buscarse a uno mismo cada vez que se mira, que es lo último que quieres hacer
@@ -323,22 +263,12 @@ local function pintarPeligros(capa: Frame)
 			-- 260 studs: seis discos de ese tamaño pintarían el mapa entero de rojo y
 			-- no se distinguiría nada, que es justo lo contrario de lo que se le pide
 			-- a un plano. El anillo dice lo mismo y deja ver lo que hay debajo.
-			local anillo = mancha(
-				"Guarida_" .. pieza.Name,
-				pieza.Position,
-				Config.GUARIDA_ALCANCE,
-				Color3.fromRGB(220, 70, 60),
-				1,
-				2
-			)
-			local trazo = Instance.new("UIStroke")
-			trazo.Color = Color3.fromRGB(220, 70, 60)
-			trazo.Thickness = 1
-			-- Muy tenue: son 380 studs de radio y hay nueve. A pleno color, el mapa
-			-- se convierte en una maraña de arcos y deja de leerse -- que es lo
-			-- contrario de para lo que está.
-			trazo.Transparency = 0.82
-			trazo.Parent = anillo
+			-- SIN ANILLO DE ALCANCE. Dibujaba los 250 studs a los que esa guarida puede
+			-- soltarte un ladrón, y en la ciudad prestada --de 1.600 studs-- eso era un
+			-- arco fino que informaba. En un mapa de 610 son casi el mapa entero: seis
+			-- guaridas pintaban la maraña de arcos marrones que JJ vio y resumió con
+			-- "ese mapa no se entiende nada". Queda el núcleo, que es lo que hay que
+			-- rodear.
 			-- Y el núcleo, que es lo que se ve de lejos y lo que hay que rodear.
 			mancha("GuaridaNucleo_" .. pieza.Name, pieza.Position, 20, Color3.fromRGB(220, 70, 60), 0.25, 3)
 			madrigueras += 1
