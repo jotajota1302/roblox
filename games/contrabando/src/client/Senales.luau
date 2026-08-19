@@ -30,6 +30,7 @@
 local Senales = {}
 
 local piezas: { BasePart } = {}
+local zonas: { BasePart } = {}
 
 -- Cada farol de guarida con la ruta de SU guarida. El farol no lleva el atributo
 -- (es una pieza aparte), pero comparte índice con ella: `GuaridaFarol_3` alumbra
@@ -46,7 +47,7 @@ local function reunir()
 		return
 	end
 	mundoVisto = mundo
-	piezas = {}
+	piezas, zonas = {}, {}
 
 	for _, d in mundo:GetDescendants() do
 		local indice = string.match(d.Name, "^Guarida_(%d+)$")
@@ -64,6 +65,8 @@ local function reunir()
 		end
 		if string.find(d.Name, "^Contacto_") then
 			table.insert(piezas, d)
+		elseif d:GetAttribute("zonaFichada") == true then
+			table.insert(zonas, d)
 		end
 		-- Balizas, faroles y faros ya no existen: el 19/08 se quitó del mapa todo lo
 		-- vertical, a petición de JJ y con el argumento que lo cierra -- los puntos
@@ -99,6 +102,22 @@ function Senales.actualizar(estado: any)
 	for _, pieza in piezas do
 		local mia = hayViaje and pieza:GetAttribute("ruta") == ruta
 		pintar(pieza, mia and pieza:GetAttribute("apagada") ~= true, 0)
+	end
+
+	-- LAS ZONAS FICHADAS, sólo mientras llevas algo. Sin carga no te fichan --el
+	-- detector no dispara-- así que pintarlas sería enseñar un peligro que no existe,
+	-- y el jugador aprendería a ignorarlas justo antes de que empiecen a importar.
+	--
+	-- TODAS y no sólo las de tu ruta, al contrario que las migas: una esquina fichada
+	-- te ve pasar lleves el destino que lleves, y esconder las de las otras rutas sería
+	-- mentir sobre el mapa. Es la diferencia entre una señal que te guía --que sí es
+	-- tuya-- y un peligro, que es de la ciudad.
+	for _, zona in zonas do
+		-- Cada una recuerda su propia opacidad: el área es un tinte (0,9) y el foco del
+		-- centro va marcado (0,45). Pintarlas todas igual borraba la diferencia entre
+		-- "por aquí te ven" y "aquí está el ojo".
+		local suya = zona:GetAttribute("opacidad")
+		pintar(zona, llevaAlgo, if typeof(suya) == "number" then suya else 0.9)
 	end
 end
 

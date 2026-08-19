@@ -1258,6 +1258,27 @@ local function reticula()
 			end
 		end
 	end
+	-- NINGUNA ESQUINA FICHADA FUERA DE LA CIUDAD. El reparto las aparta
+	-- perpendicularmente al camino, y las de los tramos pegados al borde se salían al
+	-- margen de césped -- donde no pasa nadie, así que no fichan a nadie. No rompía
+	-- nada: la ruta tenía menos vigilancia de la que su selector promete.
+	local fueraDelMapa = 0
+	do
+		local bx0, bx1, bz0, bz1 = Grid.limites()
+		for _, d in mundo():GetChildren() do
+			if d:IsA("BasePart") and d:GetAttribute("detectorId") ~= nil then
+				if d.Position.X < bx0 or d.Position.X > bx1 or d.Position.Z < bz0 or d.Position.Z > bz1 then
+					fueraDelMapa += 1
+				end
+			end
+		end
+	end
+	comprobar(
+		"todas las esquinas fichadas caen dentro de la ciudad",
+		fueraDelMapa == 0,
+		string.format("%d fuera del mapa, donde no pasa nadie", fueraDelMapa)
+	)
+
 	comprobar(
 		"hay calzada bajo cada cruce de la reticula",
 		#sinAsfalto == 0,

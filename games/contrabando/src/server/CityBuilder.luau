@@ -802,6 +802,19 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		-- Pero al del CORREDOR se le busca calle en corto: si se le deja vagar cien
 		-- studs buscando asfalto acaba fuera del alcance del camino, que es
 		-- justamente lo que venía a garantizar. Antes que eso, se queda donde está.
+		-- DENTRO DEL MAPA, siempre. El reparto aparta cada esquina fichada
+		-- perpendicularmente al camino, y las de los tramos que van pegados al borde se
+		-- salían de la ciudad: dos acabaron en el margen de césped, donde no pasa nadie
+		-- y por tanto no fichan a nadie. No rompía nada -- la ruta simplemente tenía
+		-- menos vigilancia de la que su selector promete-- y ahora encima pintan su
+		-- zona en el suelo, así que se ven desde dentro.
+		do
+			local bx0, bx1, bz0, bz1 = Grid.limites()
+			local margen = Config.DETECTOR_RADIO / 2
+			x = math.clamp(x, bx0 + margen, bx1 - margen)
+			z = math.clamp(z, bz0 + margen, bz1 - margen)
+		end
+
 		local y, cx, cz = sueloTransitable(ciudad, x, z)
 		if y ~= nil and sitio.enElCorredor then
 			local desplazado = math.sqrt((cx - x) ^ 2 + (cz - z) ^ 2)
@@ -854,6 +867,72 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		luz.Range = Config.DETECTOR_RADIO
 		luz.Brightness = 1.6
 		luz.Parent = lente
+
+		-- Y SU ZONA, PINTADA EN EL SUELO. Ésta es la diferencia entre transitar y
+		-- decidir.
+		--
+		-- Hasta ahora el radio de una esquina fichada existía sólo en Config: te
+		-- fichaban al entrar en él y no había forma de saber dónde empezaba. Un
+		-- peligro que no se puede anticipar no es tensión, es un impuesto -- y JJ lo
+		-- dijo dos veces, "los enemigos aparecen de repente" y "no pasa nada por el
+		-- camino". Las dos frases son la misma: si no puedes ver el peligro, no hay
+		-- nada que decidir mientras andas.
+		--
+		-- Con la mancha en la calzada, cruzar pasa a ser una elección con tres
+		-- respuestas -- paso deprisa, rodeo por la calle de al lado, o me meto por el
+		-- callejón-- y las tres las toma el jugador mirando, sin leer nada.
+		--
+		-- Va PLANA y en el suelo, no en el aire: JJ pidió quitar todo lo vertical y
+		-- esto no lo reabre. Y seis centésimas por encima de la calzada, porque dos
+		-- superficies en el mismo plano parpadean.
+		local zona = part(
+			"ZonaFichada_" .. poste.Name,
+			Vector3.new(Config.DETECTOR_RADIO * 2, 0.2, Config.DETECTOR_RADIO * 2),
+			Vector3.new(x, (y :: number) + 0.06, z),
+			Color3.fromRGB(235, 120, 70),
+			padre
+		)
+		zona.Shape = Enum.PartType.Cylinder
+		-- Un cilindro de Roblox nace tumbado sobre X: se gira para dejarlo como una
+		-- mancha en el suelo.
+		zona.CFrame = CFrame.new(zona.Position) * CFrame.Angles(0, 0, math.rad(90))
+		zona.Size = Vector3.new(0.2, Config.DETECTOR_RADIO * 2, Config.DETECTOR_RADIO * 2)
+		-- NI NEON NI SATURADO. La primera versión usaba Neon a 0,82 y el resultado,
+		-- visto en pantalla, era media calle naranja: el Neon no se apaga con la
+		-- transparencia --sigue emitiendo-- y con treinta y una zonas de 35 studs de
+		-- radio, muchas solapadas, la calzada desaparecía debajo. Una señal que tapa
+		-- el sitio que señala no informa de nada.
+		--
+		-- Ahora es un TINTE: se nota el borde del área al cruzarlo y se sigue viendo el
+		-- asfalto. El foco de verdad va en el núcleo de aquí abajo.
+		zona.Material = Enum.Material.SmoothPlastic
+		zona.Transparency = 0.9
+		zona.CanCollide = false
+		zona.CanQuery = false
+		zona.CanTouch = false
+		zona:SetAttribute("ruta", ruta.id)
+		zona:SetAttribute("zonaFichada", true)
+		zona:SetAttribute("opacidad", 0.9)
+
+		-- El foco: dónde está exactamente la esquina fichada. Pequeño y claro, para
+		-- que el ojo lo encuentre sin que compita con el resto del mapa.
+		local foco = part(
+			"FocoFichada_" .. poste.Name,
+			Vector3.new(0.2, 13, 13),
+			Vector3.new(x, (y :: number) + 0.08, z),
+			Color3.fromRGB(255, 150, 90),
+			padre
+		)
+		foco.Shape = Enum.PartType.Cylinder
+		foco.CFrame = CFrame.new(foco.Position) * CFrame.Angles(0, 0, math.rad(90))
+		foco.Material = Enum.Material.Neon
+		foco.Transparency = 0.45
+		foco.CanCollide = false
+		foco.CanQuery = false
+		foco.CanTouch = false
+		foco:SetAttribute("ruta", ruta.id)
+		foco:SetAttribute("zonaFichada", true)
+		foco:SetAttribute("opacidad", 0.45)
 
 		table.insert(puestos, poste)
 	end
