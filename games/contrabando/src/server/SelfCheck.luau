@@ -428,6 +428,15 @@ local function guaridas()
 	-- se queda sin la amenaza que anuncia su selector.
 	local alcance = Config.GUARIDA_DESVIO + 90
 	for _, ruta in Routes.todas() do
+		-- Salvo las que NO PIDEN NINGUNA, que hoy es el barrio: allí el peligro se
+		-- enseña y no se aplica, así que exigirle una guarida es pedirle que
+		-- incumpla su propio diseño. Mismo criterio que ya se aplicó a los refugios
+		-- --una ruta sin ladrones no necesita dónde esconderse-- y por el mismo
+		-- motivo: sin este guard, la sonda da un rojo permanente que enseña a
+		-- ignorarla, que es la peor avería que puede tener una sonda.
+		if (ruta.guaridas or Config.GUARIDAS_POR_RUTA) <= 0 then
+			continue
+		end
 		local cerca = 0
 		for _, g in sitios do
 			if g:GetAttribute("ruta") == ruta.id and alTrayecto(g.Position, ruta.destino) <= alcance then
@@ -564,6 +573,13 @@ local function refugios()
 	-- y pierde justo el tiempo que venía a ganar.
 	local alcance = Config.REFUGIO_DESVIO + Config.REFUGIO_RADIO
 	for _, ruta in Routes.todas() do
+		-- Salvo las que NO PIDEN NINGUNO, que hoy es el barrio: allí no hay ladrones,
+		-- así que no hay de qué refugiarse y el propio CityBuilder ni le busca sitio.
+		-- Exigírselo aquí es reclamar que incumpla su diseño, y deja un rojo
+		-- permanente en la sonda -- que es como se aprende a no mirarla.
+		if (ruta.refugios or Config.REFUGIOS_POR_RUTA) <= 0 then
+			continue
+		end
 		local cerca = 0
 		for _, sitio in sitios do
 			if alTrayecto(sitio, ruta.destino) <= alcance then

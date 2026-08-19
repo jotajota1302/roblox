@@ -993,6 +993,44 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		table.insert(puestos, poste)
 	end
 
+	-- Y SE ASIENTAN, en una pasada aparte y con la pieza ya construida.
+	--
+	-- Todo lo de arriba elige un SITIO; esto arregla la ALTURA, que es otra cosa y
+	-- puede venir mal por tres caminos distintos: de un punto vecino (cuando se
+	-- busca calle y luego se rechaza el desplazamiento), del fallback --que cae a
+	-- la Y del trayecto, 19,2, sin mirar si ahí abajo hay algo-- o simplemente de
+	-- un relieve que cambió al acortar las rutas. Medido el 19/08: cuatro postes
+	-- de la verde, la ámbar y la roja flotaban entre 3,5 y 6,8 studs.
+	--
+	-- Y NO ES ESTÉTICO. HeatService mide `(root.Position - poste.Position).Magnitude`
+	-- en 3D, así que la altura se come radio: un poste con 6,8 studs de vuelo pasa
+	-- de alcanzar 34 studs a ras de suelo a alcanzar 31,6. La ruta vigila menos de
+	-- lo que su selector promete, y --como siempre en este fichero-- sin que nada
+	-- reviente.
+	--
+	-- El rayo excluye SÓLO el propio poste, no nuestra carpeta entera: hay postes
+	-- que se apoyan legítimamente sobre la losa del polígono, y buscarles suelo
+	-- ignorando lo que construimos nosotros los declararía "en el aire" estando
+	-- perfectamente puestos. Lo que sostiene al poste vale, sea de quien sea.
+	for _, poste in puestos do
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { poste }
+		local base = poste.Position.Y - poste.Size.Y / 2
+		local golpe =
+			workspace:Raycast(Vector3.new(poste.Position.X, base + 1, poste.Position.Z), Vector3.new(0, -60, 0), params)
+		if golpe then
+			local vuelo = base - golpe.Position.Y
+			if vuelo > 1 then
+				poste.Position -= Vector3.new(0, vuelo, 0)
+				local lente = poste:FindFirstChild("Lente")
+				if lente and lente:IsA("BasePart") then
+					lente.Position -= Vector3.new(0, vuelo, 0)
+				end
+			end
+		end
+	end
+
 	return puestos
 end
 
@@ -1071,10 +1109,15 @@ local function sembrarContactos(
 		-- estar apartado. Pasado eso, no hay sitio: mejor ninguno que uno lejos.
 		local desplazado = math.sqrt((cx - x) ^ 2 + (cz - z) ^ 2)
 		-- Al racimo se le da margen porque su trabajo es estar apartado. Al rastro
-		-- se le da MENOS que a un suelto de antes (24 en vez de 40): una píldora
-		-- corrida 40 studs rompe la fila, y una fila con un diente fuera deja de
-		-- leerse como camino, que es justo lo único que el rastro tiene que hacer.
-		local margen = if contacto.tipo == "racimo" then 60 else 24
+		-- se le da MENOS QUE EL RADIO DE RECOGIDA, y ése es el número correcto por
+		-- una razón que la sonda del mundo cazó midiendo: con margen 24 y radio 10,
+		-- **19 de las 55 piezas de la roja quedaron a 21-40 studs del camino**, o
+		-- sea plantadas, encendidas, contadas... y fuera del alcance de quien va por
+		-- la ruta. La misma firma de siempre: nada revienta y el sistema no existe.
+		--
+		-- Atado al radio y no escrito a mano para que no puedan volver a separarse:
+		-- el día que alguien toque uno, el otro le sigue.
+		local margen = if contacto.tipo == "racimo" then 60 else Config.CONTACTO_RADIO - 2
 		if desplazado > margen then
 			continue
 		end
@@ -2246,15 +2289,6 @@ function CityBuilder.build(): Mundo
 		end
 	end
 
-	-- LOS CONTACTOS, después de las guaridas porque se anclan a ellas.
-	local contactos: { BasePart } = {}
-	for _, ruta in Routes.todas() do
-		local camino = caminoDeRuta(ruta)
-		for _, pieza in sembrarContactos(ciudad, ruta, camino, guaridasDeRuta[ruta.id] or {}, mundo) do
-			table.insert(contactos, pieza)
-		end
-	end
-
 	-- Los refugios esquivan tanto a los otros refugios como a las guaridas: una
 	-- comisaría plantada encima de la guarida que venía a rodear no es un descuido
 	-- gracioso, es el sitio al que corres siendo el sitio del que huyes.
@@ -2265,6 +2299,26 @@ function CityBuilder.build(): Mundo
 		if pieza then
 			table.insert(refugios, pieza.Position)
 			table.insert(tomados, pieza.Position)
+		end
+	end
+
+	-- LOS CONTACTOS, EL ÚLTIMO DE TODO, y el orden es la regla entera.
+	--
+	-- Se anclan a las guaridas, sí, pero el motivo de que vayan al final es otro y
+	-- lo destapó la sonda del mundo: se reparten sobre el camino que calcula el
+	-- pathfinder, y **cada cosa que se planta cambia ese camino**. Sembrándolos
+	-- antes que los refugios, el rastro de la ruta roja marcaba un recorrido que
+	-- luego una comisaría de 54×54 con pilares cortaba: 19 de sus 55 piezas
+	-- quedaban a 21-40 studs del camino de verdad, encendidas y fuera de alcance.
+	--
+	-- Una fila de luces que señala por dónde NO se puede ir es peor que no tener
+	-- fila, porque el jugador se fía. Así que el rastro se dibuja cuando la ciudad
+	-- ya no se mueve: lo que haya que plantar, se planta antes que esto.
+	local contactos: { BasePart } = {}
+	for _, ruta in Routes.todas() do
+		local camino = caminoDeRuta(ruta)
+		for _, pieza in sembrarContactos(ciudad, ruta, camino, guaridasDeRuta[ruta.id] or {}, mundo) do
+			table.insert(contactos, pieza)
 		end
 	end
 

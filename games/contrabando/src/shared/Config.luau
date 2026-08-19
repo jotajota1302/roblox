@@ -319,15 +319,25 @@ Config.RUTAS = {
 	-- aplica. Perder la primera carga de tu vida es la forma más rápida de que
 	-- alguien cierre el juego.
 	--
-	-- ⚠ EL DESTINO ESTÁ ESTIMADO, no medido: sale de interpolar entre el enganche
-	-- del polígono (-593, 679) y el destino verde. La sonda de SelfCheck comprueba
-	-- que tenga calle, que esté apoyado y que el camino a pie desde la salida mida
-	-- entre 200 y 350 studs; si sale rojo, es esta coordenada la que hay que mover.
+	-- EL DESTINO, YA MEDIDO (19/08). El anterior --(-428, 623)-- estaba interpolado
+	-- a ojo entre el enganche y la verde, y al medirlo con el pathfinder dentro del
+	-- juego resultó que **no tenía camino desde ninguna parte**: caía debajo de un
+	-- árbol de la ciudad, y la zona no era navegable en cincuenta studs a la
+	-- redonda. La ruta del tutorial, la primera que juega alguien, era imposible de
+	-- recorrer andando, y no lo dijo nadie porque nada revienta: la losa se planta,
+	-- la baliza se ve, y el jugador simplemente no llega.
+	--
+	-- Es la trampa de los árboles otra vez (`CLAUDE.md`): el rayo desde el cielo se
+	-- para en la copa, así que "el suelo" ahí sale a 87 studs de altura.
+	--
+	-- Éste está sobre calzada de verdad (Stone, no césped), sin copa encima, a 205
+	-- studs de camino desde la salida --dentro de los 200-350 que exige la sonda de
+	-- SelfCheck-- y a 358 del destino verde, que pide 250 como mínimo.
 	{
 		id = "barrio",
 		multiplicador = 0.4,
 		nivel = 1,
-		destino = Vector3.new(-428, 19.2, 623),
+		destino = Vector3.new(-518, 19.2, 583),
 		detectores = 1,
 		guaridas = 0,
 		-- SIN REFUGIOS, y no es un olvido: un refugio es el sitio donde te salvas de
@@ -357,8 +367,17 @@ Config.RUTAS = {
 		-- romper: `Mapa.spec` exige que dos destinos no queden a menos de 250 studs
 		-- --dos porterías juntas se confunden al llegar, y entregar en la
 		-- equivocada es perder el viaje entero--. Los puntos más cercanos del
-		-- camino caían a 206-245 del barrio. Éste es el primero que se separa.
-		destino = Vector3.new(-170, 19.2, 669),
+		-- camino caían a 206-245 del barrio.
+		--
+		-- Y ESTÁ EN LLANO, que fue la segunda vuelta. El primer sitio elegido
+		-- (-170, 669) cumplía las distancias pero caía en una cuesta: su carretera
+		-- de acceso salía con un escalón de 4,2 studs y la sonda lo cazó -- "ahí se
+		-- traba el vehículo". Además dejaba el trayecto de la verde casi paralelo al
+		-- de la ámbar (los dos a z≈620-670), y como Shelter descarta los refugios
+		-- que caen a menos de 320 studs entre sí, LA ÁMBAR SE QUEDABA SIN NINGUNO.
+		-- Bajarlo al sur separa los dos corredores y arregla las dos cosas de una
+		-- vez. Medido: desnivel 0,0 en 25 studs a la redonda.
+		destino = Vector3.new(-230, 19.2, 580),
 		detectores = 3,
 		pvp = "ninguno",
 	},
@@ -536,7 +555,20 @@ Config.REFUGIO_MARGEN_DESTINO = 140
 -- Y la distancia mínima entre dos refugios cualesquiera, aunque sean de rutas
 -- distintas: sin ella, dos rutas que pasan cerca plantan los suyos casi pegados
 -- y vuelven a parecer mobiliario urbano.
-Config.REFUGIO_SEPARACION = 320
+--
+-- BAJADA DE 320 A 240 el 19/08, al comprimir las rutas, y es una consecuencia
+-- aritmética y no un apaño. Un refugio tiene que caer entre REFUGIO_MARGEN_CASA
+-- (200) y el destino menos REFUGIO_MARGEN_DESTINO (140): con la verde en 558 de
+-- recta, eso deja un tramo útil de 218 studs. Los tres corredores que piden
+-- refugio salen del MISMO almacén, así que en sus primeros cientos de studs van
+-- casi pegados -- y exigir 320 entre ellos hacía imposible plantar más de dos.
+-- Medido: se plantaban 2 para 3 rutas, y la que se quedaba fuera cambiaba según
+-- dónde cayeran los destinos.
+--
+-- Una ruta con ladrones y sin sitio donde refugiarse es una promesa rota, así que
+-- entre "no pegados" y "que exista", manda que exista. 240 sigue siendo más de
+-- cinco veces el radio de un refugio (45): no se tocan ni se confunden.
+Config.REFUGIO_SEPARACION = 240
 
 -- Patrullas por nivel de calor, y a qué velocidad van.
 --
@@ -699,7 +731,12 @@ Config.VELOCIDAD_MAXIMA_PLAUSIBLE = 40
 -- No ocupan hueco del zurrón y NO SE PUEDEN ROBAR, a propósito: la economía de
 -- monedas y el eje de riesgo ya están equilibrados, y una moneda paralela que no
 -- los toca no puede desequilibrarlos.
-Config.CONTACTO_RADIO = 10 -- studs de recogida, por proximidad: no hay que pulsar
+-- Studs de recogida, por proximidad: no hay que pulsar. Subido de 10 a 14 el
+-- 19/08 al entrar el rastro, y no por generosidad: con una fila continua, recoger
+-- tiene que ser FLUIDO. Diez studs obligaban a pisar cada píldora casi en el
+-- centro, y una fila que se rompe porque has pasado a un metro no enseña "sigue
+-- el camino", enseña "vete pegado a la línea". Catorce perdona el bordillo.
+Config.CONTACTO_RADIO = 14
 Config.CONTACTO_VALOR_SUELTO = 1
 Config.CONTACTO_VALOR_RACIMO = 5
 -- El rastro no paga: su trabajo es el CAMINO y la VELOCIDAD, no la moneda. Si

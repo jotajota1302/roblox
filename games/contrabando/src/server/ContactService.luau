@@ -78,9 +78,11 @@ local ultimaRuta: { [Player]: string? } = {}
 -- vuelta monta un ciclo de require que mata los dos módulos. Vigilarlo tiene
 -- además la ventaja de cubrir CUALQUIER vía por la que cambie la ruta -- elegirla
 -- en la valla, heredarla de una víctima al robar, o la que venga mañana.
--- Cuándo recogió cada uno su última pieza. En memoria y no en el estado guardado,
--- por lo mismo que la recarga del señuelo: un reloj que sobrevive a cerrar el
--- juego sólo castiga a quien se desconecta, y desconectarse no es una jugada.
+--
+-- Y CUÁNDO RECOGIÓ CADA UNO su última pieza, que es lo que mide la cadena. En
+-- memoria y no en el estado guardado, por lo mismo que la recarga del señuelo: un
+-- reloj que sobrevive a cerrar el juego sólo castiga a quien se desconecta, y
+-- desconectarse no es una jugada.
 local ultimoContacto: { [Player]: number } = {}
 
 local function vigilarRuta(player: Player, estado: any)
