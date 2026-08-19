@@ -349,6 +349,11 @@ function CargoService.mostrarCarga(player: Player)
 	cartel.AlwaysOnTop = false -- tapado por edificios: esconderse tiene que servir
 	cartel.MaxDistance = 140
 	cartel.Adornee = root
+	-- Tampoco a su dueño, por lo mismo que la placa del nombre: esto existe para que
+	-- QUIEN TE VE PASAR decida si le merece la pena perseguirte. Tú ya sabes lo que
+	-- llevas --lo dice el HUD, con el número exacto-- y desde tu cámara el cartel te
+	-- queda flotando delante de la cara.
+	cartel.PlayerToHideFrom = player
 	cartel.Parent = bulto
 
 	local texto = Instance.new("TextLabel")

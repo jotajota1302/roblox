@@ -74,6 +74,16 @@ function Nameplates.refrescar(player: Player)
 		-- de servir para nada -- y esconderse es media mecánica del juego.
 		placa.AlwaysOnTop = false
 		placa.MaxDistance = ALCANCE
+		-- Y NO SE LA ENSEÑA A SU DUEÑO. Toda esta placa es información PARA LOS
+		-- DEMÁS --quién eres y de qué nivel-- y tú ya lo sabes; a cambio, como la
+		-- cámara va detrás del personaje, tu propio nombre te queda plantado en
+		-- mitad de la pantalla en letras grandes. Se vio en una captura: "jotajota1302
+		-- · lv 1" ocupando el centro justo por donde se mira al correr.
+		--
+		-- `PlayerToHideFrom` lo resuelve en el sitio correcto, el servidor, sin que
+		-- el cliente tenga que ir buscando y apagando billboards -- que es como se
+		-- acaba con dos sitios decidiendo si algo se ve.
+		placa.PlayerToHideFrom = player
 		placa.Parent = cabeza
 
 		local nombre = Instance.new("TextLabel")
