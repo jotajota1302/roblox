@@ -505,6 +505,38 @@ local function destinoParaCobrar(estado, root: BasePart): (BasePart?, string)
 	return cerca, "ok"
 end
 
+-- OJO AL SITIO: esta función tiene que estar declarada ANTES de cobrar(), que es
+-- quien la llama. En Luau un `local function` no existe todavía en las líneas de
+-- arriba, así que teniéndola debajo valía `nil` y cobrar() reventaba justo después de
+-- pagar -- el dinero entraba, y ni el aviso de cobro ni la vuelta a casa llegaban
+-- nunca. Nada avisó: el jugador cobraba y se quedaba plantado en el destino.
+--
+-- Es la tercera vez que este proyecto paga un local usado antes de declararse.
+-- EL REGRESO INSTANTÁNEO. Se mueve el modelo entero con PivotTo, no el CFrame de la
+-- raíz: el personaje es propiedad de red del cliente y escribirle la posición pieza a
+-- pieza desde el servidor se revierte en cuanto el cliente manda su siguiente
+-- actualización. Un pivote sobre el modelo sí se replica.
+--
+-- Se busca el punto de aparición real en vez de calcular una posición junto al
+-- almacén: la losa tiene la nave ocupándole el fondo, y aparecer dentro de un objeto
+-- es de las primeras cosas que ve un jugador -- ya pasó una vez, encima de la
+-- furgoneta. Si por lo que sea no está, se cae al lado del almacén y se avisa.
+local function volverACasa(player: Player)
+	local char = player.Character
+	if char == nil then
+		return
+	end
+	local mundo = workspace:FindFirstChild("Mundo")
+	local punto = mundo and mundo:FindFirstChild("AparicionAlmacen")
+	local sitio = if punto and punto:IsA("BasePart")
+		then punto.Position + Vector3.new(0, 4, 0)
+		else Config.ALMACEN_POS + Vector3.new(0, 6, 40)
+	if punto == nil then
+		warn("[Contrabando] sin punto de aparición: se vuelve junto al almacén")
+	end
+	char:PivotTo(CFrame.new(sitio))
+end
+
 -- El cobro en sí. No comprueba nada: quien llama ya lo ha hecho.
 local function cobrar(player: Player, destino: BasePart)
 	local estado = PlayerState.get(player)
@@ -659,31 +691,6 @@ function CargoService.arrancarEntregaAutomatica()
 			end)
 		end
 	end)
-end
-
--- EL REGRESO INSTANTÁNEO. Se mueve el modelo entero con PivotTo, no el CFrame de la
--- raíz: el personaje es propiedad de red del cliente y escribirle la posición pieza a
--- pieza desde el servidor se revierte en cuanto el cliente manda su siguiente
--- actualización. Un pivote sobre el modelo sí se replica.
---
--- Se busca el punto de aparición real en vez de calcular una posición junto al
--- almacén: la losa tiene la nave ocupándole el fondo, y aparecer dentro de un objeto
--- es de las primeras cosas que ve un jugador -- ya pasó una vez, encima de la
--- furgoneta. Si por lo que sea no está, se cae al lado del almacén y se avisa.
-local function volverACasa(player: Player)
-	local char = player.Character
-	if char == nil then
-		return
-	end
-	local mundo = workspace:FindFirstChild("Mundo")
-	local punto = mundo and mundo:FindFirstChild("AparicionAlmacen")
-	local sitio = if punto and punto:IsA("BasePart")
-		then punto.Position + Vector3.new(0, 4, 0)
-		else Config.ALMACEN_POS + Vector3.new(0, 6, 40)
-	if punto == nil then
-		warn("[Contrabando] sin punto de aparición: se vuelve junto al almacén")
-	end
-	char:PivotTo(CFrame.new(sitio))
 end
 
 -- La entrega MANUAL (tecla E). Se queda como red de seguridad y, sobre todo,

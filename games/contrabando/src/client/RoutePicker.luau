@@ -191,7 +191,16 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 			"Detalle",
 			3,
 			0.2,
-			string.format("%dm  ·  %d hotspots  ·  %d dens", Routes.distancia(ruta.id), fichadas, madrigueras),
+			-- math.floor y no %d a secas: en Luau, formatear un float con %d revienta
+			-- ("number has no integer representation") y la cadena sale con los
+			-- catorce decimales -- "212.4923553466797m", que es lo que se vio en
+			-- pantalla. La distancia es una magnitud, así que casi nunca es entera.
+			string.format(
+				"%dm  ·  %d hotspots  ·  %d dens",
+				math.floor(Routes.distancia(ruta.id) + 0.5),
+				fichadas,
+				madrigueras
+			),
 			Enum.Font.GothamMedium,
 			0.35
 		)

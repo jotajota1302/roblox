@@ -77,7 +77,8 @@ local TEXTOS: { [string]: string } = {
 	MISSION_TAKE_HOME = "Take the cargo to your warehouse",
 	MISSION_PICK_RETURN = "Pick up the return cargo",
 	MISSION_DELIVER_IN = "Deliver in {ruta}",
-	MISSION_PICK_ROUTE = "Pick a route at the exit",
+	-- Ya no se elige en la salida: desde el 19/08 el selector sale al coger la carga.
+	MISSION_PICK_ROUTE = "Pick where you are taking it",
 	MISSION_BACK_TO_VEHICLE = "Go back for your loaded vehicle",
 	MISSION_BUY_RIDE = "Buy the {vehiculo} at the workshop",
 	MISSION_LOAD_GOODS = "Load goods at the warehouse",
@@ -95,7 +96,7 @@ local TEXTOS: { [string]: string } = {
 	COMPASS_BACK_HOME = "Back to the warehouse",
 	COMPASS_RETURN_CARGO = "Return cargo there",
 	COMPASS_DROP = "{ruta} drop",
-	COMPASS_PICK_ROUTE = "Pick a route at the exit",
+	COMPASS_PICK_ROUTE = "Pick where you are taking it",
 	COMPASS_YOUR_WAREHOUSE = "Your warehouse",
 
 	-- ---- Selector de ruta -------------------------------------------------

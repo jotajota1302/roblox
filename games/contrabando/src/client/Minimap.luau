@@ -86,32 +86,50 @@ end
 -- manzanas oscuras encima. Lo claro es por donde se pasa, que es la convención de
 -- cualquier plano y no necesita leyenda. Trece rectángulos en vez de setecientos.
 local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
-	local xMin, xMax, zMin, zMax = Grid.limites()
+	-- EL PLANO INCLUYE EL RECINTO, no sólo la ciudad.
+	--
+	-- La primera versión dibujaba únicamente la retícula, y el almacén está FUERA de
+	-- ella: el recinto ocupa de Z 755 a 1005 y el mapa acaba en 767. O sea que el
+	-- jugador, que empieza y termina cada viaje en casa, aparecía fuera del plano --
+	-- y como el lienzo se centra en él, el mapa se iba a una esquina del panel. Es
+	-- exactamente lo que se veía en la captura: un recuadro claro descolgado arriba a
+	-- la derecha y el punto blanco en ninguna parte.
+	local cx, cz, tx, tz =
+		Config.POLIGONO_CENTRO.X, Config.POLIGONO_CENTRO.Z, Config.POLIGONO_TAMANO.X, Config.POLIGONO_TAMANO.Y
+	local rx0, rx1 = cx - tx / 2, cx + tx / 2
+	local rz0, rz1 = cz - tz / 2, cz + tz / 2
+
+	local gx0, gx1, gz0, gz1 = Grid.limites()
+	local xMin, xMax = math.min(gx0, rx0), math.max(gx1, rx1)
+	local zMin, zMax = math.min(gz0, rz0), math.max(gz1, rz1)
+
 	capa.Size = UDim2.fromOffset((xMax - xMin) * ESCALA, (zMax - zMin) * ESCALA)
 
-	-- El asfalto: una sola pieza que cubre todo. Lo que no tape una manzana es calle.
-	local asfalto = Instance.new("Frame")
-	asfalto.Name = "Asfalto"
-	asfalto.Position = UDim2.fromOffset(0, 0)
-	asfalto.Size = UDim2.fromScale(1, 1)
-	asfalto.BorderSizePixel = 0
-	asfalto.BackgroundColor3 = Color3.fromRGB(196, 198, 204)
-	asfalto.ZIndex = 1
-	asfalto.Parent = capa
+	local function rect(nombre: string, x0: number, x1: number, z0: number, z1: number, color: Color3, orden: number)
+		local r = Instance.new("Frame")
+		r.Name = nombre
+		r.Position = UDim2.fromOffset((x0 - xMin) * ESCALA, (z0 - zMin) * ESCALA)
+		r.Size = UDim2.fromOffset((x1 - x0) * ESCALA, (z1 - z0) * ESCALA)
+		r.BorderSizePixel = 0
+		r.BackgroundColor3 = color
+		r.ZIndex = orden
+		r.Parent = capa
+	end
+
+	-- El asfalto de la ciudad. Lo que no tape una manzana es calle: es la convención
+	-- de cualquier plano --lo claro es por donde se pasa-- y no necesita leyenda.
+	rect("Asfalto", gx0, gx1, gz0, gz1, Color3.fromRGB(196, 198, 204), 1)
 
 	for col = 0, Grid.COLUMNAS - 1 do
 		for fila = 0, Grid.FILAS - 1 do
 			local x0, x1, z0, z1 = Grid.manzana(col, fila)
-			local m = Instance.new("Frame")
-			m.Name = string.format("Manzana_%d_%d", col, fila)
-			m.Position = UDim2.fromOffset((x0 - xMin) * ESCALA, (z0 - zMin) * ESCALA)
-			m.Size = UDim2.fromOffset((x1 - x0) * ESCALA, (z1 - z0) * ESCALA)
-			m.BorderSizePixel = 0
-			m.BackgroundColor3 = Color3.fromRGB(58, 62, 74)
-			m.ZIndex = 2
-			m.Parent = capa
+			rect(string.format("Manzana_%d_%d", col, fila), x0, x1, z0, z1, Color3.fromRGB(58, 62, 74), 2)
 		end
 	end
+
+	-- Y el recinto, en su propio tono: es tuyo, no es ciudad, y saber dónde queda casa
+	-- es la mitad de orientarse.
+	rect("Recinto", rx0, rx1, rz0, rz1, Color3.fromRGB(120, 104, 66), 1)
 
 	return Vector2.new(xMin, zMin)
 end
