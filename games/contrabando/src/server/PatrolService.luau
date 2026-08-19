@@ -237,7 +237,7 @@ local function vestir(modelo: Model)
 		-- que te perseguía alguien de quien no podías saber ni qué era.
 		local placa = Instance.new("BillboardGui")
 		placa.Name = "Placa"
-		placa.Size = UDim2.fromScale(4, 1.1)
+		placa.Size = UDim2.fromOffset(120, 32)
 		placa.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
 		placa.AlwaysOnTop = false
 		placa.MaxDistance = 320

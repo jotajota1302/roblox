@@ -202,7 +202,7 @@ function Garage.actualizar(mundo: Instance?, estado: any)
 			-- elegir por el precio, que es justo lo que el garaje viene a cambiar.
 			local cartel = Instance.new("BillboardGui")
 			cartel.Name = "Ficha"
-			cartel.Size = UDim2.fromScale(9, 3)
+			cartel.Size = UDim2.fromOffset(210, 64)
 			cartel.StudsOffsetWorldSpace = Vector3.new(0, 4.5, 0)
 			cartel.AlwaysOnTop = false
 			cartel.MaxDistance = 90
@@ -227,7 +227,7 @@ function Garage.actualizar(mundo: Instance?, estado: any)
 
 			local aviso = Instance.new("ProximityPrompt")
 			aviso.Name = "PromptGaraje"
-			aviso.ActionText = if esActivo then "Guardar" else "Sacar"
+			aviso.ActionText = if esActivo then "Store" else "Take out"
 			aviso.ObjectText = def.nombre
 			aviso.MaxActivationDistance = 10
 			aviso.HoldDuration = 0

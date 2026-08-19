@@ -29,6 +29,9 @@ export type Ruta = {
 	-- Cuántas guaridas le tocan. nil = las de siempre; 0 = ninguna, que es lo que
 	-- pide el barrio: ahí el peligro se enseña, no se aplica.
 	guaridas: number?,
+	-- Y cuántos refugios. Mismo criterio: sin ladrones no hay de qué refugiarse, y
+	-- pedir sitio para uno se lo quita a una ruta que sí lo necesita.
+	refugios: number?,
 }
 
 local Routes = {}

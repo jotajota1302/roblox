@@ -2,7 +2,14 @@
 local Routes = require(script.Parent.Parent.Routes)
 
 return function(kit)
-	kit.eq("hay tres rutas", #Routes.todas(), 3)
+	-- CUATRO desde que existe el barrio, que es la rampa de entrada. Se comprueba
+	-- que estén LAS QUE TIENEN QUE ESTAR y no cuántas: contar deja la prueba
+	-- fallando cada vez que se añade una ruta, que es justo cuando menos falta hace
+	-- que una prueba grite.
+	for _, id in { "barrio", "verde", "ambar", "roja" } do
+		kit.truthy("existe la ruta " .. id, Routes.existe(id))
+	end
+	kit.eq("el barrio paga menos que la verde", Routes.get("barrio").multiplicador < 1, true)
 	kit.eq("la verde paga x1", Routes.get("verde").multiplicador, 1)
 	kit.eq("la ambar paga x3", Routes.get("ambar").multiplicador, 3)
 	kit.eq("la roja paga x10", Routes.get("roja").multiplicador, 10)
@@ -94,6 +101,6 @@ return function(kit)
 	kit.eq("y la roja pide sus dos cosas", Routes.requisitoPara("roja", sinHitos), "Level 8 and a road vehicle")
 
 	-- Lo que se lee en el selector sale de la regla, no de un texto a mano.
-	kit.truthy("el requisito de la roja menciona el vehiculo", string.find(Routes.requisito("roja"), "motor") ~= nil)
-	kit.truthy("y el de la ambar solo el nivel", string.find(Routes.requisito("ambar"), "Nivel") ~= nil)
+	kit.truthy("el requisito de la roja menciona el vehiculo", string.find(Routes.requisito("roja"), "vehicle") ~= nil)
+	kit.truthy("y el de la ambar solo el nivel", string.find(Routes.requisito("ambar"), "Level") ~= nil)
 end

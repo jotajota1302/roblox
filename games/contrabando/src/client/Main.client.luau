@@ -329,13 +329,13 @@ local function accionesActuales(estado: any): { Hud.Accion }
 		})
 	end
 	if #estado.cajas > 0 and (estado.ruta ~= nil or estado.retornoZona ~= nil) then
-		table.insert(lista, { tecla = etiqueta("E", "RB"), accion = "entregar la carga" })
+		table.insert(lista, { tecla = etiqueta("E", "RB"), accion = "deliver the cargo" })
 	end
 	-- LO QUE SIEMPRE SE PUEDE, y que hasta ahora no se decía en ningún sitio: el
 	-- aviso de proximidad lo dibuja Roblox con el botón correcto de cada aparato,
 	-- pero sólo aparece cuando ya estás encima. Nombrarlo aquí es lo que hace que
 	-- alguien que acaba de entrar sepa que hay algo que pulsar.
-	table.insert(lista, { tecla = etiqueta("E", "X"), accion = "recoger, comprar y usar" })
+	table.insert(lista, { tecla = etiqueta("E", "X"), accion = "pick up, buy and use" })
 	return lista
 end
 

@@ -252,7 +252,7 @@ function CargoService.mostrarCarga(player: Player)
 
 	local cartel = Instance.new("BillboardGui")
 	cartel.Name = "EtiquetaCarga"
-	cartel.Size = UDim2.fromScale(9, 1.4)
+	cartel.Size = UDim2.fromOffset(200, 38)
 	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
 	cartel.AlwaysOnTop = false -- tapado por edificios: esconderse tiene que servir
 	cartel.MaxDistance = 140

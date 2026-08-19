@@ -199,7 +199,7 @@ local function guardarAparcado(player: Player, vehiculo: string, donde: Vector3)
 
 	local cartel = Instance.new("BillboardGui")
 	cartel.Name = "Cartel"
-	cartel.Size = UDim2.fromScale(9, 2.4)
+	cartel.Size = UDim2.fromOffset(200, 46)
 	cartel.StudsOffsetWorldSpace = Vector3.new(0, 16, 0)
 	cartel.AlwaysOnTop = true
 	cartel.MaxDistance = 320

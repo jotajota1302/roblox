@@ -131,7 +131,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto
 		-- ciegas, y volvería a no haber nada que decidir.
 		local cartel = Instance.new("BillboardGui")
 		cartel.Name = "Etiqueta"
-		cartel.Size = UDim2.fromScale(8, 1.3)
+		cartel.Size = UDim2.fromOffset(180, 34)
 		cartel.StudsOffsetWorldSpace = Vector3.new(0, 2.8, 0)
 		cartel.AlwaysOnTop = true
 		cartel.MaxDistance = 70

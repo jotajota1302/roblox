@@ -100,19 +100,27 @@ RideCatalog.MODELOS = {
 		offset = Vector3.new(0, -1.9, 0),
 		giroY = 0,
 	},
+	-- COCHE Y FURGONETA, generados con Cube 3D el 19/08. Los de antes eran los dos
+	-- ÚNICOS del catálogo SIN TEXTURA -- medido: los otros cinco la tenían -- y una
+	-- malla sin textura es una silueta de color plano, sin ventanas, sin faros y sin
+	-- rejilla. Lo dijo JJ mirando el taller: "el coche y la furgoneta no tienen
+	-- diseños 3D bien, el resto sí", y tenía razón exacta.
+	--
+	-- El campo `color` deja de hacer falta aquí: era el parche con el que se tapaba
+	-- justamente esto.
 	coche = {
-		mesh = "rbxassetid://3906462734",
-		tamano = Vector3.new(5.5, 4.5, 11),
+		mesh = "rbxassetid://91230295309588",
+		textura = "rbxassetid://131334520926409",
+		tamano = Vector3.new(5.5, 4.5, 7),
 		offset = Vector3.new(0, -1.2, 0),
-		giroY = 270,
-		color = Color3.fromRGB(196, 84, 62),
+		giroY = 180,
 	},
 	furgoneta = {
-		mesh = "rbxassetid://18341462777",
+		mesh = "rbxassetid://127915759561484",
+		textura = "rbxassetid://105250135806690",
 		tamano = Vector3.new(6, 6, 12),
 		offset = Vector3.new(0, -0.6, 0),
-		giroY = 270,
-		color = Color3.fromRGB(214, 216, 220),
+		giroY = 180,
 	},
 } :: { [string]: Modelo }
 

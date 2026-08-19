@@ -164,20 +164,20 @@ function Hud.build()
 		return valor
 	end
 
-	dineroLabel = linea("Dinero", 1, "Dinero")
-	cargaLabel = linea("Carga", 2, "Carga")
-	almacenLabel = linea("Almacen", 3, "Almacen")
+	dineroLabel = linea("Dinero", 1, "Money")
+	cargaLabel = linea("Carga", 2, "Cargo")
+	almacenLabel = linea("Almacen", 3, "Warehouse")
 	-- La cuarta línea es CONDICIONAL: sólo se enseña con calor encima. Por eso el
 	-- panel sigue dimensionado para tres y se estira con el layout en vez de
 	-- reservar sitio para una línea que casi siempre estaría a cero.
-	calorLabel = linea("Calor", 4, "Peligro")
+	calorLabel = linea("Calor", 4, "Heat")
 	calorFila = calorLabel.Parent :: Frame
 	calorFila.Visible = false
 
 	-- La meta: lo próximo que puedes comprar y su precio. También condicional --
 	-- desaparece cuando ya no queda nada que comprar, en vez de quedarse ocupando
 	-- sitio con una línea vacía.
-	metaLabel = linea("Meta", 5, "Meta")
+	metaLabel = linea("Meta", 5, "Next")
 	metaFila = metaLabel.Parent :: Frame
 	metaFila.Visible = false
 
@@ -187,7 +187,7 @@ function Hud.build()
 	--
 	-- Van juntos porque son la misma cosa vista de dos maneras: lo que has
 	-- recogido en este viaje es lo que estás corriendo de más.
-	contactosLabel = linea("Contactos", 6, "Contactos")
+	contactosLabel = linea("Contactos", 6, "Contacts")
 	contactosFila = contactosLabel.Parent :: Frame
 	contactosFila.Visible = false
 	contactosLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
@@ -199,7 +199,7 @@ function Hud.build()
 	--
 	-- Condicional como las otras dos: cuando no queda ningún hito, desaparece en
 	-- vez de quedarse diciendo algo vacío.
-	objetivoLabel = linea("Objetivo", 7, "Objetivo")
+	objetivoLabel = linea("Objetivo", 7, "Goal")
 	objetivoFila = objetivoLabel.Parent :: Frame
 	objetivoFila.Visible = false
 	objetivoLabel.TextColor3 = Color3.fromRGB(150, 205, 235)
@@ -466,7 +466,7 @@ function Hud.update(estado: EstadoHud)
 	-- cuarta línea en un panel que tiene tres.
 	local etiquetaCarga = cargaLabel.Parent and cargaLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
 	if etiquetaCarga then
-		etiquetaCarga.Text = estado.vehiculoNombre or "Carga"
+		etiquetaCarga.Text = estado.vehiculoNombre or "Cargo"
 	end
 	-- El tope que se enseña es el de TU nave, no el de partida: si no, quien la
 	-- mejora ve "12/10" y no entiende nada.
@@ -513,7 +513,7 @@ function Hud.update(estado: EstadoHud)
 		objetivoLabel.Text = Goals.progreso(hito, estado.entregas or 0, estado.nivel or 1)
 		local etiqueta = objetivoLabel.Parent and objetivoLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
 		if etiqueta then
-			etiqueta.Text = "Objetivo"
+			etiqueta.Text = "Goal"
 		end
 	end
 

@@ -1385,7 +1385,9 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 
 		local etiqueta = Instance.new("BillboardGui")
 		etiqueta.Name = "Precio"
-		etiqueta.Size = UDim2.fromScale(9, 2.6)
+		-- 300 y no 230: con "Van · 15000 · level 10" el texto se cortaba por la
+		-- derecha. TextScaled encoge la fuente para caber en ALTO, no en ancho.
+		etiqueta.Size = UDim2.fromOffset(300, 54)
 		etiqueta.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
 		etiqueta.AlwaysOnTop = false
 		etiqueta.MaxDistance = 160
@@ -1806,7 +1808,7 @@ function CityBuilder.build(): Mundo
 
 		local cartel = Instance.new("BillboardGui")
 		cartel.Name = "Rotulo"
-		cartel.Size = UDim2.fromScale(10, 2.4)
+		cartel.Size = UDim2.fromOffset(210, 48)
 		cartel.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
 		cartel.AlwaysOnTop = false
 		cartel.MaxDistance = 140
@@ -2153,7 +2155,14 @@ function CityBuilder.build(): Mundo
 	-- sonda del mundo.
 	local grupos: { { Vector3 } } = {}
 	for _, ruta in Routes.todas() do
-		table.insert(grupos, Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, Config.REFUGIOS_POR_RUTA + 2))
+		-- Las rutas sin peligro NO PIDEN SITIO. Medido al entrar el barrio: sus
+		-- candidatos competían con los de la verde --Shelter.repartir descarta los
+		-- que caen a menos de 320 studs entre sí-- y la verde se quedaba sin
+		-- refugio. Un solar pedido por quien no lo necesita se lo quita a quien sí.
+		local cuantos = ruta.refugios or Config.REFUGIOS_POR_RUTA
+		if cuantos > 0 then
+			table.insert(grupos, Shelter.sitiosDeRuta(Config.ALMACEN_POS, ruta.destino, cuantos + 2))
+		end
 	end
 	-- LAS GUARIDAS, dos por ruta. Van antes que los refugios en el código y
 	-- después en importancia: son el peligro que se puede ver venir, y sin ellas

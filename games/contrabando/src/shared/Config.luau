@@ -339,6 +339,13 @@ Config.RUTAS = {
 		destino = Vector3.new(-428, 19.2, 623),
 		detectores = 1,
 		guaridas = 0,
+		-- SIN REFUGIOS, y no es un olvido: un refugio es el sitio donde te salvas de
+		-- los ladrones, y aquí no hay ladrones. Pero además arregla un fallo medido:
+		-- al entrar el barrio, sus candidatos a refugio competían con los de la
+		-- verde --Shelter.repartir descarta los que caen a menos de 320 studs entre
+		-- sí-- y LA VERDE SE QUEDABA SIN NINGUNO. Una ruta con peligro sin sitio
+		-- donde refugiarse es una promesa rota.
+		refugios = 0,
 		pvp = "ninguno",
 	},
 	{
