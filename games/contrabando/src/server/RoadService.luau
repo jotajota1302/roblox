@@ -25,6 +25,7 @@ local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local CargoService = require(script.Parent.CargoService)
 local Ride = require(script.Parent.Ride)
@@ -74,8 +75,8 @@ local function contenedor(): Folder
 	return nuevo
 end
 
-local function avisar(player: Player, texto: string, color: Color3)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+local function avisar(player: Player, clave: string, args: { [string]: any }?, color: Color3?)
+	Remotes.event(Remotes.AVISO):FireClient(player, clave, args, color)
 end
 
 -- Qué hay bajo los pies. Devuelve si es rodable y el punto.
@@ -213,7 +214,7 @@ local function guardarAparcado(player: Player, vehiculo: string, donde: Vector3)
 	texto.TextStrokeTransparency = 0.3
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "you parked here"
+	texto.Text = Strings.get("SIGN_PARKED")
 	texto.Parent = cartel
 
 	aparcados[player] = { vehiculo = vehiculo, modelo = modelo }
@@ -245,7 +246,7 @@ function RoadService.alternar(player: Player)
 	end
 	local vehiculo = estado.vehiculo
 	if vehiculo == nil or vehiculo == Config.VEHICULO_INICIAL then
-		avisar(player, "You do not have a vehicle yet", Color3.fromRGB(232, 176, 64))
+		avisar(player, "RIDE_NONE_YET", nil, Color3.fromRGB(232, 176, 64))
 		return
 	end
 
@@ -259,7 +260,8 @@ function RoadService.alternar(player: Player)
 		local dejadas = descargarEnElVehiculo(player, estado)
 		avisar(
 			player,
-			if dejadas > 0 then string.format("You park it here with %d items inside", dejadas) else "You park it here",
+			if dejadas > 0 then "RIDE_PARKED_WITH_CARGO" else "RIDE_PARKED",
+			{ cuantas = dejadas },
 			Color3.fromRGB(232, 176, 64)
 		)
 		PlayerState.sync(player)
@@ -279,7 +281,7 @@ function RoadService.alternar(player: Player)
 	local donde = guardado.modelo:GetPivot().Position
 	local cerca = (root.Position - donde).Magnitude
 	if cerca > DISTANCIA_RECOGIDA then
-		avisar(player, string.format("Your vehicle is %dm away", math.floor(cerca)), Color3.fromRGB(232, 176, 64))
+		avisar(player, "RIDE_TOO_FAR", { metros = math.floor(cerca) }, Color3.fromRGB(232, 176, 64))
 		return
 	end
 
@@ -289,7 +291,7 @@ function RoadService.alternar(player: Player)
 	Ride.montar(character, vehiculo)
 	local recuperadas = recuperarDelVehiculo(player, estado)
 	if recuperadas > 0 then
-		avisar(player, string.format("You pick your %d items back up", recuperadas), Color3.fromRGB(150, 220, 160))
+		avisar(player, "RIDE_CARGO_BACK", { cuantas = recuperadas }, Color3.fromRGB(150, 220, 160))
 	end
 	PlayerState.sync(player)
 end
@@ -339,7 +341,7 @@ local function paso(player: Player)
 		-- sitio donde se cambia de vehículo.
 		recoger(player)
 		bajadoAProposito[player] = nil
-		avisar(player, "Your vehicle went back to the workshop", Color3.fromRGB(150, 220, 160))
+		avisar(player, "RIDE_SENT_HOME", nil, Color3.fromRGB(150, 220, 160))
 		PlayerState.sync(player)
 	elseif montado and Roads.exigeCalzada(vehiculo) and not enCalzada then
 		-- SE BAJA, y el vehículo se queda en el último asfalto que pisó: dejarlo
@@ -350,9 +352,8 @@ local function paso(player: Player)
 		local dejadas = descargarEnElVehiculo(player, estado)
 		avisar(
 			player,
-			if dejadas > 0
-				then string.format("You get off: %d items stay in the vehicle", dejadas)
-				else "You get off: no driving here",
+			if dejadas > 0 then "RIDE_GET_OFF_WITH_CARGO" else "RIDE_GET_OFF_NO_ROAD",
+			{ cuantas = dejadas },
 			Color3.fromRGB(232, 176, 64)
 		)
 		PlayerState.sync(player)
@@ -372,7 +373,8 @@ local function paso(player: Player)
 			local recuperadas = recuperarDelVehiculo(player, estado)
 			avisar(
 				player,
-				if recuperadas > 0 then string.format("Back on it, with your %d items", recuperadas) else "Back on it",
+				if recuperadas > 0 then "RIDE_BACK_ON_WITH_CARGO" else "RIDE_BACK_ON",
+				{ cuantas = recuperadas },
 				Color3.fromRGB(150, 220, 160)
 			)
 			PlayerState.sync(player)

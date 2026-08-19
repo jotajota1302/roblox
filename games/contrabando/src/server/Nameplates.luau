@@ -27,6 +27,7 @@ local Players = game:GetService("Players")
 
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 
 local Nameplates = {}
@@ -98,7 +99,7 @@ function Nameplates.refrescar(player: Player)
 	local nombre = placa:FindFirstChild("Nombre") :: TextLabel?
 	local carga = placa:FindFirstChild("Carga") :: TextLabel?
 	if nombre then
-		nombre.Text = string.format("%s  ·  lv %d", player.DisplayName, nivel)
+		nombre.Text = Strings.get("NAMEPLATE_NAME", { jugador = player.DisplayName, nivel = nivel })
 		nombre.TextColor3 = colorDeNivel(nivel)
 	end
 	if carga then
@@ -123,7 +124,10 @@ function Nameplates.refrescar(player: Player)
 					end
 				end
 			end
-			carga.Text = string.format("carrying %d  ·  %s", #cajas, Goods.etiqueta(mejor.objeto, mejor.rareza))
+			carga.Text = Strings.get("NAMEPLATE_CARGO", {
+				cuantas = #cajas,
+				mejor = Goods.etiqueta(mejor.objeto, mejor.rareza),
+			})
 			carga.TextColor3 = Color3.fromRGB(238, 202, 122)
 		end
 	end

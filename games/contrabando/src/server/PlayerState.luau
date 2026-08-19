@@ -188,7 +188,8 @@ function PlayerState.sync(player: Player)
 		-- vehículo aparcado, el panel seguía anunciando la bici y su capacidad de
 		-- nueve mientras el personaje iba a pie con tres huecos. El HUD estaba
 		-- describiendo el garaje, no al jugador.
-		vehiculoNombre = if montado then vehiculo.nombre else aPie.nombre,
+		-- La CLAVE, no el nombre: el idioma es del jugador y el servidor no lo sabe.
+		vehiculoClave = "RIDE_" .. (if montado then vehiculo.id else aPie.id),
 		capacidad = if montado then vehiculo.capacidad else aPie.capacidad,
 		-- Lo que le queda por comprar, ya filtrado por su estado: el taller no
 		-- ofrece nada que no sea una mejora. Va con el NIVEL para que cada una

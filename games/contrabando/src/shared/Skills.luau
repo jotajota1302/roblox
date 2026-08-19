@@ -17,14 +17,17 @@
 	nuevas: lo que ya estaba equilibrado se mueve, no se sustituye.
 ]]
 
+local Strings = require(script.Parent.Strings)
+
 local Skills = {}
 
 export type Habilidades = { [string]: number }
 
 export type Definicion = {
+	-- El id es la clave: se guarda en el DataStore y de él salen el nombre y la
+	-- descripción ("SKILL_" .. id y "SKILL_" .. id .. "_DESC"). Aquí no se escribe
+	-- texto, para que no haya dos sitios donde escribirlo.
 	id: string,
-	nombre: string,
-	descripcion: string,
 	costes: { number },
 }
 
@@ -34,29 +37,29 @@ export type Definicion = {
 Skills.CATALOGO = {
 	{
 		id = "camuflaje",
-		nombre = "Camouflage",
-		descripcion = "Hotspots spot you from closer",
 		costes = { 20, 60, 150 },
 	},
 	{
 		id = "aguante",
-		nombre = "Grit",
-		descripcion = "You lose less cargo when they catch you",
 		costes = { 20, 60, 150 },
 	},
 	{
 		id = "vista",
-		nombre = "Eyes",
-		descripcion = "See dens and thieves from further away",
 		costes = { 20, 60, 150 },
 	},
 	{
 		id = "senuelo",
-		nombre = "Decoy",
-		descripcion = "Drop a lure: thieves go for it, not you",
 		costes = { 80 },
 	},
 } :: { Definicion }
+
+function Skills.nombre(id: string): string
+	return Strings.get("SKILL_" .. id)
+end
+
+function Skills.descripcion(id: string): string
+	return Strings.get("SKILL_" .. id .. "_DESC")
+end
 
 local function definicion(id: string): Definicion?
 	for _, d in Skills.CATALOGO do

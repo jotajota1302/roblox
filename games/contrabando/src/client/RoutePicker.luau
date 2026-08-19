@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 
 -- Cuántas guaridas hay PLANTADAS de verdad en esa ruta. Se cuentan del mundo y no
 -- se da por bueno el número del diseño: una guarida se omite si no encuentra suelo
@@ -72,7 +73,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	titulo.TextScaled = true
 	titulo.Font = Enum.Font.GothamBold
 	titulo.TextStrokeTransparency = 0.5
-	titulo.Text = "Which way out?"
+	titulo.Text = Strings.get("PICKER_TITLE")
 	titulo.ZIndex = 2
 	titulo.Parent = pantalla
 
@@ -224,7 +225,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	cerrar.TextColor3 = UiKit.APAGADO
 	cerrar.TextScaled = true
 	cerrar.Font = Enum.Font.GothamMedium
-	cerrar.Text = "Not now"
+	cerrar.Text = Strings.get("PICKER_NOT_NOW")
 	cerrar.AutoButtonColor = true
 	cerrar.ZIndex = 2
 	cerrar.Parent = pantalla
@@ -272,7 +273,10 @@ function RoutePicker.actualizar(estado: any)
 			local fichadas = (Routes.amenazas(id))
 			local madrigueras = guaridasDe(id)
 			detalle.Text = if puede
-				then string.format("%dm  ·  %d hotspots  ·  %d dens", Routes.distancia(id), fichadas, madrigueras)
+				then Strings.get(
+					"PICKER_DETAIL",
+					{ metros = Routes.distancia(id), fichadas = fichadas, guaridas = madrigueras }
+				)
 				-- Lo que falta DE VERDAD, sabiendo lo que ya tiene: una vez hecho el
 				-- hito, lo que falta vuelve a ser el nivel. Sin esto, la verde diría
 				-- "entrega tu primer paquete" para siempre.

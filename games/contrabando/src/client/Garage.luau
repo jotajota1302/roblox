@@ -26,6 +26,7 @@ local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("P
 local Roads = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Roads"))
 local Vehicles = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Vehicles"))
 local RideCatalog = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RideCatalog"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 
 local AssetService = game:GetService("AssetService")
 
@@ -216,19 +217,18 @@ function Garage.actualizar(mundo: Instance?, estado: any)
 			texto.TextStrokeTransparency = 0.35
 			texto.TextScaled = true
 			texto.Font = Enum.Font.GothamBold
-			texto.Text = string.format(
-				"%s%s\n%d huecos  ·  %s",
-				def.nombre,
-				if esActivo then "  (out)" else "",
-				def.capacidad,
-				if Roads.exigeCalzada(id) then "road only" else "goes anywhere"
-			)
+			texto.Text = Strings.get("GARAGE_CARD", {
+				vehiculo = Strings.ref("RIDE_" .. id),
+				fuera = if esActivo then Strings.get("GARAGE_OUT") else "",
+				huecos = def.capacidad,
+				terreno = Strings.get(if Roads.exigeCalzada(id) then "GARAGE_ROAD_ONLY" else "GARAGE_ANYWHERE"),
+			})
 			texto.Parent = cartel
 
 			local aviso = Instance.new("ProximityPrompt")
 			aviso.Name = "PromptGaraje"
-			aviso.ActionText = if esActivo then "Store" else "Take out"
-			aviso.ObjectText = def.nombre
+			aviso.ActionText = Strings.get(if esActivo then "GARAGE_STORE" else "GARAGE_TAKE_OUT")
+			aviso.ObjectText = Strings.get("RIDE_" .. id)
 			aviso.MaxActivationDistance = 10
 			aviso.HoldDuration = 0
 			aviso.RequiresLineOfSight = false

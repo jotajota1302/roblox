@@ -22,10 +22,10 @@
 ]]
 
 local Config = require(script.Parent.Config)
+local Strings = require(script.Parent.Strings)
 
 export type Objeto = {
 	id: string,
-	nombre: string,
 	-- Referencia a Config.RAREZAS: de ahí salen el multiplicador y el color.
 	rareza: string,
 	-- Referencia a Config.TAMANOS: de ahí salen los huecos y el vehículo mínimo.
@@ -47,46 +47,43 @@ local CATALOGO: { Objeto } = {
 	-- Pequeños: caben andando. El pan de cada día.
 	{
 		id = "sobre",
-		nombre = "Sealed envelope",
 		rareza = "marcada",
 		tamano = "pequeno",
 		frecuencia = 10,
 		forma = "sobre",
 	},
-	{ id = "joyero", nombre = "Jewel box", rareza = "sellada", tamano = "pequeno", frecuencia = 3, forma = "joyero" },
-	{ id = "frasco", nombre = "Vial", rareza = "comun", tamano = "pequeno", frecuencia = 22, forma = "frasco" },
-	{ id = "libro", nombre = "Old book", rareza = "comun", tamano = "pequeno", frecuencia = 18, forma = "libro" },
+	{ id = "joyero", rareza = "sellada", tamano = "pequeno", frecuencia = 3, forma = "joyero" },
+	{ id = "frasco", rareza = "comun", tamano = "pequeno", frecuencia = 22, forma = "frasco" },
+	{ id = "libro", rareza = "comun", tamano = "pequeno", frecuencia = 18, forma = "libro" },
 
 	-- Medianos: a partir del monopatín.
-	{ id = "maletin", nombre = "Briefcase", rareza = "marcada", tamano = "mediano", frecuencia = 9, forma = "maletin" },
+	{ id = "maletin", rareza = "marcada", tamano = "mediano", frecuencia = 9, forma = "maletin" },
 	{
 		id = "cajon",
-		nombre = "Fruit crate",
 		rareza = "comun",
 		tamano = "mediano",
 		frecuencia = 16,
 		forma = "cajon",
 	},
-	{ id = "maceta", nombre = "Flower pot", rareza = "comun", tamano = "mediano", frecuencia = 10, forma = "maceta" },
-	{ id = "urna", nombre = "Urn", rareza = "sellada", tamano = "mediano", frecuencia = 4, forma = "urna" },
+	{ id = "maceta", rareza = "comun", tamano = "mediano", frecuencia = 10, forma = "maceta" },
+	{ id = "urna", rareza = "sellada", tamano = "mediano", frecuencia = 4, forma = "urna" },
 
 	-- Grandes: bicicleta o moto.
 	{
 		id = "television",
-		nombre = "TV set",
 		rareza = "marcada",
 		tamano = "grande",
 		frecuencia = 6,
 		forma = "television",
 	},
-	{ id = "baul", nombre = "Trunk", rareza = "sellada", tamano = "grande", frecuencia = 4, forma = "baul" },
-	{ id = "barril", nombre = "Barrel", rareza = "comun", tamano = "grande", frecuencia = 7, forma = "barril" },
+	{ id = "baul", rareza = "sellada", tamano = "grande", frecuencia = 4, forma = "baul" },
+	{ id = "barril", rareza = "comun", tamano = "grande", frecuencia = 7, forma = "barril" },
 
 	-- Enormes: coche o furgoneta, y sólo por eso ya son un objetivo a medio plazo.
-	{ id = "nevera", nombre = "Fridge", rareza = "marcada", tamano = "enorme", frecuencia = 3, forma = "nevera" },
-	{ id = "sofa", nombre = "Sofa", rareza = "comun", tamano = "enorme", frecuencia = 4, forma = "sofa" },
-	{ id = "piano", nombre = "Piano", rareza = "sellada", tamano = "enorme", frecuencia = 2, forma = "piano" },
-	{ id = "estatua", nombre = "Statue", rareza = "legendaria", tamano = "enorme", frecuencia = 1, forma = "estatua" },
+	{ id = "nevera", rareza = "marcada", tamano = "enorme", frecuencia = 3, forma = "nevera" },
+	{ id = "sofa", rareza = "comun", tamano = "enorme", frecuencia = 4, forma = "sofa" },
+	{ id = "piano", rareza = "sellada", tamano = "enorme", frecuencia = 2, forma = "piano" },
+	{ id = "estatua", rareza = "legendaria", tamano = "enorme", frecuencia = 1, forma = "estatua" },
 }
 
 -- Cómo se dibuja cada forma: proporciones y material. El COLOR no está aquí --
@@ -211,6 +208,16 @@ end
 -- Lo que se lee encima de la pieza: qué es y cuánto multiplica. Con respaldo a la
 -- rareza para las cargas guardadas antes de que existiera el catálogo, que no
 -- tienen objeto y aun así tienen que poder dibujarse con su etiqueta.
+-- El nombre que se lee, traducido. Sale del id y no de una copia en el catálogo.
+function Goods.nombre(objetoId: string?): string
+	if objetoId == nil then
+		-- Una pieza sin objeto conocido: pasa con las cargas viejas guardadas antes
+		-- de que existiera el catálogo. Se dibuja igual, con un nombre genérico.
+		return Strings.get("GOODS_UNKNOWN")
+	end
+	return Strings.get("GOODS_" .. objetoId)
+end
+
 function Goods.etiqueta(objetoId: string?, rareza: string): string
 	local multiplicador = 1
 	local ok, def = pcall(function()
@@ -224,16 +231,20 @@ function Goods.etiqueta(objetoId: string?, rareza: string): string
 		end
 	end
 	local o = if objetoId ~= nil then Goods.get(objetoId) else nil
-	local nombre = if o then o.nombre else "Bulto"
-	return string.format("%s  x%d", nombre, multiplicador)
+	return Strings.get("GOODS_LABEL", {
+		nombre = Strings.ref(if o then "GOODS_" .. o.id else "GOODS_UNKNOWN"),
+		multiplicador = multiplicador,
+	})
 end
 
-function Goods.nombreTamano(objetoId: string): string
+-- La CLAVE del tamaño, no el nombre montado: quien lo pide es un aviso del
+-- servidor, y montarlo aquí lo dejaria en el idioma del servidor.
+function Goods.claveTamano(objetoId: string): string
 	local o = Goods.get(objetoId)
 	if not o then
-		return ""
+		return "SIZE_pequeno"
 	end
-	return tamanoDe(o.tamano).nombre
+	return "SIZE_" .. tamanoDe(o.tamano).id
 end
 
 -- La tirada. Recibe el Random en vez de crearlo dentro para que con semilla fija

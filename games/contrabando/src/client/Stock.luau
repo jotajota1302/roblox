@@ -23,6 +23,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Goods = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goods"))
 local GoodsLook = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GoodsLook"))
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rarity"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 
 local Stock = {}
 local carpeta: Folder? = nil
@@ -112,7 +113,7 @@ function Stock.actualizar(almacen: BasePart?, piezas: { { rareza: string, objeto
 		-- esquina, que no decía cuál de las diez ibas a coger.
 		local aviso = Instance.new("ProximityPrompt")
 		aviso.Name = "PromptCaja"
-		aviso.ActionText = "Cargar"
+		aviso.ActionText = Strings.get("STOCK_LOAD")
 		aviso.ObjectText = Goods.etiqueta(objeto, rareza)
 		aviso.MaxActivationDistance = 12
 		aviso.HoldDuration = 0
@@ -196,7 +197,7 @@ function Stock.actualizarRetorno(piezas: { { rareza: string, objeto: string? } }
 
 		local aviso = Instance.new("ProximityPrompt")
 		aviso.Name = "PromptCaja"
-		aviso.ActionText = "Load return cargo"
+		aviso.ActionText = Strings.get("STOCK_LOAD_RETURN")
 		aviso.ObjectText = Goods.etiqueta(pieza.objeto, pieza.rareza)
 		aviso.MaxActivationDistance = 9
 		aviso.HoldDuration = 0

@@ -13,13 +13,13 @@
 local Config = require(script.Parent.Config)
 local Goals = require(script.Parent.Goals)
 local Roads = require(script.Parent.Roads)
+local Strings = require(script.Parent.Strings)
 
 export type Ruta = {
+	-- El id es una clave: vive en Palette, en los atributos de las piezas, en
+	-- CONTACTOS_POR_RUTA y en el DataStore, así que no se traduce ni se cambia. Lo
+	-- que se ENSEÑA sale de Strings ("ROUTE_" .. id) y no se guarda aquí.
 	id: string,
-	-- Lo que se ENSEÑA. El id es una clave -- vive en Palette, en los atributos de
-	-- las piezas, en CONTACTOS_POR_RUTA y en el DataStore -- así que no puede
-	-- traducirse ni cambiarse; esto sí.
-	nombre: string?,
 	multiplicador: number,
 	destino: Vector3,
 	detectores: number,
@@ -140,11 +140,11 @@ function Routes.disponible(id: string, nivel: number, vehiculoId: string?, hitos
 	return true, "ok"
 end
 
--- El nombre que se enseña. Si a una ruta se le olvida, se cae a su id en
--- mayúsculas, que es lo que se hacía antes: peor, pero nunca vacío.
+-- El nombre que se enseña, traducido. Si a una ruta se le olvida su fila en
+-- Strings, se cae a la clave, que se ve a la legua -- peor que el nombre, mejor
+-- que un hueco en blanco que nadie nota.
 function Routes.nombre(id: string): string
-	local ruta = Routes.get(id)
-	return ruta.nombre or string.upper(id)
+	return Strings.get("ROUTE_" .. id)
 end
 
 -- El multiplicador, EN TEXTO. Existe porque se pintaba con "%d" en dos sitios y
@@ -163,36 +163,40 @@ end
 -- selector por lo mismo que Routes.vigilancia: es una regla del juego, no una
 -- etiqueta, y el día que se toque el nivel pedido lo que se lee tiene que cambiar
 -- solo.
-function Routes.requisito(id: string): string
-	-- Si lo que falta es el hito, se dice el HITO y no el nivel: "Nivel 1" a alguien
-	-- que ya tiene nivel 1 es una puerta cerrada sin explicación, que es
-	-- exactamente el fallo que este texto vino a arreglar.
-	local hito = Goals.hitoQueAbre(id)
-	if hito then
-		return hito.texto
-	end
+-- Compartido por las dos funciones de abajo: decían lo mismo con dos copias del
+-- mismo string.format, y una copia es un sitio donde el texto puede divergir.
+local function requisitoDeNivel(id: string): Strings.Ref
 	local nivel, motor = Routes.licencia(id)
 	if motor then
-		return string.format("Level %d and a road vehicle", nivel)
+		return Strings.ref("ROUTE_REQ_LEVEL_RIDE", { nivel = nivel })
 	end
-	return string.format("Level %d", nivel)
+	return Strings.ref("ROUTE_REQ_LEVEL", { nivel = nivel })
+end
+
+-- SIN RESOLVER, porque el servidor también lo necesita y allí resolverlo lo
+-- dejaría en el idioma del servidor. `hitos` a nil significa "no sé lo que tiene
+-- ya", y entonces manda el hito si lo hay.
+--
+-- Si lo que falta es el hito, se dice el HITO y no el nivel: "Level 1" a alguien
+-- que ya tiene nivel 1 es una puerta cerrada sin explicación, que es exactamente
+-- el fallo que este texto vino a arreglar.
+function Routes.requisitoRef(id: string, hitos: any?): Strings.Ref
+	local hito = Goals.hitoQueAbre(id)
+	if hito ~= nil and (hitos == nil or not Goals.rutaAbierta(id, hitos)) then
+		return Goals.ref(hito)
+	end
+	return requisitoDeNivel(id)
+end
+
+function Routes.requisito(id: string): string
+	return Strings.get(Strings.partes(Routes.requisitoRef(id)))
 end
 
 -- Igual que requisito, pero sabiendo lo que el jugador YA tiene: una vez cumplido
 -- el hito, lo que falta vuelve a ser el nivel. Sin esto, la verde diría "entrega
 -- tu primer paquete" para siempre.
 function Routes.requisitoPara(id: string, hitos: any): string
-	if hitos ~= nil and not Goals.rutaAbierta(id, hitos) then
-		local hito = Goals.hitoQueAbre(id)
-		if hito then
-			return hito.texto
-		end
-	end
-	local nivel, motor = Routes.licencia(id)
-	if motor then
-		return string.format("Level %d and a road vehicle", nivel)
-	end
-	return string.format("Level %d", nivel)
+	return Strings.get(Strings.partes(Routes.requisitoRef(id, hitos)))
 end
 
 -- Lo que te vas a encontrar por el camino, en números. Vive aquí y no en el

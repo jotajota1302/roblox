@@ -22,6 +22,7 @@ local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local Nameplates = require(script.Parent.Nameplates)
 local Ride = require(script.Parent.Ride)
@@ -46,8 +47,8 @@ almacenComoDestino.Name = "AlmacenComoDestino"
 -- global nil: reventaria justo al intentar avisar de que no te cabe algo, es
 -- decir en el unico caso en que hace falta. Este proyecto ya ha pagado ese mismo
 -- error cuatro veces (tieneLegendaria, suelo del decorado, perseguidos, rng).
-local function avisar(player: Player, texto: string, color: Color3)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+local function avisar(player: Player, clave: string, args: { [string]: any }?, color: Color3?)
+	Remotes.event(Remotes.AVISO):FireClient(player, clave, args, color)
 end
 
 local CargoService = {}
@@ -111,7 +112,8 @@ function CargoService.recoger(player: Player, caja: Economy.Caja): boolean
 				quejaTamano[player] = os.clock()
 				avisar(
 					player,
-					string.format("You need a bigger vehicle: that one is %s", Goods.nombreTamano(caja.objeto)),
+					"CARGO_NEED_BIGGER",
+					{ tamano = Strings.ref(Goods.claveTamano(caja.objeto)) },
 					Palette.AVISO_MALO
 				)
 			end
@@ -266,9 +268,10 @@ function CargoService.mostrarCarga(player: Player)
 	texto.TextStrokeTransparency = 0.25
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
+	local etiquetaMejor = Goods.etiqueta(mejor.objeto, mejor.rareza)
 	texto.Text = if #estado.cajas > 1
-		then string.format("%s  +%d", Goods.etiqueta(mejor.objeto, mejor.rareza), #estado.cajas - 1)
-		else Goods.etiqueta(mejor.objeto, mejor.rareza)
+		then Strings.get("BACKPACK_MORE", { pieza = etiquetaMejor, cuantas = #estado.cajas - 1 })
+		else etiquetaMejor
 	texto.Parent = cartel
 end
 
@@ -428,11 +431,11 @@ local function cobrar(player: Player, destino: BasePart)
 		if hito.monedas then
 			estado.dinero += hito.monedas
 		end
-		avisar(
-			player,
-			if hito.monedas then string.format("%s  (+%d)", hito.texto, hito.monedas) else hito.texto,
-			Palette.AVISO_BUENO
-		)
+		if hito.monedas then
+			avisar(player, "GOAL_DONE_REWARD", { hito = Goals.ref(hito), monedas = hito.monedas }, Palette.AVISO_BUENO)
+		else
+			avisar(player, "GOAL_" .. hito.id, nil, Palette.AVISO_BUENO)
+		end
 	end
 
 	-- Y experiencia, que es lo único que no se puede gastar. El dinero se va en
@@ -482,7 +485,7 @@ local function cobrar(player: Player, destino: BasePart)
 		estado.retornoZona = rutaDelDestino
 		if subidas > 0 then
 			task.delay(0.8, function()
-				avisar(player, string.format("You load %d items to take back", subidas), Palette.AVISO_BUENO)
+				avisar(player, "CARGO_LOADED_RETURN", { cuantas = subidas }, Palette.AVISO_BUENO)
 			end)
 		end
 	end
@@ -506,13 +509,19 @@ local function cobrar(player: Player, destino: BasePart)
 	-- El cobro también se dice con palabras, no sólo cambiando una cifra en una
 	-- esquina. Es el único momento en que el juego te da algo, y una cifra que
 	-- salta de 0 a 300 sin más se pierde entre lo demás.
-	avisar(player, string.format("+%d for %d items on %s", cobrado, #cajas, rutaDelDestino), Palette.AVISO_BUENO)
+	avisar(player, "CARGO_PAID", {
+		monedas = cobrado,
+		items = #cajas,
+		-- La ruta POR REFERENCIA. Antes se pegaba `rutaDelDestino` tal cual, que es
+		-- el ID: el aviso decia "+250 for 3 items on verde" en vez de "on GREEN".
+		ruta = Strings.ref("ROUTE_" .. tostring(rutaDelDestino)),
+	}, Palette.AVISO_BUENO)
 
 	-- Subir de nivel se dice aparte y DESPUÉS del cobro: son dos buenas noticias y
 	-- juntas en una línea se pisan. La segunda es la que se recuerda.
 	if nivelAhora > nivelAntes then
 		task.delay(1.6, function()
-			avisar(player, string.format("Level %d!", nivelAhora), Palette.AVISO_BUENO)
+			avisar(player, "CARGO_LEVEL_UP", { nivel = nivelAhora }, Palette.AVISO_BUENO)
 			Nameplates.refrescar(player)
 		end)
 	end
@@ -584,13 +593,18 @@ function CargoService.entregar(player: Player)
 	end
 
 	if motivo == "sin_carga" then
-		avisar(player, "You are not carrying anything", Palette.AVISO_MALO)
+		avisar(player, "CARGO_EMPTY", nil, Palette.AVISO_MALO)
 	elseif motivo == "sin_ruta_lejos" then
-		avisar(player, "You left with no route: go back to the warehouse exit", Palette.AVISO_MALO)
+		avisar(player, "CARGO_NO_ROUTE_FAR", nil, Palette.AVISO_MALO)
 	elseif motivo == "no_has_llegado" then
-		avisar(player, "Not there yet: follow the beacon " .. tostring(estado.ruta), Palette.AVISO_MALO)
+		avisar(
+			player,
+			"CARGO_NOT_THERE_YET",
+			{ ruta = Strings.ref("ROUTE_" .. tostring(estado.ruta)) },
+			Palette.AVISO_MALO
+		)
 	elseif motivo == "sin_ruta" then
-		avisar(player, "You left with no route, so this cargo is worthless here", Palette.AVISO_MALO)
+		avisar(player, "CARGO_NO_ROUTE", nil, Palette.AVISO_MALO)
 	elseif motivo == "destino_equivocado" then
 		local rutaDelDestino = "?"
 		for _, d in destinos do
@@ -598,11 +612,10 @@ function CargoService.entregar(player: Player)
 				rutaDelDestino = tostring(d:GetAttribute("ruta"))
 			end
 		end
-		avisar(
-			player,
-			string.format("This is the %s drop and yours is %s", rutaDelDestino, tostring(estado.ruta)),
-			Palette.AVISO_MALO
-		)
+		avisar(player, "CARGO_WRONG_DROP", {
+			aqui = Strings.ref("ROUTE_" .. rutaDelDestino),
+			tuya = Strings.ref("ROUTE_" .. tostring(estado.ruta)),
+		}, Palette.AVISO_MALO)
 	end
 end
 
@@ -649,8 +662,7 @@ function CargoService.start()
 		local estado = PlayerState.get(player)
 		if #estado.cajas > 0 then
 			CargoService.vaciar(player)
-			Remotes.event(Remotes.AVISO)
-				:FireClient(player, "You lost what you were carrying when you respawned", Palette.AVISO_MALO)
+			Remotes.event(Remotes.AVISO):FireClient(player, "CARGO_LOST_ON_RESPAWN", nil, Palette.AVISO_MALO)
 		end
 
 		-- I1, parte 1: el haz de la legendaria no se reaplicaba aquí, sólo la

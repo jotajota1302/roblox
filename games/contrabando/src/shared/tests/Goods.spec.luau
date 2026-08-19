@@ -31,13 +31,10 @@ return function(kit)
 	local anterior = nil
 	for _, v in Config.VEHICULOS do
 		if anterior then
+			kit.truthy(string.format("%s lleva mas que %s", v.id, anterior.id), v.capacidad > anterior.capacidad)
+			kit.truthy(string.format("%s cuesta mas que %s", v.id, anterior.id), v.coste > anterior.coste)
 			kit.truthy(
-				string.format("%s lleva mas que %s", v.nombre, anterior.nombre),
-				v.capacidad > anterior.capacidad
-			)
-			kit.truthy(string.format("%s cuesta mas que %s", v.nombre, anterior.nombre), v.coste > anterior.coste)
-			kit.truthy(
-				string.format("%s no admite menos tamano que %s", v.nombre, anterior.nombre),
+				string.format("%s no admite menos tamano que %s", v.id, anterior.id),
 				v.tamanoMaximo >= anterior.tamanoMaximo
 			)
 		end
@@ -69,7 +66,7 @@ return function(kit)
 	-- la regla de oro se rompería de verdad.
 	for _, v in Config.VEHICULOS do
 		if v.velocidadBase > primero.velocidadBase * 1.4 then
-			kit.truthy("el rapido " .. v.nombre .. " esta atado a la calzada", v.soloCalzada == true)
+			kit.truthy("el rapido " .. v.id .. " esta atado a la calzada", v.soloCalzada == true)
 		end
 	end
 

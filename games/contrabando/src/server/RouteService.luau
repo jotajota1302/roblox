@@ -20,6 +20,7 @@ local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -28,13 +29,8 @@ local RouteService = {}
 -- Lo que se le dice al jugador cuando la licencia le cierra una ruta. El texto
 -- del nivel se compone con Routes.requisito para que no haya dos sitios diciendo
 -- qué hace falta: el día que cambie el nivel pedido, esto cambia solo.
-local EXPLICACION: { [string]: string } = {
-	necesitas_motor = "That route needs a road vehicle",
-	ruta_desconocida = "That route does not exist",
-}
-
-local function avisar(player: Player, texto: string)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, Palette.AVISO_MALO)
+local function avisar(player: Player, clave: string, args: { [string]: any }?)
+	Remotes.event(Remotes.AVISO):FireClient(player, clave, args, Palette.AVISO_MALO)
 end
 
 -- La losa de salida sigue siendo el sitio donde el juego INVITA a elegir (allí se
@@ -59,7 +55,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 
 	local estado = PlayerState.get(player)
 	if estado.ruta ~= nil then
-		avisar(player, "You are already on a run: deliver first")
+		avisar(player, "DENY_en_ruta")
 		return false
 	end
 	-- SIN NADA QUE LLEVAR NO HAY VIAJE, y hay que decirlo. Jugando salió así: con
@@ -67,7 +63,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- desde dentro eso no se distingue de un juego roto. Es exactamente la lección
 	-- que este proyecto ya pagó con el botón de entregar.
 	if #estado.cajas == 0 then
-		avisar(player, "Pick something up at the warehouse first")
+		avisar(player, "DENY_sin_carga_ruta")
 		return false
 	end
 
@@ -85,7 +81,7 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 	-- La regla que importa sigue en pie: fuera del recinto no se elige, así que no
 	-- se cambia de ruta a mitad de viaje.
 	if not Perimeter.dentro(root.Position, 25) then
-		avisar(player, "Routes are picked at your yard, not mid-run")
+		avisar(player, "DENY_fuera_del_recinto")
 		return false
 	end
 
@@ -102,18 +98,19 @@ function RouteService.elegir(player: Player, rutaId: string): boolean
 		-- If de SENTENCIA y no de expresión: uno de expresión con comentarios dentro
 		-- es ilegible, y además este proyecto ya pagó que un if de expresión trunca a
 		-- un solo valor lo que devuelve una función.
-		local texto
 		if motivo == "nivel_insuficiente" then
-			texto = string.format("Level too low: %s", Routes.requisito(rutaId))
+			avisar(player, "DENY_LEVEL_TOO_LOW", { requisito = Routes.requisitoRef(rutaId) })
 		elseif motivo == "hito_pendiente" then
 			-- El hito se dice TAL CUAL, sin "te falta": ya es una frase que dice qué
-			-- hacer ("Entrega tu primer paquete"), y anteponerle una excusa la
-			-- convierte en un reproche.
-			texto = Routes.requisitoPara(rutaId, estado.hitos)
+			-- hacer ("Deliver your first package"), y anteponerle una excusa la
+			-- convierte en un reproche. Por eso viaja como su propia clave y no
+			-- metido dentro de otra.
+			avisar(player, Strings.partes(Routes.requisitoRef(rutaId, estado.hitos)))
+		elseif Strings.TEXTOS["DENY_" .. tostring(motivo)] ~= nil then
+			avisar(player, "DENY_" .. tostring(motivo))
 		else
-			texto = EXPLICACION[motivo] or "You cannot leave that way"
+			avisar(player, "DENY_ROUTE")
 		end
-		avisar(player, texto)
 		return false
 	end
 

@@ -35,6 +35,16 @@ return function(kit)
 		"Deliver in ROUTE_no_existe"
 	)
 	kit.eq("una clave desconocida se devuelve tal cual", Strings.get("NO_EXISTE"), "NO_EXISTE")
+	-- Un texto anidado con huecos propios: sin esto, el aviso de recompensa del
+	-- hito ámbar enseñaría "{ruta}" en mitad de la frase.
+	kit.eq(
+		"una referencia lleva sus propios parámetros",
+		Strings.get("GOAL_DONE_REWARD", {
+			hito = Strings.ref("GOAL_ambar", { ruta = Strings.ref("ROUTE_ambar") }),
+			monedas = 0,
+		}),
+		"Reach level 3 to unlock the AMBER route  (+0)"
+	)
 
 	-- ---- El traductor de la nube -----------------------------------------
 	Strings.usarTraductor(function(clave)
@@ -142,6 +152,7 @@ return function(kit)
 	cubre("GOAL_", Config.HITOS)
 	cubre("GOODS_", Goods.todos())
 	cubre("SKILL_", Skills.CATALOGO, "_DESC")
+	cubre("RARITY_", Config.RAREZAS)
 
 	-- Y al revés en lo que más duele: cada motivo de rechazo que devuelve el
 	-- servidor tiene que tener su explicación. Un motivo sin texto le enseña al

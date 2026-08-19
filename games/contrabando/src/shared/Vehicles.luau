@@ -13,10 +13,10 @@
 ]]
 
 local Config = require(script.Parent.Config)
+local Strings = require(script.Parent.Strings)
 
 export type Vehiculo = {
 	id: string,
-	nombre: string,
 	capacidad: number,
 	velocidadBase: number,
 	penalizacionPorPeso: number,
@@ -29,6 +29,13 @@ export type Vehiculo = {
 local Vehicles = {}
 
 Vehicles.A_PIE = Config.VEHICULO_INICIAL
+
+-- El nombre NO se guarda en el catálogo: se deriva del id. Tenerlo en Config y
+-- en Strings serían dos sitios donde escribir texto, y dos sitios es exactamente
+-- como se colaron los nueve castellanos que sobrevivieron a la traducción.
+function Vehicles.nombre(id: string?): string
+	return Strings.get("RIDE_" .. tostring(id))
+end
 
 function Vehicles.existe(id: string?): boolean
 	if typeof(id) ~= "string" then

@@ -27,6 +27,7 @@ local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local CargoService = require(script.Parent.CargoService)
 local Ride = require(script.Parent.Ride)
 local PlayerState = require(script.Parent.PlayerState)
@@ -43,19 +44,22 @@ local ROJO = Palette.AVISO_MALO
 
 -- Por qué falló la compra, en palabras que le sirvan a quien ha pulsado el botón.
 -- Un botón que no hace nada y no dice nada es indistinguible de un juego roto.
+-- Motivo del servidor -> clave del texto. Casi todos se llaman igual, pero
+-- "lejos" NO: aquí significa "lejos del taller" y en WarehouseService "lejos del
+-- almacén". Por eso hay tabla y no una regla automática.
 local EXPLICACION: { [string]: string } = {
-	sin_dinero = "Not enough money",
-	ya_lo_tienes = "You already own that vehicle",
-	ya_tienes_uno_mejor = "Yours is better",
-	no_esta_a_la_venta = "That is not for sale",
-	vehiculo_desconocido = "That vehicle does not exist",
-	lejos = "You have to be at a workshop",
-	con_carga = "Unload before switching vehicles",
-	no_cabe_la_carga = "Your cargo does not fit in there: unload first",
-	carga_demasiado_grande = "What you carry does not fit in that vehicle",
-	no_es_tuyo = "That vehicle is not yours",
-	ya_lo_llevas = "You are already using it",
-	nivel_insuficiente = "Your level is too low for that vehicle",
+	sin_dinero = "DENY_sin_dinero",
+	ya_lo_tienes = "DENY_ya_lo_tienes",
+	ya_tienes_uno_mejor = "DENY_ya_tienes_uno_mejor",
+	no_esta_a_la_venta = "DENY_no_esta_a_la_venta",
+	vehiculo_desconocido = "DENY_vehiculo_desconocido",
+	lejos = "DENY_lejos_taller",
+	con_carga = "DENY_con_carga",
+	no_cabe_la_carga = "DENY_no_cabe_la_carga",
+	carga_demasiado_grande = "DENY_carga_demasiado_grande",
+	no_es_tuyo = "DENY_no_es_tuyo",
+	ya_lo_llevas = "DENY_ya_lo_llevas",
+	nivel_insuficiente = "DENY_nivel_insuficiente",
 }
 
 local GarageService = {}
@@ -148,9 +152,8 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	Telemetry.evento(player, "compra_vehiculo", { vehiculo = def.id, coste = def.coste })
 	Remotes.event(Remotes.AVISO):FireClient(
 		player,
-		if loSaca
-			then string.format("%s: you carry %d slots and bigger items", def.nombre, def.capacidad)
-			else string.format("%s parked in your garage: take it out once unloaded", def.nombre),
+		if loSaca then "RIDE_BOUGHT_OUT" else "RIDE_BOUGHT_PARKED",
+		{ vehiculo = Strings.ref("RIDE_" .. def.id), huecos = def.capacidad },
 		VERDE
 	)
 	-- Y CÓMO SE USA, justo después de pagarlo. Es el único instante en que el
@@ -159,7 +162,7 @@ function GarageService.comprar(player: Player, vehiculoId: string): (boolean, st
 	-- hace", JJ). Va con retraso para no pisar el aviso de la compra.
 	if loSaca then
 		task.delay(2.2, function()
-			Remotes.event(Remotes.AVISO):FireClient(player, "Press V to get on or off", VERDE)
+			Remotes.event(Remotes.AVISO):FireClient(player, "RIDE_PRESS_TO_MOUNT", nil, VERDE)
 		end)
 	end
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
@@ -207,7 +210,8 @@ function GarageService.sacar(player: Player, vehiculoId: string?): (boolean, str
 	PlayerState.sync(player)
 
 	Telemetry.evento(player, "saca_vehiculo", { vehiculo = def.id })
-	Remotes.event(Remotes.AVISO):FireClient(player, "You take out " .. def.nombre, VERDE)
+	Remotes.event(Remotes.AVISO)
+		:FireClient(player, "RIDE_TAKE_OUT", { vehiculo = Strings.ref("RIDE_" .. def.id) }, VERDE)
 	return true, "ok"
 end
 
@@ -218,7 +222,7 @@ function GarageService.start()
 			-- Sólo se explica al que está en el taller. Fuera de él, el aviso sería
 			-- ruido provocable por cualquiera que inunde el remote.
 			if GarageService.enElTaller(player) then
-				Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "You cannot buy that", ROJO)
+				Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "DENY_BUY", nil, ROJO)
 			end
 		end
 	end)
@@ -226,7 +230,7 @@ function GarageService.start()
 	Remotes.event(Remotes.SACAR).OnServerEvent:Connect(function(player, vehiculoId)
 		local ok, motivo = GarageService.sacar(player, vehiculoId)
 		if not ok and GarageService.enElTaller(player) then
-			Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "You cannot take that out", ROJO)
+			Remotes.event(Remotes.AVISO):FireClient(player, EXPLICACION[motivo] or "DENY_TAKE_OUT", nil, ROJO)
 		end
 	end)
 

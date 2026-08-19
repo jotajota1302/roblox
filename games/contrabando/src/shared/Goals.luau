@@ -23,10 +23,13 @@
 
 local Config = require(script.Parent.Config)
 local Roads = require(script.Parent.Roads)
+local Strings = require(script.Parent.Strings)
 
 export type Hito = {
+	-- El id manda: es lo que se guarda en el DataStore y de lo que sale el texto
+	-- ("GOAL_" .. id). El enunciado NO se guarda aquí para que no haya dos sitios
+	-- donde escribirlo.
 	id: string,
-	texto: string,
 	entregas: number?,
 	nivel: number?,
 	exigeMotor: boolean?,
@@ -125,14 +128,40 @@ function Goals.hitoQueAbre(rutaId: string): Hito?
 	return nil
 end
 
+-- Los dos hitos que nombran una ruta la nombran POR REFERENCIA, no pegando su
+-- etiqueta: si no, "AMBER" se quedaría en inglés dentro de una frase traducida
+-- mientras el selector, dos centímetros más allá, la enseña ya traducida.
+local ARGS: { [string]: { [string]: any } } = {
+	ambar = { ruta = Strings.ref("ROUTE_ambar") },
+	roja = { ruta = Strings.ref("ROUTE_roja") },
+}
+
+-- El enunciado del hito, traducido.
+function Goals.texto(hito: Hito?): string
+	if hito == nil then
+		return ""
+	end
+	return Strings.get("GOAL_" .. hito.id, ARGS[hito.id])
+end
+
+-- El mismo enunciado pero SIN resolver, para meterlo dentro de otra frase (el
+-- aviso de "hito cumplido, +250"). Se pasa entero --clave y argumentos-- porque
+-- resolverlo aquí lo dejaría en el idioma del servidor.
+function Goals.ref(hito: Hito): Strings.Ref
+	return Strings.ref("GOAL_" .. hito.id, ARGS[hito.id])
+end
+
 -- "1 de 3 entregas" o "nivel 2 de 3". Lo que se enseña debajo del objetivo: sin
 -- progreso, un objetivo es una orden; con progreso, es una cuenta atrás.
 function Goals.progreso(hito: Hito, entregas: number, nivel: number): string
 	if hito.entregas then
-		return string.format("%d of %d deliveries", math.min(entregas, hito.entregas), hito.entregas)
+		return Strings.get("GOAL_PROGRESS_DELIVERIES", {
+			hechas = math.min(entregas, hito.entregas),
+			total = hito.entregas,
+		})
 	end
 	if hito.nivel then
-		return string.format("level %d of %d", math.min(nivel, hito.nivel), hito.nivel)
+		return Strings.get("GOAL_PROGRESS_LEVEL", { actual = math.min(nivel, hito.nivel), total = hito.nivel })
 	end
 	return ""
 end

@@ -756,7 +756,7 @@ local function economia()
 		comprobar(
 			"el primer vehículo cae en pocos viajes",
 			viajes <= 8,
-			string.format("%s cuesta %d: %.1f viajes verdes llenos", primero.nombre, primero.coste, viajes)
+			string.format("%s cuesta %d: %.1f viajes verdes llenos", primero.id, primero.coste, viajes)
 		)
 	end
 end
@@ -1023,7 +1023,7 @@ local function informe(): { string }
 
 	table.insert(lineas, "monedas por viaje (almacén lleno, cargando lo que más paga):")
 	for _, vehiculoId in { Config.VEHICULO_INICIAL, "bicicleta", "furgoneta" } do
-		local nombre = Vehicles.get(vehiculoId).nombre
+		local nombre = vehiculoId
 		table.insert(
 			lineas,
 			string.format(
@@ -1051,7 +1051,7 @@ local function informe(): { string }
 		if huecos > 0 then
 			table.insert(
 				lineas,
-				string.format("  · %-8s %.2f monedas por hueco", Config.TAMANOS[nivel].nombre, suma / huecos)
+				string.format("  · %-8s %.2f monedas por hueco", Config.TAMANOS[nivel].id, suma / huecos)
 			)
 		end
 	end

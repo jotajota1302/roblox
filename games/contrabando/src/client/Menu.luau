@@ -32,6 +32,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local UiKit = require(game.ReplicatedStorage.Shared.UiKit)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 
 local Menu = {}
 
@@ -145,26 +146,27 @@ local function pintarHabilidades()
 	local habilidades = Skills.normalizar(estado.habilidades)
 	local contactos = estado.contactos or 0
 	if titulo then
-		titulo.Text = string.format("Skills  ·  %d contacts", contactos)
+		titulo.Text = Strings.get("MENU_SKILLS_TITLE", { contactos = contactos })
 	end
 
 	for i, d in Skills.CATALOGO do
 		local peldano = habilidades[d.id] or 0
 		local coste = Skills.coste(habilidades, d.id)
+		local descripcion = Strings.ref("SKILL_" .. d.id .. "_DESC")
 		local detalle = if coste
-			then string.format("%s  ·  level %d of %d", d.descripcion, peldano, #d.costes)
-			else d.descripcion .. "  ·  maxed"
+			then Strings.get("MENU_SKILL_LEVEL", { descripcion = descripcion, peldano = peldano, total = #d.costes })
+			else Strings.get("MENU_SKILL_MAXED", { descripcion = descripcion })
 
 		-- El precio va a secas, sin simbolo: los emojis y los signos raros salen como
 		-- cuadrados en un TextLabel de Roblox. Lo que dice que son contactos y no
 		-- monedas es la cabecera, que lleva el saldo al lado del titulo.
-		local precio = if coste then tostring(coste) else "Done"
+		local precio = if coste then tostring(coste) else Strings.get("MENU_DONE")
 		-- El botón sólo responde si de verdad se puede pagar. Un botón que acepta y
 		-- luego el servidor rechaza es la forma más rápida de que el jugador crea
 		-- que el juego está roto.
 		local puede = coste ~= nil and contactos >= coste
 		ficha(
-			d.nombre,
+			Strings.get("SKILL_" .. d.id),
 			detalle,
 			precio,
 			if puede
@@ -183,22 +185,24 @@ local function pintarNave()
 	local siguiente = estado.naveSiguiente
 
 	ficha(
-		string.format("Warehouse, level %d", estado.naveNivel or 1),
-		if nave then string.format("holds %d  ·  produces every %ds", nave.tope, nave.ritmo) else "your warehouse",
+		Strings.get("MENU_WAREHOUSE_TITLE", { nivel = estado.naveNivel or 1 }),
+		if nave
+			then Strings.get("MENU_WAREHOUSE_SUB", { tope = nave.tope, ritmo = nave.ritmo })
+			else Strings.get("MENU_WAREHOUSE_PLAIN"),
 		nil,
 		nil,
 		1
 	)
 
 	if not siguiente then
-		ficha("Maxed", "nothing left to upgrade", nil, nil, 2)
+		ficha(Strings.get("MENU_MAXED"), Strings.get("MENU_MAXED_SUB"), nil, nil, 2)
 		return
 	end
 
 	local puede = (estado.dinero or 0) >= siguiente.coste
 	ficha(
-		string.format("Level %d", (estado.naveNivel or 1) + 1),
-		string.format("holds %d  ·  produces every %ds", siguiente.tope, siguiente.ritmo),
+		Strings.get("MENU_LEVEL", { nivel = (estado.naveNivel or 1) + 1 }),
+		Strings.get("MENU_WAREHOUSE_SUB", { tope = siguiente.tope, ritmo = siguiente.ritmo }),
 		UiKit.millares(siguiente.coste),
 		if puede
 			then function()
@@ -214,17 +218,23 @@ local function pintarTaller()
 	local mejoras = estado.mejoras or {}
 
 	if #mejoras == 0 then
-		ficha("Nothing to buy", "you own them all", nil, nil, 1)
+		ficha(Strings.get("MENU_NOTHING_TO_BUY"), Strings.get("MENU_NOTHING_TO_BUY_SUB"), nil, nil, 1)
 	end
 
 	for i, v in mejoras do
-		local detalle = string.format("carries %d  ·  %d studs/s", v.capacidad, v.velocidadBase)
+		local detalle = Strings.get("MENU_RIDE_DETAIL", { capacidad = v.capacidad, velocidad = v.velocidadBase })
 		if v.bloqueado then
-			ficha(v.nombre, detalle .. string.format("  ·  needs level %d", v.nivel), "Locked", nil, i)
+			ficha(
+				Strings.get("RIDE_" .. v.id),
+				Strings.get("MENU_RIDE_LOCKED", { detalle = detalle, nivel = v.nivel }),
+				Strings.get("MENU_LOCKED"),
+				nil,
+				i
+			)
 		else
 			local puede = (estado.dinero or 0) >= v.coste
 			ficha(
-				v.nombre,
+				Strings.get("RIDE_" .. v.id),
 				detalle,
 				UiKit.millares(v.coste),
 				if puede
@@ -240,8 +250,19 @@ local function pintarTaller()
 	-- Y SE DICE POR QUÉ no se puede sacar desde aquí. Sin esta línea, el jugador
 	-- que compra una moto y no la ve puesta cree que el juego se ha comido su
 	-- dinero.
-	ficha("Take out of garage", "still at the workshop: which one you take is the run's decision", nil, nil, 99)
+	ficha(Strings.get("MENU_GARAGE_TITLE"), Strings.get("MENU_GARAGE_SUB"), nil, nil, 99)
 end
+
+-- EL ID NO ES LA ETIQUETA, y esto es lo que había antes: el panel se abría
+-- comparando `abierto == "Skills"`, la misma cadena que se pintaba en el botón.
+-- Traducir esa cadena habría dejado el menú muerto -- se leería "Fähigkeiten" y
+-- la comparación fallaría para siempre. Es el fallo clásico de una localización
+-- hecha con prisa, y aquí ya estaba plantado.
+local TITULO: { [string]: string } = {
+	skills = "MENU_SKILLS",
+	warehouse = "MENU_WAREHOUSE",
+	workshop = "MENU_WORKSHOP",
+}
 
 local function abrir(cual: string)
 	if not modal or not titulo then
@@ -249,12 +270,12 @@ local function abrir(cual: string)
 	end
 	abierto = cual
 	modal.Visible = true
-	titulo.Text = cual
+	titulo.Text = Strings.get(TITULO[cual] or "MENU_WORKSHOP")
 	limpiar()
 
-	if cual == "Skills" then
+	if cual == "skills" then
 		pintarHabilidades()
-	elseif cual == "Warehouse" then
+	elseif cual == "warehouse" then
 		pintarNave()
 	else
 		pintarTaller()
@@ -296,32 +317,32 @@ function Menu.build()
 	lista.Padding = UDim.new(0, 6)
 	lista.Parent = columna
 
-	boton(columna, "Skills", 2, Color3.fromRGB(58, 62, 82)).Activated:Connect(function()
-		if abierto == "Skills" then
+	boton(columna, Strings.get("MENU_SKILLS"), 2, Color3.fromRGB(58, 62, 82)).Activated:Connect(function()
+		if abierto == "skills" then
 			cerrar()
 		else
-			abrir("Skills")
+			abrir("skills")
 		end
 	end)
-	boton(columna, "Warehouse", 3, Color3.fromRGB(52, 66, 60)).Activated:Connect(function()
-		if abierto == "Warehouse" then
+	boton(columna, Strings.get("MENU_WAREHOUSE"), 3, Color3.fromRGB(52, 66, 60)).Activated:Connect(function()
+		if abierto == "warehouse" then
 			cerrar()
 		else
-			abrir("Warehouse")
+			abrir("warehouse")
 		end
 	end)
-	boton(columna, "Workshop", 4, Color3.fromRGB(70, 58, 52)).Activated:Connect(function()
-		if abierto == "Workshop" then
+	boton(columna, Strings.get("MENU_WORKSHOP"), 4, Color3.fromRGB(70, 58, 52)).Activated:Connect(function()
+		if abierto == "workshop" then
 			cerrar()
 		else
-			abrir("Workshop")
+			abrir("workshop")
 		end
 	end)
 
 	-- EL SEÑUELO va arriba del todo y en rojo, porque no es una tienda: es la única
 	-- cosa que se pulsa MIENTRAS corres, y buscarla entre tres botones iguales con
 	-- un ladrón detrás sería perderla.
-	local cebo = boton(columna, "Decoy", 1, Color3.fromRGB(120, 54, 54))
+	local cebo = boton(columna, Strings.get("MENU_DECOY"), 1, Color3.fromRGB(120, 54, 54))
 	cebo.Visible = false
 	cebo.Activated:Connect(function()
 		Remotes.event(Remotes.USAR_SENUELO):FireServer()
@@ -371,7 +392,7 @@ function Menu.build()
 	cerrarBoton.TextColor3 = UiKit.PAPEL
 	cerrarBoton.TextScaled = true
 	cerrarBoton.Font = Enum.Font.GothamBold
-	cerrarBoton.Text = "X"
+	cerrarBoton.Text = Strings.get("MENU_CLOSE")
 	cerrarBoton.Parent = panel
 	UiKit.redondear(cerrarBoton, 6)
 	UiKit.margen(cerrarBoton, 6)
@@ -416,11 +437,11 @@ function Menu.tick()
 	end
 	local queda = senueloListoEn - os.clock()
 	if queda > 0 then
-		botonSenuelo.Text = string.format("Decoy %ds", math.ceil(queda))
+		botonSenuelo.Text = Strings.get("MENU_DECOY_COOLDOWN", { segundos = math.ceil(queda) })
 		botonSenuelo.BackgroundColor3 = Color3.fromRGB(70, 60, 60)
 		botonSenuelo.AutoButtonColor = false
 	else
-		botonSenuelo.Text = "Decoy"
+		botonSenuelo.Text = Strings.get("MENU_DECOY")
 		botonSenuelo.BackgroundColor3 = Color3.fromRGB(120, 54, 54)
 		botonSenuelo.AutoButtonColor = true
 	end

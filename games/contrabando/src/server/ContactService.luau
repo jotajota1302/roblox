@@ -25,9 +25,11 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local CargoService = require(script.Parent.CargoService)
 local PatrolService = require(script.Parent.PatrolService)
 local PlayerState = require(script.Parent.PlayerState)
@@ -76,11 +78,52 @@ local ultimaRuta: { [Player]: string? } = {}
 -- vuelta monta un ciclo de require que mata los dos módulos. Vigilarlo tiene
 -- además la ventaja de cubrir CUALQUIER vía por la que cambie la ruta -- elegirla
 -- en la valla, heredarla de una víctima al robar, o la que venga mañana.
+-- Cuándo recogió cada uno su última pieza. En memoria y no en el estado guardado,
+-- por lo mismo que la recarga del señuelo: un reloj que sobrevive a cerrar el
+-- juego sólo castiga a quien se desconecta, y desconectarse no es una jugada.
+local ultimoContacto: { [Player]: number } = {}
+
 local function vigilarRuta(player: Player, estado: any)
 	if ultimaRuta[player] ~= estado.ruta then
 		ultimaRuta[player] = estado.ruta
+		ultimoContacto[player] = nil
 		CargoService.reiniciarRacha(player)
 	end
+end
+
+-- LA CADENA: quien deja de recoger pierde la racha, despacio y con gracia.
+--
+-- Corre aquí, en el mismo bucle que la recogida, porque son la misma regla vista
+-- por sus dos caras -- y tenerlas separadas garantizaría que un día una se toque
+-- y la otra no. Devuelve si hubo cambio, para no sincronizar de balde cinco veces
+-- por segundo a todo el servidor.
+local function decaer(player: Player, estado: any, ahora: number): boolean
+	local recogidos = estado.recogidos or 0
+	if recogidos <= 0 then
+		return false
+	end
+	local ultimo = ultimoContacto[player]
+	if not ultimo then
+		-- Sin reloj no se descuenta: es la primera vuelta del bucle desde que
+		-- empezó el viaje, y arrancar la cuenta atrás antes de la primera píldora
+		-- castigaría por el tramo de casa a la calle, donde no hay rastro.
+		ultimoContacto[player] = ahora
+		return false
+	end
+
+	local quedan = Contacts.rachaTrasEspera(recogidos, ahora - ultimo)
+	if quedan >= recogidos then
+		return false
+	end
+
+	estado.recogidos = quedan
+	-- El reloj se adelanta hasta el filo de la gracia en vez de ponerse a `ahora`:
+	-- así el siguiente descuento cae un segundo después y no otra gracia entera.
+	-- Con `ahora` a secas, la racha tardaría cinco segundos en perder cada punto
+	-- en vez de uno, y la cadena no pediría nada.
+	ultimoContacto[player] = ahora - Config.RACHA_GRACIA
+	CargoService.aplicarVelocidad(player)
+	return true
 end
 
 local function raiz(player: Player): BasePart?
@@ -107,6 +150,11 @@ function ContactService.tick(ahora: number)
 			return
 		end
 
+		-- Antes de mirar qué pisa: qué ha dejado de pisar.
+		if decaer(player, estado, ahora) then
+			PlayerState.sync(player)
+		end
+
 		for _, pieza in piezas do
 			if pieza:GetAttribute("ruta") ~= estado.ruta then
 				continue
@@ -124,9 +172,17 @@ function ContactService.tick(ahora: number)
 				continue
 			end
 
-			local valor = tonumber(pieza:GetAttribute("valor")) or Config.CONTACTO_VALOR_SUELTO
+			-- El valor sale de la pieza y puede ser CERO: las del rastro aceleran
+			-- pero no pagan. `or` no vale aquí -- 0 es un valor legítimo, y un
+			-- `or Config.CONTACTO_VALOR_SUELTO` convertiría todo el rastro en
+			-- moneda y multiplicaría por cinco la economía de habilidades.
+			local valor = tonumber(pieza:GetAttribute("valor"))
+			if valor == nil then
+				valor = Config.CONTACTO_VALOR_SUELTO
+			end
 			estado.contactos = (estado.contactos or 0) + valor
 			estado.recogidos = (estado.recogidos or 0) + 1
+			ultimoContacto[player] = ahora
 
 			recargaHasta[pieza] = ahora + Config.CONTACTO_RECARGA
 			encender(pieza, false)
@@ -153,8 +209,9 @@ end
 -- desconecta, y desconectarse no es una jugada.
 local senueloLibre: { [Player]: number } = {}
 
-local function avisar(player: Player, texto: string, bueno: boolean?)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, if bueno then Palette.AVISO_BUENO else Palette.AVISO_MALO)
+local function avisar(player: Player, clave: string, args: { [string]: any }?, bueno: boolean?)
+	Remotes.event(Remotes.AVISO)
+		:FireClient(player, clave, args, if bueno then Palette.AVISO_BUENO else Palette.AVISO_MALO)
 end
 
 -- LA COMPRA LA DECIDE EL SERVIDOR. El cliente pinta el precio, pero un remote
@@ -182,14 +239,9 @@ local function comprar(player: Player, id: any)
 	-- refrescar salvo lo que ve el jugador.
 	PlayerState.sync(player)
 	-- El NOMBRE, no el id: "Learned: camuflaje" enseña la clave interna, que es
-	-- justo lo que el jugador no tiene por qué ver nunca.
-	local comoSeLlama = id
-	for _, d in Skills.CATALOGO do
-		if d.id == id then
-			comoSeLlama = d.nombre
-		end
-	end
-	avisar(player, "Learned: " .. comoSeLlama, true)
+	-- justo lo que el jugador no tiene por qué ver nunca. Va por referencia para
+	-- que se traduzca en el cliente, no aquí.
+	avisar(player, "CONTACT_LEARNED", { habilidad = Strings.ref("SKILL_" .. id) }, true)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
 end
 
@@ -202,14 +254,14 @@ local function soltarSenuelo(player: Player)
 		return
 	end
 	if not Skills.tieneSenuelo(estado.habilidades) then
-		avisar(player, "You do not have the decoy yet")
+		avisar(player, "DECOY_NOT_OWNED")
 		return
 	end
 
 	local ahora = os.clock()
 	local libre = senueloLibre[player] or 0
 	if ahora < libre then
-		avisar(player, string.format("Decoy ready in %ds", math.ceil(libre - ahora)))
+		avisar(player, "DECOY_COOLDOWN", { segundos = math.ceil(libre - ahora) })
 		return
 	end
 
@@ -220,7 +272,7 @@ local function soltarSenuelo(player: Player)
 
 	senueloLibre[player] = ahora + Config.SENUELO_RECARGA
 	PatrolService.senuelo(player, root.Position, ahora + Config.SENUELO_DURACION)
-	avisar(player, "Decoy dropped", true)
+	avisar(player, "DECOY_DROPPED", nil, true)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "alerta")
 end
 
@@ -244,6 +296,7 @@ function ContactService.start()
 
 	Players.PlayerRemoving:Connect(function(player)
 		ultimaRuta[player] = nil
+		ultimoContacto[player] = nil
 		senueloLibre[player] = nil
 		local estado = PlayerState.peek(player)
 		if estado then

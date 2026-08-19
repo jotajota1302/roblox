@@ -17,40 +17,22 @@ return function(kit)
 	local destino = Vector3.new(0, 0, 600)
 	local recta = { origen, destino }
 
-	local sueltos = Contacts.sueltos(recta, 6)
-	kit.eq("siembra los sueltos que se le piden", #sueltos, 6)
-	kit.eq("un suelto vale 1", sueltos[1].valor, Config.CONTACTO_VALOR_SUELTO)
-	kit.eq("un suelto es de tipo suelto", sueltos[1].tipo, "suelto")
-
-	-- SOBRE el camino: el que lo recorre los pisa todos.
-	kit.eq(
-		"quien recorre el camino pisa todos los sueltos",
-		Contacts.cercaDelCamino(sueltos, recta, Config.CONTACTO_RADIO),
-		6
-	)
-
-	-- Ninguno dentro de la zona segura: un contacto a la puerta de casa es gratis.
-	local dentro = 0
-	for _, c in sueltos do
-		if (c.pos - origen).Magnitude <= Config.ZONA_SEGURA_RADIO then
-			dentro += 1
-		end
-	end
-	kit.eq("ningún suelto cae dentro de la zona segura", dentro, 0)
-
-	-- LA PRUEBA DE LA ELE, que es la que habría cazado el fallo: un camino que
-	-- dobla en ángulo recto. Los contactos tienen que seguir la ele, no la
-	-- diagonal, o repiten exactamente el error de repartir sobre la recta.
+	-- LA PRUEBA DE LA ELE, que es la que habría cazado el fallo original: un camino
+	-- que dobla en ángulo recto. El rastro tiene que seguir la ele, no la diagonal,
+	-- o repite exactamente el error de repartir sobre la recta -- y aquí importa
+	-- todavía más que con los sueltos, porque un rastro que corta por la diagonal
+	-- no es un premio mal puesto: es una ruta MAL SEÑALIZADA, y manda al jugador
+	-- contra una pared.
 	local ele = { Vector3.new(0, 0, 0), Vector3.new(0, 0, 500), Vector3.new(500, 0, 500) }
-	local porLaEle = Contacts.sueltos(ele, 8)
-	kit.eq("en un camino en ele siembra los que se le piden", #porLaEle, 8)
-	kit.eq("y TODOS caen sobre la ele", Contacts.cercaDelCamino(porLaEle, ele, Config.CONTACTO_RADIO), 8)
+	local porLaEle = Contacts.rastro(ele)
+	kit.truthy("en un camino en ele siembra rastro", #porLaEle > 10)
+	kit.eq("y TODO cae sobre la ele", Contacts.cercaDelCamino(porLaEle, ele, Config.CONTACTO_RADIO), #porLaEle)
 	kit.truthy(
 		"que no es lo mismo que la recta entre los extremos",
-		Contacts.cercaDelCamino(porLaEle, { ele[1], ele[3] }, Config.CONTACTO_RADIO) < 8
+		Contacts.cercaDelCamino(porLaEle, { ele[1], ele[3] }, Config.CONTACTO_RADIO) < #porLaEle
 	)
-	-- Y hay contactos en los DOS brazos: si el reparto se quedara en el primero,
-	-- media ruta iría sin nada.
+	-- Y hay rastro en los DOS brazos: si el reparto se quedara en el primero,
+	-- media ruta iría a oscuras.
 	local primerBrazo, segundoBrazo = 0, 0
 	for _, c in porLaEle do
 		if c.pos.X < 10 then
@@ -59,7 +41,7 @@ return function(kit)
 			segundoBrazo += 1
 		end
 	end
-	kit.truthy("hay contactos en el primer brazo", primerBrazo > 0)
+	kit.truthy("hay rastro en el primer brazo", primerBrazo > 0)
 	kit.truthy("y en el segundo", segundoBrazo > 0)
 
 	-- Los racimos se apartan, y por eso NO se pisan yendo por el camino: son un
@@ -86,20 +68,115 @@ return function(kit)
 	-- Sin peligros que usar de ancla, no inventa racimos sueltos por ahí.
 	kit.eq("sin peligros no hay racimos", #Contacts.racimos(recta, {}, 3), 0)
 
-	-- La ruta entera, por su id.
-	kit.eq("la verde reparte 6 sueltos y 1 racimo", #Contacts.deRuta("verde", recta, peligros), 7)
-	kit.eq("una ruta desconocida no revienta, devuelve vacío", #Contacts.deRuta("gris", recta, peligros), 0)
+	-- ─────────────────────────────────────────────────────────────────────────
+	-- EL RASTRO. Lo que se comprueba no es que salga: es que sea una FILA -- sin
+	-- huecos por los que el jugador pueda perder el camino, que es su único
+	-- trabajo. Un rastro con un vano de sesenta studs no marca una ruta.
+	local rastro = Contacts.rastro(recta)
+	kit.truthy("el rastro llena el camino, no lo salpica", #rastro > 10)
+	kit.eq("una pieza de rastro no paga contacto", rastro[1].valor, Config.CONTACTO_VALOR_RASTRO)
+	kit.eq("y es de tipo rastro", rastro[1].tipo, "rastro")
+	kit.eq("todo el rastro cae sobre el camino", Contacts.cercaDelCamino(rastro, recta, Config.CONTACTO_RADIO), #rastro)
 
-	-- Un camino tan corto que no cabe nada fuera de la zona segura: mejor ninguno
-	-- que uno mal puesto (misma regla que Lairs).
-	kit.eq("camino demasiado corto, sin contactos", #Contacts.sueltos({ origen, Vector3.new(0, 0, 120) }, 6), 0)
-	kit.eq("un camino de un solo punto no revienta", #Contacts.sueltos({ origen }, 6), 0)
+	-- SIN HUECOS: entre dos píldoras seguidas no puede haber más de un paso.
+	local mayorHueco = 0
+	for i = 2, #rastro do
+		local d = (rastro[i].pos - rastro[i - 1].pos).Magnitude
+		if d > mayorHueco then
+			mayorHueco = d
+		end
+	end
+	kit.truthy("no hay ningún vano mayor que el paso", mayorHueco <= Config.RASTRO_PASO + 0.5)
+
+	-- Ninguna dentro de la zona segura, igual que los sueltos.
+	local rastroDentro = 0
+	for _, c in rastro do
+		if (c.pos - origen).Magnitude <= Config.ZONA_SEGURA_RADIO then
+			rastroDentro += 1
+		end
+	end
+	kit.eq("ninguna pieza del rastro cae dentro de la zona segura", rastroDentro, 0)
+
+	-- Y LLEGA HASTA EL FINAL. Es la diferencia con los sueltos, que paraban a 60
+	-- studs del destino: quien sigue el rastro tiene que acabar en la entrega, no
+	-- quedarse a oscuras en el último tramo, que es donde más caro sale perderse.
+	local finalRastro = rastro[#rastro].pos
+	kit.truthy(
+		"el rastro llega hasta cerca del destino",
+		(finalRastro - destino).Magnitude <= Config.RASTRO_HASTA + Config.RASTRO_PASO
+	)
+
+	-- El rastro escala con el largo del camino, que es su razón de ser: un número
+	-- fijo dejaba la ruta larga --la que más ganas de abandonar da-- con la misma
+	-- media docena de piezas que la corta.
+	local largo = Contacts.rastro({ origen, Vector3.new(0, 0, 1200) })
+	kit.truthy("un camino el doble de largo lleva bastante más rastro", #largo > #rastro * 1.5)
+	kit.eq("camino demasiado corto, sin rastro", #Contacts.rastro({ origen, Vector3.new(0, 0, 120) }), 0)
+	kit.eq("un camino de un solo punto no revienta", #Contacts.rastro({ origen }), 0)
+
+	-- LAS DORADAS: cuántas del rastro pagan. Lo que importa es que el jugador
+	-- cobre lo mismo aunque la ciudad se coma piezas al plantar.
+	local dorados = Contacts.indicesDorados(20, 6)
+	local cuantasDoradas = 0
+	for _ in dorados do
+		cuantasDoradas += 1
+	end
+	kit.eq("dora exactamente las que se le piden", cuantasDoradas, 6)
+
+	-- Repartidas, no amontonadas al principio: si se agruparan, la segunda mitad
+	-- del viaje dejaría de pagar justo cuando más cuesta seguir.
+	local primeraMitad, segundaMitad = 0, 0
+	for i in dorados do
+		if i <= 10 then
+			primeraMitad += 1
+		else
+			segundaMitad += 1
+		end
+	end
+	kit.truthy("hay doradas en la primera mitad", primeraMitad > 0)
+	kit.truthy("y en la segunda", segundaMitad > 0)
+
+	local todas = Contacts.indicesDorados(4, 10)
+	local cuantasTodas = 0
+	for _ in todas do
+		cuantasTodas += 1
+	end
+	kit.eq("si se piden más doradas que piezas, se doran todas y no revienta", cuantasTodas, 4)
+	local ninguna = 0
+	for _ in Contacts.indicesDorados(0, 6) do
+		ninguna += 1
+	end
+	kit.eq("sin piezas plantadas no hay doradas", ninguna, 0)
+
+	-- La ruta entera, por su id.
+	kit.truthy("la verde reparte rastro y su racimo", #Contacts.deRuta("verde", recta, peligros) > 10)
+	kit.eq("una ruta desconocida no revienta, devuelve vacío", #Contacts.deRuta("gris", recta, peligros), 0)
 
 	-- LA RACHA. Acelera, tiene tope, y NUNCA deja al jugador fuera de alcance.
 	kit.eq("sin recoger nada, no hay racha", Contacts.racha(0), 0)
-	kit.near("cuatro contactos dan 2 studs/s", Contacts.racha(4), 2)
+	kit.near("cuatro piezas dan 1,6 studs/s", Contacts.racha(4), 1.6)
 	kit.eq("la racha tiene tope", Contacts.racha(999), Config.RACHA_MAXIMA)
-	kit.near("la racha se suma a la velocidad", Contacts.velocidadConRacha(16, 4), 18)
+	kit.near("la racha se suma a la velocidad", Contacts.velocidadConRacha(16, 4), 17.6)
+
+	-- LA CADENA. Es lo que convierte el rastro en un juego en vez de en un pasillo
+	-- decorado: si recoger seis al principio rindiera igual que seguir la fila
+	-- entera, el rastro no pediría nada y no engancharía.
+	kit.eq("recogiendo sin parar no se pierde nada", Contacts.rachaTrasEspera(10, 0), 10)
+	kit.eq("dentro de la gracia tampoco", Contacts.rachaTrasEspera(10, Config.RACHA_GRACIA), 10)
+	kit.eq(
+		"pasada la gracia se cae una pieza por segundo",
+		Contacts.rachaTrasEspera(10, Config.RACHA_GRACIA + 3),
+		10 - 3 * Config.RACHA_DECAE
+	)
+	kit.eq("y se cae a cero, sin suelo", Contacts.rachaTrasEspera(10, Config.RACHA_GRACIA + 999), 0)
+	kit.eq("nunca baja de cero", Contacts.rachaTrasEspera(0, 999), 0)
+
+	-- LA GRACIA TIENE QUE CUBRIR EL PASO DEL RASTRO, o quien va por la fila la
+	-- pierde sin haberse salido -- que es el fallo que convertiría la cadena en un
+	-- impuesto. A pie cargado (lo más lento que se juega) se pisa una píldora cada
+	-- RASTRO_PASO / velocidad segundos.
+	local segundosEntrePildoras = Config.RASTRO_PASO / Config.VELOCIDAD_BASE
+	kit.truthy("quien sigue el rastro a pie no pierde nunca la cadena", segundosEntrePildoras < Config.RACHA_GRACIA)
 	kit.truthy(
 		"ni el vehículo más rápido con la racha al tope pasa el antitrampas",
 		Contacts.velocidadConRacha(34, 999) < Config.VELOCIDAD_MAXIMA_PLAUSIBLE

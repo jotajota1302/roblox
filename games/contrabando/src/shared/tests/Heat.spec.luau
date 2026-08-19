@@ -131,7 +131,7 @@ return function(kit)
 		local expone, bulto = Vehicles.expone(v.id), Vehicles.bulto(v.id)
 		if anteriorExpone ~= nil then
 			kit.truthy(
-				string.format("%s no gana en las dos cosas a la vez", v.nombre),
+				string.format("%s no gana en las dos cosas a la vez", v.id),
 				not (expone < anteriorExpone and bulto < anteriorBulto)
 			)
 		end

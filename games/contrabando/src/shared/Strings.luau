@@ -45,7 +45,7 @@
 local Strings = {}
 
 -- Un parámetro que es a su vez un texto traducible.
-export type Ref = { __clave: string }
+export type Ref = { __clave: string, __args: { [string]: any }? }
 
 -- La nube, si la hay. La enchufa el cliente (Main.client) porque
 -- LocalizationService sólo tiene traductor de jugador ahí; este módulo se queda
@@ -156,6 +156,11 @@ local TEXTOS: { [string]: string } = {
 	-- Lo que se enseña cuando una pieza no tiene objeto conocido. Era "Bulto":
 	-- uno de los nueve castellanos que sobrevivieron a la traducción a mano.
 	GOODS_UNKNOWN = "Package",
+	-- Qué ES la pieza según su rareza: lo que se lee encima de la caja.
+	RARITY_comun = "Crate",
+	RARITY_marcada = "Briefcase",
+	RARITY_sellada = "Sealed case",
+	RARITY_legendaria = "Urn",
 	GOODS_LABEL = "{nombre}  x{multiplicador}",
 
 	-- ---- Habilidades ------------------------------------------------------
@@ -211,6 +216,9 @@ local TEXTOS: { [string]: string } = {
 	-- ---- Placas sobre los personajes --------------------------------------
 	NAMEPLATE_NAME = "{jugador}  ·  lv {nivel}",
 	NAMEPLATE_CARGO = "carrying {cuantas}  ·  {mejor}",
+	-- Lo que se lee sobre la carga que llevas a la espalda: la pieza más valiosa y
+	-- cuántas más van detrás.
+	BACKPACK_MORE = "{pieza}  +{cuantas}",
 	THIEF_PLATE = "THIEF",
 
 	-- ---- Rótulos que planta el servidor -----------------------------------
@@ -219,12 +227,21 @@ local TEXTOS: { [string]: string } = {
 	SIGN_WAREHOUSE = "YOUR WAREHOUSE",
 	SIGN_VEHICLES = "VEHICLES",
 	SIGN_DEN = "DEN",
+	SIGN_POLICE = "POLICE",
+	SIGN_OFFICE = "OFFICE",
+	SIGN_EXIT = "EXIT  ·  pick a route",
 	SIGN_PARKED = "you parked here",
 	PROMPT_BUY = "Buy",
 	PROMPT_BUY_VEHICLE = "Buy vehicle",
 	PROMPT_DROP_CARGO = "Drop cargo here",
 	PROMPT_UPGRADE = "Upgrade warehouse",
 	PROMPT_DEALERSHIP = "Dealership",
+	-- El escaparate: nombre, precio y nivel del vehículo. Se monta en el SERVIDOR
+	-- y lo ven todos igual, así que sale siempre en inglés -- ver la nota de la
+	-- cabecera sobre el texto del mundo.
+	SHOWROOM_LABEL = "{vehiculo}  ·  {precio}{nivel}",
+	SHOWROOM_LEVEL = "  ·  level {nivel}",
+	ROUTE_SIGN = "{ruta}  {paga}",
 
 	-- ---- Entregas y cobros -------------------------------------------------
 	CARGO_NEED_BIGGER = "You need a bigger vehicle: that one is {tamano}",
@@ -247,6 +264,8 @@ local TEXTOS: { [string]: string } = {
 	-- ---- Vehículos: comprar, sacar, aparcar --------------------------------
 	RIDE_PRESS_TO_MOUNT = "Press V to get on or off",
 	RIDE_TAKE_OUT = "You take out {vehiculo}",
+	RIDE_BOUGHT_OUT = "{vehiculo}: you carry {huecos} slots and bigger items",
+	RIDE_BOUGHT_PARKED = "{vehiculo} parked in your garage: take it out once unloaded",
 	RIDE_NONE_YET = "You do not have a vehicle yet",
 	RIDE_PARKED_WITH_CARGO = "You park it here with {cuantas} items inside",
 	RIDE_PARKED = "You park it here",
@@ -255,6 +274,8 @@ local TEXTOS: { [string]: string } = {
 	RIDE_SENT_HOME = "Your vehicle went back to the workshop",
 	RIDE_BACK_ON_WITH_CARGO = "Back on it, with your {cuantas} items",
 	RIDE_BACK_ON = "Back on it",
+	RIDE_GET_OFF_WITH_CARGO = "You get off: {cuantas} items stay in the vehicle",
+	RIDE_GET_OFF_NO_ROAD = "You get off: no driving here",
 
 	-- ---- Calor y persecución -----------------------------------------------
 	HEAT_SAFE = "Safe at your warehouse",
@@ -270,6 +291,9 @@ local TEXTOS: { [string]: string } = {
 
 	-- ---- Almacén ------------------------------------------------------------
 	WAREHOUSE_DROPPED = "You drop {cuantas} items at the warehouse",
+	WAREHOUSE_UPGRADED = "Warehouse level {nivel}: holds {tope}, produces every {ritmo}s",
+	WAREHOUSE_AWAY_FULL = "While you were away: {cuantas} items. The warehouse is FULL and stopped producing",
+	WAREHOUSE_AWAY = "While you were away: {cuantas} items waiting",
 
 	-- ---- Los "no puedes", uno por motivo -----------------------------------
 	-- La clave lleva el motivo que devuelve el servidor, para que la tabla de
@@ -291,6 +315,7 @@ local TEXTOS: { [string]: string } = {
 	DENY_necesitas_motor = "That route needs a road vehicle",
 	DENY_ruta_desconocida = "That route does not exist",
 	DENY_ROUTE = "You cannot leave that way",
+	DENY_LEVEL_TOO_LOW = "Level too low: {requisito}",
 	DENY_en_ruta = "You are already on a run: deliver first",
 	DENY_sin_carga_ruta = "Pick something up at the warehouse first",
 	DENY_fuera_del_recinto = "Routes are picked at your yard, not mid-run",
@@ -305,8 +330,13 @@ local TEXTOS: { [string]: string } = {
 Strings.TEXTOS = TEXTOS
 
 -- Marca un parámetro como "esto es otro texto, tradúcelo también".
-function Strings.ref(clave: string): Ref
-	return { __clave = clave }
+--
+-- Lleva sus propios parámetros porque un texto anidado puede tener huecos: el
+-- hito de la ámbar dice "Reach level 3 to unlock the {ruta} route", y meterlo
+-- dentro del aviso de recompensa sin sus argumentos enseñaría "{ruta}" en
+-- pantalla.
+function Strings.ref(clave: string, args: { [string]: any }?): Ref
+	return { __clave = clave, __args = args }
 end
 
 -- La plantilla en el idioma del jugador, o el inglés de arriba si no hay nube.
@@ -338,11 +368,18 @@ function Strings.format(plantilla: string, args: { [string]: any }?): string
 			return nil
 		end
 		if type(valor) == "table" and valor.__clave ~= nil then
-			return Strings.get(valor.__clave)
+			return Strings.get(valor.__clave, valor.__args)
 		end
 		return tostring(valor)
 	end)
 	return salida
+end
+
+-- Desmonta una referencia en (clave, argumentos), que es como viaja un aviso por
+-- el remote. Existe para que los servicios no tengan que hurgar en los campos de
+-- la referencia para mandarla.
+function Strings.partes(ref: Ref): (string, { [string]: any }?)
+	return ref.__clave, ref.__args
 end
 
 function Strings.get(clave: string, args: { [string]: any }?): string

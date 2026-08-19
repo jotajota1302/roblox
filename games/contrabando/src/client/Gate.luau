@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Perimeter = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Perimeter"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 
 local Gate = {}
 local carpeta: Folder? = nil
@@ -75,7 +76,7 @@ function Gate.build()
 			texto.TextStrokeTransparency = 0.25
 			texto.TextScaled = true
 			texto.Font = Enum.Font.GothamBold
-			texto.Text = "PICK A ROUTE TO LEAVE"
+			texto.Text = Strings.get("GATE_PICK_ROUTE")
 			texto.Parent = cartel
 		end
 	end

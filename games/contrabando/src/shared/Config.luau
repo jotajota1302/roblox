@@ -55,10 +55,10 @@ Config.PENALIZACION_POR_CAJA = 1.4 -- studs/s menos por unidad de peso transport
 -- inversión tiene que devolverla. La progresión sigue siendo por capacidad y
 -- acceso, no por potencia.
 Config.TAMANOS = {
-	{ id = "pequeno", nombre = "small", nivel = 1, huecos = 1, bono = 1 },
-	{ id = "mediano", nombre = "medium", nivel = 2, huecos = 2, bono = 1.6 },
-	{ id = "grande", nombre = "large", nivel = 3, huecos = 4, bono = 2 },
-	{ id = "enorme", nombre = "huge", nivel = 4, huecos = 8, bono = 2.6 },
+	{ id = "pequeno", nivel = 1, huecos = 1, bono = 1 },
+	{ id = "mediano", nivel = 2, huecos = 2, bono = 1.6 },
+	{ id = "grande", nivel = 3, huecos = 4, bono = 2 },
+	{ id = "enorme", nivel = 4, huecos = 8, bono = 2.6 },
 }
 
 -- `soloCalzada` marca los que NO pueden salirse del asfalto (ver Roads.luau). Es
@@ -100,7 +100,6 @@ Config.TAMANOS = {
 Config.VEHICULOS = {
 	{
 		id = "a_pie",
-		nombre = "On foot",
 		capacidad = Config.CAPACIDAD_A_PIE,
 		velocidadBase = Config.VELOCIDAD_BASE,
 		penalizacionPorPeso = Config.PENALIZACION_POR_CAJA,
@@ -120,7 +119,6 @@ Config.VEHICULOS = {
 	-- primeros viajes o el dinero no significa nada al empezar.
 	{
 		id = "monopatin",
-		nombre = "Skateboard",
 		capacidad = 5,
 		velocidadBase = 19,
 		penalizacionPorPeso = 1.0,
@@ -132,7 +130,6 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "patinete",
-		nombre = "Scooter",
 		capacidad = 6,
 		velocidadBase = 20,
 		penalizacionPorPeso = 0.9,
@@ -144,7 +141,6 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "patinete_electrico",
-		nombre = "E-Scooter",
 		capacidad = 7,
 		velocidadBase = 24,
 		penalizacionPorPeso = 0.8,
@@ -157,7 +153,6 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "bicicleta",
-		nombre = "Bike",
 		capacidad = 9,
 		velocidadBase = 26,
 		penalizacionPorPeso = 0.7,
@@ -170,7 +165,6 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "moto",
-		nombre = "Motorbike",
 		capacidad = 12,
 		velocidadBase = 32,
 		penalizacionPorPeso = 0.55,
@@ -183,7 +177,6 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "coche",
-		nombre = "Car",
 		capacidad = 18,
 		velocidadBase = 34,
 		penalizacionPorPeso = 0.4,
@@ -196,7 +189,6 @@ Config.VEHICULOS = {
 	},
 	{
 		id = "furgoneta",
-		nombre = "Van",
 		capacidad = 26,
 		velocidadBase = 30,
 		penalizacionPorPeso = 0.28,
@@ -333,7 +325,6 @@ Config.RUTAS = {
 	-- entre 200 y 350 studs; si sale rojo, es esta coordenada la que hay que mover.
 	{
 		id = "barrio",
-		nombre = "LOCAL",
 		multiplicador = 0.4,
 		nivel = 1,
 		destino = Vector3.new(-428, 19.2, 623),
@@ -350,25 +341,40 @@ Config.RUTAS = {
 	},
 	{
 		id = "verde",
-		nombre = "GREEN",
 		multiplicador = 1,
 		nivel = 1,
-		destino = Vector3.new(-180, 19, 540),
+		-- ACERCADO EL 19/08, y el motivo está medido con el pathfinder dentro del
+		-- juego: el destino viejo (-180, 540) quedaba a 436 studs en línea recta
+		-- pero a **768 andando** -- un factor ×1,76, el peor de las cuatro rutas.
+		-- La primera ruta que juega alguien eran 96 segundos de ida y vuelta antes
+		-- de sumar cargar, elegir y entregar. JJ lo jugó y lo dijo en una línea:
+		-- "es muy largo".
+		--
+		-- El sitio nuevo es un punto DEL CAMINO REAL viejo, así que no se ha
+		-- inventado: es por donde ya se pasaba, y cae sobre calzada.
+		--
+		-- No está más cerca todavía por una regla que ya existía y que conviene no
+		-- romper: `Mapa.spec` exige que dos destinos no queden a menos de 250 studs
+		-- --dos porterías juntas se confunden al llegar, y entregar en la
+		-- equivocada es perder el viaje entero--. Los puntos más cercanos del
+		-- camino caían a 206-245 del barrio. Éste es el primero que se separa.
+		destino = Vector3.new(-170, 19.2, 669),
 		detectores = 3,
 		pvp = "ninguno",
 	},
 	{
 		id = "ambar",
-		nombre = "AMBER",
 		multiplicador = 3,
 		nivel = 3,
-		destino = Vector3.new(240, 14.8, 420),
+		-- ACERCADA igual que la verde: 1.034 studs de camino real eran 129 s de ida
+		-- y vuelta a pie. El punto nuevo está a 740 del enganche sobre ese mismo
+		-- camino -- 46 s de ida a pie, 31 con patinete eléctrico.
+		destino = Vector3.new(100, 19.2, 624),
 		detectores = 9,
 		pvp = "transportistas",
 	},
 	{
 		id = "roja",
-		nombre = "RED",
 		multiplicador = 10,
 		nivel = 8,
 		-- Y ADEMÁS PIDE VEHÍCULO DE MOTOR. Es la única ruta con dos requisitos, y
@@ -376,7 +382,17 @@ Config.RUTAS = {
 		-- estar DETRÁS del sumidero en vez de compitiendo con él. Con esto, el
 		-- dinero que se gasta en el taller compra algo que el dinero solo no daba.
 		exigeMotor = true,
-		destino = Vector3.new(600, 19.2, -180),
+		-- ACERCADA, y era la más urgente de las tres: 1.813 studs de camino real,
+		-- o sea **227 segundos de ida y vuelta a pie**. Casi cuatro minutos de una
+		-- sesión que en Roblox dura seis. El punto nuevo está a 1.050 del enganche
+		-- sobre el mismo camino: 66 s de ida a pie, 31 en coche.
+		--
+		-- LO QUE SE PIERDE, y conviene tenerlo escrito: el destino viejo obligaba a
+		-- cruzar a la parcela del noreste por un paso estrecho, un cuello de botella
+		-- natural para emboscadas. Aquí no lo hay. Se acepta porque el cuello de
+		-- botella era un regalo de un mapa ajeno y la duración es un problema
+		-- medido; cuando el mapa se haga a medida, se recupera a propósito.
+		destino = Vector3.new(242, 19.2, 191),
 		detectores = 18,
 		pvp = "libre",
 	},
@@ -686,30 +702,67 @@ Config.VELOCIDAD_MAXIMA_PLAUSIBLE = 40
 Config.CONTACTO_RADIO = 10 -- studs de recogida, por proximidad: no hay que pulsar
 Config.CONTACTO_VALOR_SUELTO = 1
 Config.CONTACTO_VALOR_RACIMO = 5
+-- El rastro no paga: su trabajo es el CAMINO y la VELOCIDAD, no la moneda. Si
+-- pagara, la economía de habilidades se multiplicaría por cinco de un día para
+-- otro sin que nadie lo hubiera decidido.
+Config.CONTACTO_VALOR_RASTRO = 0
 
--- Los sueltos van SOBRE el camino y dan el ritmo (algo pasa cada 3-5 segundos).
--- Los racimos van apartados, pegados a un peligro, y son la decisión: el premio
--- está donde está el riesgo. El desvío es menor que el de una guarida (70) para
--- que ir a por uno sea un rodeo y no una expedición.
-Config.CONTACTO_RACIMO_DESVIO = 55
+-- ─────────────────────────────────────────────────────────────────────────────
+-- EL RASTRO: la fila de píldoras que DIBUJA la ruta y te acelera al seguirla.
+--
+-- POR QUÉ, dicho por JJ tras jugarlo: "es muy largo, nada atractivo; para que
+-- enganche a seguir la ruta deberíamos poner la ruta indicada con píldoras que se
+-- van recogiendo y aumentan la velocidad, más seguidos".
+--
+-- Los contactos ya hacían la mitad de esto, pero eran SEIS en la ruta verde: uno
+-- cada 128 studs, o sea uno cada ocho segundos. Eso no es un rastro, es una
+-- rifa -- ni marca por dónde ir ni se siente como un premio continuo.
+--
+-- Con el paso a 22 studs la verde pasa de 6 piezas a ~17, y a 16 studs/s eso es
+-- **algo bueno cada 1,4 segundos**. Es el patrón de los juegos que enganchan en
+-- esta plataforma: la recompensa no está al final del trayecto, ES el trayecto.
+--
+-- Y de paso resuelve un problema que no era de premio sino de orientación: la
+-- brújula te dice hacia dónde, pero no por dónde. La fila de luces sí.
+Config.RASTRO_PASO = 22
 
--- Al recogerlo se apaga y vuelve. NO se destruye: son parte del trazado, y una
--- ciudad que se queda sin contactos tras el primer viaje deja de tener camino que
--- aprender. La espera es más corta que un viaje entero para que el de vuelta no
--- pase por una calle apagada.
-Config.CONTACTO_RECARGA = 45
+-- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
+-- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs
+-- después -- y llega casi hasta el destino, al revés que los sueltos, que se
+-- paraban a 60: quien sigue el rastro tiene que acabar EN la entrega.
+Config.RASTRO_DESDE = 20
+Config.RASTRO_HASTA = 25
 
--- Cuántos por ruta. Escalan con el peligro, como todo lo demás.
+-- Se apagan al pisarlas y vuelven. Corta, y bajada de 45 a 15 el 19/08 por una
+-- consecuencia directa de acortar las rutas: con la verde en 26 s de ida, una
+-- recarga de 45 dejaba TODO el viaje de vuelta a oscuras y sin racha. La vuelta
+-- ya era la mitad floja del ciclo; no podía además quedarse sin el gancho.
+Config.CONTACTO_RECARGA = 15
+
+-- Cuántos por ruta. Ahora `sueltos` NO es cuántas piezas hay, sino cuántas de las
+-- del rastro son DORADAS (las que además pagan contacto). El total de piezas lo
+-- decide el largo del camino y RASTRO_PASO.
+--
+-- El número se ha dejado igual que antes a propósito: el rastro cambia lo que se
+-- SIENTE, no lo que se gana. Las habilidades siguen costando lo que costaban y
+-- tardando lo que tardaban, así que este cambio no puede desequilibrar la
+-- progresión -- que es justo lo que hay que poder afirmar cuando se toca el
+-- sistema por el que pasa el jugador cada segundo del viaje.
 Config.CONTACTOS_POR_RUTA = {
-	-- El barrio lleva tres y ninguno apartado: es el viaje donde se aprende que hay
-	-- cosas que recoger, no donde se decide si merece la pena desviarse.
+	-- El barrio lleva tres doradas y ningún racimo: es el viaje donde se aprende
+	-- que hay cosas que recoger, no donde se decide si merece la pena desviarse.
 	barrio = { sueltos = 3, racimos = 0 },
 	verde = { sueltos = 6, racimos = 1 },
 	ambar = { sueltos = 10, racimos = 2 },
 	roja = { sueltos = 16, racimos = 3 },
 } :: { [string]: { sueltos: number, racimos: number } }
 
--- LA RACHA: cada contacto recogido te acelera, y la velocidad es DEL VIAJE, no
+-- Los racimos van apartados, pegados a un peligro, y son la decisión: el premio
+-- está donde está el riesgo. El desvío es menor que el de una guarida (70) para
+-- que ir a por uno sea un rodeo y no una expedición.
+Config.CONTACTO_RACIMO_DESVIO = 55
+
+-- LA RACHA: cada pieza recogida te acelera, y la velocidad es DEL VIAJE, no
 -- tuya. La velocidad permanente está descartada desde el principio (ver la
 -- cabecera de Levels.luau): chocaría con la regla de que nadie puede volverse
 -- inalcanzable, y sin alcance no hay PvP.
@@ -717,8 +770,28 @@ Config.CONTACTOS_POR_RUTA = {
 -- Así se puede acelerar de verdad sin romperla: se pierde entera al entregar y al
 -- ser alcanzado, y los ladrones escalan con la velocidad ACTUAL del perseguido,
 -- racha incluida.
-Config.RACHA_POR_CONTACTO = 0.5
-Config.RACHA_MAXIMA = 4 -- el coche (34) queda en 38, con el antitrampas en 40
+--
+-- Reajustada el 19/08 al entrar el rastro: cada pieza vale MENOS (0,4 en vez de
+-- 0,5) porque hay muchas más, y el techo sube de 4 a 6 porque ahora se puede
+-- sostener. A pie son 16 → 22 studs/s, un 37 % más rápido, que es lo que hace que
+-- seguir el rastro se note en el reloj y no sólo en el contador.
+Config.RACHA_POR_CONTACTO = 0.4
+Config.RACHA_MAXIMA = 6 -- el coche (34) queda recortado en 38, con el antitrampas en 40
+
+-- LA CADENA: la racha se cae sola si dejas de recoger.
+--
+-- Es lo que convierte el rastro en un juego en vez de en un pasillo decorado. Sin
+-- esto, recoger seis píldoras al principio y luego ir en línea recta rinde igual
+-- que seguir la fila entera -- y entonces el rastro no pide nada, así que no
+-- engancha. Con esto, el viaje tiene una pregunta constante ("¿me desvío a por
+-- la siguiente o corto por aquí?") que antes sólo aparecía en los racimos.
+--
+-- Los cuatro segundos de gracia salen del paso del rastro: a 22 studs y 16
+-- studs/s se pisa una cada 1,4 s, así que quien va por la fila no la pierde nunca
+-- y quien la abandona lo nota enseguida. Y decae UNA pieza por segundo, no de
+-- golpe: perderlo todo por un semáforo es castigo, perderlo poco a poco es aviso.
+Config.RACHA_GRACIA = 4
+Config.RACHA_DECAE = 1
 
 -- LAS HABILIDADES. Todas se montan sobre un número que ya se calculaba: ninguna
 -- crea un sistema nuevo y NINGUNA DA VELOCIDAD.
@@ -749,11 +822,11 @@ Config.SENUELO_RADIO = 120 -- a quién despista
 -- `abre` es una LLAVE: la ruta verde no existe hasta el primer hito. Por eso el
 -- servidor lo comprueba y no se fía del selector.
 Config.HITOS = {
-	{ id = "primera", texto = "Deliver your first package", entregas = 1, monedas = 50, abre = "verde" },
-	{ id = "tres", texto = "Deliver 3 packages", entregas = 3, monedas = 250 },
-	{ id = "ambar", texto = "Reach level 3 to unlock the AMBER route", nivel = 3 },
-	{ id = "ocho", texto = "Deliver 8 packages", entregas = 8, monedas = 1000 },
-	{ id = "roja", texto = "Level 8 and a road vehicle for the RED route", nivel = 8, exigeMotor = true },
+	{ id = "primera", entregas = 1, monedas = 50, abre = "verde" },
+	{ id = "tres", entregas = 3, monedas = 250 },
+	{ id = "ambar", nivel = 3 },
+	{ id = "ocho", entregas = 8, monedas = 1000 },
+	{ id = "roja", nivel = 8, exigeMotor = true },
 }
 
 return Config

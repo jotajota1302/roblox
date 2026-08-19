@@ -26,7 +26,10 @@ Remotes.MONTAR = "Montar" -- cliente -> servidor: "me subo o me bajo del vehícu
 Remotes.MEJORAR_NAVE = "MejorarNave" -- cliente -> servidor: "pago la siguiente mejora de la nave"
 Remotes.COMPRAR_HABILIDAD = "ComprarHabilidad" -- cliente -> servidor: "compro este peldaño"
 Remotes.USAR_SENUELO = "UsarSenuelo" -- cliente -> servidor: "suelto el cebo aquí"
-Remotes.AVISO = "Aviso" -- servidor -> cliente: mensaje corto en pantalla
+-- servidor -> cliente: (clave de Strings, argumentos, color). NO viaja el texto
+-- ya montado: el idioma es del jugador, y en una partida con dos personas de
+-- paises distintos el servidor no tiene un idioma correcto que elegir.
+Remotes.AVISO = "Aviso"
 Remotes.SONIDO = "Sonido" -- servidor -> cliente: reproducir un efecto por su clave
 
 local function getFolder(): Folder

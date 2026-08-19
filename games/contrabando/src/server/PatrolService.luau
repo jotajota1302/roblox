@@ -34,6 +34,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local Ride = require(script.Parent.Ride)
 local Telemetry = require(script.Parent.Telemetry)
@@ -251,7 +252,7 @@ local function vestir(modelo: Model)
 		texto.TextStrokeTransparency = 0.3
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = "THIEF"
+		texto.Text = Strings.get("THIEF_PLATE")
 		texto.Parent = placa
 	end
 end
@@ -440,11 +441,8 @@ local function alcanzar(player: Player)
 		CargoService.mostrarCarga(player)
 	end
 
-	Remotes.event(Remotes.AVISO):FireClient(
-		player,
-		cuantas > 0 and string.format("Robbed! They take %d items", cuantas) or "Robbed, but you were empty",
-		Palette.AVISO_MALO
-	)
+	Remotes.event(Remotes.AVISO)
+		:FireClient(player, if cuantas > 0 then "ROBBED" else "ROBBED_EMPTY", { cuantas = cuantas }, Palette.AVISO_MALO)
 	Telemetry.evento(player, "ladron_alcanza", { cajas = cuantas })
 
 	-- Y LA RACHA, ENTERA. Es el paso en falso: pierdes la carga y pierdes la
@@ -603,7 +601,7 @@ local function ajustar(player: Player)
 
 	if quieren == 0 then
 		if escoltas[player] then
-			Remotes.event(Remotes.AVISO):FireClient(player, "You lost them", Palette.AVISO_BUENO)
+			Remotes.event(Remotes.AVISO):FireClient(player, "CHASE_LOST_THEM", nil, Palette.AVISO_BUENO)
 			retirar(player)
 		end
 		-- Y la señal se apaga SIEMPRE, no sólo cuando había escoltas que retirar.
@@ -683,7 +681,7 @@ local function ajustar(player: Player)
 		table.insert(lista, nueva)
 		perseguir(nueva, player)
 		if #lista == 1 then
-			Remotes.event(Remotes.AVISO):FireClient(player, "They are on you", Palette.AVISO_MALO)
+			Remotes.event(Remotes.AVISO):FireClient(player, "CHASE_ON_YOU", nil, Palette.AVISO_MALO)
 		end
 	end
 end

@@ -14,6 +14,7 @@ local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local CargoService = require(script.Parent.CargoService)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
@@ -25,17 +26,19 @@ local almacen: BasePart? = nil
 
 -- Por qué no se puede mejorar, en palabras. Cada motivo dice algo que el jugador
 -- puede hacer al respecto -- que es lo único que distingue una regla de un fallo.
+-- Motivo del servidor -> clave del texto. "lejos" significa aquí "lejos del
+-- almacén" y en GarageService "lejos del taller": mismo motivo, dos frases.
 local EXPLICACION: { [string]: string } = {
-	lejos = "You have to be at the warehouse",
-	sin_dinero = "No te llega el dinero",
-	al_maximo = "Tu nave ya esta al maximo",
+	lejos = "DENY_lejos_almacen",
+	sin_dinero = "DENY_sin_dinero",
+	al_maximo = "DENY_al_maximo",
 }
 
 -- Y por qué no se puede dejar la carga. "sin_carga" no está: pulsar con las manos
 -- vacías no es un error del que haya que avisar, es no hacer nada.
 local EXPLICACION_DEVOLVER: { [string]: string } = {
-	lejos = "Get closer to the warehouse to drop it",
-	ya_en_ruta = "Ya has elegido ruta: esto se entrega en su destino",
+	lejos = "DENY_lejos_devolver",
+	ya_en_ruta = "DENY_ya_en_ruta",
 }
 
 function WarehouseService.registrarAlmacen(part: BasePart)
@@ -134,12 +137,8 @@ function WarehouseService.mejorar(player: Player): (boolean, string)
 	Telemetry.evento(player, "mejora_nave", { nivel = siguienteNivel, coste = siguiente.coste })
 	Remotes.event(Remotes.AVISO):FireClient(
 		player,
-		string.format(
-			"Warehouse level %d: holds %d, produces every %ds",
-			siguienteNivel,
-			siguiente.tope,
-			siguiente.ritmo
-		),
+		"WAREHOUSE_UPGRADED",
+		{ nivel = siguienteNivel, tope = siguiente.tope, ritmo = siguiente.ritmo },
 		Palette.AVISO_BUENO
 	)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
@@ -165,13 +164,11 @@ function WarehouseService.bienvenida(player: Player)
 	end
 
 	local nave = Warehouse.mejora(estado.naveNivel)
-	local texto = if ahora >= nave.tope
-		then string.format("While you were away: %d items. The warehouse is FULL and stopped producing", producidas)
-		else string.format("While you were away: %d items waiting", producidas)
+	local clave = if ahora >= nave.tope then "WAREHOUSE_AWAY_FULL" else "WAREHOUSE_AWAY"
 	-- Y el aviso de que está llena importa más que el de las piezas: al tope deja
 	-- de producir, así que cada minuto de más es tiempo tirado. Es literalmente el
 	-- motivo de volver, y hasta ahora no se decía en ninguna parte.
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, Palette.AVISO_BUENO)
+	Remotes.event(Remotes.AVISO):FireClient(player, clave, { cuantas = producidas }, Palette.AVISO_BUENO)
 	PlayerState.sync(player)
 end
 
@@ -319,7 +316,7 @@ function WarehouseService.devolver(player: Player): (boolean, string)
 	CargoService.mostrarCarga(player)
 	PlayerState.sync(player)
 	Remotes.event(Remotes.AVISO)
-		:FireClient(player, string.format("You drop %d items at the warehouse", cuantas), Color3.fromRGB(150, 220, 160))
+		:FireClient(player, "WAREHOUSE_DROPPED", { cuantas = cuantas }, Color3.fromRGB(150, 220, 160))
 	return true, "ok"
 end
 
@@ -336,7 +333,7 @@ function WarehouseService.start()
 		-- pagó esa lección con el botón de entregar.
 		if not resultado and motivo ~= "sin_carga" then
 			Remotes.event(Remotes.AVISO)
-				:FireClient(player, EXPLICACION_DEVOLVER[motivo] or "You cannot drop cargo here", Palette.AVISO_MALO)
+				:FireClient(player, EXPLICACION_DEVOLVER[motivo] or "DENY_DROP", nil, Palette.AVISO_MALO)
 		end
 	end)
 
@@ -356,7 +353,7 @@ function WarehouseService.start()
 		end
 		if not resultado then
 			Remotes.event(Remotes.AVISO)
-				:FireClient(player, EXPLICACION[motivo] or "No se puede mejorar", Palette.AVISO_MALO)
+				:FireClient(player, EXPLICACION[motivo] or "DENY_UPGRADE", nil, Palette.AVISO_MALO)
 		end
 	end)
 

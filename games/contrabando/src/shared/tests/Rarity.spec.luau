@@ -44,7 +44,9 @@ return function(kit)
 	local vistas: { [string]: boolean } = {}
 	for _, id in { "comun", "marcada", "sellada", "legendaria" } do
 		local a = Rarity.aspecto(id)
-		kit.truthy("la rareza " .. id .. " tiene nombre", a.nombre ~= nil and a.nombre ~= "")
+		-- El nombre ya no vive en el aspecto: sale de Strings ("RARITY_" .. id).
+		-- Lo que se comprueba es que la etiqueta que se lee salga entera.
+		kit.truthy("la rareza " .. id .. " tiene etiqueta", string.find(Rarity.etiqueta(id), "x") ~= nil)
 		kit.falsy("y no se repite con otra", vistas[a.forma] == true)
 		vistas[a.forma] = true
 	end

@@ -32,6 +32,7 @@ local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 
 local CityBuilder = {}
 
@@ -1046,6 +1047,8 @@ local function sembrarContactos(
 	padre: Instance
 ): { BasePart }
 	local piezas: { BasePart } = {}
+	-- Las del rastro, en orden, para dorarlas DESPUÉS de saber cuáles cabían.
+	local delRastro: { BasePart } = {}
 
 	for i, contacto in Contacts.deRuta(ruta.id, camino, anclas) do
 		local x, z = contacto.pos.X, contacto.pos.Z
@@ -1067,14 +1070,19 @@ local function sembrarContactos(
 		-- trabajo es estar en el camino; al racimo un poco más, porque el suyo es
 		-- estar apartado. Pasado eso, no hay sitio: mejor ninguno que uno lejos.
 		local desplazado = math.sqrt((cx - x) ^ 2 + (cz - z) ^ 2)
-		local margen = if contacto.tipo == "racimo" then 60 else 40
+		-- Al racimo se le da margen porque su trabajo es estar apartado. Al rastro
+		-- se le da MENOS que a un suelto de antes (24 en vez de 40): una píldora
+		-- corrida 40 studs rompe la fila, y una fila con un diente fuera deja de
+		-- leerse como camino, que es justo lo único que el rastro tiene que hacer.
+		local margen = if contacto.tipo == "racimo" then 60 else 24
 		if desplazado > margen then
 			continue
 		end
 		x, z = cx, cz
 
 		local esRacimo = contacto.tipo == "racimo"
-		local lado = if esRacimo then 3.4 else 2.2
+		local esRastro = contacto.tipo == "rastro"
+		local lado = if esRacimo then 3.4 elseif esRastro then 1.9 else 2.2
 		local pieza = part(
 			string.format("Contacto_%s_%d", ruta.id, i),
 			Vector3.new(lado, lado, 0.7),
@@ -1091,15 +1099,49 @@ local function sembrarContactos(
 		pieza:SetAttribute("valor", contacto.valor)
 		pieza:SetAttribute("tipo", contacto.tipo)
 
-		-- Se tienen que VER desde la calle, o son decorado. El racimo alumbra más
-		-- porque su gracia es que lo veas desde el camino y decidas si te desvías.
-		local luz = Instance.new("PointLight")
-		luz.Color = Color3.fromRGB(255, 214, 130)
-		luz.Range = if esRacimo then 34 else 18
-		luz.Brightness = if esRacimo then 2.2 else 1.2
-		luz.Parent = pieza
+		-- LA LUZ SÓLO EN LAS QUE DECIDEN ALGO, y esto es un límite de la plataforma,
+		-- no una preferencia: con el rastro, la ruta roja pasa de 16 piezas a unas
+		-- 50, y las cuatro rutas juntas rondan las 130. Ciento treinta PointLight
+		-- encendidas a la vez es de las formas más rápidas de tirar el frame rate de
+		-- un móvil, que es donde juega la mayoría de Roblox.
+		--
+		-- El neón se ve sin alumbrar, así que la fila se lee igual. La luz se
+		-- reserva para el racimo, cuya gracia es que lo veas desde el camino y
+		-- decidas si te desvías.
+		if not esRastro then
+			local luz = Instance.new("PointLight")
+			luz.Color = Color3.fromRGB(255, 214, 130)
+			luz.Range = if esRacimo then 34 else 18
+			luz.Brightness = if esRacimo then 2.2 else 1.2
+			luz.Parent = pieza
+		end
 
+		if esRastro then
+			table.insert(delRastro, pieza)
+		end
 		table.insert(piezas, pieza)
+	end
+
+	-- Y AHORA SE DORAN, sobre las que de verdad encontraron calle. Hacerlo antes,
+	-- sobre el reparto teórico, haría que cada píldora descartada por la ciudad se
+	-- llevara una moneda por delante -- y la ruta con peor suerte de trazado pagaría
+	-- menos que las otras sin que nadie lo hubiera decidido ni lo pudiera ver.
+	local cuantas = Config.CONTACTOS_POR_RUTA[ruta.id]
+	if cuantas then
+		for indice in Contacts.indicesDorados(#delRastro, cuantas.sueltos) do
+			local pieza = delRastro[indice]
+			if pieza then
+				pieza:SetAttribute("valor", Config.CONTACTO_VALOR_SUELTO)
+				pieza:SetAttribute("tipo", "suelto")
+				pieza.Size = Vector3.new(2.6, 2.6, 0.7)
+				pieza.Color = Color3.fromRGB(255, 214, 130)
+				local luz = Instance.new("PointLight")
+				luz.Color = Color3.fromRGB(255, 214, 130)
+				luz.Range = 18
+				luz.Brightness = 1.2
+				luz.Parent = pieza
+			end
+		end
 	end
 
 	return piezas
@@ -1203,7 +1245,7 @@ local function nave(base: Part, padre: Instance, frente: number)
 	texto.TextStrokeTransparency = 0.2
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "YOUR WAREHOUSE"
+	texto.Text = Strings.get("SIGN_WAREHOUSE")
 	texto.Parent = rotulo
 end
 
@@ -1312,7 +1354,7 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBlack
-		texto.Text = "VEHICLES"
+		texto.Text = Strings.get("SIGN_VEHICLES")
 		texto.Parent = cartel
 	end
 
@@ -1387,7 +1429,7 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		-- más barato que te falte, que estaba bien cuando la escalera era una fila
 		-- de mejoras; con el garaje hay que poder elegir CUÁL, porque un patinete
 		-- teniendo furgoneta ya no es un capricho sino la llave de los atajos.
-		local compra = prompt(bulto, "Buy " .. vehiculo.nombre, string.format("%d", vehiculo.coste), 22)
+		local compra = prompt(bulto, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("RIDE_" .. vehiculo.id), 22)
 		compra.Name = "PromptComprar"
 		compra:SetAttribute("vehiculo", vehiculo.id)
 
@@ -1414,14 +1456,13 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 		-- hay que redibujarla cuando alguien sube. Y enseñarlo es la mitad del
 		-- motivo para seguir -- ver la furgoneta con un "nivel 10" encima es
 		-- exactamente lo que hace que subir de nivel signifique algo.
-		texto.Text = string.format(
-			"%s  ·  %d%s",
-			vehiculo.nombre,
-			vehiculo.coste,
-			if (vehiculo :: any).nivel and (vehiculo :: any).nivel > 1
-				then string.format("  ·  level %d", (vehiculo :: any).nivel)
-				else ""
-		)
+		texto.Text = Strings.get("SHOWROOM_LABEL", {
+			vehiculo = Strings.ref("RIDE_" .. vehiculo.id),
+			precio = vehiculo.coste,
+			nivel = if (vehiculo :: any).nivel and (vehiculo :: any).nivel > 1
+				then Strings.get("SHOWROOM_LEVEL", { nivel = (vehiculo :: any).nivel })
+				else "",
+		})
 		texto.Parent = etiqueta
 		podio.Material = Enum.Material.Concrete
 	end
@@ -1607,7 +1648,7 @@ local function guarida(
 	rotulo.TextStrokeTransparency = 0.35
 	rotulo.TextScaled = true
 	rotulo.Font = Enum.Font.GothamBold
-	rotulo.Text = "GUARIDA"
+	rotulo.Text = Strings.get("SIGN_DEN")
 	rotulo.Parent = cartel
 
 	return losa
@@ -1731,7 +1772,7 @@ local function refugio(
 	texto.TextStrokeTransparency = 0.2
 	texto.TextScaled = true
 	texto.Font = Enum.Font.GothamBold
-	texto.Text = "POLICE"
+	texto.Text = Strings.get("SIGN_POLICE")
 	texto.Parent = cartel
 
 	return losa
@@ -1799,7 +1840,7 @@ function CityBuilder.build(): Mundo
 	-- DEJAR CARGA, en la propia losa del almacén. El muelle sólo daba y nunca
 	-- recibía ("no puedo dejar paquetes en el almacén", JJ), así que elegir mal lo
 	-- que cargabas no tenía marcha atrás.
-	prompt(almacen, "Drop cargo here", "Warehouse", 30).Name = "PromptDevolver"
+	prompt(almacen, Strings.get("PROMPT_DROP_CARGO"), Strings.get("HUD_WAREHOUSE"), 30).Name = "PromptDevolver"
 
 	-- LA OFICINA: donde se paga la mejora de la nave (ver Config.NAVE_MEJORAS).
 	--
@@ -1823,7 +1864,7 @@ function CityBuilder.build(): Mundo
 		)
 		oficina.Material = Enum.Material.WoodPlanks
 		oficina:SetAttribute("rodable", true)
-		prompt(oficina, "Upgrade warehouse", "Oficina", 18).Name = "PromptMejorar"
+		prompt(oficina, Strings.get("PROMPT_UPGRADE"), Strings.get("OFFICE_NAME"), 18).Name = "PromptMejorar"
 
 		local cartel = Instance.new("BillboardGui")
 		cartel.Name = "Rotulo"
@@ -1841,7 +1882,7 @@ function CityBuilder.build(): Mundo
 		texto.TextStrokeTransparency = 0.35
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = "OFFICE"
+		texto.Text = Strings.get("SIGN_OFFICE")
 		texto.Parent = cartel
 	end
 
@@ -1919,7 +1960,7 @@ function CityBuilder.build(): Mundo
 	textoSalida.TextStrokeTransparency = 0.2
 	textoSalida.TextScaled = true
 	textoSalida.Font = Enum.Font.GothamBold
-	textoSalida.Text = "EXIT  ·  pick a route"
+	textoSalida.Text = Strings.get("SIGN_EXIT")
 	textoSalida.Parent = cartelSalida
 
 	-- El taller, al otro lado: pasar por delante de la tienda al salir convertiría
@@ -1959,7 +2000,7 @@ function CityBuilder.build(): Mundo
 
 	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
 	local taller = losa(ciudad, "Taller", Vector3.new(96, ALTO_LOSA, 60), Config.TALLER_POS, Palette.TALLER, mundo)
-	prompt(taller, "Buy vehicle", "Concesionario", 26).Name = "PromptTaller"
+	prompt(taller, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 26).Name = "PromptTaller"
 	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
 
@@ -2093,7 +2134,8 @@ function CityBuilder.build(): Mundo
 				despejar(ciudad, sitio, 110, 45)
 				local tallerZona =
 					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(96, ALTO_LOSA, 60), sitio, Palette.TALLER, mundo)
-				prompt(tallerZona, "Buy vehicle", "Concesionario", 26).Name = "PromptTaller"
+				prompt(tallerZona, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 26).Name =
+					"PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.
 				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
 				-- La calle es la que se encontró al elegir el sitio: buscarla otra vez
@@ -2150,7 +2192,7 @@ function CityBuilder.build(): Mundo
 		texto.TextStrokeTransparency = 0.2
 		texto.TextScaled = true
 		texto.Font = Enum.Font.GothamBold
-		texto.Text = string.format("%s  %s", Routes.nombre(ruta.id), Routes.paga(ruta.id))
+		texto.Text = Strings.get("ROUTE_SIGN", { ruta = Strings.ref("ROUTE_" .. ruta.id), paga = Routes.paga(ruta.id) })
 		texto.Parent = cartel
 
 		table.insert(destinos, destino)

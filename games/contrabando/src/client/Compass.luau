@@ -26,6 +26,7 @@ local RunService = game:GetService("RunService")
 
 local Bearing = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Bearing"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 
 local Compass = {}
 local marco: Frame? = nil
@@ -178,7 +179,7 @@ function Compass.refrescar()
 	local plano = Vector3.new(haciaAlla.X, 0, haciaAlla.Z)
 	if plano.Magnitude < 1 then
 		if distancia then
-			distancia.Text = "here"
+			distancia.Text = Strings.get("COMPASS_HERE")
 		end
 		return
 	end
@@ -201,7 +202,7 @@ function Compass.refrescar()
 		-- En "m" aunque sean studs: es la unidad que el jugador entiende, y el
 		-- número absoluto da igual mientras sea consistente. Lo que se lee es si
 		-- baja.
-		distancia.Text = string.format("%d m", math.floor(plano.Magnitude))
+		distancia.Text = Strings.get("COMPASS_METERS", { metros = math.floor(plano.Magnitude) })
 	end
 end
 

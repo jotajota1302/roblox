@@ -21,6 +21,7 @@ local Contacts = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 local Goals = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goals"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 
 local TOUCH_MIN = 48
 
@@ -164,20 +165,20 @@ function Hud.build()
 		return valor
 	end
 
-	dineroLabel = linea("Dinero", 1, "Money")
-	cargaLabel = linea("Carga", 2, "Cargo")
-	almacenLabel = linea("Almacen", 3, "Warehouse")
+	dineroLabel = linea("Dinero", 1, Strings.get("HUD_MONEY"))
+	cargaLabel = linea("Carga", 2, Strings.get("HUD_CARGO"))
+	almacenLabel = linea("Almacen", 3, Strings.get("HUD_WAREHOUSE"))
 	-- La cuarta línea es CONDICIONAL: sólo se enseña con calor encima. Por eso el
 	-- panel sigue dimensionado para tres y se estira con el layout en vez de
 	-- reservar sitio para una línea que casi siempre estaría a cero.
-	calorLabel = linea("Calor", 4, "Heat")
+	calorLabel = linea("Calor", 4, Strings.get("HUD_HEAT"))
 	calorFila = calorLabel.Parent :: Frame
 	calorFila.Visible = false
 
 	-- La meta: lo próximo que puedes comprar y su precio. También condicional --
 	-- desaparece cuando ya no queda nada que comprar, en vez de quedarse ocupando
 	-- sitio con una línea vacía.
-	metaLabel = linea("Meta", 5, "Next")
+	metaLabel = linea("Meta", 5, Strings.get("HUD_NEXT"))
 	metaFila = metaLabel.Parent :: Frame
 	metaFila.Visible = false
 
@@ -187,7 +188,7 @@ function Hud.build()
 	--
 	-- Van juntos porque son la misma cosa vista de dos maneras: lo que has
 	-- recogido en este viaje es lo que estás corriendo de más.
-	contactosLabel = linea("Contactos", 6, "Contacts")
+	contactosLabel = linea("Contactos", 6, Strings.get("HUD_CONTACTS"))
 	contactosFila = contactosLabel.Parent :: Frame
 	contactosFila.Visible = false
 	contactosLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
@@ -199,7 +200,7 @@ function Hud.build()
 	--
 	-- Condicional como las otras dos: cuando no queda ningún hito, desaparece en
 	-- vez de quedarse diciendo algo vacío.
-	objetivoLabel = linea("Objetivo", 7, "Goal")
+	objetivoLabel = linea("Objetivo", 7, Strings.get("HUD_GOAL"))
 	objetivoFila = objetivoLabel.Parent :: Frame
 	objetivoFila.Visible = false
 	objetivoLabel.TextColor3 = Color3.fromRGB(150, 205, 235)
@@ -426,7 +427,7 @@ export type EstadoHud = {
 	almacenCajas: number?,
 	calor: number?,
 	capacidad: number?,
-	vehiculoNombre: string?,
+	vehiculoClave: string?,
 	mejoras: { { id: string, nombre: string, coste: number, capacidad: number } }?,
 	cajasEnVehiculo: { any }?,
 	contactos: number?,
@@ -466,7 +467,11 @@ function Hud.update(estado: EstadoHud)
 	-- cuarta línea en un panel que tiene tres.
 	local etiquetaCarga = cargaLabel.Parent and cargaLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
 	if etiquetaCarga then
-		etiquetaCarga.Text = estado.vehiculoNombre or "Cargo"
+		-- El nombre del vehículo llega como CLAVE y se monta aquí: el servidor no
+		-- sabe en qué idioma lee este jugador.
+		etiquetaCarga.Text = if estado.vehiculoClave
+			then Strings.get(estado.vehiculoClave)
+			else Strings.get("HUD_CARGO")
 	end
 	-- El tope que se enseña es el de TU nave, no el de partida: si no, quien la
 	-- mejora ve "12/10" y no entiende nada.
@@ -513,7 +518,7 @@ function Hud.update(estado: EstadoHud)
 		objetivoLabel.Text = Goals.progreso(hito, estado.entregas or 0, estado.nivel or 1)
 		local etiqueta = objetivoLabel.Parent and objetivoLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
 		if etiqueta then
-			etiqueta.Text = "Goal"
+			etiqueta.Text = Strings.get("HUD_GOAL")
 		end
 	end
 
@@ -541,7 +546,7 @@ function Hud.update(estado: EstadoHud)
 		metaLabel.Text = UiKit.millares(siguiente.coste)
 		local etiqueta = metaLabel.Parent and metaLabel.Parent:FindFirstChild("Etiqueta") :: TextLabel?
 		if etiqueta then
-			etiqueta.Text = siguiente.nombre
+			etiqueta.Text = Strings.get("RIDE_" .. siguiente.id)
 		end
 		-- En oro cuando ya alcanza: la señal de "puedes comprarlo" tiene que verse de
 		-- reojo, sin comparar dos cifras.

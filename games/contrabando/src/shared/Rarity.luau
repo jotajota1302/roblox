@@ -9,6 +9,7 @@
 
 local Config = require(script.Parent.Config)
 local Economy = require(script.Parent.Economy)
+local Strings = require(script.Parent.Strings)
 
 local COLORES = {
 	comun = Color3.fromRGB(150, 130, 100),
@@ -60,7 +61,6 @@ end
 -- muelle); aquí sólo se dice qué es cada rareza, para que las dos mitades no
 -- tengan cada una su propia idea.
 export type Aspecto = {
-	nombre: string,
 	forma: string,
 	material: Enum.Material,
 	-- Proporciones respecto a la pieza base. Un estuche es plano y ancho; un cajón
@@ -71,25 +71,21 @@ export type Aspecto = {
 
 local ASPECTOS: { [string]: Aspecto } = {
 	comun = {
-		nombre = "Crate",
 		forma = "caja",
 		material = Enum.Material.WoodPlanks,
 		escala = Vector3.new(1, 1, 1),
 	},
 	marcada = {
-		nombre = "Briefcase",
 		forma = "maletin",
 		material = Enum.Material.Metal,
 		escala = Vector3.new(1.15, 0.42, 0.85),
 	},
 	sellada = {
-		nombre = "Sealed case",
 		forma = "estuche",
 		material = Enum.Material.DiamondPlate,
 		escala = Vector3.new(1.05, 0.8, 1.05),
 	},
 	legendaria = {
-		nombre = "Urn",
 		forma = "urna",
 		material = Enum.Material.Foil,
 		escala = Vector3.new(0.85, 1.25, 0.85),
@@ -110,7 +106,7 @@ function Rarity.etiqueta(id: string): string
 	-- el bucle que dibuja las demás.
 	local ok, def = pcall(Rarity.def, id)
 	local multiplicador = if ok and def then def.multiplicador else 1
-	return string.format("%s  x%d", Rarity.aspecto(id).nombre, multiplicador)
+	return Strings.get("GOODS_LABEL", { nombre = Strings.ref("RARITY_" .. id), multiplicador = multiplicador })
 end
 
 return Rarity

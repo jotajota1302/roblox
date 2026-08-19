@@ -9,12 +9,20 @@
 
 	DOS POBLACIONES, CON TRABAJOS DISTINTOS:
 
-	  · los SUELTOS van sobre la calzada del corredor y dan el RITMO. Si se
-	    apartaran, el jugador tendría que ir a por ellos y el viaje se convertiría
-	    en recolectar en vez de repartir;
+	  · el RASTRO es una fila continua sobre la calzada, una píldora cada
+	    RASTRO_PASO studs. Marca POR DÓNDE se va y acelera al seguirlo. No paga:
+	    unas cuantas de sus piezas se doran al plantarlas y ésas sí;
 	  · los RACIMOS se apartan hacia un peligro y dan la DECISIÓN. Su desvío es
 	    menor que el de una guarida (55 frente a 70) para que el rodeo sea un
 	    rodeo y no una expedición.
+
+	EL RASTRO SUSTITUYÓ A LOS SUELTOS el 19/08, y el motivo lo dio JJ jugando: "es
+	muy largo, nada atractivo". Los sueltos eran SEIS en la ruta verde -- uno cada
+	128 studs, uno cada ocho segundos-- y un número fijo repartía igual de pocos en
+	400 studs que en 1.800. Eso ni marcaba camino ni se sentía como premio
+	continuo. El reparto por paso fijo hace las dos cosas, y de paso arregla algo
+	que no era de premio sino de orientación: la brújula dice hacia dónde, pero no
+	por dónde. La fila de luces sí.
 
 	FIJOS Y APRENDIBLES, como los detectores y las guaridas: el reparto sale del
 	trazado, no de un dado. El jugador que repite la ruta sabe dónde están.
@@ -84,38 +92,6 @@ local function direccionEn(camino: { Vector3 }, largos: { number }, distancia: n
 	return Vector3.new(0, 0, 1)
 end
 
--- El tramo útil del camino, EN STUDS. Empieza pasada la zona segura y termina
--- antes del destino, por lo mismo que en Lairs: un contacto a la puerta de casa
--- es gratis, y uno pegado a la entrega llega cuando ya no hay viaje.
-local MARGEN_FINAL = 60
-
-function Contacts.sueltos(camino: { Vector3 }, cuantos: number): { Contacto }
-	local salida: { Contacto } = {}
-	if cuantos <= 0 or #camino < 2 then
-		return salida
-	end
-
-	local largos, total = tramos(camino)
-	local desde = Config.ZONA_SEGURA_RADIO + 40
-	local hasta = total - MARGEN_FINAL
-	if hasta <= desde then
-		-- Camino tan corto que no hay tramo donde ponerlos sin pisar la casa o el
-		-- destino. Ninguno es mejor que uno mal puesto.
-		return salida
-	end
-
-	for i = 1, cuantos do
-		local d = desde + (hasta - desde) * ((i - 0.5) / cuantos)
-		table.insert(salida, {
-			pos = puntoA(camino, largos, d),
-			valor = Config.CONTACTO_VALOR_SUELTO,
-			tipo = "suelto",
-		})
-	end
-
-	return salida
-end
-
 -- Un racimo por peligro, apartado del camino a la altura de ese peligro. Sin
 -- peligros no hay racimos: su razón de ser es estar junto a uno, así que uno
 -- suelto en mitad de ninguna parte sería un premio sin apuesta.
@@ -167,13 +143,93 @@ function Contacts.racimos(camino: { Vector3 }, peligros: { Vector3 }, cuantos: n
 	return salida
 end
 
+-- EL RASTRO: la fila continua de píldoras que dibuja el camino.
+--
+-- Su número NO se pide: sale del largo del camino y del paso. Con paso fijo, cada
+-- ruta lleva las que le caben, y el jugador aprende una sola regla en vez de
+-- cuatro: si hay hueco entre luces, te has salido del camino.
+function Contacts.rastro(camino: { Vector3 }): { Contacto }
+	local salida: { Contacto } = {}
+	if #camino < 2 then
+		return salida
+	end
+
+	local largos, total = tramos(camino)
+	local desde = Config.ZONA_SEGURA_RADIO + Config.RASTRO_DESDE
+	local hasta = total - Config.RASTRO_HASTA
+	if hasta <= desde then
+		return salida
+	end
+
+	local d = desde
+	while d <= hasta do
+		table.insert(salida, {
+			pos = puntoA(camino, largos, d),
+			valor = Config.CONTACTO_VALOR_RASTRO,
+			tipo = "rastro",
+		})
+		d += Config.RASTRO_PASO
+	end
+
+	return salida
+end
+
+-- CUÁLES DEL RASTRO SON DORADAS, o sea cuáles además pagan un contacto.
+--
+-- Devuelve índices y no piezas, y esa forma tiene un motivo práctico: al plantar,
+-- unas cuantas píldoras se caen del reparto porque no hay calle donde tocaban
+-- (`sembrarContactos` las descarta). Si el dorado se decidiera aquí sobre la
+-- lista teórica, cada píldora perdida se llevaría por delante una moneda y la
+-- economía de habilidades saldría distinta en cada ruta sin que nadie lo supiera.
+--
+-- Repartiendo sobre las que SE PLANTARON de verdad, el jugador cobra siempre lo
+-- mismo aunque la ciudad se coma piezas.
+function Contacts.indicesDorados(plantadas: number, cuantas: number): { [number]: boolean }
+	local marca: { [number]: boolean } = {}
+	if plantadas <= 0 or cuantas <= 0 then
+		return marca
+	end
+	if cuantas >= plantadas then
+		for i = 1, plantadas do
+			marca[i] = true
+		end
+		return marca
+	end
+	-- Repartidas, no las primeras: si se agruparan al principio, la segunda mitad
+	-- del viaje dejaría de pagar justo cuando más cuesta seguir.
+	for i = 1, cuantas do
+		marca[math.floor((i - 0.5) * plantadas / cuantas) + 1] = true
+	end
+	return marca
+end
+
+-- CUÁNTA RACHA QUEDA tras un rato sin recoger nada. La cadena, en una función
+-- pura para que se pueda comprobar sin mundo.
+--
+-- La gracia es lo que la hace justa: un semáforo, una curva o esquivar un ladrón
+-- no pueden costarte el viaje. Pasada, se cae despacio -- y se cae a cero, no a
+-- un mínimo, porque un suelo convertiría "abandonar el rastro" en una opción
+-- barata y el rastro dejaría de pedir nada.
+function Contacts.rachaTrasEspera(recogidos: number, segundosSinRecoger: number): number
+	if recogidos <= 0 then
+		return 0
+	end
+	local sobra = segundosSinRecoger - Config.RACHA_GRACIA
+	if sobra <= 0 then
+		return recogidos
+	end
+	return math.max(0, recogidos - math.floor(sobra * Config.RACHA_DECAE))
+end
+
 function Contacts.deRuta(rutaId: string, camino: { Vector3 }, peligros: { Vector3 }): { Contacto }
 	local cuantos = Config.CONTACTOS_POR_RUTA[rutaId]
 	if not cuantos then
 		return {}
 	end
 
-	local salida = Contacts.sueltos(camino, cuantos.sueltos)
+	-- El rastro va SIN dorar: quién paga se decide al plantar, sobre las que de
+	-- verdad encontraron calle (ver indicesDorados).
+	local salida = Contacts.rastro(camino)
 	for _, c in Contacts.racimos(camino, peligros, cuantos.racimos) do
 		table.insert(salida, c)
 	end

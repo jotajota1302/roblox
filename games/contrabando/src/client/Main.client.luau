@@ -12,10 +12,12 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Goals = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goals"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local Perimeter = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Perimeter"))
+local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
 local Compass = require(script.Parent:WaitForChild("Compass"))
 local Garage = require(script.Parent:WaitForChild("Garage"))
 local Gate = require(script.Parent:WaitForChild("Gate"))
@@ -57,6 +59,36 @@ end
 -- mismo error una vez, en CargoService.
 local ultimoEstado: any = nil
 local cerradoAMano = false
+
+-- LA NUBE, ENCHUFADA AQUÍ Y SÓLO AQUÍ. LocalizationService da un traductor POR
+-- JUGADOR, así que sólo existe en el cliente; Strings se queda puro y recibe una
+-- función. Sin nube --sin red, sin tabla subida, idioma no traducido-- todo cae
+-- al inglés que Strings lleva dentro y el juego se ve igual que hoy.
+--
+-- VA ANTES DE CONSTRUIR LA INTERFAZ, y cede (yield) mientras pide el traductor.
+-- Es a propósito: los rótulos se escriben una sola vez al construirlos, así que
+-- un traductor que llegara después dejaría la pantalla a medio traducir. El
+-- pcall es la red -- si falla, vuelve al instante y se sigue en inglés.
+local function enchufarTraductor()
+	local LocalizationService = game:GetService("LocalizationService")
+	local ok, translator = pcall(function()
+		return LocalizationService:GetTranslatorForPlayerAsync(Players.LocalPlayer)
+	end)
+	if not ok or translator == nil then
+		return
+	end
+	Strings.usarTraductor(function(clave)
+		-- FormatByKey LANZA si la clave no está en la tabla, que es lo normal
+		-- mientras no se suba: cada clave nueva pasaría por aquí antes de existir
+		-- allí. Por eso el pcall, y por eso devolver nil en vez de propagar.
+		local bien, texto = pcall(function()
+			return translator:FormatByKey(clave)
+		end)
+		return if bien then texto else nil
+	end)
+end
+
+enchufarTraductor()
 
 construir("Hud", Hud.build)
 construir("Gate", Gate.build)
@@ -172,24 +204,25 @@ local function misionActual(estado: any): (string, Color3)
 	-- viaje en marcha, las líneas de abajo vuelven a mandar: entonces lo urgente es
 	-- lo urgente.
 	if estado.hito and #estado.cajas == 0 and estado.ruta == nil and estado.retornoZona == nil then
-		return estado.hito.texto, Palette.SALIDA
+		return Goals.texto(estado.hito), Palette.SALIDA
 	end
 	if estado.retornoZona ~= nil then
 		if #estado.cajas > 0 then
-			return "Take the cargo to your warehouse", Palette.ALMACEN
+			return Strings.get("MISSION_TAKE_HOME"), Palette.ALMACEN
 		end
-		return "Pick up the return cargo", Palette.ruta(estado.retornoZona)
+		return Strings.get("MISSION_PICK_RETURN"), Palette.ruta(estado.retornoZona)
 	end
 	if estado.ruta ~= nil then
-		return "Deliver in " .. Routes.nombre(estado.ruta), Palette.ruta(estado.ruta)
+		return Strings.get("MISSION_DELIVER_IN", { ruta = Strings.ref("ROUTE_" .. estado.ruta) }),
+			Palette.ruta(estado.ruta)
 	end
 	if #estado.cajas > 0 then
-		return "Pick a route at the exit", Palette.SALIDA
+		return Strings.get("MISSION_PICK_ROUTE"), Palette.SALIDA
 	end
 	-- Con el zurrón vacío pero carga esperando en el vehículo, lo que toca es ir a
 	-- por él: si no, el jugador se vuelve al almacén creyendo que lo ha perdido.
 	if #(estado.cajasEnVehiculo or {}) > 0 then
-		return "Go back for your loaded vehicle", Palette.TALLER
+		return Strings.get("MISSION_BACK_TO_VEHICLE"), Palette.TALLER
 	end
 	-- Con dinero suficiente, lo primero es gastarlo. "No sé dónde se compran los
 	-- vehículos" (JJ) tenía dos mitades: el taller no se veía --ya es un
@@ -197,19 +230,19 @@ local function misionActual(estado: any): (string, Color3)
 	-- permitirte algo. El HUD enseña el precio; esto dice qué hacer con él.
 	local siguiente = estado.mejoras and estado.mejoras[1]
 	if siguiente and estado.dinero >= siguiente.coste then
-		return "Buy the " .. siguiente.nombre .. " at the workshop", Palette.TALLER
+		return Strings.get("MISSION_BUY_RIDE", { vehiculo = Strings.ref("RIDE_" .. siguiente.id) }), Palette.TALLER
 	end
 	if (estado.almacenCajas or 0) > 0 then
 		-- "En el almacén", no "en el muelle". Muelle es como lo llamamos NOSOTROS
 		-- en el código (la losa donde se apilan las piezas); el jugador lo que ve es
 		-- un almacén, y el letrero de la nave dice ALMACÉN. Un juego que llama a la
 		-- misma cosa de dos maneras hace dudar de si son dos sitios.
-		return "Load goods at the warehouse", Palette.ALMACEN
+		return Strings.get("MISSION_LOAD_GOODS"), Palette.ALMACEN
 	end
 	-- Y el hueco que no tenía respuesta: almacén vacío y zurrón vacío. Sin esta
 	-- línea, el jugador se queda mirando un muelle pelado sin saber si el juego se
 	-- ha roto o hay que esperar.
-	return "The warehouse is producing: wait", Palette.ALMACEN
+	return Strings.get("MISSION_PRODUCING"), Palette.ALMACEN
 end
 
 -- EL RUIDO DE LO QUE ESTÁS HACIENDO. "Aunque vayas en vehículo suenan los pasos
@@ -325,17 +358,17 @@ local function accionesActuales(estado: any): { Hud.Accion }
 	if estado.vehiculo ~= nil and estado.vehiculo ~= "a_pie" then
 		table.insert(lista, {
 			tecla = etiqueta("V", "Y"),
-			accion = if estado.montado == false then "get on the vehicle" else "get off the vehicle",
+			accion = Strings.get(if estado.montado == false then "ACTION_GET_ON" else "ACTION_GET_OFF"),
 		})
 	end
 	if #estado.cajas > 0 and (estado.ruta ~= nil or estado.retornoZona ~= nil) then
-		table.insert(lista, { tecla = etiqueta("E", "RB"), accion = "deliver the cargo" })
+		table.insert(lista, { tecla = etiqueta("E", "RB"), accion = Strings.get("ACTION_DELIVER") })
 	end
 	-- LO QUE SIEMPRE SE PUEDE, y que hasta ahora no se decía en ningún sitio: el
 	-- aviso de proximidad lo dibuja Roblox con el botón correcto de cada aparato,
 	-- pero sólo aparece cuando ya estás encima. Nombrarlo aquí es lo que hace que
 	-- alguien que acaba de entrar sepa que hay algo que pulsar.
-	table.insert(lista, { tecla = etiqueta("E", "X"), accion = "pick up, buy and use" })
+	table.insert(lista, { tecla = etiqueta("E", "X"), accion = Strings.get("ACTION_INTERACT") })
 	return lista
 end
 
@@ -399,13 +432,13 @@ local function apuntarBrujula(estado: any)
 	-- olvidarlo dejaría al jugador con la flecha señalando el sitio del que acaba
 	-- de salir.
 	if estado.retornoZona ~= nil and #estado.cajas > 0 then
-		Compass.apuntar(Config.ALMACEN_POS, "Back to the warehouse", Palette.ALMACEN)
+		Compass.apuntar(Config.ALMACEN_POS, Strings.get("COMPASS_BACK_HOME"), Palette.ALMACEN)
 		return
 	end
 	if estado.retornoZona ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.retornoZona)
 		if ok and ruta then
-			Compass.apuntar(ruta.destino, "Return cargo there", Palette.ruta(ruta.id))
+			Compass.apuntar(ruta.destino, Strings.get("COMPASS_RETURN_CARGO"), Palette.ruta(ruta.id))
 			return
 		end
 	end
@@ -413,16 +446,20 @@ local function apuntarBrujula(estado: any)
 	if estado.ruta ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.ruta)
 		if ok and ruta then
-			Compass.apuntar(ruta.destino, Routes.nombre(ruta.id) .. " drop", Palette.ruta(ruta.id))
+			Compass.apuntar(
+				ruta.destino,
+				Strings.get("COMPASS_DROP", { ruta = Strings.ref("ROUTE_" .. ruta.id) }),
+				Palette.ruta(ruta.id)
+			)
 			return
 		end
 	end
 	local salida = mundo and mundo:FindFirstChild("Salida") :: BasePart?
 	if #estado.cajas > 0 and salida then
-		Compass.apuntar(salida.Position, "Pick a route at the exit", Palette.SALIDA)
+		Compass.apuntar(salida.Position, Strings.get("COMPASS_PICK_ROUTE"), Palette.SALIDA)
 		return
 	end
-	Compass.apuntar(Config.ALMACEN_POS, "Your warehouse", Palette.ALMACEN)
+	Compass.apuntar(Config.ALMACEN_POS, Strings.get("COMPASS_YOUR_WAREHOUSE"), Palette.ALMACEN)
 end
 
 -- Como `construir`, pero para lo que corre en cada actualización de estado: cada
@@ -482,12 +519,12 @@ Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 		end
 		local siguiente = e and e.naveSiguiente
 		if siguiente then
-			aviso.ActionText = string.format("Upgrade warehouse  ·  %d", siguiente.coste)
-			aviso.ObjectText = string.format("Holds %d  ·  every %ds", siguiente.tope, siguiente.ritmo)
+			aviso.ActionText = Strings.get("OFFICE_UPGRADE", { coste = siguiente.coste })
+			aviso.ObjectText = Strings.get("OFFICE_UPGRADE_SUB", { tope = siguiente.tope, ritmo = siguiente.ritmo })
 			aviso.Enabled = true
 		else
-			aviso.ActionText = "Warehouse maxed"
-			aviso.ObjectText = "Oficina"
+			aviso.ActionText = Strings.get("OFFICE_MAXED")
+			aviso.ObjectText = Strings.get("OFFICE_NAME")
 		end
 	end, estado)
 	-- El candado de las rutas, antes de decidir si se enseña el selector: si se
@@ -589,8 +626,11 @@ task.spawn(function()
 	end
 end)
 
-Remotes.event(Remotes.AVISO).OnClientEvent:Connect(function(texto, color)
-	Hud.aviso(texto, color)
+-- EL AVISO LLEGA COMO CLAVE Y SE MONTA AQUÍ. El servidor no puede montarlo: el
+-- idioma es del jugador, y en una partida con dos personas de países distintos no
+-- hay un idioma correcto que el servidor pueda elegir.
+Remotes.event(Remotes.AVISO).OnClientEvent:Connect(function(clave, args, color)
+	Hud.aviso(Strings.get(clave, args), color)
 end)
 
 Remotes.event(Remotes.SONIDO).OnClientEvent:Connect(function(clave)

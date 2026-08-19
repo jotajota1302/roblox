@@ -122,7 +122,7 @@ return function(kit)
 		if v.coste > 0 then
 			local nivel = Vehicles.nivelDe(v.id)
 			kit.truthy(
-				string.format("%s no se abre antes que el anterior", v.nombre),
+				string.format("%s no se abre antes que el anterior", v.id),
 				nivel >= nivelAnterior and v.coste > costeAnterior
 			)
 			nivelAnterior, costeAnterior = nivel, v.coste

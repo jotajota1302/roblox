@@ -27,6 +27,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -72,8 +73,8 @@ local function perfil(player: Player): Intercept.Perfil?
 	}
 end
 
-local function avisar(player: Player, texto: string, color: Color3)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+local function avisar(player: Player, clave: string, args: { [string]: any }?, color: Color3?)
+	Remotes.event(Remotes.AVISO):FireClient(player, clave, args, color)
 end
 
 local function sonar(player: Player, clave: string)
@@ -126,7 +127,7 @@ function InterceptService.tick(ahora: number)
 			if Intercept.esAmenaza(perfilAtacante, perfilVictima, distancia, ahora) then
 				if ahora - (ultimaAlerta[victima] or 0) >= ALERTA_CADA then
 					ultimaAlerta[victima] = ahora
-					avisar(victima, "Te vienen detras", ROJO)
+					avisar(victima, "CHASE_BEHIND_YOU", nil, ROJO)
 					sonar(victima, "alerta")
 				end
 			end
@@ -211,7 +212,9 @@ function InterceptService.tick(ahora: number)
 			-- La víctima sabe quién fue: sin eso el robo es una desaparición
 			-- inexplicable, y eso es rabia, no tensión. Los dos avisos usan el
 			-- MISMO número: el de cajas realmente transferidas.
-			avisar(victima, string.format("%s robbed %d items from you", atacante.DisplayName, #robadas), ROJO)
+			-- El nombre del ladron va como texto suelto y no como referencia: es un
+			-- nombre propio, y eso no se traduce.
+			avisar(victima, "ROBBED_BY_PLAYER", { jugador = atacante.DisplayName, cuantas = #robadas }, ROJO)
 			-- Si acaba de heredar la ruta hay que DECÍRSELO: es la diferencia entre
 			-- saber adónde llevar el botín y volver andando al almacén a preguntar.
 			local heredada = perfilAtacante.ruta == nil and estadoAtacante.ruta ~= nil

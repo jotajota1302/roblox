@@ -28,6 +28,7 @@ local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
+local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local Telemetry = require(script.Parent.Telemetry)
 
@@ -89,8 +90,8 @@ local function publicar(player: Player)
 	end
 end
 
-local function avisar(player: Player, texto: string, color: Color3)
-	Remotes.event(Remotes.AVISO):FireClient(player, texto, color)
+local function avisar(player: Player, clave: string, args: { [string]: any }?, color: Color3?)
+	Remotes.event(Remotes.AVISO):FireClient(player, clave, args, color)
 end
 
 local function raiz(player: Player): BasePart?
@@ -114,7 +115,7 @@ local function muestra(player: Player, ahora: number): boolean
 	if (root.Position - Config.ALMACEN_POS).Magnitude <= Config.ZONA_SEGURA_RADIO then
 		if nivelAntes > 0 then
 			calor[player] = Heat.aSalvo(antes)
-			avisar(player, "Safe at your warehouse", Palette.AVISO_BUENO)
+			avisar(player, "HEAT_SAFE", nil, Palette.AVISO_BUENO)
 			publicar(player)
 			return true
 		end
@@ -156,11 +157,7 @@ local function muestra(player: Player, ahora: number): boolean
 		local siguiente, subio = Heat.detectar(estado, id, ahora)
 		estado = siguiente
 		if subio then
-			avisar(
-				player,
-				string.format("You have been spotted  ·  heat %d/%d", estado.nivel, Config.CALOR_MAXIMO),
-				Palette.AVISO_MALO
-			)
+			avisar(player, "HEAT_SPOTTED", { nivel = estado.nivel, maximo = Config.CALOR_MAXIMO }, Palette.AVISO_MALO)
 			Telemetry.evento(player, "calor_sube", { nivel = estado.nivel, detector = id })
 		end
 	end
@@ -180,7 +177,7 @@ local function muestra(player: Player, ahora: number): boolean
 
 	if estado.nivel ~= nivelAntes then
 		if estado.nivel < nivelAntes and estado.nivel == 0 then
-			avisar(player, "Nobody is chasing you", Palette.AVISO_BUENO)
+			avisar(player, "HEAT_CLEAR", nil, Palette.AVISO_BUENO)
 		end
 		publicar(player)
 		return true
@@ -221,11 +218,7 @@ function HeatService.transferir(victima: Player, ladron: Player)
 		-- a dos jugadores calientes en un salto instantáneo al máximo y el ladrón no
 		-- tendría ninguna forma de calcular en qué se está metiendo.
 		calor[ladron] = { nivel = heredado, ultimoDescenso = os.time(), disparos = {} }
-		avisar(
-			ladron,
-			string.format("You take their cargo and their heat  ·  %d/%d", heredado, Config.CALOR_MAXIMO),
-			Palette.AVISO_AGRESIVO
-		)
+		avisar(ladron, "HEAT_INHERITED", { nivel = heredado, maximo = Config.CALOR_MAXIMO }, Palette.AVISO_AGRESIVO)
 		publicar(ladron)
 		PlayerState.sync(ladron)
 	end

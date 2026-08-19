@@ -52,7 +52,7 @@ return function(kit)
 	for _, v in Config.VEHICULOS do
 		if v.soloCalzada then
 			kit.truthy(
-				string.format("%s compensa ir atado a la calle (%d > %d)", v.nombre, v.velocidadBase, libreMasRapido),
+				string.format("%s compensa ir atado a la calle (%d > %d)", v.id, v.velocidadBase, libreMasRapido),
 				v.velocidadBase > libreMasRapido
 			)
 		end
@@ -62,7 +62,7 @@ return function(kit)
 	-- encima de él la rechaza el propio juego como imposible.
 	for _, v in Config.VEHICULOS do
 		kit.truthy(
-			string.format("%s no pasa del tope antitrampas", v.nombre),
+			string.format("%s no pasa del tope antitrampas", v.id),
 			Vehicles.get(v.id).velocidadBase < Config.VELOCIDAD_MAXIMA_PLAUSIBLE
 		)
 	end
