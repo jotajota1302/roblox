@@ -426,6 +426,33 @@ end
 -- studs por encima del asfalto justo antes de enganchar con la calle. El rayo
 -- caía a nueve studs de la loma y no la veía. Un solo rayo mide un solo punto del
 -- terreno; la vereda tiene veintiséis studs de ancho.
+-- CUÁNTO puede levantar la vía un rayo de al lado, y por qué es tan poco.
+--
+-- La función de abajo se queda con el suelo MÁS ALTO de cinco rayos --el del centro
+-- y cuatro alrededor-- para que la calzada no quede enterrada cuando el terreno
+-- sube por un costado. El tope es lo que impide que ese máximo recoja un tejado.
+--
+-- ⚠ Y NO ES EL CULPABLE DE LA JOROBA DEL ACCESO VERDE, aunque lo parecía. Queda
+-- escrito aquí para que nadie vuelva a gastar la tarde en ello.
+--
+-- El síntoma: ese acceso cruza una explanada COMPLETAMENTE LLANA --medido punto por
+-- punto con los cinco rayos, el suelo da 19,00 en TODO el trazado-- y aun así la
+-- calzada se levanta hasta 4,5 studs sobre la hierba en su último tercio (perfil
+-- 1,6 · 1,6 · 2,0 · 3,4 · 4,5 · 3,5 · 1,4). El coste no es estético: ese canto es
+-- un obstáculo para el navmesh, así que el pathfinder RODEA la propia carretera
+-- que le hemos puesto y el camino de la verde pasa de 512 a 679 studs -- un tercio
+-- más de viaje en la ruta que más se juega, causado por su propio acceso.
+--
+-- La sospecha razonable era este tope: hay una calle elevada de la ciudad
+-- (`Stone`, superficie a 29,42) pasando junto al final del trazado, y 4 studs de
+-- margen dan de sobra para recogerla. **Probado bajarlo a 1,6 y el perfil sale
+-- IDÉNTICO al decimal.** Así que la elevación no entra por los rayos laterales.
+--
+-- Descartado también: el rayo central (mide 19,00), y los dos extremos impuestos
+-- (la losa del destino está a 21,00 y la última losa acaba a 20,43, los dos bajos).
+-- Lo que queda por mirar es la envolvente de conos que alisa el perfil más abajo.
+local LEVANTE_MAXIMO = 4
+
 local function cotaDelTrazado(ciudad: Instance?, punto: Vector3, direccion: Vector3, ancho: number): number?
 	-- DENTRO DEL POLÍGONO manda su cota, como en losa() y por lo mismo: la boca cae
 	-- justo sobre el borde del mapa y ahí el rayo todavía encuentra suelo de la
@@ -454,7 +481,7 @@ local function cotaDelTrazado(ciudad: Instance?, punto: Vector3, direccion: Vect
 		-- último tramo del acceso verde salió TRECE STUDS por encima de la calle,
 		-- convertido en una rampa hacia un balcón. Cuatro studs es un bordillo alto o
 		-- una loma; más que eso ya es un edificio y no un desnivel del camino.
-		if y ~= nil and y > alto and y - centro <= 4 then
+		if y ~= nil and y > alto and y - centro <= LEVANTE_MAXIMO then
 			alto = y
 		end
 	end

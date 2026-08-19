@@ -473,13 +473,31 @@ final de la construcción, y punto.
 
 ### Abierto
 
-- [ ] **El acceso a la verde se eleva 4,5 studs sobre terreno llano.** `cotaDelTrazado` toma
-      el máximo de los rayos laterales, y en una explanada a cota 19,00 la calzada sube a
-      23,46. El canto resultante es un obstáculo para el navmesh, así que **el pathfinder
-      rodea la propia carretera** y el camino de la verde se alarga de 512 a 679 studs — un
-      tercio más de viaje en la ruta que más se juega. Probado bajar el tope lateral de 4 a
-      1,6: no cambia nada, así que la elevación viene del rayo central o de la envolvente, no
-      de los laterales. Arreglarlo devolvería el ciclo verde de 96 s a ~78 s.
+- [ ] **El acceso a la verde se eleva 4,5 studs sobre terreno llano**, y su canto hace que el
+      pathfinder **rodee la propia carretera**: el camino de la verde pasa de 512 a 679 studs,
+      un tercio más de viaje en la ruta que más se juega. Arreglarlo devolvería el ciclo verde
+      de 96 s a ~78 s.
+
+      Perfil medido, en studs sobre el terreno: `1,8 1,6 1,6 1,6 1,6 1,6 1,6 1,6 1,6 2,0 3,4
+      4,5 3,5 1,4`. La joroba está en el último tercio.
+
+      **Lo ya descartado** (para no repetirlo):
+
+      | Sospechoso | Cómo se descartó |
+      |---|---|
+      | El terreno | Los cinco rayos dan **19,00 en todo el trazado**. Es una explanada llana |
+      | Los rayos laterales de `cotaDelTrazado` | Bajado su tope de 4 a 1,6 **con el cambio verificado en Studio antes de reconstruir**: perfil idéntico al decimal |
+      | El rayo central | Mide 19,00 |
+      | Los extremos impuestos | La losa del destino está a 21,00 y la última losa acaba a 20,43: los dos bajos |
+
+      Queda por mirar la **envolvente de conos** que alisa el perfil (`acceso`, la cuenta
+      `max sobre j de suelo[j] − |i−j|·SALTO_MAXIMO`), que es lo único que puede levantar una
+      junta por encima de su propio suelo.
+
+      **Y una trampa de método que costó una medición entera**: el plugin de Rojo se
+      desconecta sin avisar, y entonces se reconstruye el mundo con el código viejo y se mide
+      otra cosa. Antes de dar por bueno un "no cambia nada", **comprobar que Studio tiene el
+      cambio** leyendo el `Source` del módulo, no que el `rojo build` haya ido bien.
 
 ## 4. Antes de publicar
 
