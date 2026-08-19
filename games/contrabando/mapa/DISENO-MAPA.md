@@ -1,5 +1,18 @@
 # Diseño del mapa procedural
 
+> **SUPERADO el 19/08 por
+> [`../docs/specs/2026-08-19-mapa-propio-design.md`](../docs/specs/2026-08-19-mapa-propio-design.md).**
+> Este documento diseñó una cuadrícula de 1600x1600 centrada en (0,0) para las
+> posiciones que el juego tenía entonces. El 19/08 el mundo se encogió a la mitad y el
+> almacén quedó **fuera** de ese cuadrado, así que la geometría de aquí ya no describe
+> nada que exista. Se conserva porque el razonamiento sigue siendo el bueno --por qué
+> generar en vez de heredar, qué aporta el carácter por zona, por qué la estética va la
+> última-- y porque el generador que describe es el que se reescribió, no otro.
+>
+> Lo que cambió en el spec nuevo: la retícula se alinea a los puntos fijos del juego en
+> vez de al revés, las zonas van por bandas y no en diagonal, y el plano se extrajo a
+> `src/shared/Grid.luau` para que Config y SelfCheck beban de la misma fuente.
+
 > 2026-08-17. Supersede la sección 3 de [`DISENO-CIUDAD.md`](DISENO-CIUDAD.md): en vez de
 > montar un `.rbxm` del Creator Store, **generamos la ciudad por código**. El resto del
 > spec (zonas, calor, detectores, robo) sigue vigente tal cual.

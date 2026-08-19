@@ -90,9 +90,19 @@ es ésta. El ciclo es ida y vuelta, contando el tramo de casa a la boca del pol�
 | Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Camino | Ciclo | Con el rastro |
 |---|---|---|---|---|---|---|---|
 | ⬜ Barrio | ×0,4 | — | 1 | ninguno | 147 | 32 s | **26 s** |
-| 🟢 Verde | ×1 | — | 3 | ninguno | 322 | 47 s | **35 s** |
-| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | 338 | 48 s | **36 s** |
-| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | 631 | 73 s | **53 s** |
+| 🟢 Verde | ×1 | — | 3 | ninguno | 261 | 38 s | **28 s** |
+| 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | 374 | 53 s | **40 s** |
+| 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | 572 | 66 s | **48 s** |
+
+> **Caminos medidos el 19/08 con el pathfinder sobre la retícula propia** (`Grid`), desde la
+> boca del recinto. Los cuatro destinos son cruces de calle y están a **un giro o ninguno**
+> de la salida: al barrio se va recto, a la verde girando al oeste, a la ámbar y la roja al
+> este. Sobre el plano los caminos serían 146 / 292 / 438 / 730; los medidos salen más
+> cortos porque por dentro de las manzanas se puede cortar entre edificios, y eso es un
+> atajo real que se descubre andando.
+>
+> Los **ciclos** están escalados en proporción al camino, no cronometrados de nuevo: hay que
+> volver a medirlos jugando antes de darlos por buenos.
 
 El ciclo ya **no incluye volver a casa**: al entregar puedes seguir desde donde estás.
 

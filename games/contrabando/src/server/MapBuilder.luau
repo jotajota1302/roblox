@@ -27,29 +27,38 @@
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 
 local MapBuilder = {}
 
--- Tamaño del mapa y de sus piezas. La suma 6*240 + 5*32 = 1600 es deliberada:
--- encaja con las posiciones de los puntos fijos del juego (ver Config.luau).
-local TAMANO_TOTAL = 1600
-local MITAD = TAMANO_TOTAL / 2
-local N_MANZANAS = 6
-local TAMANO_MANZANA = 240
-local ANCHO_CALLE = 32
+-- El plano no se decide aquí: vive en shared/Grid.luau, que es de donde beben
+-- también Config (para los destinos) y SelfCheck (para verificarlos). Esto es
+-- sólo la parte que se planta.
+local TAMANO_MANZANA = Grid.LADO_MANZANA
+local ANCHO_CALLE = Grid.ANCHO_CALLE
 local ALTO_CALLE = 0.5
 local ALTO_ACERA = 2
-local Y_SUELO = 0 -- el suelo base vive aquí; las calles van por encima
+-- Lo que la acera sobresale de la calzada. Es la cota sobre la que se apoyan los
+-- edificios, así que vive fuera de plantarAcerasManzana: tenerla dentro obligaba a
+-- que los edificios se apoyaran en un número repetido a mano.
+local ACERA_ALTURA = ALTO_ACERA - ALTO_CALLE
+
+-- LA COTA POR LA QUE SE ANDA, y todo lo que se planta se cuelga de ella. Antes el
+-- mapa vivía en y=0 y el resto del juego en 19,2, porque el mapa se generaba para
+-- probarse solo y el recinto estaba puesto sobre un terreno ajeno. Tener dos alturas
+-- distintas para el mismo suelo es exactamente cómo aparece un canto de tres studs
+-- que corta el navmesh sin que nada dé error.
+local Y_CALZADA = Grid.Y
 
 -- Zonas en índices de manzana (col, fila), 0-based, con el origen abajo-izquierda.
 -- La "L" verde→ámbar→roja preserva la asimetría del spec original: el almacén
 -- queda en el SO, los destinos se alejan hacia el NE, y la roja además obliga
 -- a cruzar una zona más densa — cuello de botella natural sin ponerlo a mano.
 local ZONAS: { [string]: { colMin: number, colMax: number, filaMin: number, filaMax: number } } = {
-	verde = { colMin = 0, colMax = 1, filaMin = 4, filaMax = 5 },
-	ambar = { colMin = 2, colMax = 3, filaMin = 1, filaMax = 4 },
-	roja = { colMin = 4, colMax = 5, filaMin = 0, filaMax = 1 },
+	verde = { colMin = 0, colMax = Grid.COLUMNAS - 1, filaMin = 2, filaMax = 2 },
+	ambar = { colMin = 0, colMax = Grid.COLUMNAS - 1, filaMin = 1, filaMax = 1 },
+	roja = { colMin = 0, colMax = Grid.COLUMNAS - 1, filaMin = 0, filaMax = 0 },
 }
 
 -- Plaza en la zona verde: una manzana vacía como atajo. Se eligió la (col=1,
@@ -57,7 +66,7 @@ local ZONAS: { [string]: { colMin: number, colMax: number, filaMin: number, fila
 -- que la salida natural del jugador pase **por o cerca de** la plaza, y el
 -- atajo sea un gesto que el jugador descubre andando, no una decisión que
 -- tiene que leer en pantalla.
-local PLAZA = { col = 1, fila = 4 }
+local PLAZA = { col = 1, fila = 2 }
 
 -- **Solares**: manzanas vacías en ámbar y roja. Son la versión "callejón a lo
 -- grande" del diseño: el jugador las cruza en diagonal cuando una patrulla le
@@ -76,8 +85,8 @@ local PLAZA = { col = 1, fila = 4 }
 -- cambia la coordenada y se vuelve a jugar. Es el mismo flujo que con la
 -- plaza: un cambio de 2 líneas, sin tocar el resto del mapa.
 local LOTES_VACANTES: { { col: number, fila: number } } = {
-	{ col = 2, fila = 2 }, -- ámbar: corredor ámbar → roja
-	{ col = 4, fila = 1 }, -- roja: salida de la zona densa
+	{ col = 2, fila = 1 }, -- ámbar: pegado al destino ámbar, la salida si te pisan
+	{ col = 1, fila = 0 }, -- roja: escape de la banda densa hacia el oeste
 }
 
 -- Hitos de zona: una pieza **alta y delgada** en el centro visual de cada zona,
@@ -115,12 +124,26 @@ local HITOS: { [string]: { tamano: Vector3, color: Color3, material: Enum.Materi
 -- libres). El cálculo es simétrico: la columna y fila son el promedio de los
 -- índices de la zona, y la intersección está entre medias.
 local function centroDeZona(zona: string): Vector3
-	local z = ZONAS[zona]
-	local colMedia = (z.colMin + z.colMax + 1) / 2 -- la calle entre medias
-	local filaMedia = (z.filaMin + z.filaMax + 1) / 2
-	local x = xDeColumna(colMedia) - ANCHO_CALLE / 2
-	local zPos = zDeFila(filaMedia) - ANCHO_CALLE / 2
-	return Vector3.new(x, 0, zPos)
+	-- LOS TRES EN LA MISMA CALLE, la que sale del recinto. Así, al salir de casa se
+	-- ven las tres en fila -- cada una más lejos y más alta-- y se sabe de un vistazo
+	-- cuánto hay hasta cada zona sin leer nada. Repartidos por el centro de su banda
+	-- cada uno se veía solo, que es lo que había hasta ahora y lo que dejaba al
+	-- jugador diciendo "no sé a dónde tengo que ir".
+	--
+	-- PEGADOS AL BORDILLO, no en mitad de la calzada. La primera versión los puso en
+	-- el eje de la calle y la sonda lo cazó a la primera: esa calle es también el
+	-- camino al barrio, y el hito verde se plantaba justo encima de la fila de luces
+	-- que marca la ruta -- tapaba el tramo que el jugador tiene que ver para saber
+	-- por dónde seguir. Un mojón de orientación que estorba a la orientación.
+	local centro = Grid.centroManzana(0, Grid.filaDeZona(zona))
+	-- FUERA DE LA CALZADA, en el margen de la manzana. Con el hito dentro de la
+	-- calle, la sonda encontró dos cosas a la vez: el verde tapaba la fila de luces
+	-- del barrio, y desde la boca del recinto la baliza del barrio tapaba a los otros
+	-- dos -- todo estaba alineado en el mismo eje, que era justo la gracia y también
+	-- el problema. Cinco studs pasado el bordillo, el eje de la calle queda limpio y
+	-- la línea de visión va en diagonal, que es lo que los separa.
+	local aUnLado = Grid.ANCHO_CALLE / 2 + 5
+	return Vector3.new(Grid.xDeCalle(1) + aUnLado, Y_CALZADA, centro.Z)
 end
 
 -- Características por zona. Ahora con **rango de densidad** (no un número
@@ -136,16 +159,21 @@ local ZONA_CONFIG: {
 	[string]: { densidadMin: number, densidadMax: number, alturaMin: number, alturaMax: number },
 } =
 	{
-		verde = { densidadMin = 1, densidadMax = 2, alturaMin = 10, alturaMax = 25 },
-		ambar = { densidadMin = 2, densidadMax = 3, alturaMin = 25, alturaMax = 50 },
-		roja = { densidadMin = 3, densidadMax = 5, alturaMin = 50, alturaMax = 100 },
+		verde = { densidadMin = 1, densidadMax = 2, alturaMin = 12, alturaMax = 24 },
+		ambar = { densidadMin = 2, densidadMax = 3, alturaMin = 24, alturaMax = 44 },
+		roja = { densidadMin = 3, densidadMax = 5, alturaMin = 44, alturaMax = 80 },
 	}
 
 -- Hueco entre edificios cuando se plantan en fila. Lo bastante estrecho para
 -- que sea claramente un callejón (no un patio), lo bastante ancho para que un
 -- personaje y una patrulla quepan a la vez: el patrullaje en callejones de la
 -- roja es la habilidad de lectura que el viaje pide.
-local GAP_ENTRE_EDIFICIOS = 10
+local GAP_ENTRE_EDIFICIOS = 8
+
+-- Lo más estrecho que puede salir un edificio de una fila. Bajó de 40 a 24 con la
+-- manzana (de 240 a 120): con 40 sobre 120 studs, la roja no podía plantar más de
+-- dos edificios por manzana y su densidad --lo único que la distingue-- se perdía.
+local ANCHO_MINIMO_EDIFICIO = 24
 
 -- Paleta. Cubos de colores a propósito — la estética se elige cuando el bucle
 -- esté medido. Tres tonos por zona para que el ojo distinga edificios sin
@@ -192,60 +220,92 @@ local function pieza(nombre: string, tamano: Vector3, posicion: Vector3, color: 
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Material = Enum.Material.SmoothPlastic
+	-- MARCA DE PROPIEDAD, y no es cosmética. CityBuilder despeja el sitio donde va a
+	-- plantar una losa o una vía, y su criterio ("pieza pequeña o estrecha") venía
+	-- calibrado para la chatarra del mapa del Creator Store -- vallas, matorrales,
+	-- farolas. Contra el mapa propio ese criterio se come las aceras enteras: miden
+	-- 120 x 1,5 x 6 y encajan en la definición de estorbo. Las calles se salvan por
+	-- UN stud (26 de ancho contra un listón de 25).
+	--
+	-- Con la marca no hay que afinar ningún listón: lo que planta el mapa es el mapa,
+	-- y el mapa no se despeja nunca.
+	p:SetAttribute("delMapa", true)
 	p.Parent = padre
 	return p
 end
 
--- Coordenada X del borde IZQUIERDO de la columna i.
+-- Coordenada X del borde OESTE de la columna i, y Z del borde SUR de la fila j.
+-- Los dos salen de Grid.manzana para que no haya dos aritméticas del mismo plano.
 local function xDeColumna(i: number): number
-	return -MITAD + i * (TAMANO_MANZANA + ANCHO_CALLE)
+	local x0 = Grid.manzana(i, 0)
+	return x0
 end
 
--- Coordenada Z del borde INFERIOR de la fila j.
 local function zDeFila(j: number): number
-	return -MITAD + j * (TAMANO_MANZANA + ANCHO_CALLE)
+	local _, _, z0 = Grid.manzana(0, j)
+	return z0
 end
 
 -- Suelo base bajo todo el mapa. Red de seguridad por si un raycast falla: si
 -- el suelo de la ciudad desaparece, esto es lo que pisa el jugador. En
 -- segmentos por el límite de 2048 studs por eje, ya pagado.
 local function plantarSueloBase(padre: Instance)
-	local PASO = 800
-	for x = -MITAD, MITAD - 1, PASO do
-		for z = -MITAD, MITAD - 1, PASO do
+	local xMin, xMax, zMin, zMax = Grid.limites()
+	-- Un margen por fuera del último bordillo: sin él, quien rodea el mapa por la
+	-- calle exterior se cae por el borde del mundo.
+	local MARGEN = 60
+	xMin, xMax, zMin, zMax = xMin - MARGEN, xMax + MARGEN, zMin - MARGEN, zMax + MARGEN
+
+	-- Piezas modestas y no una losa gigante: el raycast del suelo se hace en cada
+	-- siembra de CityBuilder, y cuanto menor es la pieza que devuelve, más barato
+	-- sale. El límite de 2048 studs por eje ya no es un riesgo con 610 de mapa.
+	local PASO = 200
+	local indice = 0
+	local x = xMin
+	while x < xMax do
+		local ancho = math.min(PASO, xMax - x)
+		local z = zMin
+		while z < zMax do
+			local largo = math.min(PASO, zMax - z)
+			indice += 1
 			pieza(
-				string.format("Suelo_%d_%d", x, z),
-				Vector3.new(PASO, 1, PASO),
-				Vector3.new(x + PASO / 2, Y_SUELO, z + PASO / 2),
+				string.format("Suelo_%d", indice),
+				Vector3.new(ancho, 1, largo),
+				Vector3.new(x + ancho / 2, Y_CALZADA - ALTO_CALLE - 0.5, z + largo / 2),
 				COLOR_SUELO_BASE,
 				padre
 			)
+			z += PASO
 		end
+		x += PASO
 	end
 end
 
 -- Una calle entre dos hileras de manzanas. Se planta como una pieza larga en
 -- X (calles verticales) o en Z (calles horizontales). En fase 1 todas las
 -- calles son del mismo ancho — la variación por zona entra en fase 2.
+-- Las calles van de borde a borde del mapa, incluidas las de los extremos: son lo
+-- que permite rodear la ciudad por fuera en vez de encontrarse el final del mundo.
+-- La cara SUPERIOR queda exactamente en Y_CALZADA, no la inferior -- si se cuelga
+-- por abajo, el suelo transitable queda medio stud por encima de lo que cree el
+-- resto del juego y aparecen escalones donde el plano dice que no los hay.
 local function plantarCalleX(indice: number, padre: Instance)
-	-- Calle vertical: corre en Z, entre la columna (indice-1) y la columna indice.
-	-- Su centro X cae en xDeColumna(indice) - ANCHO_CALLE/2.
-	local xCentro = xDeColumna(indice) - ANCHO_CALLE / 2
+	local _, _, zMin, zMax = Grid.limites()
 	pieza(
 		string.format("CalleX_%d", indice),
-		Vector3.new(ANCHO_CALLE, ALTO_CALLE, TAMANO_TOTAL),
-		Vector3.new(xCentro, ALTO_CALLE / 2, 0),
+		Vector3.new(ANCHO_CALLE, ALTO_CALLE, zMax - zMin),
+		Vector3.new(Grid.xDeCalle(indice), Y_CALZADA - ALTO_CALLE / 2, (zMin + zMax) / 2),
 		COLOR_CALLE,
 		padre
 	)
 end
 
 local function plantarCalleZ(indice: number, padre: Instance)
-	local zCentro = zDeFila(indice) - ANCHO_CALLE / 2
+	local xMin, xMax = Grid.limites()
 	pieza(
 		string.format("CalleZ_%d", indice),
-		Vector3.new(TAMANO_TOTAL, ALTO_CALLE, ANCHO_CALLE),
-		Vector3.new(0, ALTO_CALLE / 2, zCentro),
+		Vector3.new(xMax - xMin, ALTO_CALLE, ANCHO_CALLE),
+		Vector3.new((xMin + xMax) / 2, Y_CALZADA - ALTO_CALLE / 2, Grid.zDeCalle(indice)),
 		COLOR_CALLE,
 		padre
 	)
@@ -264,8 +324,7 @@ local function plantarAcerasManzana(col: number, fila: number, padre: Instance)
 	-- este y oeste van ENTRE las aceras norte/sur para no solaparse en las
 	-- esquinas (ahí se ven dos aceras a la vez y queda mejor).
 	local ACERA_ESPESOR = 6
-	local ACERA_ALTURA = ALTO_ACERA - ALTO_CALLE
-	local y = ALTO_CALLE + ACERA_ALTURA / 2
+	local y = Y_CALZADA + ACERA_ALTURA / 2
 
 	-- Norte y sur: ancho completo
 	pieza(
@@ -324,7 +383,7 @@ local function plantarEdificio(col: number, fila: number, indice: number, zona: 
 	return pieza(
 		string.format("Edificio_%d_%d_%d", col, fila, indice),
 		Vector3.new(ancho, alto, largo),
-		Vector3.new(xManzana + dx + ancho / 2, ALTO_ACERA + alto / 2, zManzana + dz + largo / 2),
+		Vector3.new(xManzana + dx + ancho / 2, Y_CALZADA + ACERA_ALTURA + alto / 2, zManzana + dz + largo / 2),
 		color,
 		padre
 	)
@@ -363,8 +422,8 @@ local function plantarEdificioEnFila(
 	-- se reduce n al máximo que sí quepa: la densidad es un rango, no un
 	-- fijo, y el suelo gana a la estética.
 	local anchoUnitario = (anchoUtil - (n - 1) * GAP_ENTRE_EDIFICIOS) / n
-	if anchoUnitario < 40 then
-		n = math.max(1, math.floor((anchoUtil + GAP_ENTRE_EDIFICIOS) / (40 + GAP_ENTRE_EDIFICIOS)))
+	if anchoUnitario < ANCHO_MINIMO_EDIFICIO then
+		n = math.max(1, math.floor((anchoUtil + GAP_ENTRE_EDIFICIOS) / (ANCHO_MINIMO_EDIFICIO + GAP_ENTRE_EDIFICIOS)))
 		anchoUnitario = (anchoUtil - (n - 1) * GAP_ENTRE_EDIFICIOS) / n
 	end
 
@@ -395,7 +454,7 @@ local function plantarEdificioEnFila(
 	return pieza(
 		string.format("Edificio_%d_%d_%d", col, fila, indice),
 		Vector3.new(anchoUnitario, alto, largo),
-		Vector3.new(xCentro, ALTO_ACERA + alto / 2, zCentro),
+		Vector3.new(xCentro, Y_CALZADA + ACERA_ALTURA + alto / 2, zCentro),
 		color,
 		padre
 	)
@@ -417,8 +476,8 @@ end
 -- no es válida en Luau para tuplas nullables — y envolverlo en `{ col, fila }`
 -- además deja la API más explícita en el llamador.
 local function manzanaEn(x: number, z: number): { col: number, fila: number }?
-	for col = 0, N_MANZANAS - 1 do
-		for fila = 0, N_MANZANAS - 1 do
+	for col = 0, Grid.COLUMNAS - 1 do
+		for fila = 0, Grid.FILAS - 1 do
 			if enManzana(x, z, col, fila) then
 				return { col = col, fila = fila }
 			end
@@ -480,7 +539,13 @@ end
 local function plantarHito(zona: string, padre: Instance): Part
 	local cfg = HITOS[zona]
 	local centro = centroDeZona(zona)
-	local p = pieza("Hito_" .. zona, cfg.tamano, Vector3.new(centro.X, cfg.tamano.Y / 2, centro.Z), cfg.color, padre)
+	local p = pieza(
+		"Hito_" .. zona,
+		cfg.tamano,
+		Vector3.new(centro.X, Y_CALZADA + cfg.tamano.Y / 2, centro.Z),
+		cfg.color,
+		padre
+	)
 	p.Material = cfg.material
 	p.CanCollide = false -- los hitos no bloquean calles ni pathfinding
 	p:SetAttribute("hitoDeZona", zona)
@@ -505,7 +570,7 @@ local function verificarConectividad(almacen: Vector3): { string }
 	for _, solar in LOTES_VACANTES do
 		local x = xDeColumna(solar.col) + TAMANO_MANZANA / 2
 		local z = zDeFila(solar.fila) + TAMANO_MANZANA / 2
-		local origen = Vector3.new(x, 2, z)
+		local origen = Vector3.new(x, Y_CALZADA + 2, z)
 		local okPath, path = pcall(function()
 			local p = pathfinding:CreatePath({
 				AgentRadius = 2,
@@ -571,10 +636,14 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	-- 1. Suelo base (red de seguridad)
 	plantarSueloBase(carpetaSuelo)
 
-	-- 2. Calles verticales (N_MANZANAS - 1 huecos) y horizontales
-	for i = 1, N_MANZANAS - 1 do
+	-- 2. Calles, LAS DE LOS EXTREMOS INCLUIDAS. Antes sólo se plantaban las
+	-- interiores y el mapa no tenía borde por el que rodear: quien huía hacia fuera
+	-- se encontraba el césped y el final del mundo.
+	for i = 0, Grid.COLUMNAS do
 		plantarCalleX(i, carpetaCalles)
-		plantarCalleZ(i, carpetaCalles)
+	end
+	for j = 0, Grid.FILAS do
+		plantarCalleZ(j, carpetaCalles)
 	end
 
 	-- 3. Para cada zona, plantar sus manzanas con sus edificios

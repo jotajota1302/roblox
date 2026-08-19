@@ -15,6 +15,12 @@
 	nadie nunca.
 ]]
 
+-- El plano de la ciudad. Los destinos de las rutas SE DERIVAN de él y ya no se
+-- escriben a mano: cada vez que se escribieron a mano acabaron donde había suelo
+-- llano en un mapa ajeno --uno debajo de un árbol, otro sobre un zócalo-- en vez de
+-- donde el juego los quería.
+local Grid = require(script.Parent.Grid)
+
 local Config = {}
 
 -- ¿Estamos midiendo o estamos jugando?
@@ -296,7 +302,16 @@ Config.POLIGONO_SALIDA = Vector3.new(
 	Config.POLIGONO_CENTRO.Y,
 	Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
 )
-Config.POLIGONO_ENGANCHE = Vector3.new(-593, 19.2, 679) -- la calle de la ciudad más cercana (medida)
+-- DONDE EL RECINTO SE ENGANCHA A LA CIUDAD. Era un punto medido a mano sobre el
+-- mapa ajeno --la calle más cercana que hubiera-- y por eso quedaba en diagonal, a
+-- 27 studs al este y 76 al sur de la boca, con una carretera improvisada uniendo
+-- las dos cosas. Esa carretera es la que un día murió volando 3,4 studs sobre el
+-- césped y dejó las cuatro rutas sin camino a la vez.
+--
+-- Con retícula propia el enganche es el cruce que hay justo debajo de la boca: la
+-- calle 1 pasa por ella. Ya no hay nada que unir, y el punto se DERIVA en vez de
+-- medirse.
+Config.POLIGONO_ENGANCHE = Grid.cruce(1, Grid.FILAS)
 
 -- EL ALMACÉN Y EL TALLER, PEGADOS A LA BOCA DEL RECINTO (19/08).
 --
@@ -375,7 +390,7 @@ Config.RUTAS = {
 		id = "barrio",
 		multiplicador = 0.4,
 		nivel = 1,
-		destino = Vector3.new(-650, 19.2, 680),
+		destino = Grid.cruce(1, 2), -- el cruce recto al salir del recinto: 146 studs, cero giros
 		detectores = 1,
 		guaridas = 0,
 		-- SIN REFUGIOS, y no es un olvido: un refugio es el sitio donde te salvas de
@@ -416,7 +431,7 @@ Config.RUTAS = {
 		--
 		-- Se elige el llano: diecinueve segundos de viaje valen menos que un sitio
 		-- donde el jugador se queda enganchado sin entender por qué.
-		destino = Vector3.new(-620, 19.2, 555),
+		destino = Grid.cruce(0, 2), -- al oeste, dentro de la banda verde: 292 studs, un giro
 		detectores = 3,
 		pvp = "ninguno",
 	},
@@ -427,7 +442,7 @@ Config.RUTAS = {
 		-- ACERCADA igual que la verde: 1.034 studs de camino real eran 129 s de ida
 		-- y vuelta a pie. El punto nuevo está a 740 del enganche sobre ese mismo
 		-- camino -- 46 s de ida a pie, 31 con patinete eléctrico.
-		destino = Vector3.new(-481, 19.2, 456),
+		destino = Grid.cruce(2, 1), -- al este, cruzando a la banda ambar: 438 studs, un giro
 		detectores = 9,
 		pvp = "transportistas",
 	},
@@ -450,7 +465,7 @@ Config.RUTAS = {
 		-- natural para emboscadas. Aquí no lo hay. Se acepta porque el cuello de
 		-- botella era un regalo de un mapa ajeno y la duración es un problema
 		-- medido; cuando el mapa se haga a medida, se recupera a propósito.
-		destino = Vector3.new(-222, 19.2, 421),
+		destino = Grid.cruce(3, 0), -- al fondo de la banda roja: 730 studs, un giro
 		detectores = 18,
 		pvp = "libre",
 	},

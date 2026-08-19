@@ -15,6 +15,7 @@
 ]]
 
 local Config = require(script.Parent.Parent.Config)
+local Grid = require(script.Parent.Parent.Grid)
 local Routes = require(script.Parent.Parent.Routes)
 
 return function(kit)
@@ -86,4 +87,36 @@ return function(kit)
 	local v, a, r = Routes.vigilancia("verde"), Routes.vigilancia("ambar"), Routes.vigilancia("roja")
 	kit.truthy("las tres zonas se anuncian distinto", v ~= a and a ~= r and v ~= r)
 	kit.truthy("y ninguna se queda sin etiqueta", #v > 0 and #a > 0 and #r > 0)
+
+	-- LOS DESTINOS VIVEN EN LA RETÍCULA, no donde hubiera suelo llano. Hasta el
+	-- 19/08 eran cuatro Vector3 escritos a mano sobre un mapa ajeno, elegidos con un
+	-- rayo desde el cielo: uno acabó debajo de un árbol y otro sobre un zócalo de
+	-- trece studs, y las dos veces se descubrió jugando.
+	for _, ruta in Routes.todas() do
+		kit.truthy("el destino " .. ruta.id .. " esta sobre calzada", Grid.enCalle(ruta.destino.X, ruta.destino.Z))
+		-- near y no eq: un Vector3 guarda floats de 32 bits, así que 19,2 vuelve como
+		-- 19,200000762939453 y una comparación exacta contra el número de Lua falla
+		-- siempre. No es un margen de tolerancia al error: es la conversión.
+		kit.near("y a la cota del juego, " .. ruta.id, ruta.destino.Y, Grid.Y, 0.01)
+	end
+
+	-- Y A UN GIRO O NINGUNO DE LA BOCA DEL RECINTO. Ésta es la razón de existir del
+	-- mapa nuevo: "no sé a dónde tengo que ir", dicho tres partidas seguidas,
+	-- convertido en algo que falla solo cuando alguien mueve un destino.
+	for _, ruta in Routes.todas() do
+		kit.truthy(
+			"al destino " .. ruta.id .. " se llega con un giro o ninguno",
+			Grid.giros(Config.POLIGONO_SALIDA, ruta.destino) <= 1
+		)
+	end
+
+	-- El enganche del recinto está en la calle que sale de él, no en diagonal. Antes
+	-- era un punto medido a mano sobre el mapa ajeno y había que tender una carretera
+	-- hasta él; esa carretera es la que un día murió volando tres studs sobre el
+	-- césped y dejó las cuatro rutas sin camino a la vez.
+	kit.truthy(
+		"el enganche del recinto esta en calzada",
+		Grid.enCalle(Config.POLIGONO_ENGANCHE.X, Config.POLIGONO_ENGANCHE.Z)
+	)
+	kit.truthy("y pegado a la boca, no en diagonal", (Config.POLIGONO_ENGANCHE - Config.POLIGONO_SALIDA).Magnitude < 20)
 end

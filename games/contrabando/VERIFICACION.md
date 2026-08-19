@@ -16,7 +16,7 @@ construida y sus reglas están probadas, pero **no se ha jugado entre dos person
 
 | | |
 |---|---|
-| Pruebas automáticas | **133**, todas en verde |
+| Pruebas automáticas | **869** reglas + **96** comprobaciones del mundo, todas en verde (19/08) |
 | Tareas del plan | 14 de 14, todas revisadas |
 | Defectos encontrados en revisión | 1 crítico, 2 importantes — los tres corregidos |
 | Sin comprobar | El robo entre dos jugadores reales, y si el bucle entretiene |
@@ -24,6 +24,39 @@ construida y sus reglas están probadas, pero **no se ha jugado entre dos person
 ---
 
 ## 1. Lo que está comprobado
+
+### La retícula del mapa (19/08)
+
+Con el mapa propio, la sonda pasa a comprobar cosas que con la ciudad prestada eran
+imposibles, porque exigen saber dónde **debería** estar cada calle:
+
+| Comprobación | Qué caza |
+|---|---|
+| Están las 9 calles, las de los bordes incluidas | Un mapa sin borde por el que rodear: quien huye hacia fuera se encuentra el césped |
+| Todas a la misma cota, y a la del plano | Cantos que cortan el navmesh. Ya dejaron las cuatro rutas sin camino una vez |
+| Cada destino, a dos giros o menos de la boca | *"No sé a dónde tengo que ir"*, dicho tres partidas seguidas, convertido en algo que falla solo |
+| Los tres hitos se ven desde la boca | Que la señal de orientación quede tapada. El mundo se construye igual y nadie se entera |
+
+Las cuatro nacieron con un rojo cada una, que es la única prueba de que sirven:
+
+- El **hito verde estaba plantado encima de la fila de luces del barrio**. Lo puse en el eje
+  de la calle de salida para que los tres se vieran en fila, y esa calle es justamente el
+  camino al primer destino: un mojón de orientación que estorbaba a la orientación.
+- Movido al bordillo, **la baliza del barrio tapaba a los otros dos**. Todo estaba alineado
+  en el mismo eje, que era la gracia y también el problema. Se resolvió sacándolos de la
+  calzada: la línea de visión va en diagonal y eso los separa.
+- `acceso()` **seguía poniendo un escalón de 4 studs** sobre suelo llano. El código que
+  servía para sobrevivir a un terreno ajeno hace daño cuando el terreno es tuyo.
+- Y siete rojos que **no eran del mundo sino de la sonda**: medía las vías de junta en
+  junta, y una vía propia es una sola losa, así que cantaba "0 de 0 puntos". Una sonda que
+  deja de saber qué está midiendo es peor que no tenerla, porque su verde ya no significa
+  nada.
+
+Un quinto defecto lo cazó el recuento, no una comprobación: aparecían **22 aceras de 48**.
+`esDespejable` de `CityBuilder` permitía retirar cualquier pieza con el segundo lado ≤25 —un
+criterio calibrado para la chatarra del mapa del Creator Store— y una acera nuestra mide
+120 × 1,5 × 6. Las calles se libraban **por un stud**. Se arregló marcando lo que planta el
+mapa (`delMapa`) en vez de afinar el listón.
 
 ### Las reglas del juego: 133 pruebas
 

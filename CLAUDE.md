@@ -199,6 +199,16 @@ Avisos verificados:
   No es un error de sintaxis y no avisa nadie: en `CityBuilder` hacía que cada losa se
   apoyara en la muestra del centro en vez de en el punto alto de su huella, y sólo se vio
   midiendo el mundo ya construido. Si necesitas varios valores, `if` de sentencia.
+- **Studio reabre el mundo de la sesión anterior, no el `.rbxl` que acabas de compilar.**
+  Al matar Studio queda un `contrabando.rbxl.lock`, y al volver a abrir el fichero Studio
+  restaura el documento en memoria: se ven las 7.161 piezas de la ciudad vieja en un place
+  cuyo binario ya no las contiene. El síntoma engaña dos veces, porque **el código sí está
+  actualizado** (los módulos nuevos aparecen y las pruebas pasan) y sólo el `Workspace` es
+  antiguo -- así que parece un fallo del generador. Se descarta comparando el tamaño de dos
+  builds, uno con el `.rbxm` escondido: si pesan igual, el place está limpio y el problema
+  es Studio. **La cura es borrar el `.lock` antes de abrir.** Es la hermana de la trampa de
+  Rojo/Play: en las dos, lo que se mide no es lo que se acaba de escribir.
+
 - **Un rayo desde el cielo se para en la copa de un árbol.** La ciudad del Creator Store
   tiene 2.048 hojas y 2.720 troncos (`Model` llamado `Tree`), así que "el suelo" en un
   parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
@@ -249,7 +259,13 @@ del `default.project.json`**, y nada más.
 manda lo que monte Rojo. Ese guard es lo que impide que vuelvan a superponerse: no lo
 quites.
 
-**Activo a 17/08: la ciudad del Creator Store** (decisión de JJ).
+**Activo a 19/08: la retícula propia** (`MapBuilder`), tras tres partidas seguidas con
+veredicto negativo cuyo denominador común era el mapa: *no sé hacia dónde tirar*, *el sitio
+es feo y confuso* y *no pasa nada por el camino* -- las tres se contestan controlando las
+calles. Spec en `games/contrabando/docs/specs/2026-08-19-mapa-propio-design.md`. El plano
+vive en `src/shared/Grid.luau` y de él beben `MapBuilder` (planta), `Config` (deriva los
+destinos) y `SelfCheck` (verifica). El `.rbxm` sigue en `mapa/` como respaldo, pero volver
+a él ya no es gratis: los destinos son cruces que sólo existen en la retícula.
 
 ### Antes de tocar nada, `git pull`
 

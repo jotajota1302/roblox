@@ -39,6 +39,7 @@ local PathfindingService = game:GetService("PathfindingService")
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
+local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
@@ -256,9 +257,30 @@ local function accesos()
 		table.sort(lista, function(a, b)
 			return a.n < b.n
 		end)
+		-- LOS PUNTOS QUE SE RECORREN. Hasta el 19/08 esto iba de una pieza a la
+		-- siguiente, porque una vía eran ocho tramos encadenados y lo único que podía
+		-- fallar eran las juntas. Con suelo propio una vía es UNA losa recta, así que
+		-- ese bucle no daba ni una vuelta y la sonda cantaba "0 de 0 puntos" -- un
+		-- rojo que no era del mundo sino de una sonda que había dejado de saber qué
+		-- estaba midiendo. Ahora, con una sola pieza, se recorre la pieza de punta a
+		-- punta: es lo que la comprobación decía que hacía desde el principio.
+		local puntos: { Vector3 } = {}
+		if #lista == 1 then
+			local via = lista[1].p
+			local mitad = via.Size.Z / 2
+			puntos = {
+				via.CFrame:PointToWorldSpace(Vector3.new(0, 0, -mitad)),
+				via.CFrame:PointToWorldSpace(Vector3.new(0, 0, mitad)),
+			}
+		else
+			for _, e in lista do
+				table.insert(puntos, e.p.Position)
+			end
+		end
+
 		local malos, total = 0, 0
-		for i = 1, #lista - 1 do
-			local a, b = lista[i].p.Position, lista[i + 1].p.Position
+		for i = 1, #puntos - 1 do
+			local a, b = puntos[i], puntos[i + 1]
 			for k = 0, 6 do
 				local p = a:Lerp(b, k / 6)
 				total += 1
@@ -1215,10 +1237,99 @@ end
 
 --------------------------------------------------------------------------------
 
+-- LA RETÍCULA, medida sobre el mundo construido y no sobre Grid. Grid dice dónde
+-- DEBERÍAN estar las calles; esto comprueba dónde están, que es lo único que pisa
+-- el jugador. Las tres cosas que mira son las tres quejas que trajeron el mapa
+-- nuevo: no sé a dónde ir, el sitio es confuso, y --la que nadie dice pero se
+-- nota-- el suelo tiene cantos donde el plano promete llano.
+local function reticula()
+	local ciudad = workspace:FindFirstChild("Ciudad")
+	if not ciudad then
+		comprobar("hay ciudad", false, "no existe workspace.Ciudad")
+		return
+	end
+
+	local calles = ciudad:FindFirstChild("Calles")
+	local esperadas = (Grid.COLUMNAS + 1) + (Grid.FILAS + 1)
+	comprobar(
+		"estan todas las calles, las de los bordes incluidas",
+		calles ~= nil and #calles:GetChildren() == esperadas,
+		string.format("hay %d, se esperaban %d", if calles then #calles:GetChildren() else 0, esperadas)
+	)
+
+	-- EL SUELO ES LLANO DONDE SE ANDA. Con retícula propia esto debería ser
+	-- trivialmente cierto; si falla, hay un fallo de generación y no un terreno
+	-- difícil. Es la comprobación que la ciudad prestada no permitía hacer.
+	if calles then
+		local alta, baja = -math.huge, math.huge
+		for _, p in calles:GetChildren() do
+			if p:IsA("BasePart") then
+				local cara = p.Position.Y + p.Size.Y / 2
+				alta = math.max(alta, cara)
+				baja = math.min(baja, cara)
+			end
+		end
+		comprobar(
+			"todas las calles estan a la misma cota",
+			alta - baja < 0.1,
+			string.format("de %.2f a %.2f", baja, alta)
+		)
+		comprobar(
+			"y a la cota que dice el plano",
+			math.abs(alta - Grid.Y) < 0.1,
+			string.format("las calles en %.2f, el plano dice %.2f", alta, Grid.Y)
+		)
+	end
+
+	-- A UN GIRO O NINGUNO. Es "no sé a dónde tengo que ir" -- dicho tres partidas
+	-- seguidas-- convertido en algo que falla solo. El listón se pone en dos y no en
+	-- uno para dejar margen a que un edificio obligue a rodear una manzana.
+	for _, ruta in Routes.todas() do
+		local vueltas = Grid.giros(Config.POLIGONO_SALIDA, ruta.destino)
+		comprobar(
+			"al destino " .. ruta.id .. " se llega girando poco",
+			vueltas <= 2,
+			string.format("%d giros", vueltas)
+		)
+	end
+
+	-- LOS HITOS SE VEN DESDE LA BOCA. Los tres están en fila en la calle que sale
+	-- del recinto, cada uno más lejos y más alto: al salir de casa se sabe cuánto
+	-- hay hasta cada zona sin leer nada. Si uno queda tapado, esa señal se pierde y
+	-- nadie se entera, porque el mundo se construye igual.
+	local hitos = ciudad:FindFirstChild("Hitos")
+	comprobar(
+		"hay un hito por zona",
+		hitos ~= nil and #hitos:GetChildren() == 3,
+		string.format("hay %d", if hitos then #hitos:GetChildren() else 0)
+	)
+	if hitos then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { hitos }
+		local ojo = Config.POLIGONO_SALIDA + Vector3.new(0, 6, 0)
+		for _, h in hitos:GetChildren() do
+			if h:IsA("BasePart") then
+				-- Se mira a media altura del hito: al pie lo tapa cualquier bordillo
+				-- y por la punta no lo tapa nada, así que ninguno de los dos extremos
+				-- dice la verdad sobre si se ve.
+				local mirilla = Vector3.new(h.Position.X, h.Position.Y, h.Position.Z)
+				local r = workspace:Raycast(ojo, mirilla - ojo, params)
+				comprobar(
+					"desde la boca se ve el " .. h.Name,
+					r == nil,
+					if r then "lo tapa " .. r.Instance:GetFullName() else ""
+				)
+			end
+		end
+	end
+end
+
 function SelfCheck.run(): string
 	resultados = {}
 
 	local pasos: { { nombre: string, fn: () -> () } } = {
+		{ nombre = "retícula", fn = reticula },
 		{ nombre = "piezas del juego", fn = piezasDelJuego },
 		{ nombre = "vigilancia", fn = vigilancia },
 		{ nombre = "accesos", fn = accesos },

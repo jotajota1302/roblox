@@ -1,8 +1,20 @@
-# `mapa/` — el trabajo del mapa procedural, agrupado
+# `mapa/` — el trabajo del mapa, agrupado
 
-> 2026-08-17. Aquí vive **todo** lo específico del mapa del juego: el spec,
-> el código que lo construye, y el asset del Creator Store que se usaba
-> antes. Es el área de trabajo **activa** del proyecto en este momento.
+> **Actualizado el 19/08.** Desde esta fecha la ciudad ES la retícula propia y el
+> `.rbxm` ya no se monta: el bloque `"Ciudad"` salió del `default.project.json`.
+> Entre el 17 y el 19 este documento decía lo mismo y no era verdad -- el bloque
+> seguía puesto-- así que si vuelves a esta carpeta, **fíate del
+> `default.project.json`, no de este párrafo**.
+>
+> El spec vigente es
+> [`../docs/specs/2026-08-19-mapa-propio-design.md`](../docs/specs/2026-08-19-mapa-propio-design.md).
+> El [`DISENO-MAPA.md`](DISENO-MAPA.md) de esta carpeta lo precede: diseñaba una
+> cuadrícula de 1600x1600 para un mundo que se encogió a la mitad el 19/08, así que
+> sus números ya no valen aunque su razonamiento sí.
+>
+> Y el plano ya no vive aquí ni en `MapBuilder`: vive en `../src/shared/Grid.luau`,
+> que es de donde beben también `Config` (para los destinos) y `SelfCheck` (para
+> verificarlos).
 
 ## Qué hay aquí
 

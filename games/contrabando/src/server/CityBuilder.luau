@@ -77,14 +77,6 @@ end
 -- descartado por imposible cuando en realidad era césped llano. El Refugio_1 daba
 -- 13 de sus 25 muestras "bajo techo": todas eran hojas.
 --
--- Se reconoce el árbol por su modelo (los del Creator Store vienen en un Model
--- llamado Tree) y se sigue bajando. Es específico de esta ciudad y así está dicho;
--- la alternativa --adivinar por tamaño-- confundiría una copa con un balcón.
-local function esArbol(pieza: BasePart): boolean
-	local padre = pieza.Parent
-	return padre ~= nil and padre.Name == "Tree"
-end
-
 local function sueloDeLaCiudad(ciudad: Instance?, x: number, z: number): number?
 	if not ciudad then
 		return nil
@@ -92,26 +84,8 @@ local function sueloDeLaCiudad(ciudad: Instance?, x: number, z: number): number?
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { ciudad }
-
-	local desde = 500
-	-- OCHO intentos, no cuatro. Con cuatro se agotaban en la arboleda densa --una
-	-- copa y un tronco por árbol, y hay sitios con dos árboles en la vertical-- y
-	-- entonces la función decía "aquí no hay suelo" en mitad de un parque llano.
-	-- Costó una guarida entera: la segunda de la ruta verde no se plantaba y no
-	-- había forma de saber por qué. Ocho sigue estando muy lejos de recorrer un
-	-- edificio planta por planta, que es lo que no queremos hacer -- un edificio SÍ
-	-- tiene que tapar el suelo.
-	for _ = 1, 8 do
-		local r = workspace:Raycast(Vector3.new(x, desde, z), Vector3.new(0, -(desde + 300), 0), params)
-		if r == nil then
-			return nil
-		end
-		if not esArbol(r.Instance) then
-			return r.Position.Y
-		end
-		desde = r.Position.Y - 0.5
-	end
-	return nil
+	local r = workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -800, 0), params)
+	return if r then r.Position.Y else nil
 end
 
 -- Por encima de esta cota ya no es calle: es un tejado.
@@ -356,6 +330,16 @@ local LIMITE_PIEZA_GRANDE = 200
 -- segundo lado más largo -- y además que sea bajo, para no llevarse por delante
 -- un muro largo y fino que sí es arquitectura.
 local function esDespejable(pieza: BasePart): boolean
+	-- LO QUE PLANTA EL MAPA NO SE TOCA. Esta función nació para apartar la chatarra
+	-- de un mapa ajeno (vallas, matorrales, farolas sueltas) y su criterio es de
+	-- tamaño, porque contra un modelo del Creator Store no había otra cosa a la que
+	-- agarrarse. Con mapa propio sí la hay, y hace falta: una acera nuestra mide
+	-- 120 x 1,5 x 6 y este criterio la considera estorbo, así que las losas de
+	-- destino se comían las aceras de media ciudad. Las calles se libraban por un
+	-- stud.
+	if pieza:GetAttribute("delMapa") then
+		return false
+	end
 	if math.max(pieza.Size.X, pieza.Size.Y, pieza.Size.Z) <= LIMITE_PIEZA_GRANDE then
 		return true
 	end
@@ -507,6 +491,20 @@ end
 -- Se marca RODABLE explícitamente en vez de fiarlo a su color: el asfalto se
 -- reconoce por gris (ver Roads.esCalzada), y una vía nuestra que un día se pinte
 -- de otro color dejaría de contar sin que nadie tocara esta línea.
+-- UNA VÍA RECTA ENTRE DOS PUNTOS. Antes esto eran doscientas veinticinco líneas.
+--
+-- Lo que hacían: muestrear el suelo cada pocos studs, suavizar el perfil con una
+-- envolvente de conos, limitar la pendiente desde los dos extremos, solapar los
+-- tramos lo justo para que no asomara el césped por las juntas, y despejar vallas
+-- del corredor. Todo eso existía por una única razón -- que el terreno era de otro
+-- y no se sabía qué había debajo-- y cada pieza se pagó con una sesión: el acceso
+-- enterrado bajo el césped, el muro de cuatro studs en la junta, la joroba de la
+-- verde, y la vía del recinto que murió volando y dejó las cuatro rutas sin camino.
+--
+-- Sobre una retícula propia el suelo es plano y su cota se sabe sin medirla, así
+-- que una vía es una losa. La primera pasada de la sonda sobre el mapa nuevo
+-- todavía cazó un escalón de cuatro studs que ponía la versión vieja: el código que
+-- servía para sobrevivir a un terreno ajeno hace daño cuando el terreno es tuyo.
 local function acceso(
 	ciudad: Instance?,
 	nombre: string,
@@ -518,219 +516,33 @@ local function acceso(
 	cotaFinal: number?
 ): number
 	local plano = Vector3.new(hasta.X - desde.X, 0, hasta.Z - desde.Z)
-	local largo = plano.Magnitude
-	if largo < 6 then
+	if plano.Magnitude < 6 then
 		-- Ya se tocan: una vía de cero studs sólo sería una pieza más que dibujar.
 		return 0
 	end
 
-	-- POR TRAMOS INCLINADOS, SIGUIENDO EL SUELO. Hubo dos versiones antes de esta y
-	-- las dos se midieron:
-	--
-	--   1. una sola losa a la cota del destino -- el acceso a la ruta ámbar quedó
-	--      ENTERRADO bajo el césped en la mitad de su recorrido, porque el terreno
-	--      sube por el camino;
-	--   2. tramos horizontales, cada uno a la cota de su centro -- mejor, pero
-	--      entre dos tramos con distinta altura queda un escalón, y por ese escalón
-	--      asomaba el césped.
-	--
-	-- Ahora cada tramo va de junta a junta INCLINADO: su cota de salida es la de
-	-- llegada del anterior, así que la carretera es continua y sube con el relieve
-	-- en vez de atravesarlo a saltos.
-	local tramos = math.max(2, math.ceil(largo / 10))
-	local direccion = plano.Unit
+	-- Los dos extremos mandan, y son los únicos puntos de los que se sabe la
+	-- respuesta sin medirla. Callarse uno es lo que dejó la vía del recinto volando
+	-- tres studs sobre el césped, con el canto cortando el navmesh.
+	local a = Vector3.new(desde.X, (cotaInicial or desde.Y) - GROSOR_VIA / 2, desde.Z)
+	local b = Vector3.new(hasta.X, (cotaFinal or hasta.Y) - GROSOR_VIA / 2, hasta.Z)
+	local centro = (a + b) / 2
 
-	-- Las cotas de las juntas se calculan ANTES, y una sola vez: la junta entre dos
-	-- tramos es la misma para los dos, y calcularla dos veces es la manera de que
-	-- un día no coincidan. Lo que se guarda es la COTA DE RODADURA --por dónde pisa
-	-- el jugador-- y no el suelo de debajo: es la que tiene que casar con la losa
-	-- de la que sale la vía, y hacer esa cuenta en dos sitios distintos es cómo
-	-- aparecen los escalones.
-	local cotas: { number } = {}
-	for i = 0, tramos do
-		local p = desde:Lerp(hasta, i / tramos)
-		cotas[i] = (cotaDelTrazado(ciudad, p, direccion, ancho) or p.Y) + RESALTE_VIA
-	end
-
-	-- LOS DOS EXTREMOS SE IMPONEN, porque de los dos sabemos la respuesta sin
-	-- medirla: la vía sale de una losa nuestra (sé a qué altura la puse) y termina
-	-- en una calle que calleMasCercana ya localizó y midió. Medirlos otra vez con un
-	-- rayo desde el cielo es darle a la ciudad la ocasión de contestar con un
-	-- tejado.
-	if cotaInicial ~= nil then
-		cotas[0] = cotaInicial
-	end
-	if cotaFinal ~= nil then
-		cotas[tramos] = cotaFinal
-	end
-
-	-- Y LAS JUNTAS DE ENMEDIO, SUJETAS A LA CUERDA entre los dos extremos. Esto es
-	-- lo que impide que la carretera se suba a un edificio: el último tramo del
-	-- acceso verde salió TRECE STUDS por encima de la calle --una rampa a un
-	-- balcón-- porque el rayo de su junta cayó sobre una azotea. Ocho studs de
-	-- libertad admiten cualquier cuesta real de esta ciudad; un piso entero, no.
-	local LIBERTAD = 8
-	for i = 1, tramos - 1 do
-		local cuerda = cotas[0] + (cotas[tramos] - cotas[0]) * (i / tramos)
-		cotas[i] = math.clamp(cotas[i], cuerda - LIBERTAD, cuerda + LIBERTAD)
-	end
-
-	-- Y AHORA SE ALISA EL PERFIL, que es lo que faltaba: *"el vehículo no sale de la
-	-- zona inicial y se queda enganchado en el mapa"* (JJ). Medida la rampa de
-	-- salida de casa, sus juntas iban 17,8 → 20,5 → 23,0 → 18,6 → 22,2 → 18,8: un
-	-- zigzag de cinco studs sobre un desnivel real de dos. Cada tramo tomaba la cota
-	-- del suelo bajo su junta, y ahí abajo hay bordillos, el zócalo del polígono y
-	-- el borde de la ciudad. Como los tramos se solapan seis studs para no dejar
-	-- juntas abiertas, dos seguidos con inclinaciones opuestas (+16° y −15°) se
-	-- cruzan y el canto del de atrás asoma por encima del de delante: un escalón de
-	-- cuatro studs, o sea un muro contra el que se choca.
-	--
-	-- LA CUENTA ES UNA ENVOLVENTE DE CONOS, y se llegó a ella después de probar el
-	-- promedio de toda la vida --que sí quitaba el zigzag, pero CORTANDO las lomas:
-	-- el acceso verde acabó enterrado en seis de sus cincuenta y seis puntos, que es
-	-- el mismo defecto con otro nombre--. Aquí cada junta se levanta hasta el mayor
-	-- de los conos que salen de todas las demás con la pendiente máxima:
-	--
-	--     cota[i] = max sobre j de ( suelo[j] − |i−j| · pendiente )
-	--
-	-- Con eso salen a la vez las dos cosas que hacen falta y que peleaban entre sí:
-	-- la vía NUNCA queda por debajo del terreno (su propio cono la sostiene) y NUNCA
-	-- hay un escalón (ningún par de juntas puede separarse más de la pendiente). Las
-	-- lomas se suben rodando y las vaguadas se cruzan volando, que es lo que hace
-	-- una carretera de verdad.
-	local pasoLargo = largo / tramos
-	-- 10 grados, bajado de 12 el 19/08. Es la pendiente máxima que se le permite a
-	-- una vía, y de ella sale lo que puede subir de un tramo al siguiente.
-	--
-	-- El motivo del ajuste es que la pendiente **también decide el canto**: dos
-	-- tramos seguidos se solapan un poco para no dejar juntas abiertas, y en la
-	-- zona solapada el de atrás asoma sobre el de delante en proporción a lo que
-	-- se diferencien sus inclinaciones. Con 0,21, el acceso a la verde --que sube
-	-- una cuesta de verdad-- dejaba justo en el límite un canto de 2,5 studs, que
-	-- es donde la sonda dice "ahí se traba el vehículo".
-	--
-	-- Bajarla cuesta poco: una rampa algo más larga y tendida. Y lo que compra es
-	-- que las cuestas reales de esta ciudad dejen de producir cantos, en vez de
-	-- ir buscando destinos llanos para esquivar el problema.
-	local SALTO_MAXIMO = pasoLargo * 0.17
-
-	-- LO QUE NO SE PUEDE ALCANZAR DESDE NINGÚN EXTREMO NO ES TERRENO: ES UN
-	-- ARTEFACTO, y se recorta ANTES de que los conos lo repartan.
-	--
-	-- Esto es lo que cerró la joroba del acceso a la verde, y costó encontrarlo
-	-- porque el sospechoso obvio era otro. Volcadas las cotas fase por fase, el
-	-- perfil bruto de esa vía salía así:
-	--
-	--     21,0  20,6 … 20,6  20,6  **27,5**  19,4
-	--
-	-- Trece juntas a ras de una explanada llana, la penúltima SIETE STUDS más
-	-- arriba, y la calle final a 19,4. Ese 27,5 no es una cuesta: es el rayo
-	-- CENTRAL de esa junta cayendo sobre una calle elevada de la ciudad que pasa
-	-- justo por encima antes de llegar. Y por eso apretar el tope de los rayos
-	-- laterales no cambiaba nada -- el central manda sin límite, que es lo correcto
-	-- en general porque es el que va por donde de verdad pasa la vía.
-	--
-	-- Lo que hacía daño no era el pico en sí sino lo que venía después: la
-	-- envolvente de conos hace su trabajo y lo reparte a las juntas vecinas, así
-	-- que un solo rayo despistado levantaba cuatro tramos y dejaba la calzada 4,5
-	-- studs sobre la hierba. Ese canto es un obstáculo para el navmesh, el
-	-- pathfinder rodeaba nuestra propia carretera, y el camino de la ruta verde
-	-- pasaba de 512 a 679 studs.
-	--
-	-- El criterio no es un número a ojo: **una junta no puede estar más alto de lo
-	-- que se alcanza desde un extremo subiendo a la pendiente máxima**. Los
-	-- extremos son los dos datos que sí conocemos (la losa de la que sale la vía y
-	-- la calle a la que llega), y una cuesta de verdad siempre cumple ese límite
-	-- porque sube tramo a tramo. Lo que no lo cumple no se puede recorrer, así que
-	-- tampoco hay que construirlo.
-	--
-	-- Se aplica dos veces, antes y después de los conos: antes para que el pico no
-	-- contamine, después para garantizar que el resultado no tenga escalones contra
-	-- los extremos.
-	local function limitarDesdeExtremos()
-		for i = 1, tramos - 1 do
-			local desdeElPrincipio = cotas[0] + i * SALTO_MAXIMO
-			local desdeElFinal = cotas[tramos] + (tramos - i) * SALTO_MAXIMO
-			cotas[i] = math.min(cotas[i], math.min(desdeElPrincipio, desdeElFinal))
-		end
-	end
-	limitarDesdeExtremos()
-
-	local suelo = table.clone(cotas)
-	for i = 1, tramos - 1 do
-		local mejor = suelo[i]
-		for j = 0, tramos do
-			mejor = math.max(mejor, suelo[j] - math.abs(i - j) * SALTO_MAXIMO)
-		end
-		cotas[i] = mejor
-	end
-
-	-- Y OTRA VEZ DESPUÉS DE LOS CONOS, porque los conos sólo SUBEN juntas (son un
-	-- máximo): garantizan la pendiente entre las de enmedio, pero pueden dejar una
-	-- levantada junto a un extremo bajo, y ahí queda la caída que todo lo demás
-	-- venía a evitar. Medido en el acceso a la verde antes de esto: sus últimas
-	-- juntas subían a 26,5 con la calle esperando abajo a 23,5 -- tres studs de
-	-- golpe contra la calzada, y en el peor sitio posible, porque es donde el
-	-- jugador llega a entregar.
-	limitarDesdeExtremos()
-
-	local estorbos = OverlapParams.new()
-	estorbos.FilterType = Enum.RaycastFilterType.Include
-	estorbos.FilterDescendantsInstances = if ciudad then { ciudad } else {}
-	estorbos.MaxParts = 60
-
-	local puestos = 0
-	for i = 1, tramos do
-		local p0 = desde:Lerp(hasta, (i - 1) / tramos)
-		local p1 = desde:Lerp(hasta, i / tramos)
-		local a = Vector3.new(p0.X, cotas[i - 1] - GROSOR_VIA / 2, p0.Z)
-		local b = Vector3.new(p1.X, cotas[i] - GROSOR_VIA / 2, p1.Z)
-		local centro = (a + b) / 2
-		local tramo = part(
-			string.format("%s_%d", nombre, i),
-			-- Un poco más largo que el hueco que cubre, para que dos tramos seguidos
-			-- se solapen y no quede una junta de césped entre ellos.
-			--
-			-- POCO, y ésta es la medida delicada de toda la vía: el solape es también
-			-- lo que crea los escalones. Dos tramos con distinta inclinación se cruzan
-			-- en la zona solapada, y el canto del de atrás asoma sobre el de delante
-			-- la mitad del solape por la diferencia de pendientes. Con seis studs eso
-			-- daba un muro de cuatro donde la vía cambia de cuesta -- justo lo que
-			-- dejó a JJ sin poder salir de casa. Con 2,6 (algo más que el grosor del
-			-- firme) la junta sigue tapada y el canto baja de medio stud.
-			Vector3.new(ancho, GROSOR_VIA, (b - a).Magnitude + 2.6),
-			centro,
-			Color3.fromRGB(96, 96, 102),
-			padre
-		)
-		tramo.Material = Enum.Material.Asphalt
-		tramo.CFrame = CFrame.lookAt(centro, b)
-
-		-- Y SE DESPEJA LO QUE HAYA EN MEDIO. Medido: cinco tramos de acceso pasaban
-		-- a través de VALLAS de la ciudad -- las mismas 116 vallas con las que el
-		-- pathfinding de los ladrones ya se atasca (ver PatrolService). Una vía que
-		-- atraviesa una valla no es una vía: es una valla con asfalto pintado
-		-- debajo, y el jugador que llega en furgoneta se queda parado sin entender
-		-- por qué. Se limpia el corredor por encima del firme, igual que se despeja
-		-- la parcela de un edificio, y con la misma regla: lo grande no se toca,
-		-- porque si un edificio entero roza la vía el problema es el trazado.
-		local corredor = workspace:GetPartBoundsInBox(
-			CFrame.lookAt(centro + Vector3.new(0, 7, 0), b + Vector3.new(0, 7, 0)),
-			Vector3.new(ancho, 12, (b - a).Magnitude + 6),
-			estorbos
-		)
-		for _, pieza in corredor do
-			if esDespejable(pieza) then
-				pieza:Destroy()
-			end
-		end
-		-- RODABLE explícito y no por color: el asfalto se reconoce por gris (ver
-		-- Roads.esCalzada), y una vía nuestra que un día se pinte de otro color
-		-- dejaría de contar sin que nadie tocara esta línea.
-		tramo:SetAttribute("rodable", true)
-		puestos += 1
-	end
-	return puestos
+	local tramo = part(
+		nombre .. "_1",
+		Vector3.new(ancho, GROSOR_VIA, (b - a).Magnitude),
+		centro,
+		Color3.fromRGB(96, 96, 102),
+		padre
+	)
+	tramo.Material = Enum.Material.Asphalt
+	tramo.CFrame = CFrame.lookAt(centro, b)
+	-- RODABLE explícito y no por color: el asfalto se reconoce por gris (ver
+	-- Roads.esCalzada), y una vía nuestra que un día se pinte de otro color dejaría
+	-- de contar sin que nadie tocara esta línea.
+	tramo:SetAttribute("rodable", true)
+	tramo:SetAttribute("delMapa", true)
+	return 1
 end
 
 -- La calzada de la ciudad más cercana a un punto. Devuelve nil si no hay ninguna
