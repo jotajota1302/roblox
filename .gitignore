@@ -6,6 +6,9 @@ tools/
 creator-docs/
 
 # Artefactos generados
+# El CSV de traducciones se regenera con `node scripts/export-locale.js`; se sube
+# al portal de Roblox a mano, no vive en git.
+games/*/build/
 sourcemap.json
 *.rbxl
 *.rbxlx

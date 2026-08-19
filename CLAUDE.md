@@ -91,16 +91,31 @@ responder a la única pregunta que importa.
 
 - **Comentarios en español** en este proyecto (a diferencia del RPG narrativo, que van en
   inglés): el código es también material de aprendizaje. Identificadores en inglés.
-- **TEXTOS DEL JUEGO EN INGLÉS** (decidido 2026-08-18). Todo lo que lee el JUGADOR va en
-  inglés: avisos, carteles, prompts, HUD, menús, y los nombres de vehículos, mercancías,
-  rarezas y habilidades. La masa de Roblox está en inglés y la portada se decide en un vistazo
-  de Discover, donde el idioma es la primera barrera.
+- **TODO EL TEXTO DEL JUGADOR VIVE EN `src/shared/Strings.luau`** (desde 2026-08-19). Es la
+  regla más importante de esta lista, porque es la única que se rompe sin que nadie se entere:
+  el juego se tradujo al inglés a mano el 18/08 y esa misma noche se vio castellano en
+  pantalla; al inventariar al día siguiente aparecieron NUEVE textos más que el repaso no
+  cazó. **No se escribe una cadena en pantalla en ningún otro fichero.** Si hace falta un
+  texto nuevo, se añade su clave allí y se pide con `Strings.get("CLAVE", { … })`.
+  El idioma de origen es el **inglés**: la masa de Roblox está ahí y la portada se decide en
+  un vistazo de Discover, donde el idioma es la primera barrera.
   **Lo que NO se traduce**: los comentarios, los `warn()` de consola, `SelfCheck` y los
-  nombres de las pruebas — los lee el desarrollador.
+  nombres de las pruebas — los lee el desarrollador. Tampoco los nombres de los parámetros
+  (`{huecos}`, `{cuantas}`): son código, y el código de esta casa va en castellano.
   **Y los IDS NUNCA se traducen**: `"verde"`, `"ambar"`, `"roja"`, `"barrio"`, `"camuflaje"`,
   `"furgoneta"` son claves que viven en `Palette`, en atributos de piezas, en
-  `CONTACTOS_POR_RUTA` y en el DataStore. Para lo que se enseña hay un campo aparte
-  (`Routes.nombre`, `def.nombre`).
+  `CONTACTOS_POR_RUTA` y en el DataStore. El texto se DERIVA del id (`"ROUTE_" .. id`), y por
+  eso los catálogos ya no guardan ningún `nombre`: dos sitios donde escribir texto es
+  exactamente como se colaron los nueve castellanos.
+  **El identificador nunca es la etiqueta.** El menú lateral abría su panel comparando
+  `abierto == "Skills"`, la misma cadena que pintaba en el botón: traducirla habría dejado el
+  menú muerto para siempre. Id por un lado (`"skills"`), etiqueta por otro.
+  **El servidor manda claves, no frases** (`Remotes.AVISO` lleva `(clave, args, color)`): el
+  idioma es del jugador, y con dos personas de países distintos en la partida el servidor no
+  tiene un idioma correcto que elegir.
+  **Multiidioma**: no hay que traducir nada a mano. `node scripts/export-locale.js` saca el
+  CSV, se sube al portal de localización de Roblox y allí se encienden los idiomas — la
+  traducción la hace la plataforma, gratis. Ver `docs/specs/2026-08-19-textos-multiidioma-design.md`.
 - Sin dependencias externas salvo necesidad clara.
 - El mundo y la interfaz **se generan por código**, no a mano en Studio. Así todo vive en
   git y es revisable en un diff; el `.rbxl` es un artefacto desechable.

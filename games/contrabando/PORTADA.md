@@ -38,8 +38,19 @@ contenido.
 
 > **DECIDIDO (18/08): inglés.** La interfaz del juego ya está traducida — unos 130 textos, de
 > los avisos a los nombres de las mercancías. Los comentarios, los logs y las pruebas siguen
-> en español, y los ids internos no se tocaron (son claves del DataStore). Queda sin verificar
-> en Studio.
+> en español, y los ids internos no se tocaron (son claves del DataStore).
+>
+> **Y AL FINAL SE HIZO LA TERCERA OPCIÓN (19/08), que resultó más barata de lo que dice la
+> tabla de arriba.** Roblox traduce solo: tabla en la nube + traducción automática, ~15
+> idiomas, gratis. Lo que costaba no era traducir, era que nuestro texto fuera *traducible* —
+> vivía suelto en 21 ficheros y dos tercios se construían pegando trozos, que no casan contra
+> ninguna fila de la tabla. Ahora los 208 textos viven en `src/shared/Strings.luau` con
+> parámetros con nombre, y `node scripts/export-locale.js` saca el CSV que se sube al portal.
+>
+> **No hay ningún idioma encendido todavía, y es deliberado**: esto no mueve la D1 y el inglés
+> cubre a la mayoría de quien nos verá. Encenderlos es una casilla del portal el día que haya
+> jugadores a los que les sirva. Lo que se ganó es el fichero único, que es la cura de raíz del
+> bug de idiomas mezclados — parcheado dos veces a mano, y las dos se escapó algo.
 
 **Lo de abajo se queda en los dos idiomas por si algún día se localiza.**
 
@@ -168,7 +179,8 @@ los primeros treinta segundos — que es donde se pierde la retención D1.
 
 ## 6. Orden de trabajo
 
-1. ~~**Decidir el idioma.**~~ **Hecho: inglés**, y la interfaz ya está traducida.
+1. ~~**Decidir el idioma.**~~ **Hecho: inglés**, la interfaz está traducida y verificada en
+   Studio, y el juego queda preparado para encender más idiomas sin tocar código.
 2. Elegir nombre y escribir la descripción definitiva.
 3. Generar icono y miniatura con MiniMax, y **la segunda miniatura con gameplay real** —
    necesita el juego a mano, así que va después de la partida de prueba.

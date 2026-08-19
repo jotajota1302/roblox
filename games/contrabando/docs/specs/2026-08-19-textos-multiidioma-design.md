@@ -169,7 +169,12 @@ Y una que no es de traducción sino de idioma, que es lo que empezó todo:
 ## 6. La exportación
 
 `scripts/export-locale.js` (Node, sin dependencias) lee `Strings.luau` y escribe el CSV que
-pide el portal de localización:
+pide el portal de localización. Con `--check` sólo valida, sin escribir.
+
+Y hace la comprobación que Luau **no puede hacer**: una clave repetida en una
+tabla de Lua no da error — la segunda pisa a la primera en silencio, y el texto
+que desaparece no se echa de menos hasta verlo en pantalla. Eso sólo se caza
+leyendo el fichero, así que se caza aquí.
 
 ```
 Key,Source,Context,Example,Source Language (en)
@@ -178,6 +183,32 @@ CARGO_PAID,"+{monedas} for {items} items on {ruta}",Game,,+250 for 3 items on GR
 
 Se sube a mano al portal. **No se automatiza el subir**: es una acción sobre la ficha pública
 del juego y va cuando JJ decida, no cuando corra un script.
+
+## 6bis. Lo que se descubrió al hacerlo
+
+Tres cosas que el diseño no preveía y que quedan escritas porque cambian el
+resultado:
+
+**El identificador era la etiqueta.** `Menu.luau` abría el panel comparando
+`abierto == "Skills"`, exactamente la cadena que pintaba en el botón. Traducirla
+habría dejado el menú muerto para siempre: se leería *Fähigkeiten* y la
+comparación fallaría en silencio. Estaba plantado antes de esta tanda; se separa
+en id (`"skills"`) y etiqueta.
+
+**Dos avisos enseñaban el id de la ruta al jugador.** El cobro decía *"+250 for 3
+items on verde"* y el de destino equivocado *"follow the beacon verde"*: se
+pegaba `estado.ruta`, que es la clave interna. Con la referencia dicen `GREEN`.
+No era un fallo de traducción, era un fallo a secas que sólo salió a la luz al
+tener que decidir qué se traducía.
+
+**El texto del mundo que lleva números no se traducirá.** Los rótulos y avisos
+que planta el servidor los ven todos los jugadores a la vez, así que no se puede
+traducir por persona desde ahí; los traduce el motor al dibujarlos, y para eso
+tienen que casar como cadena entera. Los fijos (`YOUR WAREHOUSE`, `DEN`, `Buy
+vehicle`) casan y se traducirán. El del escaparate (`Van · 15000 · level 10`) no,
+y se queda en inglés. Se ganó lo que se podía: el aviso de comprar pasó de `"Buy
+Car"` compuesto a **dos** cadenas fijas —acción `Buy vehicle` y objeto `Car`—,
+que sí casan las dos. El precio no se pierde: está en el cartel de al lado.
 
 ## 7. Lo que NO entra
 

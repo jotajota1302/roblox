@@ -1,0 +1,33 @@
+{
+  "name": "MapaPreview",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "Gravity": 180
+      }
+    },
+
+    "Lighting": {
+      "$properties": {
+        "Ambient": [0.3, 0.3, 0.35],
+        "Brightness": 2,
+        "ClockTime": 18,
+        "OutdoorAmbient": [0.45, 0.45, 0.5]
+      }
+    }
+  }
+}
