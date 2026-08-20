@@ -310,13 +310,15 @@ local function pintarPeligros(capa: Frame)
 			--
 			-- El disco sigue diciendo por dónde NO pasar --que es lo que sirve para
 			-- trazar un camino-- y el núcleo dice dónde está exactamente.
+			-- Por encima del camino (ZIndex 2): son lo que hay que esquivar mientras lo
+			-- sigues, asi que taparlas con la propia ruta seria contarlo al reves.
 			local disco = mancha(
 				"Fichada_" .. pieza.Name,
 				pieza.Position,
 				Config.DETECTOR_RADIO,
 				Color3.fromRGB(255, 170, 60),
 				0.88,
-				2
+				3
 			)
 			local nucleo =
 				mancha("FichadaNucleo_" .. pieza.Name, pieza.Position, 7, Color3.fromRGB(255, 170, 60), 0.15, 3)
@@ -409,11 +411,18 @@ local function pintarCamino(capa: Frame, rutaId: string?)
 		f.Position = aEscala((x0 + x1) / 2, (z0 + z1) / 2)
 		f.Size = UDim2.fromScale(anchoX / tamanoMapa.X, anchoZ / tamanoMapa.Y)
 		f.BackgroundColor3 = color
-		-- Por debajo de los peligros y de los puntos: es el fondo sobre el que se lee
-		-- todo lo demas, no algo que competir con ellos.
-		f.BackgroundTransparency = 0.45
+		-- OPACO Y POR ENCIMA DEL PLANO. Nacio discreto --0,45 de transparencia y el
+		-- ZIndex mas bajo de todos-- porque en el suelo habia una franja pintada del
+		-- color de la ruta y esto era su eco. Desde el 20/08 esa franja no existe:
+		-- *"con que salga la ruta en el plano del mapa es suficiente, y asi no
+		-- contaminamos el mapa real"*. O sea que esta linea ya no acompana a la guia,
+		-- ES la guia, y una guia no puede ser lo mas tenue del panel.
+		--
+		-- Por debajo de los puntos (destino, refugios, tu) para no taparlos, y por
+		-- encima de la reticula, que es lo unico que hay que pisar.
+		f.BackgroundTransparency = 0.1
 		f.BorderSizePixel = 0
-		f.ZIndex = 1
+		f.ZIndex = 2
 		f.Parent = capa
 		table.insert(caminos, f)
 	end

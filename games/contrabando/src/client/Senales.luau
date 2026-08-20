@@ -132,7 +132,16 @@ function Senales.actualizar(estado: any)
 		-- centro va marcado (0,45). Pintarlas todas igual borraba la diferencia entre
 		-- "por aquí te ven" y "aquí está el ojo".
 		local suya = zona:GetAttribute("opacidad")
-		pintar(zona, llevaAlgo, if typeof(suya) == "number" then suya else 0.9)
+		-- CON VIAJE, no solo con carga. Esto miraba `llevaAlgo`, y el resultado lo
+		-- describio JJ mirando el suelo: *"cuadros amarillos en el suelo sin sentido"*.
+		-- Tenia razon -- coges un paquete, todavia no has elegido a donde vas, y se
+		-- encienden VEINTINUEVE manchas naranjas repartidas por la ciudad. Sin destino
+		-- no son un peligro que esquivar, son manchas.
+		--
+		-- El argumento viejo era que sin carga no te fichan, y sigue siendo cierto; lo
+		-- que faltaba es que sin RUTA tampoco hay camino que decidir, que es para lo
+		-- unico que sirve saber por donde te ven.
+		pintar(zona, hayViaje, if typeof(suya) == "number" then suya else 0.9)
 	end
 end
 

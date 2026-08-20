@@ -1187,47 +1187,20 @@ local function sembrarContactos(
 	-- Las del rastro, en orden, para dorarlas DESPUÉS de saber cuáles cabían.
 	local delRastro: { BasePart } = {}
 
-	-- LA RUTA, PINTADA EN LA CALZADA.
+	-- AQUI SE PINTABA LA RUTA EN EL ASFALTO, una franja continua del color de la ruta
+	-- de casa al destino. Nacio contra una queja repetida cuatro veces --"no se ve
+	-- donde tienes que ir"-- y funcionaba: una linea continua se lee desde el otro
+	-- extremo de la calle sin mirarla.
 	--
-	-- Las migas solas no bastan y lo dijo JJ por cuarta vez: "no se ve dónde tienes
-	-- que ir". Son cubos de dos studs, del color de la crema, sobre un asfalto claro y
-	-- con la luz de un atardecer -- se ven al pisarlos y no a treinta studs, que es
-	-- cuando hacen falta. Y entre uno y otro hay veintidós studs de nada.
+	-- Se quita el 20/08 porque el propio JJ cerro el debate desde el otro lado: *"con
+	-- que salga la ruta en el plano del mapa es suficiente, y asi no contaminamos el
+	-- mapa real"*. Y es la decision correcta -- la guia no ha desaparecido, se ha
+	-- MUDADO: el minimapa dibuja el mismo camino en L, sale del mismo `Grid.porCalles`
+	-- y ahora ademas marca la zona de entrega con un halo.
 	--
-	-- Una LÍNEA CONTINUA se lee desde el otro extremo de la calle sin mirarla: es lo
-	-- que hacen las señales de un aeropuerto y no necesitan explicarse. Va del color
-	-- de la ruta, así que además dice CUÁL es la tuya.
-	--
-	-- Plana y en el suelo, como las zonas fichadas: nada de esto reabre lo vertical.
-	-- Y sin colisión, así que su altura no puede crear un escalón.
-	local ANCHO_LINEA = 3.4
-	for i = 2, #camino do
-		local a, b = camino[i - 1], camino[i]
-		local plano = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
-		local largo = plano.Magnitude
-		if largo > 2 then
-			local centro = Vector3.new((a.X + b.X) / 2, Y_LINEA_RUTA, (a.Z + b.Z) / 2)
-			local linea = part(
-				string.format("LineaRuta_%s_%d", ruta.id, i),
-				Vector3.new(ANCHO_LINEA, 0.2, largo),
-				centro,
-				Palette.ruta(ruta.id),
-				padre
-			)
-			linea.CFrame = CFrame.lookAt(centro, centro + plano.Unit)
-			-- Opaca, por lo mismo: once tiras translúcidas cruzando la ciudad eran once
-			-- fuentes más de centelleo. Pintada se ve MEJOR, además -- una línea de
-			-- color pleno en el asfalto se sigue con el rabillo del ojo.
-			linea.Material = Enum.Material.SmoothPlastic
-			linea.Transparency = 0
-			linea.CanCollide = false
-			linea.CanQuery = false
-			linea.CanTouch = false
-			linea:SetAttribute("ruta", ruta.id)
-			linea:SetAttribute("lineaDeRuta", true)
-			table.insert(piezas, linea)
-		end
-	end
+	-- Lo que queda en el suelo son las MIGAS, y no es lo mismo: una miga es algo que
+	-- se recoge --paga contacto y da racha-- asi que no es senalizacion pintada, es
+	-- juego. La diferencia entre marcar el camino y decorarlo con el.
 
 	for i, contacto in Contacts.deRuta(ruta.id, camino, anclas) do
 		local x, z = contacto.pos.X, contacto.pos.Z
