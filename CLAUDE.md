@@ -163,6 +163,31 @@ que no existe.
 Corolario: si hay que reabrir Studio para recargar el código (`Stop-Process` + volver a
 abrir), se reabre **ese** fichero.
 
+## Sincronizar codigo sin plugin y sin dialogos
+
+**Cada llamada del MCP a Studio le pide permiso al usuario**, y reabrir Studio cuesta
+varias: `list_roblox_studios`, `get_studio_state`, comprobar que el codigo llego... El
+20/08 JJ lo corto en seco --*"no puedo estar aprobando cada conexion que haces con el
+Studio"*-- y tenia razon: casi todas esas llamadas eran para resolver "?tiene Studio mi
+codigo?", que ahora se contesta de una vez.
+
+```powershell
+node scripts\sync-server.js          # se queda escuchando en el 34873
+```
+
+Y desde el MCP, en el datamodel **Edit**, se ejecuta `scripts/sync.luau`: pide la lista
+por HTTP, la compara modulo a modulo y escribe solo los `Source` que han cambiado. La
+correspondencia fichero -> instancia sale del `sourcemap` que genera el propio Rojo, asi
+que es exactamente la que usaria su plugin.
+
+Ventajas sobre reabrir Studio: **una sola llamada MCP**, sin `Connect` que aprobar, sin
+matar el proceso, sin borrar el `.lock` y sin cerrarle la partida al usuario. El informe
+dice que modulos se movieron, y un "0 actualizados" cuando esperabas uno es la senal de
+que estas mirando el sitio equivocado -- que aqui ya ha costado sesiones enteras.
+
+Sigue valiendo la regla de siempre: **en Play no sirve de nada**. Una sesion de Play corre
+sobre el snapshot que se hizo al arrancarla, asi que hay que parar, sincronizar y arrancar.
+
 ## MCP de Roblox Studio
 
 Activado en scope user. `list_roblox_studios` para el `studio_id`, luego `execute_luau`
