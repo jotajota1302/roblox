@@ -563,14 +563,27 @@ local function viviendas()
 		for _, d in workspace:GetPartBoundsInBox(CFrame.new((min + max) / 2), (max - min) * 0.9, params) do
 			-- El suelo y el asfalto no invaden: la casa se apoya en ellos. Ni los conos
 			-- de las camaras, que son una mancha pintada sin volumen.
+			-- LO QUE NO INVADE, aunque este dentro de la caja: el suelo y el asfalto
+			-- (la casa se apoya en ellos), los conos de camara (una mancha pintada sin
+			-- volumen) y los RECOGIBLES con sus piezas -- un rayo flotando junto a la
+			-- fachada no estorba a nadie, no colisiona y encima es exactamente donde
+			-- tiene que estar: la fila acaba en la puerta.
+			--
+			-- Los hijos hay que nombrarlos uno a uno porque `GetPartBoundsInBox`
+			-- devuelve descendientes, no raices: sin `Rayo` y `Ala` la sonda contaba
+			-- doce invasores donde habia dos recogibles.
+			local suyo = d.Name
 			if
-				d.Name ~= "Suelo"
-				and d.Name ~= "Asfalto"
-				and d.Name ~= "ConoDetector"
-				and d.Name ~= "Vista"
-				and d.Name ~= "VistaBorde"
-				and string.match(d.Name, "^Calle") == nil
-				and string.match(d.Name, "^Contacto_") == nil
+				suyo ~= "Suelo"
+				and suyo ~= "Asfalto"
+				and suyo ~= "ConoDetector"
+				and suyo ~= "Vista"
+				and suyo ~= "VistaBorde"
+				and suyo ~= "Rayo"
+				and suyo ~= "Ala"
+				and suyo ~= "Derrape"
+				and string.match(suyo, "^Calle") == nil
+				and string.match(suyo, "^Contacto_") == nil
 			then
 				ajenas += 1
 			end

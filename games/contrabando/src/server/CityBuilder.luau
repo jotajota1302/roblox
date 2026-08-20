@@ -2719,13 +2719,20 @@ function CityBuilder.build(): Mundo
 		-- convertir un problema estetico en uno que no deja jugar.
 		local puntoDeCobro: BasePart? = nil
 		do
-			local centroCasa, haciaDentro = Grid.portalDeCruce(ruta.destino, 34)
+			-- Las medidas van juntas con la funcion que las usa: 46x34 es la vivienda.
+			local centroCasa, haciaDentro = Grid.portalDeCruce(ruta.destino, 34, 46)
 			centroVivienda = centroCasa
 			-- Y SU HUELLA SE DESPEJA. `despejar(ruta.destino, 50, 45)` limpia alrededor
 			-- del cruce, pero la casa cae a 46 studs de el -- justo en el filo-- y la de
 			-- la roja salio metida en `Manzana_3_0`. Un bloque de pisos dentro de otro
 			-- no es un fallo que reviente: es una fachada que no se puede leer.
-			despejar(ciudad, centroCasa, 52, 60)
+			-- LADO 84 Y NO 52. `despejar` recibe el LADO de una caja, no un radio, asi
+			-- que 52 barria solo +-26 studs -- menos que la propia casa, que mide 46x34
+			-- y con tejado 49x37. Medido: `Edificio_3_0_4` (40x77x40) seguia metido
+			-- dentro de la vivienda roja. Y el alto sube a 90 porque los edificios de la
+			-- reticula llegan a 77: una caja de 60 no toca la parte de arriba y deja el
+			-- edificio en pie por no llegarle.
+			despejar(ciudad, centroCasa, 84, 90)
 			local yCasa = sueloDeLaCiudad(ciudad, centroCasa.X, centroCasa.Z) or Grid.Y
 			local casa = vivienda(
 				"Vivienda_" .. ruta.id,

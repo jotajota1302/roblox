@@ -101,23 +101,33 @@ function Grid.centroManzana(col: number, fila: number): Vector3
 	return Vector3.new((x0 + x1) / 2, Grid.Y, (z0 + z1) / 2)
 end
 
--- LA ESQUINA DE MANZANA QUE TOCA UN CRUCE, y hacia donde da.
+-- LA ESQUINA DE MANZANA QUE TOCA UN CRUCE, y hacia donde da su fachada.
 --
 -- Existe para los PORTALES DE ENTREGA. Hasta el 20/08 el destino era una losa de
 -- color en mitad del cruce, y JJ dio con lo que le faltaba: *"estaria bien que los
 -- puntos de entrega estuvieran en ventanas de edificios, como si fueran viviendas,
--- y no puntos en medio del mapa"*. Y es que un punto pintado en el asfalto no es un
--- sitio -- no se entrega EN un cruce, se entrega en el portal de alguien.
+-- y no puntos en medio del mapa"*. Un punto pintado en el asfalto no es un sitio --
+-- no se entrega EN un cruce, se entrega en el portal de alguien.
 --
--- Devuelve el centro de la esquina de manzana pegada a ese cruce y la direccion que
--- va del cruce hacia ella, que es hacia donde tiene que dar la fachada. `fondo` es
--- cuanto ocupa el portal hacia dentro de la manzana.
+-- LA FACHADA DA A UNA CALLE, NO A LA DIAGONAL. La primera version devolvia el
+-- vector del cruce a la esquina, que en una reticula es exactamente la diagonal: la
+-- casa salia girada 45 grados, mirando a la boca del cruce en vez de a ninguna de
+-- las dos calles. Se vio midiendo su caja -- una casa de 49x37 ocupaba 66x67 de
+-- huella, asi que se comia media manzana y la sonda contaba invasores que no la
+-- tocaban. Y visto desde dentro es peor todavia: un bloque de pisos torcido
+-- respecto a su calle no se lee como un edificio, se lee como un fallo.
 --
--- Se elige la manzana en el sentido en que la reticula CRECE (columna y fila del
--- propio cruce), y en los bordes se retrocede una: un cruce del extremo no tiene
--- manzana por ese lado, y plantar el portal fuera del mapa seria peor que en el
--- asfalto.
-function Grid.portalDeCruce(cruce: Vector3, fondo: number): (Vector3, Vector3)
+-- Se toma el eje DOMINANTE, con desempate en Z. En una reticula los dos valen 13
+-- (medio ancho de calle) y hay empate siempre, asi que en la practica todas las
+-- casas dan a la calle horizontal -- y eso es una virtud, no un azar: un jugador
+-- que aprende que "el portal siempre mira al norte o al sur" tiene una regla menos
+-- que descubrir en cada entrega.
+--
+-- Devuelve el centro de la casa y la direccion que va del cruce hacia dentro de la
+-- manzana, que es hacia donde apunta su parte de atras. `fondo` y `ancho` son las
+-- medidas de la casa: hacen falta las dos para meterla ENTERA en la manzana -- con
+-- solo el fondo, la mitad del ancho quedaba sobre la calle perpendicular.
+function Grid.portalDeCruce(cruce: Vector3, fondo: number, ancho: number): (Vector3, Vector3)
 	local col = math.clamp(math.floor((cruce.X - Grid.xDeCalle(0)) / Grid.PASO + 0.5), 0, Grid.COLUMNAS - 1)
 	local fila = math.clamp(math.floor((cruce.Z - Grid.zDeCalle(0)) / Grid.PASO + 0.5), 0, Grid.FILAS - 1)
 	local x0, x1, z0, z1 = Grid.manzana(col, fila)
@@ -125,14 +135,22 @@ function Grid.portalDeCruce(cruce: Vector3, fondo: number): (Vector3, Vector3)
 	-- La esquina de la manzana mas cercana al cruce, en cada eje por separado.
 	local ex = if math.abs(x0 - cruce.X) <= math.abs(x1 - cruce.X) then x0 else x1
 	local ez = if math.abs(z0 - cruce.Z) <= math.abs(z1 - cruce.Z) then z0 else z1
-	local hacia = Vector3.new(ex - cruce.X, 0, ez - cruce.Z)
-	if hacia.Magnitude < 0.01 then
-		hacia = Vector3.new(0, 0, 1)
+	local dx, dz = ex - cruce.X, ez - cruce.Z
+
+	-- El eje dominante manda; el otro solo sirve para saber hacia que lado correrse.
+	local haciaDentro, aLoLargo
+	if math.abs(dx) > math.abs(dz) then
+		haciaDentro = Vector3.new(if dx >= 0 then 1 else -1, 0, 0)
+		aLoLargo = Vector3.new(0, 0, if dz >= 0 then 1 else -1)
+	else
+		haciaDentro = Vector3.new(0, 0, if dz >= 0 then 1 else -1)
+		aLoLargo = Vector3.new(if dx >= 0 then 1 else -1, 0, 0)
 	end
-	local unit = hacia.Unit
-	-- El centro del portal queda a medio fondo de la esquina, hacia dentro: asi su
-	-- fachada cae justo en la linea de la manzana y no invade la calzada.
-	return Vector3.new(ex, Grid.Y, ez) + unit * (fondo / 2), unit
+
+	-- Fondo adentro y ancho a lo largo de la fachada: asi la casa cae ENTERA dentro
+	-- de la manzana, con su cara delantera justo en la linea de la acera.
+	local centro = Vector3.new(ex, Grid.Y, ez) + haciaDentro * (fondo / 2) + aLoLargo * (ancho / 2)
+	return centro, haciaDentro
 end
 
 -- LAS BANDAS. Fila 0 la más lejana de casa, fila FILAS-1 la más cercana. El orden
