@@ -101,6 +101,40 @@ function Grid.centroManzana(col: number, fila: number): Vector3
 	return Vector3.new((x0 + x1) / 2, Grid.Y, (z0 + z1) / 2)
 end
 
+-- LA ESQUINA DE MANZANA QUE TOCA UN CRUCE, y hacia donde da.
+--
+-- Existe para los PORTALES DE ENTREGA. Hasta el 20/08 el destino era una losa de
+-- color en mitad del cruce, y JJ dio con lo que le faltaba: *"estaria bien que los
+-- puntos de entrega estuvieran en ventanas de edificios, como si fueran viviendas,
+-- y no puntos en medio del mapa"*. Y es que un punto pintado en el asfalto no es un
+-- sitio -- no se entrega EN un cruce, se entrega en el portal de alguien.
+--
+-- Devuelve el centro de la esquina de manzana pegada a ese cruce y la direccion que
+-- va del cruce hacia ella, que es hacia donde tiene que dar la fachada. `fondo` es
+-- cuanto ocupa el portal hacia dentro de la manzana.
+--
+-- Se elige la manzana en el sentido en que la reticula CRECE (columna y fila del
+-- propio cruce), y en los bordes se retrocede una: un cruce del extremo no tiene
+-- manzana por ese lado, y plantar el portal fuera del mapa seria peor que en el
+-- asfalto.
+function Grid.portalDeCruce(cruce: Vector3, fondo: number): (Vector3, Vector3)
+	local col = math.clamp(math.floor((cruce.X - Grid.xDeCalle(0)) / Grid.PASO + 0.5), 0, Grid.COLUMNAS - 1)
+	local fila = math.clamp(math.floor((cruce.Z - Grid.zDeCalle(0)) / Grid.PASO + 0.5), 0, Grid.FILAS - 1)
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+
+	-- La esquina de la manzana mas cercana al cruce, en cada eje por separado.
+	local ex = if math.abs(x0 - cruce.X) <= math.abs(x1 - cruce.X) then x0 else x1
+	local ez = if math.abs(z0 - cruce.Z) <= math.abs(z1 - cruce.Z) then z0 else z1
+	local hacia = Vector3.new(ex - cruce.X, 0, ez - cruce.Z)
+	if hacia.Magnitude < 0.01 then
+		hacia = Vector3.new(0, 0, 1)
+	end
+	local unit = hacia.Unit
+	-- El centro del portal queda a medio fondo de la esquina, hacia dentro: asi su
+	-- fachada cae justo en la linea de la manzana y no invade la calzada.
+	return Vector3.new(ex, Grid.Y, ez) + unit * (fondo / 2), unit
+end
+
 -- LAS BANDAS. Fila 0 la más lejana de casa, fila FILAS-1 la más cercana. El orden
 -- importa: es lo que hace que alejarse de casa sea entrar en zona peor.
 local ZONA_POR_FILA = { [0] = "roja", [1] = "ambar", [2] = "verde" }

@@ -613,6 +613,37 @@ Config.CALOR_MAXIMO = 3
 -- sube a 3 en dos segundos: el sistema deja de ser una decisión y pasa a ser una
 -- trampa. 30 s es más que de sobra para cruzar su radio a cualquier velocidad.
 Config.DETECTOR_RADIO = 35
+
+-- LA ESQUINA VIGILADA TAMBIEN MIRA, y esto es de las cosas que cambian el juego.
+--
+-- Hasta el 20/08 era un sensor de proximidad puro: entrabas en su radio y te
+-- fichaba, con o sin pared de por medio. Medido a proposito --de pie al otro lado
+-- de `Edificio_0_0_1`, a 30 studs-- el calor subia igual. Y la caja negra lo
+-- remato: en un viaje entero de la ruta verde el aviso *"alguien ha visto tu
+-- rastro"* salto con UN ladron cerca y CERO que te vieran. Eso es lo que JJ
+-- describio como *"no acabo de ver el tema de la deteccion de las esquinas; que te
+-- detecten solo enemigos si miran"*.
+--
+-- Ahora la esquina tiene cara: mira a un rumbo fijo, dibuja su cono en el suelo
+-- igual que el ladron, y solo ficha a quien esta DENTRO del cono y sin pared de
+-- por medio. Con eso, la vigilancia deja de ser un impuesto por pasar y pasa a ser
+-- lo que prometia el diseno: algo que se lee en el mapa y se rodea.
+--
+-- 45 grados de semiapertura (90 de par en par) y no los 60 del ladron. La esquina
+-- no se mueve, asi que su cono es la unica informacion que da: tiene que quedar un
+-- cuadrante ciego GRANDE y evidente, o "pasar por detras" seria una casualidad en
+-- vez de una jugada.
+Config.DETECTOR_VISION_ANGULO = 45
+
+-- HACIA DONDE MIRA CADA UNA. Cuatro rumbos cardinales repartidos por el indice de
+-- la esquina, y por tanto FIJOS Y APRENDIBLES, como todo lo demas de este mapa: la
+-- misma esquina mira siempre igual, asi que la segunda vez que haces una ruta ya
+-- sabes por donde ibas mal.
+--
+-- El paso de 3 y no de 1 es para que dos esquinas seguidas no miren al mismo sitio:
+-- con paso 1 el rumbo gira una cuarta por esquina y salen tramos enteros barridos
+-- en la misma direccion.
+Config.DETECTOR_RUMBOS = { 0, 90, 180, 270 }
 Config.DETECTOR_BLOQUEO = 30
 
 -- Cuánto tarda en bajar un nivel de calor sin vigilancia encima. Es la válvula de

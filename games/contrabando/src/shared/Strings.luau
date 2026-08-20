@@ -90,6 +90,10 @@ local TEXTOS: { [string]: string } = {
 	ACTION_DELIVER = "deliver the cargo",
 	ACTION_INTERACT = "pick up, buy and use",
 
+	-- El rotulo del portal de una vivienda de entrega. Corto a proposito: va sobre
+	-- la puerta, se lee de paso y compite con las ventanas encendidas.
+	DELIVERY_DOOR = "DROP-OFF",
+
 	-- ---- Brújula ---------------------------------------------------------
 	COMPASS_HERE = "here",
 	COMPASS_METERS = "{metros} m",

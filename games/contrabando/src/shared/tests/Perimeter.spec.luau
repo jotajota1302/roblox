@@ -87,8 +87,11 @@ return function(kit)
 
 	-- LOS PANELES. Lo único que no se puede fallar es dejar un hueco: una rendija
 	-- por la que se cuela el jugador deja esto peor que no tener puerta.
-	local postes = Perimeter.postes(6)
-	kit.eq("salen los paneles pedidos", #postes, 6)
+	-- LA BOCA, que es el unico lado por el que se sale. Se pide aparte desde que la
+	-- valla es un anillo: `postes` devuelve los cuatro lados, y comprobar la puerta
+	-- sobre el anillo entero mediria la caja, no la salida.
+	local postes = Perimeter.postesDeLaBoca(6)
+	kit.eq("salen los paneles pedidos en la boca", #postes, 6)
 	local ancho = 0
 	local minX, maxX = math.huge, -math.huge
 	for _, p in postes do
@@ -100,6 +103,40 @@ return function(kit)
 	kit.truthy("los paneles cubren la boca entera", maxX - minX >= MEDIDA.X)
 	kit.truthy("y con solape, sin rendijas", ancho > MEDIDA.X)
 
-	-- Un número absurdo de paneles no puede producir una puerta imposible.
-	kit.eq("nunca menos de dos paneles", #Perimeter.postes(1), 2)
+	-- Y EL ANILLO ENTERO: cuatro lados, sin ningun hueco por el que colarse. Lo pidio
+	-- JJ --*"que envuelva toda la zona"*-- y sin esta prueba se puede volver a una
+	-- linea sin que nada chille.
+	local anillo = Perimeter.postes(6)
+	local lados = { norte = 0, sur = 0, poniente = 0, levante = 0 }
+	for _, p in anillo do
+		if math.abs(p.posicion.Z - (CENTRO.Z - MEDIDA.Y / 2)) < 0.01 then
+			lados.norte += 1
+		elseif math.abs(p.posicion.Z - (CENTRO.Z + MEDIDA.Y / 2)) < 0.01 then
+			lados.sur += 1
+		elseif math.abs(p.posicion.X - (CENTRO.X - MEDIDA.X / 2)) < 0.01 then
+			lados.poniente += 1
+		elseif math.abs(p.posicion.X - (CENTRO.X + MEDIDA.X / 2)) < 0.01 then
+			lados.levante += 1
+		end
+	end
+	for nombre, cuantos in lados do
+		kit.truthy("el lado " .. nombre .. " esta vallado", cuantos >= 2)
+	end
+	kit.eq(
+		"y no hay paneles sueltos fuera de los cuatro lados",
+		lados.norte + lados.sur + lados.poniente + lados.levante,
+		#anillo
+	)
+
+	-- EL PASO ES EL MISMO EN TODO EL ANILLO. Sin esto, el lado largo llevaria los
+	-- mismos paneles que el corto y saldrian del doble de ancho: la valla se veria de
+	-- dos materiales distintos segun por donde la mires.
+	local masEstrecho, masAncho = math.huge, 0
+	for _, p in anillo do
+		masEstrecho = math.min(masEstrecho, p.ancho)
+		masAncho = math.max(masAncho, p.ancho)
+	end
+	kit.truthy("los paneles del anillo son parecidos entre si", masAncho / masEstrecho < 1.6)
+
+	kit.truthy("nunca menos de dos paneles por lado", #Perimeter.postes(1) >= 8)
 end

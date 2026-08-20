@@ -117,30 +117,76 @@ export type Poste = {
 	ancho: number,
 }
 
--- Los paneles que cierran la boca. Son pocos y en línea, no un anillo: el resto
--- del polígono ya está cerrado por sus muros.
+-- LOS PANELES DE LA VALLA, y ahora son un ANILLO, no una linea.
+--
+-- Hasta el 20/08 cerraban solo la boca --el lado norte-- con un argumento que
+-- parecia bueno: el resto del recinto ya esta cerrado por sus muros de piedra, asi
+-- que poner barrera donde ya hay muro era redundante.
+--
+-- Redundante para el codigo, invisible para el jugador. Lo dijo JJ: *"la pared que
+-- sale, que no nos deja salir, que sea mucho mas evidente y envuelva toda la
+-- zona"*. Y el motivo es de lectura, no de fisica: una barrera en un solo lado no
+-- se lee como "estas encerrado hasta que arregles el viaje", se lee como "hay un
+-- panel raro ahi". Lo que comunica el encierro es el ANILLO -- mires donde mires,
+-- la frontera esta, y es la misma.
+--
+-- Los muros siguen siendo los que paran; esto sigue siendo lo que INFORMA. Que la
+-- barrera coincida con el muro en tres lados no sobra: es lo que hace que los
+-- cuatro lados digan lo mismo.
+--
+-- `cuantos` es el numero de paneles del lado NORTE (la boca). Los otros tres
+-- reciben los que les tocan segun su largo, para que el paso sea el mismo en todo
+-- el anillo -- si el lado largo llevara los mismos que el corto, sus paneles
+-- saldrian del doble de ancho y la valla se veria de dos materiales.
 function Perimeter.postes(cuantos: number?): { Poste }
 	local centro = Config.POLIGONO_CENTRO
 	local medida = Config.POLIGONO_TAMANO
 	local n = math.max(2, cuantos or 6)
 	local lista: { Poste } = {}
-	-- Un pelín más ancha que la boca, para que no se pueda pasar rozando el muro.
-	local total = medida.X + 8
-	local ancho = total / n
-	local z = centro.Z - medida.Y / 2
-	for i = 1, n do
-		local x = centro.X - total / 2 + ancho * (i - 0.5)
-		table.insert(lista, {
-			posicion = Vector3.new(x, centro.Y, z),
-			-- Sin girar: la puerta es perpendicular a la salida, así que su cara
-			-- larga ya va en X, que es como se crea una pieza por defecto.
-			giro = 0,
-			-- Con solape: dos paneles que se tocan justo en la punta dejan pasar por
-			-- la juntura en cuanto el suelo no es perfectamente plano.
-			ancho = ancho * 1.06,
-		})
+	-- Un pelin mas ancho que el lado, para que no se pueda pasar rozando la esquina.
+	local paso = (medida.X + 8) / n
+
+	-- Cada lado: su eje, cuanto mide, donde esta fijo y hacia donde mira el panel.
+	-- El giro es el de la CARA LARGA: norte y sur van en X (giro 0), poniente y
+	-- levante en Z (giro 90).
+	local lados = {
+		{ largo = medida.X + 8, fijo = centro.Z - medida.Y / 2, eje = "x", giro = 0 },
+		{ largo = medida.X + 8, fijo = centro.Z + medida.Y / 2, eje = "x", giro = 0 },
+		{ largo = medida.Y + 8, fijo = centro.X - medida.X / 2, eje = "z", giro = 90 },
+		{ largo = medida.Y + 8, fijo = centro.X + medida.X / 2, eje = "z", giro = 90 },
+	}
+
+	for _, lado in lados do
+		local cuantosLado = math.max(2, math.floor(lado.largo / paso + 0.5))
+		local ancho = lado.largo / cuantosLado
+		for i = 1, cuantosLado do
+			local d = -lado.largo / 2 + ancho * (i - 0.5)
+			local pos = if lado.eje == "x"
+				then Vector3.new(centro.X + d, centro.Y, lado.fijo)
+				else Vector3.new(lado.fijo, centro.Y, centro.Z + d)
+			table.insert(lista, {
+				posicion = pos,
+				giro = lado.giro,
+				-- Con solape: dos paneles que se tocan justo en la punta dejan pasar
+				-- por la juntura en cuanto el suelo no es perfectamente plano.
+				ancho = ancho * 1.06,
+			})
+		end
 	end
 	return lista
+end
+
+-- Los paneles de LA BOCA solamente, que es el unico lado por el que se sale de
+-- verdad. Lo usan las pruebas y quien tenga que hablar de la puerta y no de la caja.
+function Perimeter.postesDeLaBoca(cuantos: number?): { Poste }
+	local boca = Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
+	local salida: { Poste } = {}
+	for _, poste in Perimeter.postes(cuantos) do
+		if math.abs(poste.posicion.Z - boca) < 0.01 then
+			table.insert(salida, poste)
+		end
+	end
+	return salida
 end
 
 return Perimeter

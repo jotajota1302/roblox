@@ -46,6 +46,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
+local Vision = require(game.ReplicatedStorage.Shared.Vision)
 
 local SelfCheck = {}
 
@@ -212,23 +213,75 @@ local function vigilancia()
 	end
 	comprobar("la vigilancia toca el suelo", enElAire == 0, string.format("%d en el aire", enElAire))
 
-	-- Y NINGUNA RUTA SE HACE LIMPIA. Es la comprobacion que sustituye a las de antes, y
-	-- dice lo que de verdad importa: recorriendo el camino de cualquier ruta te tienen
-	-- que fichar al menos una vez. Si una ruta da CERO, su selector promete un peligro
-	-- que no existe -- y eso ya paso, con la roja entera dando calor 0.
-	for _, ruta in Routes.todas() do
+	-- CUANTAS ESQUINAS TE FICHAN DE VERDAD recorriendo una ruta.
+	--
+	-- Antes esto contaba las esquinas que quedaban a menos de DETECTOR_RADIO del
+	-- trayecto, y esa cuenta dejo de valer el 20/08: desde que la esquina MIRA, estar
+	-- cerca no basta -- hay que caer en su cono y sin pared de por medio. Contar por
+	-- distancia diria que la ruta esta vigilada cuando quiza todas sus esquinas miran
+	-- al otro lado, que es exactamente la clase de "existe y no hace nada" que esta
+	-- bateria existe para cazar.
+	--
+	-- Asi que se anda el camino de verdad, muestra a muestra, aplicando las MISMAS dos
+	-- condiciones que aplica HeatService.
+	local function fichanDeVerdad(ruta: any): number
 		local puntos = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
-		local fichan = 0
-		for _, poste in postes do
-			if alTrayecto(poste.Position, ruta.destino) <= Config.DETECTOR_RADIO then
-				fichan += 1
+		local vistas: { [BasePart]: boolean } = {}
+		local cuenta = 0
+		for i = 1, #puntos - 1 do
+			local a, b = puntos[i], puntos[i + 1]
+			local largo = (Vector3.new(b.X, 0, b.Z) - Vector3.new(a.X, 0, a.Z)).Magnitude
+			local pasos = math.max(1, math.floor(largo / 8))
+			for k = 0, pasos do
+				local donde = a:Lerp(b, k / pasos) + Vector3.new(0, 3, 0)
+				for _, poste in postes do
+					if vistas[poste] then
+						continue
+					end
+					if (donde - poste.Position).Magnitude > Config.DETECTOR_RADIO then
+						continue
+					end
+					local rumbo = poste:GetAttribute("rumbo")
+					if typeof(rumbo) == "number" then
+						local mirando = (CFrame.Angles(0, math.rad(rumbo), 0) * CFrame.new(0, 0, -1)).Position
+						if
+							not Vision.dentroDelCono(
+								poste.Position,
+								mirando,
+								donde,
+								Config.DETECTOR_VISION_ANGULO,
+								Config.DETECTOR_RADIO
+							)
+						then
+							continue
+						end
+						local params = RaycastParams.new()
+						params.FilterType = Enum.RaycastFilterType.Exclude
+						params.FilterDescendantsInstances = { poste }
+						if workspace:Raycast(poste.Position, donde - poste.Position, params) ~= nil then
+							continue
+						end
+					end
+					vistas[poste] = true
+					cuenta += 1
+				end
 			end
 		end
-		local _ = puntos
+		return cuenta
+	end
+
+	-- Y NINGUNA RUTA SE HACE LIMPIA. Es la comprobacion que de verdad importa:
+	-- recorriendo el camino de cualquier ruta te tienen que fichar al menos una vez.
+	-- Si una da CERO, su selector promete un peligro que no existe -- y eso ya paso,
+	-- con la roja entera dando calor 0.
+	local fichanPorRuta: { [string]: number } = {}
+	for _, ruta in Routes.todas() do
+		local fichan = fichanDeVerdad(ruta)
+		fichanPorRuta[ruta.id] = fichan
 		comprobar(
-			string.format("la %s pasa por vigilancia", ruta.id),
+			string.format("la %s pasa por vigilancia que la MIRA", ruta.id),
 			fichan >= 1,
-			string.format("ninguna de las %d esquinas llega a su camino: se hace limpia", #postes)
+			string.format("ninguna de las %d esquinas la ve: se hace limpia", #postes)
 		)
 	end
 
@@ -237,13 +290,7 @@ local function vigilancia()
 	-- que sale solo es lo que nadie mantiene, y el dia que alguien mueva un destino la
 	-- progresion de dificultad puede darse la vuelta sin que nada avise.
 	local function cuantasFichan(ruta: any): number
-		local n = 0
-		for _, poste in postes do
-			if alTrayecto(poste.Position, ruta.destino) <= Config.DETECTOR_RADIO then
-				n += 1
-			end
-		end
-		return n
+		return fichanPorRuta[ruta.id] or 0
 	end
 	local verde, roja = Routes.get("verde"), Routes.get("roja")
 	if verde ~= nil and roja ~= nil then
@@ -456,11 +503,58 @@ local function accesos()
 	end
 end
 
+---------------------------------------------------------------------------------
+-- 3b. Las viviendas de entrega existen y no las pisa nadie.
+---------------------------------------------------------------------------------
+local function viviendas()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+	local sinCasa, invadidas, detalle = 0, 0, ""
+	for _, ruta in Routes.todas() do
+		local casa = m:FindFirstChild("Vivienda_" .. ruta.id) :: BasePart?
+		if casa == nil then
+			sinCasa += 1
+			continue
+		end
+		-- QUE NO HAYA NADA METIDO DENTRO. Es la firma exacta del fallo que la estreno:
+		-- la vivienda se planta en `mundo` y el buscador de parcela del taller solo
+		-- mira dentro de `ciudad`, asi que para el era invisible -- y los talleres de
+		-- la verde y la ambar salieron con el tejado, los escaparates y el rotulo
+		-- DENTRO del bloque de pisos. No revienta nada: es una fachada que no se puede
+		-- leer, que es lo contrario de para lo que existe.
+		local params = OverlapParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { casa }
+		params.MaxParts = 60
+		local ajenas = 0
+		for _, d in workspace:GetPartBoundsInBox(casa.CFrame, casa.Size * 0.92, params) do
+			-- El suelo y el asfalto no invaden: la casa se apoya en ellos.
+			if d.Name ~= "Suelo" and d.Name ~= "Asfalto" and string.match(d.Name, "^Calle") == nil then
+				ajenas += 1
+			end
+		end
+		if ajenas > 0 then
+			invadidas += 1
+			detalle ..= string.format(" %s(%d)", ruta.id, ajenas)
+		end
+	end
+	comprobar("cada ruta entrega en una vivienda", sinCasa == 0, string.format("%d rutas sin vivienda", sinCasa))
+	comprobar("y nadie tiene medio taller dentro de casa", invadidas == 0, "invadidas:" .. detalle)
+end
+
 --------------------------------------------------------------------------------
 -- 4. La puerta del recinto cierra la boca entera.
 --------------------------------------------------------------------------------
 local function puerta()
-	local postes = Perimeter.postes(Config.RECINTO_PANELES)
+	-- LA BOCA, que es el unico lado por el que se sale. Desde que la valla es un
+	-- ANILLO hay que pedirla aparte: `Perimeter.postes` devuelve los cuatro lados, y
+	-- medir juntas sobre la lista entera compara el panel de una esquina con el del
+	-- lado siguiente -- que por supuesto no solapan en X, porque no estan en X. Esta
+	-- sonda se puso roja el dia del anillo diciendo "junta abierta" con la puerta
+	-- perfectamente cerrada: un falso rojo, que es la peor averia de una sonda.
+	local postes = Perimeter.postesDeLaBoca(Config.RECINTO_PANELES)
 	local izquierda, derecha = math.huge, -math.huge
 	for _, poste in postes do
 		izquierda = math.min(izquierda, poste.posicion.X - poste.ancho / 2)
@@ -483,6 +577,42 @@ local function puerta()
 		end
 	end
 	comprobar("los paneles de la puerta solapan", not abierta, "hay una junta abierta entre dos paneles")
+
+	-- Y EL ANILLO ENTERO, que es lo que se pidio: *"que envuelva toda la zona"*. Se
+	-- cuenta cuantos paneles caen en cada uno de los cuatro lados. Un lado a cero es
+	-- una valla que solo cierra por delante, que es como estaba y no se leia.
+	local centro, medida = Config.POLIGONO_CENTRO, Config.POLIGONO_TAMANO
+	local porLado = { 0, 0, 0, 0 }
+	local anillo = Perimeter.postes(Config.RECINTO_PANELES)
+	for _, poste in anillo do
+		if math.abs(poste.posicion.Z - (centro.Z - medida.Y / 2)) < 0.01 then
+			porLado[1] += 1
+		elseif math.abs(poste.posicion.Z - (centro.Z + medida.Y / 2)) < 0.01 then
+			porLado[2] += 1
+		elseif math.abs(poste.posicion.X - (centro.X - medida.X / 2)) < 0.01 then
+			porLado[3] += 1
+		elseif math.abs(poste.posicion.X - (centro.X + medida.X / 2)) < 0.01 then
+			porLado[4] += 1
+		end
+	end
+	local vacios = 0
+	for _, n in porLado do
+		if n < 2 then
+			vacios += 1
+		end
+	end
+	comprobar(
+		"la valla envuelve el recinto entero",
+		vacios == 0,
+		string.format(
+			"%d de los 4 lados sin vallar (%d/%d/%d/%d)",
+			vacios,
+			porLado[1],
+			porLado[2],
+			porLado[3],
+			porLado[4]
+		)
+	)
 end
 
 --------------------------------------------------------------------------------
@@ -1654,6 +1784,7 @@ function SelfCheck.run(): string
 		{ nombre = "piezas del juego", fn = piezasDelJuego },
 		{ nombre = "vigilancia", fn = vigilancia },
 		{ nombre = "accesos", fn = accesos },
+		{ nombre = "viviendas de entrega", fn = viviendas },
 		{ nombre = "puerta", fn = puerta },
 		{ nombre = "refugios", fn = refugios },
 		{ nombre = "guaridas", fn = guaridas },

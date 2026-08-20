@@ -19,6 +19,7 @@
 ]]
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Cone = require(script.Parent.Cone)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local PathfindingService = game:GetService("PathfindingService")
@@ -854,42 +855,108 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 			end
 			n += 1
 
-			-- EL FOCO, Y SÓLO EL FOCO. Aquí se pintaban DOS círculos por esquina: el área
-			-- entera (70 studs de diámetro, en un tono apenas más cálido que el asfalto) y
-			-- este foco encima. Con veintinueve esquinas eran cincuenta y ocho círculos
-			-- sobre la calzada, y JJ los miró sin saber qué eran: *"hay círculos en el
-			-- suelo que no sé qué son, si objetivos o decorativos"*, y *"que el suelo sea
-			-- consistente, todo del mismo color"*.
+			-- UNA CÁMARA, NO UN CÍRCULO.
 			--
-			-- El área se va y se queda la marca. Se pierde saber dónde empieza el radio
-			-- exacto, y se gana un suelo que se lee: un círculo naranja es una cosa y
-			-- significa una, en vez de dos tonos de mancha que no se distinguen del
-			-- asfalto ni entre sí.
+			-- Aquí había un disco naranja de 22 studs pintado en la calzada, y era lo
+			-- único que marcaba la esquina. JJ mandó una captura señalándolo: *"esto es
+			-- lo que te digo que no entiendo"*. Y con el cambio de hoy no es que no se
+			-- entienda: es que MIENTE. Un círculo dice "te ven desde cualquier lado", y
+			-- desde que la esquina mira hacia un rumbo, eso es exactamente lo que ya no
+			-- pasa. La señal contradecía a la mecánica.
+			--
+			-- Lo que se entiende sin leyenda es una cámara: un objeto que apunta a algún
+			-- sitio. Y su cono en el suelo dice hasta dónde llega. Entre las dos cosas
+			-- no hay nada que aprender -- que es la diferencia entre una señal y un
+			-- símbolo.
+			--
+			-- La pieza con los atributos sigue siendo la de abajo y sigue a ras de
+			-- suelo: es la que mide HeatService y la que comprueba la sonda del mundo,
+			-- y subirla al cabezal cambiaría las distancias de todo el sistema de calor
+			-- por un motivo decorativo.
+			local rumbo = Config.DETECTOR_RUMBOS[(n * 3) % #Config.DETECTOR_RUMBOS + 1]
+			local mirando = CFrame.new(Vector3.new(cx, (y :: number) + 0.4, cz)) * CFrame.Angles(0, math.rad(rumbo), 0)
+
 			local foco = part(
 				string.format("Detector_%d", n),
-				Vector3.new(0.2, 22, 22),
-				Vector3.new(cx, (y :: number) + 0.08, cz),
-				Color3.fromRGB(240, 146, 70),
+				Vector3.new(2.4, 0.8, 2.4),
+				Vector3.new(cx, (y :: number) + 0.4, cz),
+				Color3.fromRGB(70, 72, 80),
 				padre
 			)
-			foco.Shape = Enum.PartType.Cylinder
-			-- Un cilindro de Roblox nace tumbado sobre X: se gira para dejarlo como una
-			-- mancha en el suelo.
-			foco.CFrame = CFrame.new(foco.Position) * CFrame.Angles(0, 0, math.rad(90))
-			foco.Size = Vector3.new(0.2, 22, 22)
-			-- OPACO. Roblox no ordena bien las piezas semitransparentes que se solapan y
-			-- el orden cambia de un fotograma a otro: con varias planas sobre el mismo
-			-- suelo, eso es un centelleo constante. Ya se pagó una vez.
 			foco.Material = Enum.Material.SmoothPlastic
-			foco.Transparency = 0
 			foco.CanCollide = false
 			foco.CanQuery = false
 			foco.CanTouch = false
-			-- SIN RUTA: la vigilancia es de la ciudad, no de un corredor. Es lo que hace
-			-- que ninguna ruta esté libre.
-			foco:SetAttribute("zonaFichada", true)
-			foco:SetAttribute("opacidad", 0)
+
+			-- El mástil y el cabezal. Cortos: nueve studs es alto de farola, se ve de
+			-- lejos y no es una de las columnas al cielo que se quitaron el 19/08 por
+			-- taparlo todo.
+			local mastil = part(
+				"CamaraMastil",
+				Vector3.new(0.9, 9, 0.9),
+				Vector3.new(cx, (y :: number) + 4.5, cz),
+				Color3.fromRGB(70, 72, 80),
+				padre
+			)
+			mastil.Material = Enum.Material.Metal
+			mastil.CanCollide = false
+			mastil.CanQuery = false
+			mastil.CanTouch = false
+
+			local cabeza = Instance.new("Part")
+			cabeza.Name = "CamaraCabeza"
+			cabeza.Size = Vector3.new(2.2, 2, 3.6)
+			cabeza.CFrame = mirando * CFrame.new(0, 8.6, -1)
+			cabeza.Anchored = true
+			cabeza.CanCollide = false
+			cabeza.CanQuery = false
+			cabeza.CanTouch = false
+			cabeza.Color = Color3.fromRGB(52, 54, 62)
+			cabeza.Material = Enum.Material.Metal
+			cabeza.Parent = padre
+
+			-- El OJO, del mismo naranja que su cono: es lo que ata la cámara a la mancha
+			-- del suelo. Sin él son dos cosas distintas en el mismo sitio.
+			local ojo = Instance.new("Part")
+			ojo.Name = "CamaraOjo"
+			ojo.Size = Vector3.new(1.2, 1.2, 0.4)
+			ojo.CFrame = mirando * CFrame.new(0, 8.6, -2.9)
+			ojo.Anchored = true
+			ojo.CanCollide = false
+			ojo.CanQuery = false
+			ojo.CanTouch = false
+			ojo.Color = Color3.fromRGB(240, 146, 70)
+			ojo.Material = Enum.Material.Neon
+			ojo.Parent = padre
+
+			foco:SetAttribute("rumbo", rumbo)
+			-- SIN `zonaFichada` en la base ni en el mastil: ese atributo lo lee el
+			-- cliente para APAGAR lo que no te sirve, y una camara que desaparece
+			-- cuando vas sin carga deja de ser parte de la ciudad. La camara siempre
+			-- esta; lo que se enciende y se apaga es su CONO, que es la advertencia.
 			foco:SetAttribute("detectorId", foco.Name)
+
+			-- SU CONO, con la MISMA figura que el del ladron (ver Cone.luau). Sale de la
+			-- camara, a ras de suelo, y no se pega a nada: la esquina no se mueve.
+			--
+			-- El rumbo sale del indice, asi que es fijo: la misma esquina mira siempre
+			-- igual y la ruta se aprende, como todo lo demas de este mapa.
+			local base = CFrame.new(Vector3.new(cx, (y :: number) + 0.2, cz)) * CFrame.Angles(0, math.rad(rumbo), 0)
+			for _, pieza in
+				Cone.piezas(
+					base,
+					Config.DETECTOR_VISION_ANGULO,
+					Config.DETECTOR_RADIO,
+					Color3.fromRGB(240, 146, 70),
+					0.82
+				)
+			do
+				pieza.Name = "ConoDetector"
+				pieza:SetAttribute("zonaFichada", true)
+				pieza:SetAttribute("opacidad", 0.82)
+				pieza.Parent = padre
+			end
+
 			table.insert(puestos, foco)
 		end
 	end
@@ -2185,6 +2252,111 @@ function CityBuilder.build(): Mundo
 	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
 
+	-- LA VIVIENDA DE ENTREGA: el destino deja de ser una mancha en el asfalto.
+	--
+	-- Lo pidio JJ el 20/08: *"estaria bien que los puntos de entrega estuvieran en
+	-- ventanas de edificios, como si fueran viviendas, y no puntos en medio del mapa"*.
+	-- Y no es decorado -- es lo que le da SENTIDO al viaje. Llevar un paquete a una
+	-- cruz pintada en el suelo no significa nada; llevarlo al portal de una casa con
+	-- las luces encendidas es un reparto, que es lo que el juego dice que haces.
+	--
+	-- Se construye con Parts, como todo lo demas de esta ciudad, y por el motivo de
+	-- siempre: los meshes no existen hasta publicar el place.
+	--
+	-- La FACHADA da al cruce (`hacia` viene invertido de Grid.portalDeCruce) y lleva
+	-- las ventanas encendidas del color de la ruta, que es lo que se ve desde lejos y
+	-- lo que dice "es aqui" sin necesidad de una baliza vertical -- las balizas se
+	-- quitaron el 19/08 por tapar el camino, y esto hace su trabajo sin ocupar cielo.
+	local function vivienda(
+		nombre: string,
+		centro: Vector3,
+		haciaDentro: Vector3,
+		color: Color3,
+		padre: Instance
+	): BasePart
+		local ANCHO, FONDO, ALTO = 46, 34, 40
+		-- El frente mira al cruce, o sea al reves de "hacia dentro de la manzana".
+		local frente = -haciaDentro
+		local base =
+			CFrame.lookAt(Vector3.new(centro.X, centro.Y, centro.Z), Vector3.new(centro.X, centro.Y, centro.Z) + frente)
+
+		local casa = Instance.new("Part")
+		casa.Name = nombre
+		casa.Size = Vector3.new(ANCHO, ALTO, FONDO)
+		casa.CFrame = base * CFrame.new(0, ALTO / 2, 0)
+		casa.Anchored = true
+		casa.CanCollide = true
+		casa.Color = Color3.fromRGB(96, 92, 88)
+		casa.Material = Enum.Material.Brick
+		casa.Parent = padre
+
+		-- LAS VENTANAS, en la fachada que da al cruce. Tres alturas y cuatro huecos, y
+		-- una de cada tres apagada: una fachada con TODAS encendidas se lee como un
+		-- cartel luminoso, y lo que tiene que parecer es un bloque de pisos donde vive
+		-- gente. El patron es fijo (sale del indice, no de un dado) porque en este mapa
+		-- todo es aprendible.
+		for fila = 0, 2 do
+			for hueco = 0, 3 do
+				local encendida = (fila * 4 + hueco) % 3 ~= 2
+				local v = Instance.new("Part")
+				v.Name = "Ventana"
+				v.Size = Vector3.new(6.5, 5, 0.6)
+				v.CFrame = base * CFrame.new(-ANCHO / 2 + 8 + hueco * 10, 12 + fila * 10, -FONDO / 2 - 0.2)
+				v.Anchored = true
+				v.CanCollide = false
+				v.CastShadow = false
+				v.Material = if encendida then Enum.Material.Neon else Enum.Material.Glass
+				v.Color = if encendida then color else Color3.fromRGB(40, 44, 52)
+				v.Transparency = if encendida then 0 else 0.35
+				v.Parent = casa
+			end
+		end
+
+		-- EL PORTAL, a pie de calle y del color de la ruta. Es donde se entrega, asi que
+		-- tiene que ser el punto mas brillante de la fachada: si compite con las
+		-- ventanas, el jugador se planta delante del edificio y no encuentra la puerta.
+		local portal = Instance.new("Part")
+		portal.Name = "Portal"
+		portal.Size = Vector3.new(11, 13, 1.2)
+		portal.CFrame = base * CFrame.new(0, 6.5, -FONDO / 2 - 0.6)
+		portal.Anchored = true
+		portal.CanCollide = false
+		portal.CastShadow = false
+		portal.Material = Enum.Material.Neon
+		portal.Color = color
+		portal.Parent = casa
+
+		local luz = Instance.new("PointLight")
+		luz.Color = color
+		luz.Range = 26
+		luz.Brightness = 2
+		luz.Parent = portal
+
+		-- Y EL NUMERO DE LA CASA. Un bloque de pisos sin numero sigue siendo un bloque
+		-- anonimo; con el, es UNA direccion -- que es lo que convierte "ve al cruce" en
+		-- "ve a esta casa".
+		local placa = Instance.new("BillboardGui")
+		placa.Name = "Numero"
+		placa.Size = UDim2.fromScale(9, 3)
+		placa.StudsOffsetWorldSpace = Vector3.new(0, 10, 0)
+		placa.AlwaysOnTop = false
+		placa.MaxDistance = 260
+		placa.Adornee = portal
+		placa.Parent = portal
+
+		local texto = Instance.new("TextLabel")
+		texto.Size = UDim2.fromScale(1, 1)
+		texto.BackgroundTransparency = 1
+		texto.TextColor3 = Color3.fromRGB(255, 246, 226)
+		texto.TextStrokeTransparency = 0.25
+		texto.TextScaled = true
+		texto.Font = Enum.Font.GothamBold
+		texto.Text = Strings.get("DELIVERY_DOOR")
+		texto.Parent = placa
+
+		return casa
+	end
+
 	local destinos: { BasePart } = {}
 	local detectores: { BasePart } = {}
 
@@ -2199,6 +2371,44 @@ function CityBuilder.build(): Mundo
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
+
+		-- LA VIVIENDA A LA QUE SE ENTREGA, en la esquina de manzana pegada al cruce.
+		--
+		-- Lo pidio JJ: *"que los puntos de entrega estuvieran en ventanas de edificios,
+		-- como si fueran viviendas, y no puntos en medio del mapa"*. La losa se queda,
+		-- pero cambia de oficio: era el sitio y ahora es la acera del portal.
+		--
+		-- VA AQUI, ANTES DEL TALLER DE ZONA, y eso no es orden de lectura sino la regla
+		-- de esta casa -- *cada cosa que se planta cambia el mundo que la siguiente
+		-- mide*. Puesta al final, el taller ya habia elegido su parcela y las casas de
+		-- la verde y la ambar salieron plantadas DENTRO de su tejado; medido el 20/08
+		-- con un rayo desde arriba: "debajo de Vivienda_verde: TallerTecho". Delante,
+		-- el buscador de parcela del taller la ve y la esquiva solo, porque ya
+		-- descarta cualquier sitio con algo dentro.
+		local portalDeEntrega: BasePart? = nil
+		local centroVivienda: Vector3? = nil
+		do
+			local centroCasa, haciaDentro = Grid.portalDeCruce(ruta.destino, 34)
+			centroVivienda = centroCasa
+			-- Y SU HUELLA SE DESPEJA. `despejar(ruta.destino, 50, 45)` limpia alrededor
+			-- del cruce, pero la casa cae a 46 studs de el -- justo en el filo-- y la de
+			-- la roja salio metida en `Manzana_3_0`. Un bloque de pisos dentro de otro
+			-- no es un fallo que reviente: es una fachada que no se puede leer.
+			despejar(ciudad, centroCasa, 52, 60)
+			local yCasa = sueloDeLaCiudad(ciudad, centroCasa.X, centroCasa.Z) or Grid.Y
+			local casa = vivienda(
+				"Vivienda_" .. ruta.id,
+				Vector3.new(centroCasa.X, yCasa, centroCasa.Z),
+				haciaDentro,
+				Palette.ruta(ruta.id),
+				mundo
+			)
+			casa:SetAttribute("ruta", ruta.id)
+			-- EL CARTEL DE LA RUTA SE MUDA AL PORTAL. Flotaba sobre la losa, que ahora
+			-- es acera: un rotulo en mitad del asfalto vuelve a ser "un punto en medio
+			-- del mapa", que es justo lo que se viene a quitar.
+			portalDeEntrega = casa:FindFirstChild("Portal") :: BasePart?
+		end
 
 		-- Y SU ACCESO RODADO hasta la calle más cercana. Sin esto, la mercancía
 		-- grande era una contradicción: exige vehículo, y el vehículo no podía
@@ -2273,6 +2483,18 @@ function CityBuilder.build(): Mundo
 					end
 					local centro = Vector3.new(candidato.X, alto, candidato.Z)
 					if despejarCuenta(ciudad, centro, 110) ~= 0 then
+						continue
+					end
+					-- NI ENCIMA DE LA VIVIENDA DE ENTREGA. `despejarCuenta` sólo mira
+					-- dentro de `ciudad`, y la vivienda se planta en `mundo`, así que
+					-- para este buscador era invisible: medido el 20/08, los talleres de
+					-- la verde y la ámbar salieron con seis piezas suyas --tejado,
+					-- escaparates y rótulo-- metidas DENTRO del bloque de pisos.
+					--
+					-- Setenta y ocho studs es la suma de los dos medios cuerpos (el
+					-- taller mide 96 de ancho, la casa 46) más un pasillo: lo justo para
+					-- que se toquen sin morderse.
+					if centroVivienda ~= nil and (centro - centroVivienda).Magnitude < 78 then
 						continue
 					end
 					local calle = calleMasCercana(ciudad, centro, 200)
@@ -2386,7 +2608,7 @@ function CityBuilder.build(): Mundo
 		diana:SetAttribute("ruta", ruta.id)
 		diana:SetAttribute("lineaDeRuta", true)
 
-		local baliza = destino
+		local baliza = portalDeEntrega or destino
 
 		local cartel = Instance.new("BillboardGui")
 		cartel.Name = "Cartel"

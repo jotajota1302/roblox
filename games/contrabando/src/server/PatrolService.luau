@@ -37,6 +37,7 @@ local CargoService = require(script.Parent.CargoService)
 local HeatService = require(script.Parent.HeatService)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local Strings = require(game.ReplicatedStorage.Shared.Strings)
+local Cone = require(script.Parent.Cone)
 local PlayerState = require(script.Parent.PlayerState)
 local Ride = require(script.Parent.Ride)
 local Telemetry = require(script.Parent.Telemetry)
@@ -222,68 +223,27 @@ local function vestir(modelo: Model)
 		-- *"el rayo ese que sale del ladron es muy cutre"* (JJ, 20/08). Tenia razon --
 		-- unas varillas separadas no dicen "esta zona la ve", dicen "hay unos palos".
 		-- Se eligieron porque un sector en planta parecia imposible de comprobar sin
-		-- mirar la pantalla, y en Play no hay capturas.
-		--
-		-- El error era el "sin mirar la pantalla": en EDIT las capturas SI funcionan, y
-		-- ademas la forma se puede medir sin ojos -- una rejilla de rayos hacia abajo
-		-- dice a que distancia llega el cono en cada angulo. Con eso se caza lo que una
-		-- captura no ve: la primera version del abanico de cunas salia en estrella de
-		-- tres puntas y con fugas hasta los 100 grados.
-		--
-		-- COMO SE CONSTRUYE. Una `WedgePart` sin girar ocupa el triangulo con el angulo
-		-- recto en (Y=-alto/2, Z=+fondo/2) -- medido, no supuesto. Asi que su vertice
-		-- agudo sirve de vertice del cono si se la tumba 90 grados sobre su eje Z. Cada
-		-- tajada del sector son dos cunas espejadas, y el sector entero, cuatro tajadas.
-		--
-		-- El 1 % de solape no es adorno: sin el, entre dos tajadas queda una rendija de
-		-- grosor cero por redondeo, y la sonda la encontro justo a 0 grados -- delante
-		-- de las narices del ladron, el peor sitio posible para un agujero.
-		local mitad = Config.LADRON_VISION_ANGULO
-		local largo = Config.LADRON_VISION_ALCANCE
-		local TAJADAS = 4
-		local delta = mitad / TAJADAS
-		local prof = largo * math.cos(math.rad(delta))
-		local semi = largo * math.sin(math.rad(delta)) * 1.01
-		for t = 0, TAJADAS - 1 do
-			local centro = -mitad + delta * (2 * t + 1)
-			for _, signo in { 1, -1 } do
-				local cuna = Instance.new("WedgePart")
-				cuna.Name = "Vista"
-				cuna.Size = Vector3.new(0.2, semi, prof)
-				cuna.Color = Color3.fromRGB(255, 132, 58)
-				cuna.Material = Enum.Material.Neon
-				cuna.Transparency = 0.8
-				cuna.CanCollide = false
-				cuna.CanQuery = false
-				cuna.CanTouch = false
-				cuna.CastShadow = false
-				cuna.Massless = true
-				cuna.Parent = modelo
-				pegar(
-					cuna,
-					raiz,
-					CFrame.new(0, -2.6, 0)
-						* CFrame.Angles(0, math.pi + math.rad(centro), 0)
-						* CFrame.Angles(0, 0, math.rad(90) * signo)
-						* CFrame.new(0, semi / 2, prof / 2)
-				)
-			end
-		end
-
-		-- LOS DOS BORDES, finos y mas claros. El relleno dice "por aqui te ve" y el
-		-- borde dice DONDE DEJA DE VERTE, que es la linea que el jugador tiene que
-		-- calcular para pasar por detras. Sin ella el limite del cono se difumina justo
-		-- donde importa que sea nitido.
-		for _, signo in { 1, -1 } do
-			local borde = pieza("VistaBorde", Vector3.new(0.5, 0.1, largo), Color3.fromRGB(255, 196, 128), modelo)
-			borde.Material = Enum.Material.Neon
-			borde.Transparency = 0.35
-			borde.CastShadow = false
-			pegar(
-				borde,
-				raiz,
-				CFrame.new(0, -2.45, 0) * CFrame.Angles(0, math.rad(mitad * signo), 0) * CFrame.new(0, 0, -largo / 2)
+		-- mirar la pantalla, y en Play no hay capturas. El error era ese "sin mirar":
+		-- en EDIT las capturas SI funcionan, y ademas la forma se mide con una rejilla
+		-- de rayos hacia abajo. Hacian falta las dos -- la primera version del abanico
+		-- de cunas salia en estrella de tres puntas y con fugas hasta los 100 grados,
+		-- y eso una captura no lo mide. El como esta en `Cone.luau`.
+		-- La figura la dibuja `Cone`, compartida con la esquina vigilada: si el ojo
+		-- tuviera que aprender dos simbolos para "aqui te ven", el segundo no lo
+		-- aprende nadie.
+		for _, pieza in
+			Cone.piezas(
+				CFrame.new(0, 0, 0),
+				Config.LADRON_VISION_ANGULO,
+				Config.LADRON_VISION_ALCANCE,
+				Color3.fromRGB(255, 132, 58),
+				0.8
 			)
+		do
+			pieza.Parent = modelo
+			-- Se suelda a los pies: `Cone` las construye alrededor del origen, asi que
+			-- basta con llevar ese origen a la raiz y bajarlo a la altura del suelo.
+			pegar(pieza, raiz, CFrame.new(0, -2.6, 0) * pieza.CFrame)
 		end
 
 		-- Y su nombre, para que se distinga de un peatón en una ciudad llena de

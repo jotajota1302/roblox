@@ -13,7 +13,13 @@
 	velocidad va, que le esta pasando y --lo que faltaba-- QUE VE, leido del propio
 	PlayerGui.
 
-	COMO SE USA, desde el MCP con Studio EN PLAY (datamodel Server):
+	CORRE EN EL DATAMODEL **CLIENT**, y no es un detalle: el minimapa y el HUD los
+	crea un LocalScript, asi que **no se replican al servidor** -- desde alli el
+	PlayerGui se ve vacio y la sonda contaria cero marcas siempre. El cliente, en
+	cambio, ve todo lo que hace falta: su interfaz, su camara, su personaje y las
+	patrullas (que si se replican).
+
+	COMO SE USA, desde el MCP con Studio EN PLAY (datamodel Client):
 	  1. pegar este fichero en execute_luau  ->  arranca y devuelve "grabando"
 	  2. JJ juega un ciclo completo (elegir ruta, ir, entregar, volver)
 	  3. volver a pegarlo con MODO = "leer"   ->  devuelve el registro entero
@@ -151,7 +157,8 @@ task.spawn(function()
 	local lineas = {}
 	local antes: Vector3? = nil
 	while v:GetAttribute("grabando") == true and os.clock() - t0 < 900 do
-		for _, player in Players:GetPlayers() do
+		do
+			local player = Players.LocalPlayer
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			local h = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 			if root and h then

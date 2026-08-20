@@ -25,6 +25,7 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
+local Vision = require(game.ReplicatedStorage.Shared.Vision)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
@@ -149,6 +150,38 @@ local function muestra(player: Player, ahora: number): boolean
 		if (root.Position - poste.Position).Magnitude > radio then
 			continue
 		end
+
+		-- Y AHORA HAY QUE ESTAR DELANTE DE ELLA, no sólo cerca.
+		--
+		-- Esto era un sensor de proximidad puro y se notaba desde dentro sin poder
+		-- explicárselo: *"me detectan y no hay nadie"*, y más tarde *"no acabo de ver
+		-- el tema de la detección de las esquinas; que te detecten sólo enemigos si
+		-- miran"*. Medido a propósito: de pie al otro lado de `Edificio_0_0_1`, a 30
+		-- studs de la esquina, el calor subía igual. Y la caja negra lo remató --un
+		-- viaje entero de la ruta verde con el aviso de detección saltando y CERO
+		-- enemigos que te vieran.
+		--
+		-- Las dos condiciones son las mismas que las del ladrón, y a propósito: un
+		-- jugador no debería tener que aprender dos reglas de visión.
+		local rumbo = poste:GetAttribute("rumbo")
+		if typeof(rumbo) == "number" then
+			local mirando = (CFrame.Angles(0, math.rad(rumbo), 0) * CFrame.new(0, 0, -1)).Position
+			if
+				not Vision.dentroDelCono(poste.Position, mirando, root.Position, Config.DETECTOR_VISION_ANGULO, radio)
+			then
+				continue
+			end
+			-- Y SIN PARED DE POR MEDIO. Sin esto el cono atravesaría una manzana
+			-- entera, que es exactamente el fallo que se viene a arreglar -- sólo que
+			-- con forma de tarta en vez de con forma de círculo.
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = { poste, root.Parent :: Instance }
+			if workspace:Raycast(poste.Position, root.Position - poste.Position, params) ~= nil then
+				continue
+			end
+		end
+
 		vigilado = true
 		local id = poste:GetAttribute("detectorId")
 		if typeof(id) ~= "string" then
