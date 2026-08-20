@@ -179,10 +179,44 @@ function Hud.build()
 		grad.Parent = franja
 	end
 
+	-- LA COLUMNA DE LA IZQUIERDA: estado, mision y controles, EN ESTE ORDEN y sin
+	-- que ninguno sepa donde acaba el anterior.
+	--
+	-- Antes cada uno llevaba su Y escrita a mano (0,03 / 0,235 / 0,295) y el panel de
+	-- estado, que crece con las filas que tengas encendidas, se los comia. Ya paso
+	-- una vez DENTRO del panel --"Skateboard 150", "Goal" y "0 of 1 deliveries"
+	-- pisandose-- y se arreglo alli poniendole AutomaticSize... con lo que el mismo
+	-- fallo se mudo a la puerta de al lado: el panel crecio y se trago la mision.
+	-- Se vio en una captura de JJ el 20/08, con "Warehouse 3/10" cortada por arriba y
+	-- "Deliver in GREEN" encima de "Goal".
+	--
+	-- Un UIListLayout no se puede desordenar: el hueco de cada cosa lo decide lo que
+	-- ocupa la de arriba, que es exactamente el dato que un numero fijo no tiene.
+	local columna = Instance.new("Frame")
+	columna.Name = "Columna"
+	columna.AnchorPoint = Vector2.new(0, 0)
+	columna.Position = UDim2.fromScale(0.02, 0.03)
+	columna.Size = UDim2.new(0.34, 0, 0, 0)
+	columna.AutomaticSize = Enum.AutomaticSize.Y
+	columna.BackgroundTransparency = 1
+	columna.Parent = gui
+
+	local columnaLayout = Instance.new("UIListLayout")
+	columnaLayout.FillDirection = Enum.FillDirection.Vertical
+	columnaLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	columnaLayout.Padding = UDim.new(0, 6)
+	columnaLayout.Parent = columna
+
+	local columnaSize = Instance.new("UISizeConstraint")
+	-- Solo el ANCHO: el alto lo decide el contenido, y un maximo aqui volveria a
+	-- recortar lo de abajo, que es el fallo del que se viene.
+	columnaSize.MinSize = Vector2.new(150, 0)
+	columnaSize.MaxSize = Vector2.new(300, math.huge)
+	columnaSize.Parent = columna
+
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.AnchorPoint = Vector2.new(0, 0)
-	panel.Position = UDim2.fromScale(0.02, 0.03)
+	panel.LayoutOrder = 1
 	-- EL ALTO LO PONE EL CONTENIDO, no una fracción de la pantalla.
 	--
 	-- Antes era `fromScale(0.3, 0.19)` con cada fila al 33 % del panel, y eso sólo
@@ -196,21 +230,16 @@ function Hud.build()
 	-- Con AutomaticSize.Y el panel mide exactamente lo que ocupan sus filas, así que
 	-- añadir o quitar líneas condicionales no puede volver a romperlo.
 	panel.AutomaticSize = Enum.AutomaticSize.Y
-	panel.Size = UDim2.new(0.3, 0, 0, 0)
+	panel.Size = UDim2.new(1, 0, 0, 0)
 	panel.BackgroundColor3 = UiKit.TINTA
 	panel.BackgroundTransparency = 0.18
 	panel.BorderSizePixel = 0
-	panel.Parent = gui
+	panel.Parent = columna
 	UiKit.redondear(panel, 10)
 	UiKit.borde(panel, Color3.fromRGB(90, 88, 96), 1.5, 0.35)
 	UiKit.margen(panel, 8)
 
-	local panelSize = Instance.new("UISizeConstraint")
-	-- Sólo limita el ANCHO. El alto lo decide AutomaticSize contando filas, así que
-	-- un máximo aquí volvería a recortarlas: es lo que hacía el tope de 150 px.
-	panelSize.MinSize = Vector2.new(140, 0)
-	panelSize.MaxSize = Vector2.new(280, math.huge)
-	panelSize.Parent = panel
+	-- El ancho lo limita la columna, que es quien lo tiene que decidir para las tres.
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Vertical
@@ -383,9 +412,11 @@ function Hud.build()
 	-- mismo tipo y leerla es un solo movimiento de ojos.
 	misionLabel = Instance.new("TextLabel")
 	misionLabel.Name = "Mision"
-	misionLabel.AnchorPoint = Vector2.new(0, 0)
-	misionLabel.Position = UDim2.fromScale(0.02, 0.235)
-	misionLabel.Size = UDim2.fromScale(0.34, 0.055)
+	misionLabel.LayoutOrder = 2
+	-- ALTO EN PIXELES y no en fraccion de pantalla: la mision es una linea de texto,
+	-- y una linea mide lo que mide la letra, no un 5,5 % de lo alta que sea la
+	-- ventana. En un movil apaisado, esa fraccion daba una tira de doce pixeles.
+	misionLabel.Size = UDim2.new(1, 0, 0, 34)
 	misionLabel.BackgroundColor3 = UiKit.TINTA
 	misionLabel.BackgroundTransparency = 0.22
 	misionLabel.TextColor3 = UiKit.PAPEL
@@ -395,7 +426,7 @@ function Hud.build()
 	misionLabel.TextStrokeTransparency = 0.6
 	misionLabel.Text = ""
 	misionLabel.Visible = false
-	misionLabel.Parent = gui
+	misionLabel.Parent = columna
 	UiKit.redondear(misionLabel, 8)
 	UiKit.margen(misionLabel, 8)
 	UiKit.borde(misionLabel, Color3.fromRGB(90, 88, 96), 1.5, 0.35)
@@ -415,12 +446,22 @@ function Hud.build()
 	-- bajarte, que salgan todas las acciones ahí").
 	accionesPanel = Instance.new("Frame")
 	accionesPanel.Name = "Acciones"
-	accionesPanel.AnchorPoint = Vector2.new(0, 0)
-	accionesPanel.Position = UDim2.fromScale(0.02, 0.295)
-	accionesPanel.Size = UDim2.fromScale(0.34, 0.045)
+	accionesPanel.LayoutOrder = 3
+	-- ALTO PARA LAS CUATRO FILAS, en pixeles. Tenia 4,5 % de la pantalla con cuatro
+	-- filas de 26 px dentro: con dos acciones a la vez, la segunda salia del marco.
+	-- Como el marco es transparente eso no se veia como "se sale", se veia como
+	-- "esta encima de otra cosa".
+	--
+	-- Y NO `AutomaticSize`, que fue el primer intento y salio peor: medido en
+	-- pantalla, un hijo con ancho en escala dentro de un padre que tambien crece
+	-- solo se quedaba en 102 px de los 300 de la columna, y el texto de las acciones
+	-- ("pick up, buy and use") se cortaba. El hueco que sobra cuando hay menos de
+	-- cuatro acciones es transparente y esta al final de la columna, asi que no
+	-- estorba a nadie.
+	accionesPanel.Size = UDim2.new(1, 0, 0, 4 * 26 + 3 * 4)
 	accionesPanel.BackgroundTransparency = 1
 	accionesPanel.Visible = false
-	accionesPanel.Parent = gui
+	accionesPanel.Parent = columna
 
 	local lista = Instance.new("UIListLayout")
 	lista.FillDirection = Enum.FillDirection.Vertical
