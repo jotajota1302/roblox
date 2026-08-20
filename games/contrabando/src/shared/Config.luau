@@ -387,22 +387,6 @@ Config.RUTAS = {
 	-- studs de camino desde la salida --dentro de los 200-350 que exige la sonda de
 	-- SelfCheck-- y a 358 del destino verde, que pide 250 como mínimo.
 	{
-		id = "barrio",
-		multiplicador = 0.4,
-		nivel = 1,
-		destino = Grid.cruce(1, 2), -- el cruce recto al salir del recinto: 146 studs, cero giros
-		detectores = 1,
-		guaridas = 0,
-		-- SIN REFUGIOS, y no es un olvido: un refugio es el sitio donde te salvas de
-		-- los ladrones, y aquí no hay ladrones. Pero además arregla un fallo medido:
-		-- al entrar el barrio, sus candidatos a refugio competían con los de la
-		-- verde --Shelter.repartir descarta los que caen a menos de 320 studs entre
-		-- sí-- y LA VERDE SE QUEDABA SIN NINGUNO. Una ruta con peligro sin sitio
-		-- donde refugiarse es una promesa rota.
-		refugios = 0,
-		pvp = "ninguno",
-	},
-	{
 		id = "verde",
 		multiplicador = 1,
 		nivel = 1,
@@ -447,8 +431,24 @@ Config.RUTAS = {
 		--
 		-- Se elige el llano: diecinueve segundos de viaje valen menos que un sitio
 		-- donde el jugador se queda enganchado sin entender por qué.
-		destino = Grid.cruce(0, 2), -- al oeste, dentro de la banda verde: 292 studs, un giro
-		detectores = 3,
+		-- MUDADA AL CRUCE RECTO EL 20/08, heredando el sitio de la ruta de aprendizaje
+		-- que habia aqui. Lo pidio JJ mirando el selector: *"no entiendo lo de LOCAL
+		-- del inicio, a green amber o red me parecia suficiente"*. Y tenia razon en el
+		-- fondo, no solo en el nombre: el mapa promete TRES bandas --verde, ambar,
+		-- roja-- y el selector ofrecia cuatro etiquetas, una de las cuales no era un
+		-- color. Un concepto de mas en la primera pantalla, que es donde menos margen
+		-- hay para explicar nada.
+		--
+		-- La ruta de aprendizaje no se pierde: se funde en esta. Las dos vivian en la
+		-- misma banda verde --cruce (1,2) y (0,2), misma fila-- asi que la verde no se
+		-- mueve de su zona, solo se acerca. Y el primer viaje MEJORA: sigue siendo el
+		-- cruce recto de 146 studs sin girar, veinte segundos medidos, pero paga x1 en
+		-- vez de x0,4.
+		destino = Grid.cruce(1, 2), -- el cruce recto al salir del recinto: 146 studs, cero giros
+		-- DOS, que es la densidad de la verde de antes sobre un camino de la mitad de
+		-- largo. La de aprendizaje llevaba uno --ahi el peligro se ensena, no se
+		-- aplica-- y esta ya no es solo aprendizaje: es la primera ruta de verdad.
+		detectores = 2,
 		pvp = "ninguno",
 	},
 	{
@@ -916,10 +916,10 @@ Config.CONTACTO_RECARGA = 240
 -- progresión -- que es justo lo que hay que poder afirmar cuando se toca el
 -- sistema por el que pasa el jugador cada segundo del viaje.
 Config.CONTACTOS_POR_RUTA = {
-	-- El barrio lleva tres doradas y ningún racimo: es el viaje donde se aprende
-	-- que hay cosas que recoger, no donde se decide si merece la pena desviarse.
-	barrio = { sueltos = 3, racimos = 0 },
-	verde = { sueltos = 6, racimos = 1 },
+	-- La verde lleva cuatro doradas y un racimo. Bajo de seis a cuatro al mudarse al
+	-- cruce recto: seis sobre 146 studs es una cada veinticuatro, y un rastro tan
+	-- tupido deja de leerse como un camino y pasa a ser una alfombra.
+	verde = { sueltos = 4, racimos = 1 },
 	ambar = { sueltos = 10, racimos = 2 },
 	roja = { sueltos = 16, racimos = 3 },
 } :: { [string]: { sueltos: number, racimos: number } }
@@ -1008,10 +1008,13 @@ Config.SENUELO_RADIO = 120 -- a quién despista
 -- siendo la que tiene que estar abierta sin nivel ni hitos, y eso lo comprueban las
 -- pruebas: si un día se cierra, el jugador nuevo se queda con el zurrón lleno y sin
 -- ningún destino que pueda elegir.
-Config.RUTA_PRIMERA = "barrio"
+Config.RUTA_PRIMERA = "verde"
 
 Config.HITOS = {
-	{ id = "primera", entregas = 1, monedas = 50, abre = "verde" },
+	-- Ya no abre nada: la verde esta abierta de salida desde que absorbio la ruta de
+	-- aprendizaje. Sigue pagando la primera entrega, que es el unico peldano que
+	-- todo el mundo pisa.
+	{ id = "primera", entregas = 1, monedas = 50 },
 	{ id = "tres", entregas = 3, monedas = 250 },
 	{ id = "ambar", nivel = 3 },
 	{ id = "ocho", entregas = 8, monedas = 1000 },

@@ -22,6 +22,7 @@ local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
+local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local Strings = require(game.ReplicatedStorage.Shared.Strings)
 local PlayerState = require(script.Parent.PlayerState)
 local Nameplates = require(script.Parent.Nameplates)
@@ -559,6 +560,36 @@ local function cobrar(player: Player, destino: BasePart)
 	estado.dinero += cobrado
 	-- Y se acabó el viaje: la racha no viaja de una entrega a la siguiente.
 	estado.recogidos = 0
+
+	-- ENTREGAR TRAE GÉNERO NUEVO, y esto es lo que hace que el bucle se pueda
+	-- repetir. Medido jugando el 20/08: un viaje al barrio dura 20 s y gasta tres
+	-- cajas, y el almacén reponía UNA CADA TREINTA SEGUNDOS. O sea que de las diez
+	-- de partida salían tres viajes seguidos --poco más de un minuto de juego-- y a
+	-- partir de ahí tocaba un viaje cada minuto y medio: **veinte segundos jugando y
+	-- setenta esperando, el 77 % del tiempo parado**.
+	--
+	-- Y esperando ENCERRADO, porque desde que la valla no deja salir sin paquete
+	-- --que es lo correcto-- esos setenta segundos se pasan dentro del propio
+	-- almacén sin nada que hacer. Dos decisiones razonables por separado que juntas
+	-- cerraban el juego en el minuto uno, justo contra el criterio del proyecto:
+	-- sesiones de más de ocho minutos.
+	--
+	-- Reponer lo entregado tiene además sentido de negocio: le dejas la mercancía a
+	-- un contacto y el contacto te surte para el siguiente porte. El freno del juego
+	-- pasa a ser el RIESGO --el calor, los ladrones, la ruta que elegiste-- y no un
+	-- reloj, que es donde tiene que estar.
+	--
+	-- El goteo por tiempo NO se toca y sigue detrás como suelo: es lo que rellena la
+	-- nave de quien vuelve mañana, y lo que salva a quien se queda a cero porque le
+	-- han robado. Lo que ya no hace es ser la única fuente.
+	--
+	-- Sólo la IDA repone. El retorno es carga que recoges en el destino y traes a
+	-- casa: contarlo también sería pagar dos veces el mismo viaje.
+	if not esRetorno then
+		local tope = Warehouse.mejora(estado.naveNivel).tope
+		local antes = estado.almacenCajas or 0
+		estado.almacenCajas = math.min(tope, antes + #cajas)
+	end
 
 	-- LOS HITOS SE COBRAN AQUÍ, y no en un servicio aparte: éste es el único sitio
 	-- del juego donde una entrega ocurre de verdad, y separarlo obligaría a que dos

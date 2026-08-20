@@ -2,14 +2,20 @@
 local Routes = require(script.Parent.Parent.Routes)
 
 return function(kit)
-	-- CUATRO desde que existe el barrio, que es la rampa de entrada. Se comprueba
-	-- que estén LAS QUE TIENEN QUE ESTAR y no cuántas: contar deja la prueba
-	-- fallando cada vez que se añade una ruta, que es justo cuando menos falta hace
-	-- que una prueba grite.
-	for _, id in { "barrio", "verde", "ambar", "roja" } do
+	-- TRES, y son las tres del codigo de colores del mapa. Eran cuatro hasta el
+	-- 20/08: habia una rampa de entrada aparte que el selector llamaba LOCAL, y JJ la
+	-- miro y dijo lo que se ve --*"a green amber o red me parecia suficiente"*--. El
+	-- mapa promete tres bandas; ofrecer cuatro etiquetas, una sin color, era un
+	-- concepto de mas en la primera pantalla. La rampa no se perdio: la verde se mudo
+	-- a su cruce.
+	--
+	-- Se comprueba que esten LAS QUE TIENEN QUE ESTAR y no cuantas: contar deja la
+	-- prueba fallando cada vez que se anade una ruta, que es justo cuando menos falta
+	-- hace que una prueba grite.
+	for _, id in { "verde", "ambar", "roja" } do
 		kit.truthy("existe la ruta " .. id, Routes.existe(id))
 	end
-	kit.eq("el barrio paga menos que la verde", Routes.get("barrio").multiplicador < 1, true)
+	kit.falsy("y la rampa de entrada ya no es una ruta aparte", Routes.existe("barrio"))
 	kit.eq("la verde paga x1", Routes.get("verde").multiplicador, 1)
 	kit.eq("la ambar paga x3", Routes.get("ambar").multiplicador, 3)
 	kit.eq("la roja paga x10", Routes.get("roja").multiplicador, 10)
@@ -79,25 +85,34 @@ return function(kit)
 	-- El monopatín no es de motor: va por todas partes, y ésa es su gracia.
 	kit.falsy("el monopatin no abre la roja", (Routes.disponible("roja", 99, "monopatin")))
 
-	-- LOS HITOS, que son el peldaño de más abajo. Sin ellos la función se comporta
-	-- como antes: quien llame sin el parámetro no ve ningún cambio.
+	-- LA VERDE, ABIERTA DE SALIDA. Es la ruta con la que se empieza desde que absorbio
+	-- la rampa de entrada el 20/08, y esta es la prueba que lo sujeta: una ruta de
+	-- entrada cerrada deja al jugador nuevo con el zurron lleno, la valla bajada y
+	-- ningun destino que pueda elegir. Antes la abria el primer hito, que era
+	-- coherente cuando existia LOCAL por debajo.
 	local sinHitos: { [string]: boolean } = {}
-	kit.falsy("la verde esta cerrada hasta la primera entrega", (Routes.disponible("verde", 1, "a_pie", sinHitos)))
-	kit.eq("y el motivo es el hito", select(2, Routes.disponible("verde", 1, "a_pie", sinHitos)), "hito_pendiente")
-	kit.truthy("con el hito hecho, se sale", (Routes.disponible("verde", 1, "a_pie", { primera = true })))
-	kit.truthy("sin pasar hitos, todo sigue como antes", (Routes.disponible("verde", 1, "a_pie")))
+	kit.truthy("la verde esta abierta desde el primer segundo", (Routes.disponible("verde", 1, "a_pie", sinHitos)))
+	kit.truthy("con hitos hechos, igual", (Routes.disponible("verde", 1, "a_pie", { primera = true })))
+	kit.truthy("y sin pasar hitos tampoco cambia", (Routes.disponible("verde", 1, "a_pie")))
 
-	-- EL HITO VA PRIMERO: decirle que le falta nivel para una ruta que ni siquiera
-	-- ha desbloqueado es mandarle a perseguir lo que no le sirve.
+	-- LO QUE CIERRA UNA RUTA HOY ES EL NIVEL, no un hito: ningun hito lleva ya `abre`.
+	-- El orden --hito antes que nivel-- sigue implementado para la siguiente puerta
+	-- que se ponga, pero no se puede ejercitar con los datos de hoy, y una prueba que
+	-- afirme lo contrario mentiria.
 	kit.eq(
-		"lo que falta se dice en el orden correcto",
+		"a nivel 0 lo que falta es el nivel",
 		select(2, Routes.disponible("verde", 0, "a_pie", sinHitos)),
-		"hito_pendiente"
+		"nivel_insuficiente"
+	)
+	kit.eq(
+		"la ambar la cierra su nivel",
+		select(2, Routes.disponible("ambar", 1, "a_pie", sinHitos)),
+		"nivel_insuficiente"
 	)
 
-	-- Y el texto de lo que falta cambia con lo que ya tienes.
-	kit.eq("sin el hito, se pide el hito", Routes.requisitoPara("verde", sinHitos), "Deliver your first package")
-	kit.eq("con el hito, se pide el nivel", Routes.requisitoPara("verde", { primera = true }), "Level 1")
+	-- Y el texto de lo que falta sale de la regla, no de un texto a mano.
+	kit.eq("de la verde se pide el nivel", Routes.requisitoPara("verde", sinHitos), "Level 1")
+	kit.eq("y no cambia por tener hitos", Routes.requisitoPara("verde", { primera = true }), "Level 1")
 	kit.eq("y la roja pide sus dos cosas", Routes.requisitoPara("roja", sinHitos), "Level 8 and a road vehicle")
 
 	-- Lo que se lee en el selector sale de la regla, no de un texto a mano.

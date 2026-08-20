@@ -17,7 +17,9 @@
 	otro se quedaría atascado haciendo exactamente lo mismo. Las entregas miden lo
 	que el jugador HACE.
 
-	Y `abre` es una LLAVE de verdad: la ruta verde no existe hasta el primer hito.
+	Y `abre` es una LLAVE de verdad: la ruta que un hito abre no existe hasta cumplirlo.
+	Hoy no la usa nadie --la verde esta abierta de salida desde que absorbio la rampa de
+	entrada el 20/08-- pero el mecanismo se queda: es como se abrira la siguiente.
 	Por eso quien la usa para decidir es el servidor, nunca el selector.
 ]]
 

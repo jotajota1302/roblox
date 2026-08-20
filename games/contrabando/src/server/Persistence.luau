@@ -99,10 +99,14 @@ function Persistence.cargar(player: Player)
 	-- MIGRACIÓN DE LAS PARTIDAS DE ANTES DE LOS HITOS. Va aquí, al final, porque
 	-- necesita el garaje y el vehículo ya cargados.
 	--
-	-- Sin esto, un veterano con nivel 10 y furgoneta vuelve a entrar y se encuentra
-	-- la ruta verde CERRADA --su tabla de hitos está vacía-- y sólo puede ir al
-	-- barrio, que es el viaje de tutorial. Castigar por haber jugado antes es la
-	-- peor forma posible de estrenar una funcionalidad.
+	-- Nacio porque un veterano con nivel 10 y furgoneta volvia a entrar y se
+	-- encontraba la ruta verde CERRADA --su tabla de hitos vacia-- y solo podia ir al
+	-- viaje de tutorial. Castigar por haber jugado antes es la peor forma posible de
+	-- estrenar una funcionalidad.
+	--
+	-- Desde el 20/08 ningun hito cierra la verde, asi que ese caso concreto ya no
+	-- puede darse; la migracion se queda porque sigue haciendo lo suyo con los demas
+	-- hitos, y porque el dia que un hito vuelva a abrir una ruta tiene que existir.
 	--
 	-- Se dan por hechos los que su estado YA cumple, SIN pagar la recompensa: el
 	-- dinero se gana jugando, y regalarle 1.300 monedas por una migración
@@ -113,10 +117,9 @@ function Persistence.cargar(player: Player)
 		for _, hito in Goals.cumplidos(estado.entregas or 0, nivel, estado.vehiculo, estado.hitos) do
 			estado.hitos[hito.id] = true
 		end
-		-- Y el que abre la verde, si ya había jugado. Sus entregas no se contaban
-		-- antes de esta tanda, así que llega con cero y ese hito no se cumpliría
-		-- solo: lo que demuestra que ya jugó es el nivel o el garaje, no un contador
-		-- que no existía.
+		-- Y el primer hito, si ya habia jugado. Sus entregas no se contaban antes de
+		-- esta tanda, asi que llega con cero y no se cumpliria solo: lo que demuestra
+		-- que ya jugo es el nivel o el garaje, no un contador que no existia.
 		if (estado.xp or 0) > 0 or #(estado.garaje or {}) > 0 then
 			estado.hitos.primera = true
 		end

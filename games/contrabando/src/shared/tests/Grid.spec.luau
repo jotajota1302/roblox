@@ -46,18 +46,29 @@ return function(kit)
 	-- LA COMPROBACIÓN QUE JUSTIFICA EL REDISEÑO. Tres partidas seguidas con "no sé
 	-- a dónde tengo que ir"; esto es esa queja convertida en algo que falla solo.
 	local boca = Vector3.new(Grid.xDeCalle(1), Grid.Y, Grid.zDeCalle(Grid.FILAS))
-	kit.eq("al barrio se va recto, sin girar", Grid.giros(boca, Grid.cruce(1, 2)), 0)
-	kit.eq("a la verde, un giro", Grid.giros(boca, Grid.cruce(0, 2)), 1)
+	kit.eq("a la verde se va recto, sin girar", Grid.giros(boca, Grid.cruce(1, 2)), 0)
 	kit.eq("a la ambar, un giro", Grid.giros(boca, Grid.cruce(2, 1)), 1)
 	kit.eq("a la roja, un giro", Grid.giros(boca, Grid.cruce(3, 0)), 1)
 
-	-- Y la progresión de caminos: un paso de retícula entre las tres primeras, y la
-	-- roja al doble de la ámbar. Antes la verde y la ámbar estaban a 322 y 338, o
-	-- sea que elegir entre ellas no significaba nada.
-	kit.eq("camino al barrio", Grid.camino(boca, Grid.cruce(1, 2)), 146)
-	kit.eq("camino a la verde", Grid.camino(boca, Grid.cruce(0, 2)), 292)
+	-- Y LA PROGRESION DE CAMINOS, que desde el 20/08 sale redonda: 146, 438 y 730 son
+	-- dos pasos de reticula de diferencia entre una ruta y la siguiente. Con la verde
+	-- en su sitio viejo (292) los tres saltos eran 146, 146 y 292, o sea que elegir
+	-- entre la verde y la ambar significaba la mitad que elegir entre la ambar y la
+	-- roja. Ahora cada escalon vale lo mismo.
+	kit.eq("camino a la verde", Grid.camino(boca, Grid.cruce(1, 2)), 146)
 	kit.eq("camino a la ambar", Grid.camino(boca, Grid.cruce(2, 1)), 438)
 	kit.eq("camino a la roja", Grid.camino(boca, Grid.cruce(3, 0)), 730)
+	local paso = 2 * Grid.PASO
+	kit.eq(
+		"de la verde a la ambar, dos pasos",
+		Grid.camino(boca, Grid.cruce(2, 1)) - Grid.camino(boca, Grid.cruce(1, 2)),
+		paso
+	)
+	kit.eq(
+		"y de la ambar a la roja, otros dos",
+		Grid.camino(boca, Grid.cruce(3, 0)) - Grid.camino(boca, Grid.cruce(2, 1)),
+		paso
+	)
 
 	-- LOS DESTINOS, DISTINGUIBLES ENTRE SÍ. La primera versión de esta prueba exigía
 	-- cuatro direcciones distintas y era imposible de cumplir: la boca está en el
@@ -68,7 +79,7 @@ return function(kit)
 	-- Lo que sí se puede exigir, y es lo que de verdad importa para no confundirlos:
 	-- dos destinos en la misma dirección tienen que estar a DOS PASOS de retícula de
 	-- diferencia. Con uno solo se ven desde el mismo sitio y se llega al que no era.
-	local destinos = { Grid.cruce(1, 2), Grid.cruce(0, 2), Grid.cruce(2, 1), Grid.cruce(3, 0) }
+	local destinos = { Grid.cruce(1, 2), Grid.cruce(2, 1), Grid.cruce(3, 0) }
 	for i = 1, #destinos do
 		for j = i + 1, #destinos do
 			local a, b = destinos[i], destinos[j]

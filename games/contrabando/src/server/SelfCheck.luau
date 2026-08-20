@@ -1085,22 +1085,25 @@ local function contactos()
 	end
 end
 
--- EL BARRIO: la rampa de entrada. Su destino es el ÚNICO del juego que se puso
--- estimado y no medido -- sale de interpolar entre el enganche del polígono y el
--- destino verde --, así que esta sonda es la que dice si la estimación valía.
+-- LA RAMPA DE ENTRADA: el primer viaje que juega alguien que acaba de llegar.
 --
--- Y mide lo que importa de verdad, que no es que exista sino que se pueda ir
--- ANDANDO y que sea corto: la razón de ser del barrio es que la primera
--- recompensa llegue en ~45 s en vez de ~100.
-local function barrio()
+-- No mira una ruta con nombre propio sino `Config.RUTA_PRIMERA`, y eso importa: el
+-- 20/08 la rampa dejo de ser una ruta aparte --la que el selector llamaba LOCAL-- y
+-- paso a ser la verde, mudada a ese mismo cruce. Con el id escrito a mano, esta
+-- sonda habria muerto en silencio justo cuando mas falta hacia.
+--
+-- Y mide lo que de verdad importa, que no es que exista sino que se pueda ir
+-- ANDANDO y que sea corto: la razon de ser de la rampa es que la primera recompensa
+-- llegue en veinte segundos y no en cien.
+local function rampaDeEntrada()
 	local m = mundo()
 	if m == nil then
 		return
 	end
 
-	local ruta = Routes.get("barrio")
+	local ruta = Routes.get(Config.RUTA_PRIMERA)
 	if ruta == nil then
-		comprobar("existe la ruta del barrio", false, "no está en Config.RUTAS")
+		comprobar("existe la ruta con la que se empieza", false, Config.RUTA_PRIMERA .. " no está en Config.RUTAS")
 		return
 	end
 
@@ -1108,7 +1111,7 @@ local function barrio()
 	-- fija: la ciudad tiene laderas.
 	local golpe = bajoLosPies(ruta.destino.X, ruta.destino.Y + 6, ruta.destino.Z, 300)
 	comprobar(
-		"el destino del barrio se apoya en el suelo",
+		"el destino del primer viaje se apoya en el suelo",
 		golpe ~= nil and math.abs(ruta.destino.Y - golpe.Position.Y) <= 10,
 		if golpe == nil
 			then "no hay suelo debajo"
@@ -1126,7 +1129,7 @@ local function barrio()
 		camino:ComputeAsync(Config.POLIGONO_SALIDA, ruta.destino)
 	end)
 	if not ok or camino.Status ~= Enum.PathStatus.Success then
-		comprobar("hay camino a pie hasta el barrio", false, tostring(camino.Status))
+		comprobar("hay camino a pie hasta el primer destino", false, tostring(camino.Status))
 		return
 	end
 
@@ -1146,7 +1149,7 @@ local function barrio()
 	-- decir lo que decía. 90 es la zona segura de hoy; 220 es lo que se anda en unos
 	-- veinte segundos, que es lo que tiene que durar la rampa de entrada.
 	comprobar(
-		"el barrio está a la distancia de una rampa",
+		"el primer viaje está a la distancia de una rampa",
 		largo >= 90 and largo <= 220,
 		string.format("%d studs andando: fuera de la horquilla 90-220", math.floor(largo))
 	)
@@ -1461,7 +1464,7 @@ function SelfCheck.run(): string
 		{ nombre = "guaridas", fn = guaridas },
 		{ nombre = "contactos", fn = contactos },
 		{ nombre = "dianas", fn = dianas },
-		{ nombre = "barrio", fn = barrio },
+		{ nombre = "rampa de entrada", fn = rampaDeEntrada },
 		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },
 		{ nombre = "puente", fn = puente },

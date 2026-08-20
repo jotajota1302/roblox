@@ -18,7 +18,6 @@ Palette.RUTAS = {
 	-- El barrio en gris azulado: es el único destino que no promete peligro, y
 	-- darle uno de los tres colores del semáforo lo haría parecer lo que no es.
 	-- El AZUL ENTERO sigue reservado a las comisarías, así que éste tira a piedra.
-	barrio = Color3.fromRGB(96, 108, 124),
 	verde = Color3.fromRGB(60, 140, 70),
 	ambar = Color3.fromRGB(200, 150, 50),
 	roja = Color3.fromRGB(170, 60, 60),

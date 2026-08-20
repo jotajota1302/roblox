@@ -105,7 +105,6 @@ local TEXTOS: { [string]: string } = {
 	PICKER_DETAIL = "{metros}m  ·  {fichadas} hotspots  ·  {guaridas} dens",
 
 	-- ---- Las rutas. Cuatro etiquetas cortas, una por zona ------------------
-	ROUTE_barrio = "LOCAL",
 	ROUTE_verde = "GREEN",
 	ROUTE_ambar = "AMBER",
 	ROUTE_roja = "RED",

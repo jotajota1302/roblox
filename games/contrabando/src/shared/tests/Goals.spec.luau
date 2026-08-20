@@ -26,10 +26,12 @@ return function(kit)
 	-- El siguiente pasa a ser el actual.
 	kit.eq("el actual avanza", (Goals.actual(1, 1, { primera = true }) :: any).id, "tres")
 
-	-- LAS RUTAS. La verde está cerrada hasta el primer hito.
-	kit.falsy("la verde empieza cerrada", Goals.rutaAbierta("verde", ninguno))
-	kit.truthy("y se abre con el primer hito", Goals.rutaAbierta("verde", { primera = true }))
-	kit.truthy("el barrio esta abierto desde el principio", Goals.rutaAbierta("barrio", ninguno))
+	-- LAS RUTAS. La verde esta abierta desde el primer segundo desde que absorbio la
+	-- rampa de entrada el 20/08: es la ruta con la que se empieza, y una ruta de
+	-- entrada cerrada deja al jugador nuevo con el zurron lleno y ningun destino que
+	-- elegir. Antes la abria el primer hito, que era coherente cuando existia LOCAL
+	-- por debajo.
+	kit.truthy("la verde esta abierta desde el principio", Goals.rutaAbierta("verde", ninguno))
 	kit.truthy("y las de arriba no dependen de hitos", Goals.rutaAbierta("roja", ninguno))
 
 	-- LA RUTA QUE SE PONE SOLA EN EL PRIMER REPARTO tiene que poder recorrerse en el
@@ -73,7 +75,14 @@ return function(kit)
 	kit.eq("sin hitos pendientes no hay actual", Goals.actual(99, 99, todos), nil)
 
 	-- BASURA. Lo que llega del DataStore y del cliente se trata como sospechoso.
-	kit.falsy("un hito inventado no abre la verde", Goals.rutaAbierta("verde", { pirata = true }))
+	-- HOY NINGUN HITO CIERRA NINGUNA RUTA: lo que cierra la ambar y la roja es el
+	-- NIVEL, y la verde esta abierta de salida. El mecanismo `abre` sigue en pie para
+	-- la siguiente que lo necesite, y por eso se comprueba que la basura no lo active
+	-- al reves -- inventarse un hito no puede abrir ni cerrar nada.
+	for _, id in { "verde", "ambar", "roja" } do
+		kit.truthy("ningun hito cierra la " .. id, Goals.rutaAbierta(id, ninguno))
+		kit.truthy("y un hito inventado tampoco la toca: " .. id, Goals.rutaAbierta(id, { pirata = true }))
+	end
 	kit.eq("una tabla de hitos que no es tabla no revienta", #Goals.cumplidos(1, 1, nil, nil :: any), 1)
 	kit.eq("y se sanea a lo que existe hoy", Goals.sanear({ primera = true, pirata = true }).pirata, nil)
 	kit.eq("conservando lo bueno", Goals.sanear({ primera = true, pirata = true }).primera, true)
