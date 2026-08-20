@@ -919,10 +919,12 @@ local function guaridasConSalida()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = { workspace:FindFirstChild("Patrullas") }
 		local salida: Vector3? = nil
-		for _, radio in { 15, 20, 0 } do
-			local vueltas = if radio == 0 then 1 else 8
-			for k = 0, vueltas - 1 do
-				local a = (k / vueltas) * math.pi * 2
+		-- Los mismos radios que usa PatrolService, y por el mismo motivo: fuera de la
+		-- losa, que esta 2,8 studs por encima del asfalto y el pathfinder sin saltos no
+		-- la baja. Si esta sonda midiera desde el patio, daria rojo con el mundo bien.
+		for _, radio in { 20, 24, 28 } do
+			for k = 0, 7 do
+				local a = (k / 8) * math.pi * 2
 				local x = g.Position.X + math.cos(a) * radio
 				local z = g.Position.Z + math.sin(a) * radio
 				local altura = g.Position.Y + 60

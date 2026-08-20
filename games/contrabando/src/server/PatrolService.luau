@@ -409,15 +409,23 @@ local function puntoDeAparicion(centro: Vector3, rng: Random, haciaDonde: Vector
 	-- sin guarida que ningún ladrón.
 	local cerca, distancia = Lairs.masCercana(centro, guaridas)
 	if cerca ~= nil and Lairs.sirve(distancia, APARICION_MIN) then
-		-- AL PIE DE LA GUARIDA, NO EN SU CENTRO. En el centro esta la nave, y salir de
-		-- dentro de un edificio cerrado es no salir. Se prueba primero el centro --por
-		-- si algun dia una guarida no lleva nave-- y luego un anillo por su borde, que
-		-- es donde esta el porton. El radio sale de la losa (34 de lado) menos lo que
-		-- ocupa la nave (26): el pasillo de en medio.
-		for _, radio in { 0, 15, 20 } do
-			local vueltas = if radio == 0 then 1 else 8
-			for k = 0, vueltas - 1 do
-				local a = (k / vueltas) * math.pi * 2
+		-- A LA CALLE, NO AL PATIO. Dos razones, y las dos medidas.
+		--
+		-- En el CENTRO esta la nave: 26x18x26 macizos. Salir de dentro de un edificio
+		-- cerrado es no salir, y el rayo llega ahi porque atraviesa el tejado rebotando.
+		--
+		-- Y SOBRE LA LOSA tampoco vale, aunque parezca el sitio natural. La losa de la
+		-- guarida esta a 22 y la calzada a 19,2: un escalon de 2,8 que el pathfinder
+		-- SIN SALTOS no baja. Medido: desde radio 15 --sobre la losa-- `ComputeAsync`
+		-- devuelve NoPath; desde radio 20 --ya en el asfalto-- devuelve Success. Es el
+		-- mismo escalon que un dia dejo sin camino a pie a las cuatro rutas a la vez.
+		--
+		-- Asi que se empieza FUERA de la losa (mide 34 de lado, o sea 17 de radio) y se
+		-- va abriendo. Un ladron que sale a la calle es ademas lo que el jugador espera
+		-- ver: sale por la puerta, no aparece en un patio elevado.
+		for _, radio in { 20, 24, 28 } do
+			for k = 0, 7 do
+				local a = (k / 8) * math.pi * 2
 				local x = cerca.X + math.cos(a) * radio
 				local z = cerca.Z + math.sin(a) * radio
 				local suelo = sueloPisable(x, z, cerca.Y + 60, params)
