@@ -33,10 +33,6 @@ local piezas: { BasePart } = {}
 local zonas: { BasePart } = {}
 local lineas: { BasePart } = {}
 
--- Cada farol de guarida con la ruta de SU guarida. El farol no lleva el atributo
--- (es una pieza aparte), pero comparte índice con ella: `GuaridaFarol_3` alumbra
--- `Guarida_3`. Se resuelve una vez al reunir y no en cada vuelta del bucle.
-
 local mundoVisto: Instance? = nil
 
 -- Se recogen del mundo una vez y se recuerdan. Volver a recorrer el workspace
@@ -50,16 +46,25 @@ local function reunir()
 	mundoVisto = mundo
 	piezas, zonas, lineas = {}, {}, {}
 
-	for _, d in mundo:GetDescendants() do
-		local indice = string.match(d.Name, "^Guarida_(%d+)$")
-		if indice ~= nil then
-			local r = d:GetAttribute("ruta")
-			if typeof(r) == "string" then
-				rutaDeGuarida[indice] = r
-			end
-		end
-	end
-
+	-- AQUI HABIA UN BUCLE MUERTO Y COSTO CUATRO QUEJAS. Recorria el mundo apuntando
+	-- la ruta de cada guarida en una tabla `rutaDeGuarida` para pintar sus faroles...
+	-- y los faroles se quitaron el 19/08 con todo lo demas vertical. Se borro la
+	-- declaracion de la tabla y se dejo el bucle que escribia en ella, asi que la
+	-- primera linea de `reunir()` hacia `nil["1"] = ...` y REVENTABA.
+	--
+	-- Y no lo vio nadie porque la llamada va envuelta en el `intentar` de Main, que
+	-- es un pcall con un warn una vez por sesion: el modulo entero estaba muerto y el
+	-- juego seguia arrancando. Lo que se veia era el mundo con TODO encendido a la
+	-- vez --las 49 migas de las otras dos rutas, sus 27 detectores, sus dianas y los
+	-- ocho railes-- y de ahi salen, las cuatro juntas, las quejas del 20/08: *"al
+	-- andar parpadean los colores del rail"* (tres railes superpuestos, los tres
+	-- visibles: z-fighting), *"los paquetes no desaparecen al recogerlos"* (se apaga
+	-- la tuya y quedan las de las otras rutas, en el mismo sitio), *"en el minimapa
+	-- salen muchas cosas que no se lo que son"* y *"pone que me han detectado y no
+	-- hay nadie"*.
+	--
+	-- La moraleja no es el bucle: es que un pcall alrededor de todo el sistema de
+	-- senales convierte "esta roto" en "se ve raro".
 	for _, d in mundo:GetDescendants() do
 		if not d:IsA("BasePart") then
 			continue

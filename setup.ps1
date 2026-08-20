@@ -23,6 +23,24 @@ function Get-GhAsset($repo, $pattern, $outName) {
 # Rojo: sincroniza esta carpeta con Roblox Studio
 Get-GhAsset "rojo-rbx/rojo" "windows-x86_64" "rojo.exe"
 
+# luau-lsp: EL ANALIZADOR ESTATICO, y no es un lujo.
+#
+# El 20/08 el sistema de senales del cliente llevaba dias muerto porque un bucle
+# escribia en una tabla borrada al quitar los faroles. Reventaba en su primera linea,
+# el pcall que lo envuelve se lo tragaba, y lo unico que se veia era el mundo con todo
+# encendido a la vez: cuatro quejas seguidas de JJ y ninguna se parecia a "hay una
+# variable que no existe". stylua no lo caza --es formato-- y rojo build tampoco:
+# compilaba de sobra. Esto lo caza en un segundo.
+Get-GhAsset "JohnnyMorganz/luau-lsp" "win64|windows" "luau-lsp.exe"
+
+# Y los tipos de Roblox, que es lo que le permite distinguir un `workspace` legitimo
+# de un simbolo inventado. Sin ellos, todo es un simbolo desconocido y el analisis no
+# vale para nada.
+Write-Host "Descargando los tipos de Roblox ..." -ForegroundColor Cyan
+$tipos = "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau"
+Invoke-WebRequest -Uri $tipos -OutFile (Join-Path $dir "globalTypes.d.luau")
+Write-Host "  OK  globalTypes.d.luau" -ForegroundColor Green
+
 # El plugin de Studio, para no tener que buscarlo en la web
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/rojo-rbx/rojo/releases/latest" -Headers $headers
 $plugin = $release.assets | Where-Object { $_.name -eq "Rojo.rbxm" } | Select-Object -First 1

@@ -135,9 +135,16 @@ cd games\<juego>
 **Verificación obligatoria antes de dar algo por hecho:**
 
 ```powershell
-..\..\tools\stylua.exe --check src                    # 0 = sintaxis y formato limpios
-..\..\tools\rojo.exe build --output <juego>.rbxl      # que compile
+powershell -ExecutionPolicy Bypass -File scriptserificar.ps1   # formato + analisis + build
 ```
+
+Los tres pasos de golpe, y el del medio es el que faltaba: **`luau-lsp` caza los simbolos
+que no existen**. El 20/08 el sistema de senales del cliente llevaba dias muerto porque un
+bucle escribia en una tabla borrada al quitar los faroles; `stylua` no lo veia (es formato)
+y `rojo build` tampoco (compilaba de sobra). Lo caza el analizador en un segundo, y bloquea
+solo con la familia `Unknown global` / `Unknown symbol`, que en un proyecto sano sale a
+cero: cualquiera que aparezca es un bug real. Los ~600 avisos de tipos se cuentan y no
+bloquean, porque convertirlos en bloqueantes hoy significaria desactivar el paso manana.
 
 Y **probarlo dentro de Studio** con el MCP. Que compile no significa que funcione: el peor
 fallo de este proyecto compilaba perfectamente.
@@ -201,6 +208,24 @@ Avisos verificados:
 
 ## Trampas de Roblox ya pagadas
 
+- **Un `pcall` alrededor de un sistema entero convierte "esta roto" en "se ve raro".**
+  `Main.client` llama a cada modulo de interfaz por un `intentar()` que es un pcall con un
+  `warn` una vez por sesion -- sensato de uno en uno, porque un fallo pintando el rastro no
+  puede costar el HUD. Pero `Senales` reventaba en su primera linea (una tabla borrada al
+  quitar los faroles y un bucle que seguia escribiendo en ella), el juego arrancaba igual, y
+  lo que se veia era el mundo con **todo encendido a la vez**: las migas de las tres rutas,
+  sus detectores, sus dianas y los ocho railes superpuestos. De ahi salieron cuatro quejas
+  seguidas --el rail parpadeando, los paquetes que no desaparecen, el minimapa ilegible, "me
+  detectan y no hay nadie"-- y ninguna se parecia a la causa. Con `get_console_output`
+  colgandose, ese `warn` no lo lee nadie. **El diagnostico es llamar al modulo a mano desde
+  `execute_luau` y mirar el error**, y la prevencion es el paso de analisis estatico.
+- **Y una sonda que no puede fallar es peor que no tener sonda.** Las dos primeras versiones
+  de ese paso daban verde siempre, por motivos opuestos: `2>&1` mataba el script en el
+  `[INFO]` de arranque (PowerShell 5.1 envuelve el stderr de un exe nativo en `ErrorRecord`),
+  y `2>$null` anunciaba "0 avisos" mientras tiraba las 833 lineas que habia que leer --
+  **luau-lsp escribe sus hallazgos por stderr, no por stdout**. Se arregla haciendo la
+  redireccion en `cmd`, fuera de PowerShell. Y la unica forma de saber que una sonda sirve es
+  **reintroducir el fallo a proposito y comprobar que lo caza**.
 - **`DataStoreService:GetDataStore()` LANZA una excepción** si el place no está publicado.
   Llamarlo al cargar un módulo hace que el `require()` reviente y **mata el script entero**:
   juego sin mapa, sin personaje y sin pista del motivo. Todo lo que pueda lanzar va perezoso

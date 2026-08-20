@@ -366,7 +366,7 @@ local function plantarManzanaCerrada(col: number, fila: number, zona: string, pa
 		-- se llevó por delante dos losas de manzana y el asfalto de dos cruces.
 		levantado:SetAttribute("derribable", true)
 		table.insert(piezas, levantado)
-		_ = nombre
+		local _ = nombre
 	end
 
 	-- Cada ala se parte en dos si es la que lleva el callejón, dejando el hueco en el
