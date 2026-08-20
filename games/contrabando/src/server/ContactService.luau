@@ -264,7 +264,20 @@ function ContactService.tick(ahora: number)
 				valor = Config.CONTACTO_VALOR_SUELTO
 			end
 			estado.contactos = (estado.contactos or 0) + valor
-			estado.recogidos = (estado.recogidos or 0) + 1
+
+			-- QUE HACE ESTA PIEZA. El tipo viaja con ella desde que la planto
+			-- CityBuilder, asi que aqui no se repite ningun reparto: se lee.
+			local tipo = pieza:GetAttribute("tipo")
+			if tipo == Config.RECOGIBLE_SALTO then
+				-- EL SALTO SE REFRESCA, NO SE ACUMULA. Encadenar seis flechas dejaria
+				-- un minuto entero volando y entonces la ciudad --las calles, las
+				-- manzanas, los rodeos-- deja de existir, que es todo el mapa.
+				estado.saltoHasta = ahora + Config.SALTO_IMPULSO_SEGUNDOS
+			else
+				-- La velocidad SI se encadena: es la racha de siempre, y su freno es
+				-- que se cae sola si dejas de recoger.
+				estado.recogidos = (estado.recogidos or 0) + 1
+			end
 			ultimoContacto[player] = ahora
 
 			recargaHasta[pieza] = ahora + Config.CONTACTO_RECARGA

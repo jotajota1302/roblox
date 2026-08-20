@@ -58,6 +58,15 @@ export type Estado = {
 	-- velocidad. NO SE PERSISTE, por lo mismo que el calor: es del viaje, y volver
 	-- con la racha de ayer sería premio por desconectarse.
 	recogidos: number,
+	-- HASTA CUANDO SALTA ALTO, en `os.clock` del servidor. Lo pone el recogible de
+	-- salto y lo lee el bucle de la calzada, que es quien ya escribe la velocidad
+	-- cada tercio de segundo.
+	--
+	-- Es un INSTANTE FINAL y no "segundos restantes" a proposito: un contador que
+	-- hay que ir descontando obliga a que alguien lo descuente, y el dia que ese
+	-- alguien falle el impulso se queda encendido para siempre. Una fecha caduca
+	-- sola aunque nadie la mire. Tampoco se persiste, por lo mismo que la racha.
+	saltoHasta: number?,
 	-- Entregas hechas en toda la partida. Es lo que mueve los hitos de abajo, y se
 	-- cuenta aquí y no se deduce del dinero: dos jugadores con la misma cartera
 	-- pueden llevar uno diez entregas y otro una con suerte.
@@ -110,6 +119,7 @@ function PlayerState.get(player: Player): Estado
 			contactos = 0,
 			habilidades = Skills.normalizar(nil),
 			recogidos = 0,
+			saltoHasta = nil,
 			entregas = 0,
 			hitos = {},
 			retorno = {},

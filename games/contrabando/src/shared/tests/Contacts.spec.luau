@@ -75,7 +75,22 @@ return function(kit)
 	local rastro = Contacts.rastro(recta)
 	kit.truthy("el rastro llena el camino, no lo salpica", #rastro > 10)
 	kit.eq("una pieza de rastro no paga contacto", rastro[1].valor, Config.CONTACTO_VALOR_RASTRO)
-	kit.eq("y es de tipo rastro", rastro[1].tipo, "rastro")
+	kit.eq("y la primera es de velocidad", rastro[1].tipo, Config.RECOGIBLE_VELOCIDAD)
+	kit.eq("y la segunda de salto", rastro[2].tipo, Config.RECOGIBLE_SALTO)
+	-- SE ALTERNAN SIN FALLAR NI UNA. Es la regla que hace el rastro aprendible: si
+	-- el reparto se torciera a mitad de ruta, la fila dejaria de poder planearse y
+	-- volveria a ser una loteria.
+	local mal = 0
+	for i, c in rastro do
+		local toca = if i % 2 == 1 then Config.RECOGIBLE_VELOCIDAD else Config.RECOGIBLE_SALTO
+		if c.tipo ~= toca then
+			mal += 1
+		end
+		if not Contacts.esDelRastro(c.tipo) then
+			mal += 1
+		end
+	end
+	kit.eq("velocidad y salto se alternan de principio a fin", mal, 0)
 	kit.eq("todo el rastro cae sobre el camino", Contacts.cercaDelCamino(rastro, recta, Config.CONTACTO_RADIO), #rastro)
 
 	-- SIN HUECOS: entre dos píldoras seguidas no puede haber más de un paso.

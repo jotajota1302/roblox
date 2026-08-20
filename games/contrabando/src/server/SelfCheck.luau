@@ -524,14 +524,54 @@ local function viviendas()
 		-- la verde y la ambar salieron con el tejado, los escaparates y el rotulo
 		-- DENTRO del bloque de pisos. No revienta nada: es una fachada que no se puede
 		-- leer, que es lo contrario de para lo que existe.
+		-- LA CAJA DE LA CASA, no la de una pared.
+		--
+		-- Desde que la vivienda es HUECA, `casa` ya no es un bloque macizo sino una de
+		-- sus jambas: medir contra su Size daba una caja de 17x40x1,4 pegada a la
+		-- fachada, y ahi dentro caben las OTRAS PAREDES de la propia casa. La sonda se
+		-- puso roja con "verde(6)" sin que nada estuviera mal -- se estaba midiendo
+		-- contra si misma, que es el falso rojo mas facil de creerse.
+		--
+		-- Se reconstruye la caja del edificio a partir de sus piezas, que es lo unico
+		-- que sigue siendo verdad cuando cambia como esta hecho por dentro.
+		local piezas = { casa }
+		for _, d in m:GetChildren() do
+			if d:IsA("BasePart") and string.sub(d.Name, 1, #casa.Name) == casa.Name then
+				table.insert(piezas, d)
+			end
+		end
+		local min, max = casa.Position, casa.Position
+		for _, d in piezas do
+			local mitad = d.Size / 2
+			min = Vector3.new(
+				math.min(min.X, d.Position.X - mitad.X),
+				math.min(min.Y, d.Position.Y - mitad.Y),
+				math.min(min.Z, d.Position.Z - mitad.Z)
+			)
+			max = Vector3.new(
+				math.max(max.X, d.Position.X + mitad.X),
+				math.max(max.Y, d.Position.Y + mitad.Y),
+				math.max(max.Z, d.Position.Z + mitad.Z)
+			)
+		end
+
 		local params = OverlapParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { casa }
-		params.MaxParts = 60
+		params.FilterDescendantsInstances = piezas
+		params.MaxParts = 80
 		local ajenas = 0
-		for _, d in workspace:GetPartBoundsInBox(casa.CFrame, casa.Size * 0.92, params) do
-			-- El suelo y el asfalto no invaden: la casa se apoya en ellos.
-			if d.Name ~= "Suelo" and d.Name ~= "Asfalto" and string.match(d.Name, "^Calle") == nil then
+		for _, d in workspace:GetPartBoundsInBox(CFrame.new((min + max) / 2), (max - min) * 0.9, params) do
+			-- El suelo y el asfalto no invaden: la casa se apoya en ellos. Ni los conos
+			-- de las camaras, que son una mancha pintada sin volumen.
+			if
+				d.Name ~= "Suelo"
+				and d.Name ~= "Asfalto"
+				and d.Name ~= "ConoDetector"
+				and d.Name ~= "Vista"
+				and d.Name ~= "VistaBorde"
+				and string.match(d.Name, "^Calle") == nil
+				and string.match(d.Name, "^Contacto_") == nil
+			then
 				ajenas += 1
 			end
 		end
@@ -542,6 +582,105 @@ local function viviendas()
 	end
 	comprobar("cada ruta entrega en una vivienda", sinCasa == 0, string.format("%d rutas sin vivienda", sinCasa))
 	comprobar("y nadie tiene medio taller dentro de casa", invadidas == 0, "invadidas:" .. detalle)
+end
+
+---------------------------------------------------------------------------------
+-- 3c. Ningun recogible cae donde te fichan.
+---------------------------------------------------------------------------------
+local function recogiblesLimpios()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+	local camaras, piezas = {}, {}
+	for _, d in m:GetChildren() do
+		if not d:IsA("BasePart") then
+			continue
+		end
+		if string.match(d.Name, "^Detector_") then
+			table.insert(camaras, d)
+		elseif string.match(d.Name, "^Contacto_") then
+			table.insert(piezas, d)
+		end
+	end
+
+	-- LA REGLA, dicha por JJ: *"no los pongamos en zonas con camara de vigilancia,
+	-- que eso es tener mala leche"*. Un premio puesto donde te fichan no es una
+	-- decision, es una trampa -- la fila dice "ven por aqui" y el sitio al que lleva
+	-- te sube el calor. El juego se contradice y el jugador deja de fiarse de la
+	-- unica guia que tiene.
+	--
+	-- Se mide con las MISMAS condiciones que HeatService. Dos verdades sobre donde
+	-- te ven acaban discrepando, y la que discrepa siempre es la que nadie mira.
+	local pillados, detalle = 0, ""
+	for _, pieza in piezas do
+		for _, poste in camaras do
+			local rumbo = poste:GetAttribute("rumbo")
+			if typeof(rumbo) ~= "number" then
+				continue
+			end
+			if (pieza.Position - poste.Position).Magnitude > Config.DETECTOR_RADIO then
+				continue
+			end
+			local mirando = (CFrame.Angles(0, math.rad(rumbo), 0) * CFrame.new(0, 0, -1)).Position
+			if
+				not Vision.dentroDelCono(
+					poste.Position,
+					mirando,
+					pieza.Position,
+					Config.DETECTOR_VISION_ANGULO,
+					Config.DETECTOR_RADIO
+				)
+			then
+				continue
+			end
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = { poste, pieza }
+			if workspace:Raycast(poste.Position, pieza.Position - poste.Position, params) == nil then
+				pillados += 1
+				if #detalle < 70 then
+					detalle ..= " " .. pieza.Name
+				end
+				break
+			end
+		end
+	end
+	-- LA MAYORIA, no todos. La siembra intenta apartar del cono cada pieza que le
+	-- toca en uno, pero si no encuentra hueco la planta igual: descartarla deja un
+	-- vano en la fila, y un vano se lee como "te has salido de la ruta" -- mentira, y
+	-- ademas rompe la cadena de velocidad. Medido con el descarte puesto: los
+	-- recogibles pasaron de 33 a TRES.
+	--
+	-- Una vigilada suelta no es mala leche mientras el cono SE VEA, que se ve. Lo que
+	-- esta sonda impide es que vuelvan a serlo casi todas.
+	comprobar(
+		"casi ningun recogible cae en el cono de una camara",
+		pillados <= math.max(1, math.floor(#piezas * 0.2)),
+		string.format("%d de %d vigilados:%s", pillados, #piezas, detalle)
+	)
+
+	-- Y QUE SIGAN SIENDO DE LOS DOS TIPOS. Apartar piezas de los conos puede
+	-- comerse justo las de una clase y dejar una ruta con solo rayos o solo flechas
+	-- -- que es la clase de sesgo que nadie ve porque el juego sigue funcionando.
+	for _, ruta in Routes.todas() do
+		local v, sa = 0, 0
+		for _, pieza in piezas do
+			if pieza:GetAttribute("ruta") ~= ruta.id then
+				continue
+			end
+			if pieza:GetAttribute("tipo") == Config.RECOGIBLE_SALTO then
+				sa += 1
+			elseif pieza:GetAttribute("tipo") == Config.RECOGIBLE_VELOCIDAD then
+				v += 1
+			end
+		end
+		comprobar(
+			string.format("la %s tiene recogibles de las dos clases", ruta.id),
+			v >= 1 and sa >= 1,
+			string.format("%d de velocidad y %d de salto", v, sa)
+		)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -717,6 +856,13 @@ end
 local function refugios()
 	local m = mundo()
 	if m == nil then
+		return
+	end
+	-- CON EL MAPA DESNUDO NO HAY REFUGIOS, y eso no es un fallo sino la prueba de
+	-- que el interruptor funciona. Una sonda que se pone roja por algo que se
+	-- apago a proposito ensena a ignorar los rojos, que es la peor averia que le
+	-- puede pasar a una bateria de comprobaciones.
+	if Config.MAPA_DESNUDO then
 		return
 	end
 
@@ -1080,6 +1226,13 @@ end
 local function cobertura()
 	local m = mundo()
 	if m == nil then
+		return
+	end
+	-- CON EL MAPA DESNUDO NO HAY REFUGIOS, y eso no es un fallo sino la prueba de
+	-- que el interruptor funciona. Una sonda que se pone roja por algo que se
+	-- apago a proposito ensena a ignorar los rojos, que es la peor averia que le
+	-- puede pasar a una bateria de comprobaciones.
+	if Config.MAPA_DESNUDO then
 		return
 	end
 
@@ -1785,6 +1938,7 @@ function SelfCheck.run(): string
 		{ nombre = "vigilancia", fn = vigilancia },
 		{ nombre = "accesos", fn = accesos },
 		{ nombre = "viviendas de entrega", fn = viviendas },
+		{ nombre = "recogibles limpios", fn = recogiblesLimpios },
 		{ nombre = "puerta", fn = puerta },
 		{ nombre = "refugios", fn = refugios },
 		{ nombre = "guaridas", fn = guaridas },

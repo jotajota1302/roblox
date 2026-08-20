@@ -30,7 +30,17 @@ local Ride = require(script.Parent.Ride)
 local RouteService = require(script.Parent.RouteService)
 local Telemetry = require(script.Parent.Telemetry)
 
-local DISTANCIA_ENTREGA = 30 -- studs de margen alrededor del destino
+-- STUDS DE MARGEN ALREDEDOR DEL PUNTO DE COBRO.
+--
+-- Bajado de 30 a 14 el 20/08, cuando el punto de cobro se mudo de la losa de la
+-- acera al MOSTRADOR del interior de la vivienda. Con 30 se cobraba desde la
+-- puerta, y entonces "entrar al edificio" habria sido decorado: el radio se comia
+-- la habitacion entera.
+--
+-- Catorce es media habitacion, asi que hay que cruzar el umbral y llegar hasta el
+-- mostrador. Es la primera vez que entregar es un ACTO y no un radio invisible --
+-- que es de donde salia el *"no se cuando he llegado al punto de entrega"*.
+local DISTANCIA_ENTREGA = 14
 -- Margen para entregar la carga de VUELTA en el almacén. Más generoso que el de
 -- los destinos porque el almacén es un edificio con nave, patio y muelle: exigir
 -- pisar su centro exacto obligaría a meterse dentro para cobrar algo que ya has

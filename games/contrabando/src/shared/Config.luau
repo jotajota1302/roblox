@@ -33,6 +33,29 @@ local Config = {}
 -- sola línea en vez de cinco.
 Config.PROTOTIPO = true
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- EL MAPA DESNUDO: solo edificios, calles y lo que decide algo.
+--
+-- Lo pidio JJ el 20/08 --*"quitemos del mapa todas las estructuras menos edificios
+-- y carreteras, ahora para probar"*-- y el inventario le da la razon: la ciudad
+-- entera son 67 piezas y el mundo encima son 1.042. De esas, 675 son el sistema de
+-- vigilancia (450 conos y 225 de camara) y unas 135 son talleres de zona y
+-- refugios repartidos por la ciudad.
+--
+-- Lo que se apaga son los EDIFICIOS DE SERVICIO sembrados por el mapa -- los
+-- talleres de zona y los refugios. Son estructuras que se plantan buscando hueco,
+-- compiten a la vista con lo que si hay que mirar, y ninguno es el bucle: el
+-- taller de casa sigue estando y el calor se sigue enfriando, solo que mas
+-- despacio y sin un sitio al que correr.
+--
+-- NO se apagan las camaras ni los recogibles ni las viviendas de entrega, aunque
+-- sean piezas: no son decorado, son las reglas dibujadas.
+--
+-- Va detras de un interruptor y no borrado, y esa es toda la gracia: volver cuesta
+-- cambiar `true` por `false`. Un mapa que se poda a mano no se puede comparar con
+-- el de antes, y comparar es justamente para lo que se poda.
+Config.MAPA_DESNUDO = true
+
 -- Economía
 Config.CAJA_VALOR_BASE = 10
 
@@ -1056,6 +1079,35 @@ Config.RASTRO_PASO = 40
 -- pasa cuando se encadenan. La ruta corta los reparte mas juntos, que es justo lo
 -- que debe hacer una ruta corta.
 Config.RASTRO_MINIMO = 4
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- DOS CLASES DE RECOGIBLE, no una.
+--
+-- Lo pidio JJ el 20/08: *"los paquetes a recoger deberian ser items diferentes:
+-- uno da velocidad, el otro mega salto, algo asi"*. Y es mas que variedad -- es lo
+-- que convierte la fila en una DECISION. Con una sola clase, seguir el rastro es
+-- una regla ("pisalo todo"); con dos, cada pieza que ves a lo lejos plantea una
+-- pregunta distinta, porque velocidad y salto no sirven para lo mismo: la
+-- velocidad es para la recta y el salto es para el atajo.
+--
+-- Se ALTERNAN por indice, asi que el reparto es fijo y aprendible como todo lo
+-- demas de este mapa: la segunda vez que haces una ruta sabes cual viene.
+Config.RECOGIBLE_VELOCIDAD = "velocidad"
+Config.RECOGIBLE_SALTO = "salto"
+
+-- CUANTO SALTA con el impulso puesto, como multiplo de Config.SALTO_ALTURA.
+--
+-- Con 2,2 se pasa de 10 a 22 studs, que es subirse de un brinco a la planta baja
+-- de un edificio de la reticula. Ese numero no es decorativo: es lo que hace que
+-- el salto sea un ATAJO --cortar por encima de una manzana en vez de rodearla-- y
+-- no solo un brinco mas alto. Si no abriera camino nuevo, seria velocidad peor.
+Config.SALTO_IMPULSO_FACTOR = 2.2
+
+-- Y CUANTO DURA. Ocho segundos es lo que se tarda en cruzar una manzana a la
+-- carrera: da para usarlo donde lo coges, no para llevartelo media ruta. Se
+-- refresca al coger otro, no se acumula -- acumular convertiria un rastro de seis
+-- saltos en un minuto entero volando, y entonces la ciudad deja de existir.
+Config.SALTO_IMPULSO_SEGUNDOS = 8
 
 -- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
 -- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs

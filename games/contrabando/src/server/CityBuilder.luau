@@ -20,6 +20,7 @@
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Cone = require(script.Parent.Cone)
+local Vision = require(game.ReplicatedStorage.Shared.Vision)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local PathfindingService = game:GetService("PathfindingService")
@@ -1265,6 +1266,34 @@ local function rayo(pieza: BasePart, color: Color3, escala: number)
 	end
 end
 
+-- LOS BRAZOS DE LA FLECHA, para el recogible de SALTO.
+--
+-- Dos clases de recogible necesitan dos siluetas, y la unica forma de que un
+-- simbolo se lea sin leyenda es que signifique lo que hace. El rayo es velocidad;
+-- una flecha hacia arriba es salto. No hay nada que aprender.
+--
+-- Y SE DISTINGUEN TAMBIEN POR EL COLOR, no solo por la forma: a la distancia a la
+-- que hace falta decidir --la siguiente pieza, no la que pisas-- la silueta es
+-- cuatro pixeles y el color es un color. El cian no aparece en ningun otro sitio
+-- del juego, que es exactamente lo que se le pide a un codigo de color.
+local function flecha(pieza: BasePart, color: Color3, escala: number)
+	-- La pieza es el ASTA; aqui se le ponen las dos alas de la punta.
+	for _, signo in { 1, -1 } do
+		local ala = Instance.new("Part")
+		ala.Name = "Ala"
+		ala.Size = Vector3.new(0.75 * escala, 1.9 * escala, 0.55)
+		ala.Color = color
+		ala.Material = Enum.Material.Neon
+		ala.Anchored = true
+		ala.CanCollide = false
+		ala.CastShadow = false
+		ala.CFrame = pieza.CFrame
+			* CFrame.new(0.62 * escala * signo, 0.85 * escala, 0)
+			* CFrame.Angles(0, 0, math.rad(40) * signo)
+		ala.Parent = pieza
+	end
+end
+
 -- LOS CONTACTOS de una ruta, plantados sobre su corredor.
 --
 -- Se siembran AQUÍ y no en su servicio por una razón que este fichero ya pagó
@@ -1276,12 +1305,56 @@ end
 --
 -- Son FIJOS, como los detectores y las guaridas: el reparto sale del trazado y no
 -- de un dado, para que el jugador que repite la ruta sepa dónde están.
+-- ¿Cae este punto dentro del cono de alguna camara?
+--
+-- POR QUE IMPORTA, dicho por JJ: *"no los pongamos en zonas con camara de
+-- vigilancia, que eso es tener mala leche"*. Y es exactamente eso -- un premio
+-- puesto donde te fichan no es una decision, es una trampa: la fila te esta
+-- diciendo "ven por aqui" y el sitio al que te lleva te sube el calor. El juego se
+-- estaria contradiciendo a si mismo, y el jugador aprenderia a no fiarse de la
+-- unica guia que tiene.
+--
+-- Se comprueba con las MISMAS dos condiciones que usa HeatService --cono y sin
+-- pared de por medio-- porque cualquier otra cosa seria una segunda verdad sobre
+-- donde te ven, y dos verdades sobre lo mismo acaban discrepando.
+local function enConoDeCamara(donde: Vector3, camaras: { BasePart }): boolean
+	for _, poste in camaras do
+		local rumbo = poste:GetAttribute("rumbo")
+		if typeof(rumbo) ~= "number" then
+			continue
+		end
+		-- CON UN MARGEN PEQUENO, y medido: la primera version sumaba el radio de
+		-- recogida entero (35 + 14 = 49) para curarse en salud, y con 45 camaras eso
+		-- tapaba media ciudad -- los recogibles pasaron de 33 a TRES. Un filtro de
+		-- seguridad que se come el sistema que protege no protege nada.
+		--
+		-- Cuatro studs bastan para que una miga en el filo no acabe recogiendose desde
+		-- dentro del cono.
+		local alcance = Config.DETECTOR_RADIO + 4
+		if (donde - poste.Position).Magnitude > alcance then
+			continue
+		end
+		local mirando = (CFrame.Angles(0, math.rad(rumbo), 0) * CFrame.new(0, 0, -1)).Position
+		if not Vision.dentroDelCono(poste.Position, mirando, donde, Config.DETECTOR_VISION_ANGULO, alcance) then
+			continue
+		end
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { poste }
+		if workspace:Raycast(poste.Position, donde - poste.Position, params) == nil then
+			return true
+		end
+	end
+	return false
+end
+
 local function sembrarContactos(
 	ciudad: Instance?,
 	ruta: Routes.Ruta,
 	camino: { Vector3 },
 	anclas: { Vector3 },
-	padre: Instance
+	padre: Instance,
+	camaras: { BasePart }
 ): { BasePart }
 	local piezas: { BasePart } = {}
 	-- Las del rastro, en orden, para dorarlas DESPUÉS de saber cuáles cabían.
@@ -1342,8 +1415,63 @@ local function sembrarContactos(
 		end
 		x, z = cx, cz
 
+		-- Y NO DENTRO DEL CONO DE UNA CAMARA. Si el sitio que le tocaba esta vigilado,
+		-- se prueba a CORRERLA por el camino antes de tirarla: un hueco en la fila se
+		-- lee como "te has salido de la ruta", que es justo lo que no ha pasado.
+		--
+		-- Se prueba primero hacia delante (avanzar es lo que el jugador iba a hacer) y
+		-- en saltos crecientes. Si a 30 studs por ninguno de los dos lados hay sitio
+		-- limpio, entonces si se descarta: mejor un hueco que un premio con castigo.
+		if enConoDeCamara(Vector3.new(x, (y :: number) + 4, z), camaras) then
+			local vecino = lista[i + 1] or lista[i - 1]
+			local haciaAlla = if vecino
+				then Vector3.new(vecino.pos.X - x, 0, vecino.pos.Z - z)
+				else Vector3.new(0, 0, 1)
+			if haciaAlla.Magnitude < 0.5 then
+				haciaAlla = Vector3.new(0, 0, 1)
+			end
+			local dir = haciaAlla.Unit
+			-- Se prueba A LO LARGO del camino y tambien A LOS LADOS. Sólo a lo largo no
+			-- sirve cuando la camara mira en la direccion en que se avanza: entonces
+			-- correrse por el camino es quedarse dentro del mismo cono.
+			local lado = Vector3.new(dir.Z, 0, -dir.X)
+			local intentos = {
+				dir * 15,
+				dir * -15,
+				lado * 10,
+				lado * -10,
+				dir * 28,
+				dir * -28,
+				lado * 16,
+				lado * -16,
+			}
+			for _, salto in intentos do
+				local nx, nz = x + salto.X, z + salto.Z
+				local ny, ncx, ncz = sueloTransitable(ciudad, nx, nz)
+				if ny == nil then
+					continue
+				end
+				if math.sqrt((ncx - nx) ^ 2 + (ncz - nz) ^ 2) > Config.CONTACTO_RADIO - 2 then
+					continue
+				end
+				if enConoDeCamara(Vector3.new(ncx, (ny :: number) + 4, ncz), camaras) then
+					continue
+				end
+				x, z, y = ncx, ncz, ny
+				break
+			end
+			-- Y SI NO HAY HUECO, SE PLANTA IGUAL. Descartarla era la primera version y
+			-- salio mucho peor que el problema: un hueco en la fila se lee como "te has
+			-- salido de la ruta", que es mentira y ademas rompe la cadena de velocidad.
+			--
+			-- Que quede alguna vigilada no es una trampa mientras el cono SE VEA -- y se
+			-- ve, esta pintado en el suelo. Entonces deja de ser mala leche y pasa a ser
+			-- lo que el juego quiere: una decision con la informacion delante.
+		end
+
 		local esRacimo = contacto.tipo == "racimo"
-		local esRastro = contacto.tipo == "rastro"
+		local esRastro = Contacts.esDelRastro(contacto.tipo)
+		local esSalto = contacto.tipo == Config.RECOGIBLE_SALTO
 		-- HACIA DONDE SIGUE EL CAMINO. Se mira a la pieza siguiente; la ultima
 		-- hereda la direccion de la anterior, y si no hay ninguna (rutas de una sola
 		-- pieza) se deja el eje Z, que es lo que habia antes.
@@ -1354,22 +1482,41 @@ local function sembrarContactos(
 		end
 
 		local centro = Vector3.new(x, (y :: number) + 4, z)
-		-- DEL COLOR DE SU RUTA. El crema se confundía con todo; el color dice además
-		-- cuál es la tuya de un vistazo.
-		local color = if esRacimo then Color3.fromRGB(255, 196, 84) else Palette.ruta(ruta.id)
+		-- EL COLOR DICE QUE HACE, y ya no de que ruta es.
+		--
+		-- Hasta hoy iban del color de su ruta, y tenia sentido cuando la fila
+		-- SENALIZABA: el color decia cual era la tuya. Ese trabajo se lo llevo el
+		-- minimapa, y desde que hay dos clases de recogible el color tiene algo mucho
+		-- mas util que decir -- para que sirve el que estas mirando. Ambar es
+		-- velocidad, cian es salto, y de que ruta son ya lo sabe el cliente, que solo
+		-- enciende las tuyas.
+		local color = if esRacimo
+			then Color3.fromRGB(255, 196, 84)
+			elseif esSalto then Color3.fromRGB(96, 226, 236)
+			else Color3.fromRGB(255, 186, 70)
 		local escala = if esRacimo then 1.25 else 1
 		local pieza = part(
 			string.format("Contacto_%s_%d", ruta.id, i),
-			Vector3.new(2.1 * escala, 0.8 * escala, 0.55),
+			if esSalto
+				then Vector3.new(0.8 * escala, 2.6 * escala, 0.55)
+				else Vector3.new(2.1 * escala, 0.8 * escala, 0.55),
 			centro,
 			color,
 			padre
 		)
 		pieza.Material = Enum.Material.Neon
 		pieza.CanCollide = false
-		-- De canto al camino, y el travesano del rayo inclinado dentro de ese plano.
-		pieza.CFrame = CFrame.lookAt(centro, centro + rumbo.Unit) * CFrame.Angles(0, 0, math.rad(-34))
-		rayo(pieza, color, escala)
+		if esSalto then
+			-- La flecha va DERECHA, no de canto: apunta arriba, y arriba es arriba se
+			-- mire desde donde se mire. Solo se gira sobre su eje para dar la cara al
+			-- camino.
+			pieza.CFrame = CFrame.lookAt(centro, centro + rumbo.Unit)
+			flecha(pieza, color, escala)
+		else
+			-- De canto al camino, y el travesano del rayo inclinado dentro de ese plano.
+			pieza.CFrame = CFrame.lookAt(centro, centro + rumbo.Unit) * CFrame.Angles(0, 0, math.rad(-34))
+			rayo(pieza, color, escala)
+		end
 		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo
 		-- que hay plantado. Si algún día el reparto cambia, no hay dos versiones.
 		pieza:SetAttribute("ruta", ruta.id)
@@ -1409,18 +1556,38 @@ local function sembrarContactos(
 			local pieza = delRastro[indice]
 			if pieza then
 				pieza:SetAttribute("valor", Config.CONTACTO_VALOR_SUELTO)
-				pieza:SetAttribute("tipo", "suelto")
+				-- Y AQUI **NO** SE TOCA EL TIPO, aunque lo hacia hasta hoy.
+				--
+				-- Esto ponia `tipo = "suelto"`, que tenia sentido cuando el tipo solo
+				-- distinguia "pieza de la fila" de "racimo". Desde que el tipo dice QUE
+				-- HACE el recogible --velocidad o salto-- pisarlo aqui le borra su clase:
+				-- y como las doradas son casi todas (4 de 4, 10 de 11, 16 de 18), el
+				-- resultado medido fue que **treinta y una de las treinta y tres perdian
+				-- su tipo** y volvian a dar velocidad. Las flechas de salto estaban
+				-- plantadas, dibujadas y contadas, y no hacian nada.
+				--
+				-- Es la firma de siempre: nada revienta y el sistema no existe. Lo cazo
+				-- la sonda nueva -- "la verde tiene 0 de velocidad y 0 de salto".
+				--
+				-- Pagar contacto y ser de una clase son dos cosas distintas, asi que
+				-- ahora viven en dos atributos distintos.
+				pieza:SetAttribute("paga", true)
 				-- SOLO EL COLOR, no el tamano: la pieza ya no es un cuadrado sino el
 				-- travesano de un rayo, y cambiarle las medidas por debajo lo dejaria
 				-- descoyuntado de sus dos brazos. Las doradas se distinguen por ser
 				-- doradas y por llevar luz, que es de lejos lo que mas se ve.
-				local oro = Color3.fromRGB(255, 214, 130)
-				pieza.Color = oro
-				for _, brazo in pieza:GetChildren() do
-					if brazo:IsA("BasePart") then
-						brazo.Color = oro
-					end
-				end
+				-- YA NO SE REPINTAN DE ORO. El color pasó a significar QUÉ HACE la
+				-- pieza (ámbar velocidad, cian salto), así que teñir de oro las que
+				-- además pagan borraría el único dato que el jugador tiene que leer de
+				-- lejos, y a cambio le diría uno que no decide nada: cobrar un contacto
+				-- es automático, pasas por encima y ya está.
+				--
+				-- Se distinguen por la LUZ, que es lo que se ve sin mirar.
+				local luz = Instance.new("PointLight")
+				luz.Color = pieza.Color
+				luz.Range = 20
+				luz.Brightness = 1.4
+				luz.Parent = pieza
 				local luz = Instance.new("PointLight")
 				luz.Color = Color3.fromRGB(255, 214, 130)
 				luz.Range = 18
@@ -2312,33 +2479,122 @@ function CityBuilder.build(): Mundo
 		padre: Instance
 	): BasePart
 		local ANCHO, FONDO, ALTO = 46, 34, 40
+		local MURO, PUERTA_ANCHO, PUERTA_ALTO = 1.4, 12, 14
 		-- El frente mira al cruce, o sea al reves de "hacia dentro de la manzana".
 		local frente = -haciaDentro
-		local base =
-			CFrame.lookAt(Vector3.new(centro.X, centro.Y, centro.Z), Vector3.new(centro.X, centro.Y, centro.Z) + frente)
+		local suelo = Vector3.new(centro.X, centro.Y, centro.Z)
+		local base = CFrame.lookAt(suelo, suelo + frente)
 
-		local casa = Instance.new("Part")
-		casa.Name = nombre
-		casa.Size = Vector3.new(ANCHO, ALTO, FONDO)
-		casa.CFrame = base * CFrame.new(0, ALTO / 2, 0)
-		casa.Anchored = true
-		casa.CanCollide = true
-		casa.Color = Color3.fromRGB(96, 92, 88)
-		casa.Material = Enum.Material.Brick
-		casa.Parent = padre
+		local LADRILLO = Color3.fromRGB(96, 92, 88)
+		local OSCURO = Color3.fromRGB(74, 71, 68)
 
-		-- LAS VENTANAS, en la fachada que da al cruce. Tres alturas y cuatro huecos, y
-		-- una de cada tres apagada: una fachada con TODAS encendidas se lee como un
-		-- cartel luminoso, y lo que tiene que parecer es un bloque de pisos donde vive
-		-- gente. El patron es fijo (sale del indice, no de un dado) porque en este mapa
-		-- todo es aprendible.
-		for fila = 0, 2 do
+		local function muro(
+			sufijo: string,
+			tamano: Vector3,
+			sitio: CFrame,
+			tono: Color3,
+			material: Enum.Material
+		): BasePart
+			local m = Instance.new("Part")
+			m.Name = nombre .. sufijo
+			m.Size = tamano
+			m.CFrame = sitio
+			m.Anchored = true
+			m.CanCollide = true
+			m.Color = tono
+			m.Material = material
+			m.Parent = padre
+			return m
+		end
+
+		-- LA CASA ES HUECA, y esa es la peticion: *"que para entregar haya que entrar al
+		-- edificio estaria bien, no?"*. Y si -- entrar es lo que convierte la entrega en
+		-- un ACTO en vez de en un radio invisible alrededor de un punto.
+		--
+		-- Ademas resuelve solo el *"no se cuando he llegado al punto de entrega"* de las
+		-- partidas anteriores: estar DENTRO de una habitacion no se confunde con estar
+		-- cerca de algo. Un radio no se ve; una puerta si.
+		--
+		-- Se monta con paredes sueltas y el frente partido en dos jambas y un dintel,
+		-- porque un hueco en una pieza no existe en Roblox: una puerta ES el espacio que
+		-- dejan tres piezas.
+		local jamba = (ANCHO - PUERTA_ANCHO) / 2
+		local casa = muro(
+			"",
+			Vector3.new(jamba, ALTO, MURO),
+			base * CFrame.new(-(PUERTA_ANCHO + jamba) / 2, ALTO / 2, -FONDO / 2),
+			LADRILLO,
+			Enum.Material.Brick
+		)
+		muro(
+			"JambaDer",
+			Vector3.new(jamba, ALTO, MURO),
+			base * CFrame.new((PUERTA_ANCHO + jamba) / 2, ALTO / 2, -FONDO / 2),
+			LADRILLO,
+			Enum.Material.Brick
+		)
+		muro(
+			"Dintel",
+			Vector3.new(PUERTA_ANCHO, ALTO - PUERTA_ALTO, MURO),
+			base * CFrame.new(0, PUERTA_ALTO + (ALTO - PUERTA_ALTO) / 2, -FONDO / 2),
+			LADRILLO,
+			Enum.Material.Brick
+		)
+		muro(
+			"Fondo",
+			Vector3.new(ANCHO, ALTO, MURO),
+			base * CFrame.new(0, ALTO / 2, FONDO / 2),
+			OSCURO,
+			Enum.Material.Brick
+		)
+		muro(
+			"Izq",
+			Vector3.new(MURO, ALTO, FONDO),
+			base * CFrame.new(-ANCHO / 2, ALTO / 2, 0),
+			OSCURO,
+			Enum.Material.Brick
+		)
+		muro(
+			"Der",
+			Vector3.new(MURO, ALTO, FONDO),
+			base * CFrame.new(ANCHO / 2, ALTO / 2, 0),
+			OSCURO,
+			Enum.Material.Brick
+		)
+		muro(
+			"Tejado",
+			Vector3.new(ANCHO + 3, 1.6, FONDO + 3),
+			base * CFrame.new(0, ALTO, 0),
+			OSCURO,
+			Enum.Material.Slate
+		)
+
+		-- El suelo de dentro, una losa fina: sin el se ve la calle por debajo de las
+		-- paredes en cuanto el terreno no sea perfectamente plano. `rodable` para que
+		-- entrar en moto no te baje de ella (ver RoadService).
+		local piso = muro(
+			"Piso",
+			Vector3.new(ANCHO, 1, FONDO),
+			base * CFrame.new(0, 0.5, 0),
+			Color3.fromRGB(58, 56, 54),
+			Enum.Material.Concrete
+		)
+		piso:SetAttribute("rodable", true)
+
+		-- LAS VENTANAS. Una de cada tres apagada: una fachada con TODAS encendidas se lee
+		-- como un cartel luminoso, y lo que tiene que parecer es un bloque de pisos donde
+		-- vive gente. El patron sale del indice y no de un dado, porque en este mapa todo
+		-- es aprendible.
+		--
+		-- Empiezan POR ENCIMA del dintel: las de abajo caerian dentro del hueco de la
+		-- puerta, que es el sitio por el que ahora se pasa.
+		for fila = 0, 1 do
 			for hueco = 0, 3 do
 				local encendida = (fila * 4 + hueco) % 3 ~= 2
 				local v = Instance.new("Part")
 				v.Name = "Ventana"
 				v.Size = Vector3.new(6.5, 5, 0.6)
-				v.CFrame = base * CFrame.new(-ANCHO / 2 + 8 + hueco * 10, 12 + fila * 10, -FONDO / 2 - 0.2)
+				v.CFrame = base * CFrame.new(-ANCHO / 2 + 8 + hueco * 10, PUERTA_ALTO + 6 + fila * 10, -FONDO / 2 - 0.8)
 				v.Anchored = true
 				v.CanCollide = false
 				v.CastShadow = false
@@ -2349,37 +2605,71 @@ function CityBuilder.build(): Mundo
 			end
 		end
 
-		-- EL PORTAL, a pie de calle y del color de la ruta. Es donde se entrega, asi que
-		-- tiene que ser el punto mas brillante de la fachada: si compite con las
-		-- ventanas, el jugador se planta delante del edificio y no encuentra la puerta.
-		local portal = Instance.new("Part")
-		portal.Name = "Portal"
-		portal.Size = Vector3.new(11, 13, 1.2)
-		portal.CFrame = base * CFrame.new(0, 6.5, -FONDO / 2 - 0.6)
-		portal.Anchored = true
-		portal.CanCollide = false
-		portal.CastShadow = false
-		portal.Material = Enum.Material.Neon
-		portal.Color = color
-		portal.Parent = casa
+		-- EL MARCO DE LA PUERTA, del color de la ruta. Es por donde se entra, asi que
+		-- tiene que ser lo mas brillante de la fachada -- si compite con las ventanas, el
+		-- jugador se planta delante del edificio y no encuentra por donde pasar. Va a los
+		-- lados y arriba del hueco, nunca tapandolo.
+		for _, lado in { -1, 1 } do
+			local marco = Instance.new("Part")
+			marco.Name = "Portal"
+			marco.Size = Vector3.new(1.1, PUERTA_ALTO, 1.6)
+			marco.CFrame = base * CFrame.new(lado * (PUERTA_ANCHO / 2 + 0.5), PUERTA_ALTO / 2, -FONDO / 2 - 0.9)
+			marco.Anchored = true
+			marco.CanCollide = false
+			marco.CastShadow = false
+			marco.Material = Enum.Material.Neon
+			marco.Color = color
+			marco.Parent = casa
+		end
+
+		local dintelLuz = Instance.new("Part")
+		dintelLuz.Name = "Portal"
+		dintelLuz.Size = Vector3.new(PUERTA_ANCHO + 2.2, 1.1, 1.6)
+		dintelLuz.CFrame = base * CFrame.new(0, PUERTA_ALTO + 0.5, -FONDO / 2 - 0.9)
+		dintelLuz.Anchored = true
+		dintelLuz.CanCollide = false
+		dintelLuz.CastShadow = false
+		dintelLuz.Material = Enum.Material.Neon
+		dintelLuz.Color = color
+		dintelLuz.Parent = casa
 
 		local luz = Instance.new("PointLight")
 		luz.Color = color
-		luz.Range = 26
-		luz.Brightness = 2
-		luz.Parent = portal
+		luz.Range = 30
+		luz.Brightness = 2.2
+		luz.Parent = dintelLuz
+
+		-- Y EL MOSTRADOR, al fondo de la habitacion: es LO QUE DECIDE si has entregado
+		-- (se registra como destino en vez de la losa de la acera). Ponerlo aqui y no en
+		-- la calle es toda la mecanica -- con el punto de cobro fuera, "entrar al
+		-- edificio" seria decorado.
+		local mostrador = Instance.new("Part")
+		mostrador.Name = "Mostrador"
+		mostrador.Size = Vector3.new(ANCHO - 14, 5, 5)
+		mostrador.CFrame = base * CFrame.new(0, 3.5, FONDO / 2 - 5)
+		mostrador.Anchored = true
+		mostrador.CanCollide = true
+		mostrador.Color = Color3.fromRGB(112, 84, 58)
+		mostrador.Material = Enum.Material.WoodPlanks
+		mostrador.Parent = casa
+
+		local farol = Instance.new("PointLight")
+		farol.Color = color
+		farol.Range = 34
+		farol.Brightness = 1.6
+		farol.Parent = mostrador
 
 		-- Y EL NUMERO DE LA CASA. Un bloque de pisos sin numero sigue siendo un bloque
-		-- anonimo; con el, es UNA direccion -- que es lo que convierte "ve al cruce" en
-		-- "ve a esta casa".
+		-- anonimo; con el es UNA direccion, que es lo que convierte "ve al cruce" en "ve
+		-- a esta casa".
 		local placa = Instance.new("BillboardGui")
 		placa.Name = "Numero"
 		placa.Size = UDim2.fromScale(9, 3)
-		placa.StudsOffsetWorldSpace = Vector3.new(0, 10, 0)
+		placa.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
 		placa.AlwaysOnTop = false
 		placa.MaxDistance = 260
-		placa.Adornee = portal
-		placa.Parent = portal
+		placa.Adornee = dintelLuz
+		placa.Parent = dintelLuz
 
 		local texto = Instance.new("TextLabel")
 		texto.Size = UDim2.fromScale(1, 1)
@@ -2424,6 +2714,10 @@ function CityBuilder.build(): Mundo
 		-- descarta cualquier sitio con algo dentro.
 		local portalDeEntrega: BasePart? = nil
 		local centroVivienda: Vector3? = nil
+		-- DONDE SE COBRA DE VERDAD. Si por lo que sea la casa no se pudiera construir,
+		-- se queda la losa: perder la entrega entera por un fallo de decorado seria
+		-- convertir un problema estetico en uno que no deja jugar.
+		local puntoDeCobro: BasePart? = nil
 		do
 			local centroCasa, haciaDentro = Grid.portalDeCruce(ruta.destino, 34)
 			centroVivienda = centroCasa
@@ -2445,6 +2739,13 @@ function CityBuilder.build(): Mundo
 			-- es acera: un rotulo en mitad del asfalto vuelve a ser "un punto en medio
 			-- del mapa", que es justo lo que se viene a quitar.
 			portalDeEntrega = casa:FindFirstChild("Portal") :: BasePart?
+			-- Y EL MOSTRADOR ES EL DESTINO, que es lo que obliga a entrar. Lleva la
+			-- ruta encima porque `destinoParaCobrar` la lee de la pieza.
+			local mostrador = casa:FindFirstChild("Mostrador") :: BasePart?
+			if mostrador then
+				mostrador:SetAttribute("ruta", ruta.id)
+				puntoDeCobro = mostrador
+			end
 		end
 
 		-- Y SU ACCESO RODADO hasta la calle más cercana. Sin esto, la mercancía
@@ -2572,6 +2873,13 @@ function CityBuilder.build(): Mundo
 			if sitio == nil then
 				warn("[Contrabando] la zona " .. ruta.id .. " no tiene sitio despejado con calle: se queda sin taller")
 			end
+			-- SIN TALLERES DE ZONA con el mapa desnudo. Es una nave de 96x60 con siete
+			-- podios, siete escaparates y su rotulo: treinta y siete piezas por ruta
+			-- plantadas buscando hueco, que compiten a la vista con lo unico que hay
+			-- que mirar. El taller de casa se queda, asi que se sigue pudiendo comprar.
+			if Config.MAPA_DESNUDO then
+				sitio = nil
+			end
 			if sitio ~= nil then
 				despejar(ciudad, sitio, 110, 45, true)
 				local tallerZona =
@@ -2670,7 +2978,7 @@ function CityBuilder.build(): Mundo
 		texto.Text = Strings.get("ROUTE_SIGN", { ruta = Strings.ref("ROUTE_" .. ruta.id), paga = Routes.paga(ruta.id) })
 		texto.Parent = cartel
 
-		table.insert(destinos, destino)
+		table.insert(destinos, puntoDeCobro or destino)
 	end
 
 	-- LA VIGILANCIA, UNA VEZ Y PARA TODA LA CIUDAD. Iba dentro del bucle de rutas
@@ -2750,7 +3058,10 @@ function CityBuilder.build(): Mundo
 	-- plantaba uno --el segundo caia encima del primero, porque la ambar y la roja
 	-- comparten su primer tramo-- y nadie se enteraba. La sonda cuenta que haya al
 	-- menos uno, no que esten todos los que se pidieron.
-	local reparto = Shelter.repartir(grupos, nil, cupos)
+	-- Y SIN REFUGIOS con el mapa desnudo. El calor se sigue enfriando solo, nada mas
+	-- que sin un sitio al que correr -- que es una perdida real y por eso esto es un
+	-- interruptor y no un borrado.
+	local reparto = if Config.MAPA_DESNUDO then {} else Shelter.repartir(grupos, nil, cupos)
 	local pedidos = #reparto
 	for _, sitio in reparto do
 		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo, tomados)
@@ -2784,7 +3095,7 @@ function CityBuilder.build(): Mundo
 	local contactos: { BasePart } = {}
 	for _, ruta in Routes.todas() do
 		local camino = caminoDeRuta(ruta)
-		for _, pieza in sembrarContactos(ciudad, ruta, camino, guaridasDeRuta[ruta.id] or {}, mundo) do
+		for _, pieza in sembrarContactos(ciudad, ruta, camino, guaridasDeRuta[ruta.id] or {}, mundo, detectores) do
 			table.insert(contactos, pieza)
 		end
 	end

@@ -648,6 +648,20 @@ local function paso(player: Player)
 		local velocidad = Contacts.velocidadConRacha(Cargo.velocidad(estado.cajas, cuenta), estado.recogidos or 0)
 		humanoid.WalkSpeed = velocidad
 
+		-- Y EL SALTO, que es el otro recogible. Se escribe AQUI y no al nacer el
+		-- personaje --que es donde vive el salto base-- porque ahora deja de ser una
+		-- constante: sube al coger una flecha y baja sola al caducar.
+		--
+		-- Se compara contra el reloj en vez de descontar un contador, asi que el
+		-- impulso se apaga aunque este bucle se salte una vuelta. `UseJumpPower` se
+		-- vuelve a poner a false por si el personaje es nuevo: escribir JumpHeight
+		-- con la medida vieja activa no hace nada y no avisa nadie.
+		local conImpulso = (estado.saltoHasta or 0) > os.clock()
+		humanoid.UseJumpPower = false
+		humanoid.JumpHeight = if conImpulso
+			then Config.SALTO_ALTURA * Config.SALTO_IMPULSO_FACTOR
+			else Config.SALTO_ALTURA
+
 		-- Y EL MOTOR SUBE DE TONO CON LA VELOCIDAD. Es lo que separa un ruido de
 		-- fondo de una respuesta: cargado hasta arriba el motor se oye ahogado, y
 		-- vacío por una recta se oye cómo tira. El bucle ya está sonando (lo monta
