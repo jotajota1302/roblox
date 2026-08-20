@@ -366,7 +366,10 @@ end
 -- dibujan como rectangulos y no hay que rotar nada.
 local caminos: { Frame } = {}
 local caminoDe: string? = nil
-local CAMINO_GRUESO = 12
+-- En STUDS, que luego se convierten a fraccion del panel. Con 12 salian tres pixeles
+-- de linea sobre un panel de 190, que en un movil es no verse. 22 dan seis o siete y
+-- se lee de un vistazo sin tapar la reticula de debajo.
+local CAMINO_GRUESO = 22
 
 local function pintarCamino(capa: Frame, rutaId: string?)
 	if caminoDe == rutaId and #caminos > 0 then
@@ -391,8 +394,13 @@ local function pintarCamino(capa: Frame, rutaId: string?)
 		local a, b = tramos[i - 1], tramos[i]
 		local x0, x1 = math.min(a.X, b.X), math.max(a.X, b.X)
 		local z0, z1 = math.min(a.Z, b.Z), math.max(a.Z, b.Z)
-		-- El grueso minimo es lo que hace visible un tramo de longitud cero: sin el,
-		-- una ruta recta --la verde-- perderia su unico tramo util.
+		-- LOS TRAMOS DE LONGITUD CERO NO SE DIBUJAN. El camino en L de una ruta RECTA
+		-- --la verde va derecha al sur-- tiene el segundo tramo vacio, porque la esquina
+		-- coincide con el destino. Pintarlo dejaba un cuadradito de tres pixeles clavado
+		-- encima de la diana: no informa de nada y parece suciedad. Medido jugando.
+		if (x1 - x0) < 1 and (z1 - z0) < 1 then
+			continue
+		end
 		local anchoX = math.max(x1 - x0, CAMINO_GRUESO)
 		local anchoZ = math.max(z1 - z0, CAMINO_GRUESO)
 		local f = Instance.new("Frame")
