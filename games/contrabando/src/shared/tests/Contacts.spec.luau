@@ -154,9 +154,24 @@ return function(kit)
 
 	-- LA RACHA. Acelera, tiene tope, y NUNCA deja al jugador fuera de alcance.
 	kit.eq("sin recoger nada, no hay racha", Contacts.racha(0), 0)
-	kit.near("cuatro piezas dan 1,6 studs/s", Contacts.racha(4), 1.6)
+	kit.near("cada pieza vale lo que dice Config", Contacts.racha(3), 3 * Config.RACHA_POR_CONTACTO)
 	kit.eq("la racha tiene tope", Contacts.racha(999), Config.RACHA_MAXIMA)
-	kit.near("la racha se suma a la velocidad", Contacts.velocidadConRacha(16, 4), 17.6)
+	kit.near("la racha se suma a la velocidad", Contacts.velocidadConRacha(16, 3), 16 + 3 * Config.RACHA_POR_CONTACTO)
+
+	-- UNA SOLA PIEZA TIENE QUE NOTARSE, y esto no es una preferencia: es la regla
+	-- que el sistema incumplia. Con 0,4 studs/s sobre 16, coger un rayo movia la
+	-- velocidad un 2,5 % -- por debajo de lo que un ojo distingue, asi que el premio
+	-- existia en el HUD y en ningun otro sitio. El diez por ciento es el suelo por
+	-- debajo del cual esto vuelve a ser una estadistica.
+	kit.truthy(
+		"un solo rayo mueve la velocidad a pie mas de un diez por ciento",
+		Config.RACHA_POR_CONTACTO / Config.VELOCIDAD_BASE > 0.1
+	)
+	-- Y LA CADENA TIENE QUE PODER GANAR A QUIEN TE PERSIGUE, o el rayo no sirve
+	-- para huir --que es para lo que se pidio-- sino solo para llegar antes. La
+	-- patrulla va a la velocidad del perseguido SIN racha mas 3 (PatrolService), asi
+	-- que el tope tiene que sacarle mas de esos 3 studs/s de ventaja.
+	kit.truthy("la racha al tope adelanta a la patrulla", Config.RACHA_MAXIMA > 3)
 
 	-- LA CADENA. Es lo que convierte el rastro en un juego en vez de en un pasillo
 	-- decorado: si recoger seis al principio rindiera igual que seguir la fila

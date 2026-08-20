@@ -28,6 +28,7 @@ local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local Senales = require(script.Parent:WaitForChild("Senales"))
 local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+local Boost = require(script.Parent:WaitForChild("Boost"))
 local Stock = require(script.Parent:WaitForChild("Stock"))
 
 -- La carpeta del mundo la crea el servidor al arrancar, así que puede no existir
@@ -683,6 +684,18 @@ end)
 
 Remotes.event(Remotes.SONIDO).OnClientEvent:Connect(function(clave)
 	Sfx.reproducir(clave)
+end)
+
+-- EL TIRON DE CAMARA AL COGER UN RAYO. Va sin pcall y sin adornos porque no puede
+-- fallar de forma interesante: si no hay camara, el modulo no hace nada.
+Remotes.event(Remotes.IMPULSO).OnClientEvent:Connect(function()
+	Boost.golpe()
+end)
+
+-- Y se suelta al perder el cuerpo: reaparecer en mitad de un tiron dejaria la
+-- camara abierta sin que nada la cerrara.
+Players.LocalPlayer.CharacterRemoving:Connect(function()
+	Boost.soltar()
 end)
 
 -- Los avisos del mundo (ProximityPrompt) son ahora la forma de entregar y de

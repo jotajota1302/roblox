@@ -31,6 +31,15 @@ Remotes.USAR_SENUELO = "UsarSenuelo" -- cliente -> servidor: "suelto el cebo aqu
 -- paises distintos el servidor no tiene un idioma correcto que elegir.
 Remotes.AVISO = "Aviso"
 Remotes.SONIDO = "Sonido" -- servidor -> cliente: reproducir un efecto por su clave
+-- servidor -> cliente: "acabas de coger un rayo". Va SIN datos: el estado ya
+-- viaja por SYNC_STATE y lo unico que hace falta aqui es el instante exacto, que
+-- es lo que no se puede deducir de un numero que cambia.
+--
+-- Y va aparte de SONIDO en vez de colarse como una clave mas, porque no es un
+-- sonido: es un golpe de camara. Meterlo ahi obligaria al cliente a mirar la
+-- clave para decidir si ademas hace otra cosa, y esa clase de "casi es lo mismo"
+-- es como se acaba con un remote que significa dos cosas.
+Remotes.IMPULSO = "Impulso"
 
 local function getFolder(): Folder
 	if RunService:IsServer() then

@@ -14,6 +14,7 @@
 local Players = game:GetService("Players")
 
 local Config = require(game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Remotes = require(game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 
 Players.CharacterAutoLoads = false
 
@@ -57,6 +58,24 @@ local Persistence = safeRequire("Persistence")
 local Telemetry = safeRequire("Telemetry")
 local Nameplates = safeRequire("Nameplates")
 local Avatar = safeRequire("Avatar")
+
+-- LOS REMOTES, TODOS, ANTES QUE NADA.
+--
+-- Hasta hoy cada uno nacia cuando el primer servicio lo usaba, y funcionaba por
+-- casualidad: casi todos se tocan al arrancar. `Impulso` --el golpe de camara al
+-- coger un rayo-- no; solo se usa al recoger, asi que no existia hasta la primera
+-- recogida de la partida, y el cliente lo pide con `WaitForChild`.
+--
+-- Eso no da error: da un hilo del cliente esperando para siempre a algo que
+-- todavia no existe. Lo cazo la sonda del mundo --*faltan: Impulso*-- y la
+-- respuesta correcta no es tocar ese remote, es dejar de depender de la suerte:
+-- se crean los que declara `Remotes`, sin excepciones, antes de que haya nadie
+-- conectado.
+for clave, valor in Remotes :: any do
+	if type(clave) == "string" and type(valor) == "string" then
+		Remotes.event(valor)
+	end
+end
 
 -- El mundo primero: la ciudad, y el juego encima.
 --

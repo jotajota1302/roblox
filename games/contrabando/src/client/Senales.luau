@@ -92,6 +92,19 @@ local function pintar(pieza: BasePart, visible: boolean, opacidad: number)
 	local quiero = if visible then opacidad else 1
 	if pieza.Transparency ~= quiero then
 		pieza.Transparency = quiero
+		-- Y LOS HIJOS CON ELLA. Desde que la miga es un rayo, la pieza es solo su
+		-- travesano: los dos brazos cuelgan de ella. Pintar unicamente el padre
+		-- dejaria media silueta encendida en las tres rutas que no son la tuya, que
+		-- es exactamente la averia que este modulo existe para no tener.
+		--
+		-- Dentro del `if` a proposito: recorrer los hijos de ciento y pico piezas
+		-- cuatro veces por segundo cuesta, y aqui solo se paga cuando algo cambia
+		-- de verdad, o sea al empezar y al terminar un viaje.
+		for _, hijo in pieza:GetChildren() do
+			if hijo:IsA("BasePart") then
+				hijo.Transparency = quiero
+			end
+		end
 	end
 end
 

@@ -48,8 +48,34 @@ Config.DINERO_INICIAL = 0
 
 -- Carga a pie
 Config.CAPACIDAD_A_PIE = 3
-Config.VELOCIDAD_BASE = 16
+
+-- LA VELOCIDAD A PIE, subida de 16 a 20 el 20/08.
+--
+-- Dieciseis es el valor por defecto de Roblox, y ese es exactamente el problema:
+-- lo dijo JJ comparando con otro juego de la plataforma --*"el movimiento tiene
+-- que ser mas rapido y mas agil"*-- y tenia razon en algo que se mide. Este juego
+-- es DESPLAZARSE: entre la eleccion de ruta y la entrega no hay otra cosa. Un
+-- juego cuyo verbo principal va a la velocidad que trae la caja de serie se
+-- siente como una demo, por buenas que sean las decisiones que ofrece.
+--
+-- Sube TODA la escalera con ella (+4 studs/s a cada vehiculo), y eso no es
+-- cosmetico: si solo subiera el peaton, el monopatin --primer peldano, 19-- seria
+-- mas lento que andar y la primera compra del juego, un castigo.
+--
+-- Y no rompe nada de lo que la sujetaba: las patrullas van a `max(velocidad del
+-- nivel de calor, velocidad del perseguido + 3)`, asi que se ajustan solas. La
+-- regla de oro sigue intacta -- nadie es inalcanzable, porque quien te persigue
+-- corre siempre mas que tu.
+Config.VELOCIDAD_BASE = 20
 Config.PENALIZACION_POR_CAJA = 1.4 -- studs/s menos por unidad de peso transportada
+
+-- LO ALTO QUE SALTA, que es la otra mitad de "mas agil".
+--
+-- Roblox trae 7,2 studs. Con 10 se sube a una acera o a una losa sin frenar y se
+-- salta un seto de camino, que es lo que separa "recorrer" de "moverse". No es
+-- una ventaja de escape: los ladrones no van a pie por donde tu vas, van por las
+-- calles, y saltar no acorta ninguna ruta -- solo quita los tropiezos.
+Config.SALTO_ALTURA = 10
 
 -- Vehículos: el sumidero de dinero, y la regla de diseño innegociable es que la
 -- progresión va por CAPACIDAD Y ACCESO, NUNCA POR POTENCIA. Ningún vehículo te
@@ -153,7 +179,7 @@ Config.VEHICULOS = {
 	{
 		id = "monopatin",
 		capacidad = 5,
-		velocidadBase = 19,
+		velocidadBase = 23,
 		penalizacionPorPeso = 1.0,
 		tamanoMaximo = 2,
 		coste = 150,
@@ -164,7 +190,7 @@ Config.VEHICULOS = {
 	{
 		id = "patinete",
 		capacidad = 6,
-		velocidadBase = 20,
+		velocidadBase = 24,
 		penalizacionPorPeso = 0.9,
 		tamanoMaximo = 2,
 		coste = 400,
@@ -175,7 +201,7 @@ Config.VEHICULOS = {
 	{
 		id = "patinete_electrico",
 		capacidad = 7,
-		velocidadBase = 24,
+		velocidadBase = 28,
 		penalizacionPorPeso = 0.8,
 		tamanoMaximo = 2,
 		soloCalzada = true,
@@ -187,7 +213,7 @@ Config.VEHICULOS = {
 	{
 		id = "bicicleta",
 		capacidad = 9,
-		velocidadBase = 26,
+		velocidadBase = 30,
 		penalizacionPorPeso = 0.7,
 		tamanoMaximo = 3,
 		soloCalzada = true,
@@ -199,7 +225,7 @@ Config.VEHICULOS = {
 	{
 		id = "moto",
 		capacidad = 12,
-		velocidadBase = 32,
+		velocidadBase = 36,
 		penalizacionPorPeso = 0.55,
 		tamanoMaximo = 3,
 		soloCalzada = true,
@@ -211,7 +237,7 @@ Config.VEHICULOS = {
 	{
 		id = "coche",
 		capacidad = 18,
-		velocidadBase = 34,
+		velocidadBase = 38,
 		penalizacionPorPeso = 0.4,
 		tamanoMaximo = 4,
 		soloCalzada = true,
@@ -223,7 +249,7 @@ Config.VEHICULOS = {
 	{
 		id = "furgoneta",
 		capacidad = 26,
-		velocidadBase = 30,
+		velocidadBase = 34,
 		penalizacionPorPeso = 0.28,
 		tamanoMaximo = 4,
 		soloCalzada = true,
@@ -903,7 +929,13 @@ Config.SONIDOS = {
 } :: { [string]: string }
 
 -- Anticheat: nadie corre más que esto ni en el mejor de los casos.
-Config.VELOCIDAD_MAXIMA_PLAUSIBLE = 40
+--
+-- Subido de 40 a 54 con la escalera entera: el coche va a 38 y el impulso del
+-- rastro suma hasta 12, o sea 50 en el mejor caso imaginable. El tope tiene que
+-- quedar POR ENCIMA de lo que el propio juego reparte, o el antitrampas empieza a
+-- expulsar a quien juega bien -- que es la peor avería que puede tener un
+-- antitrampas, porque el que hace trampas no se queja y el jugador honrado se va.
+Config.VELOCIDAD_MAXIMA_PLAUSIBLE = 54
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- LOS CONTACTOS: la moneda de las habilidades, que se recoge por el camino.
@@ -946,7 +978,35 @@ Config.CONTACTO_VALOR_RASTRO = 0
 --
 -- Y de paso resuelve un problema que no era de premio sino de orientación: la
 -- brújula te dice hacia dónde, pero no por dónde. La fila de luces sí.
-Config.RASTRO_PASO = 22
+-- SEPARADAS, no seguidas. Es el segundo movimiento del mismo sistema y lo pidio
+-- JJ el 20/08: *"podemos dejarlos mas espaciados y que sean un rayo, y que te den
+-- un empujoncito de velocidad temporal por si estas huyendo; asi para rutas mas
+-- dificiles puede venir bien recogerlos"*.
+--
+-- El paso de 22 nacio para que la fila DIBUJARA el camino, y ese trabajo ya no es
+-- suyo: la ruta se pinta en el plano del minimapa desde que se quito la linea del
+-- asfalto. Liberada de senalizar, la miga puede volver a ser lo unico que de
+-- verdad es -- un premio-- y un premio cada segundo y medio no es un premio, es
+-- una alfombra.
+--
+-- Con 40 se pisa una cada dos segundos, y cada una vale siete veces mas
+-- que antes. Eso convierte "cojo la siguiente o corto por aqui" en una pregunta
+-- con respuesta distinta segun lo que lleves detras, que es exactamente lo que no
+-- pasaba cuando cada pieza valia 0,4 studs/s.
+Config.RASTRO_PASO = 40
+
+-- Y NUNCA MENOS DE ESTO, por corta que sea la ruta.
+--
+-- Existe porque un paso absoluto no sobrevive a que cambie el largo de aquello que
+-- mide: la verde se acorto de 558 studs a 147 el 19/08, el paso se quedo en 22, y
+-- con el corredor util en 89 studs la primera ruta del juego se quedo con UN rayo.
+-- Nadie lo vio -- las sondas contaban piezas plantadas, no piezas por ruta.
+--
+-- Cuatro es el minimo con el que la mecanica se ENSENA: uno no es una fila, dos no
+-- es una cadena, y con cuatro seguidas el jugador nuevo ve por primera vez lo que
+-- pasa cuando se encadenan. La ruta corta los reparte mas juntos, que es justo lo
+-- que debe hacer una ruta corta.
+Config.RASTRO_MINIMO = 4
 
 -- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
 -- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs
@@ -1005,8 +1065,21 @@ Config.CONTACTO_RACIMO_DESVIO = 38
 -- 0,5) porque hay muchas más, y el techo sube de 4 a 6 porque ahora se puede
 -- sostener. A pie son 16 → 22 studs/s, un 37 % más rápido, que es lo que hace que
 -- seguir el rastro se note en el reloj y no sólo en el contador.
-Config.RACHA_POR_CONTACTO = 0.4
-Config.RACHA_MAXIMA = 6 -- el coche (34) queda recortado en 38, con el antitrampas en 40
+-- Reajustada OTRA VEZ el 20/08, y al reves que la vez anterior: cada pieza vale
+-- 3 studs/s en lugar de 0,4, y el techo sube de 6 a 12.
+--
+-- El motivo es que 0,4 no se notaba. A pie son 20 studs/s: coger una miga movia la
+-- velocidad un DOS POR CIENTO, o sea nada que un ojo humano pueda ver -- habia que
+-- encadenar quince para que el viaje cambiara, y quince es medio recorrido. El
+-- premio existia en el numero y no en la mano.
+--
+-- Con 3, una sola pieza es un +15 % que se ve al instante, y cuatro seguidas te
+-- ponen a 32 -- por encima de cualquier patrulla que te venga detras. Eso es lo
+-- que lo convierte en una herramienta de fuga en vez de en una estadistica: cuando
+-- oyes la sirena, la respuesta pasa a ser "vete a por la fila", que es una decision
+-- que el jugador puede tomar.
+Config.RACHA_POR_CONTACTO = 3
+Config.RACHA_MAXIMA = 12 -- el coche (38) queda en 50, con el antitrampas en 54
 
 -- LA CADENA: la racha se cae sola si dejas de recoger.
 --
@@ -1020,7 +1093,12 @@ Config.RACHA_MAXIMA = 6 -- el coche (34) queda recortado en 38, con el antitramp
 -- studs/s se pisa una cada 1,4 s, así que quien va por la fila no la pierde nunca
 -- y quien la abandona lo nota enseguida. Y decae UNA pieza por segundo, no de
 -- golpe: perderlo todo por un semáforo es castigo, perderlo poco a poco es aviso.
-Config.RACHA_GRACIA = 4
+-- La gracia baja a 3 con el paso nuevo. Y ojo a lo que significa DECAE ahora: se
+-- cuenta en PIEZAS por segundo, asi que perder una es perder 3 studs/s. Del tope
+-- al suelo van cuatro segundos, que es lo que hace que el impulso sea TEMPORAL de
+-- verdad -- y lo que hay que sostener para que siga siendolo si alguien vuelve a
+-- tocar el valor de la pieza.
+Config.RACHA_GRACIA = 3
 Config.RACHA_DECAE = 1
 
 -- LAS HABILIDADES. Todas se montan sobre un número que ya se calculaba: ninguna

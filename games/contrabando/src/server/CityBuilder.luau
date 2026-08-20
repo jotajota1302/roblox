@@ -1121,6 +1121,46 @@ local function caminoDeRuta(ruta: Routes.Ruta): { Vector3 }
 	return puntos
 end
 
+-- LOS BRAZOS DEL RAYO, colgados de la pieza que ya existe.
+--
+-- POR QUE UN RAYO Y NO UN CUADRADO, dicho por JJ el 20/08: *"que sean unas
+-- zapatillas o un rayo y te den un empujoncito de velocidad temporal"*. Y la forma
+-- no es adorno: la miga cambio de trabajo. Antes marcaba el camino --de ahi que un
+-- punto valiera-- y ahora lo unico que hace es acelerarte. Un simbolo que
+-- significa velocidad se lee sin tener que aprenderlo, y en un juego donde eliges
+-- si te desvias a por el, entenderlo de un vistazo ES la mecanica.
+--
+-- HECHO DE PARTS Y NO DE UN MESH, y no por gusto: este proyecto ya pago que los
+-- meshes no existen hasta publicar el place. Tres cajas neon inclinadas dan la
+-- silueta y se ven siempre.
+--
+-- Los brazos cuelgan DE la pieza, asi que van con ella a todas partes: al cliente
+-- que pinta el rastro (`Senales`) le basta con recorrer descendientes, y a las
+-- sondas que buscan `^Contacto_` no les aparecen como piezas sueltas.
+local function rayo(pieza: BasePart, color: Color3, escala: number)
+	-- Medidas en el marco de la pieza, que ya viene girada de canto al camino y con
+	-- el travesano inclinado. Cada brazo deshace esa inclinacion y pone la suya.
+	local brazos = {
+		{ largo = 2.0, ancho = 0.75, giro = 20, dx = 0.62, dy = 1.15 },
+		{ largo = 2.0, ancho = 0.75, giro = 20, dx = -0.62, dy = -1.15 },
+	}
+	for _, b in brazos do
+		local brazo = Instance.new("Part")
+		brazo.Name = "Rayo"
+		brazo.Size = Vector3.new(b.ancho * escala, b.largo * escala, 0.55)
+		brazo.Color = color
+		brazo.Material = Enum.Material.Neon
+		brazo.Anchored = true
+		brazo.CanCollide = false
+		brazo.CastShadow = false
+		brazo.CFrame = pieza.CFrame
+			* CFrame.Angles(0, 0, math.rad(34))
+			* CFrame.new(b.dx * escala, b.dy * escala, 0)
+			* CFrame.Angles(0, 0, math.rad(b.giro))
+		brazo.Parent = pieza
+	end
+end
+
 -- LOS CONTACTOS de una ruta, plantados sobre su corredor.
 --
 -- Se siembran AQUÍ y no en su servicio por una razón que este fichero ya pagó
@@ -1158,7 +1198,12 @@ local function sembrarContactos(
 	-- se recoge --paga contacto y da racha-- asi que no es senalizacion pintada, es
 	-- juego. La diferencia entre marcar el camino y decorarlo con el.
 
-	for i, contacto in Contacts.deRuta(ruta.id, camino, anclas) do
+	-- La lista se saca ENTERA antes del bucle porque cada pieza necesita saber por
+	-- donde sigue el camino: el rayo se planta de canto a la ruta para que quien
+	-- llega lo vea de frente y no de perfil. Sin mirar a la siguiente, todos
+	-- quedarian orientados igual y en las calles este-oeste serian una raya.
+	local lista = Contacts.deRuta(ruta.id, camino, anclas)
+	for i, contacto in lista do
 		local x, z = contacto.pos.X, contacto.pos.Z
 
 		-- Suelo de CALLE, y NUNCA el de `sueloDeLaCiudad` como red: ése devuelve lo
@@ -1195,21 +1240,32 @@ local function sembrarContactos(
 
 		local esRacimo = contacto.tipo == "racimo"
 		local esRastro = contacto.tipo == "rastro"
-		-- MÁS GRANDES. 1,9 studs de crema sobre asfalto claro no se veía a la
-		-- distancia a la que hace falta verlo, que es la siguiente, no la que pisas.
-		local lado = if esRacimo then 3.4 elseif esRastro then 3 else 2.6
+		-- HACIA DONDE SIGUE EL CAMINO. Se mira a la pieza siguiente; la ultima
+		-- hereda la direccion de la anterior, y si no hay ninguna (rutas de una sola
+		-- pieza) se deja el eje Z, que es lo que habia antes.
+		local siguiente = lista[i + 1] or lista[i - 1]
+		local rumbo = if siguiente then Vector3.new(siguiente.pos.X - x, 0, siguiente.pos.Z - z) else Vector3.zero
+		if rumbo.Magnitude < 0.5 then
+			rumbo = Vector3.new(0, 0, 1)
+		end
+
+		local centro = Vector3.new(x, (y :: number) + 4, z)
+		-- DEL COLOR DE SU RUTA. El crema se confundía con todo; el color dice además
+		-- cuál es la tuya de un vistazo.
+		local color = if esRacimo then Color3.fromRGB(255, 196, 84) else Palette.ruta(ruta.id)
+		local escala = if esRacimo then 1.25 else 1
 		local pieza = part(
 			string.format("Contacto_%s_%d", ruta.id, i),
-			Vector3.new(lado, lado, 0.7),
-			Vector3.new(x, (y :: number) + 3.2, z),
-			-- DEL COLOR DE SU RUTA, como la línea del suelo. El crema se confundía con
-			-- todo; el color dice además cuál es la tuya de un vistazo.
-			if esRacimo then Color3.fromRGB(255, 196, 84) else Palette.ruta(ruta.id),
+			Vector3.new(2.1 * escala, 0.8 * escala, 0.55),
+			centro,
+			color,
 			padre
 		)
 		pieza.Material = Enum.Material.Neon
 		pieza.CanCollide = false
-		pieza.Orientation = Vector3.new(0, 0, 0)
+		-- De canto al camino, y el travesano del rayo inclinado dentro de ese plano.
+		pieza.CFrame = CFrame.lookAt(centro, centro + rumbo.Unit) * CFrame.Angles(0, 0, math.rad(-34))
+		rayo(pieza, color, escala)
 		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo
 		-- que hay plantado. Si algún día el reparto cambia, no hay dos versiones.
 		pieza:SetAttribute("ruta", ruta.id)
@@ -1250,8 +1306,17 @@ local function sembrarContactos(
 			if pieza then
 				pieza:SetAttribute("valor", Config.CONTACTO_VALOR_SUELTO)
 				pieza:SetAttribute("tipo", "suelto")
-				pieza.Size = Vector3.new(2.6, 2.6, 0.7)
-				pieza.Color = Color3.fromRGB(255, 214, 130)
+				-- SOLO EL COLOR, no el tamano: la pieza ya no es un cuadrado sino el
+				-- travesano de un rayo, y cambiarle las medidas por debajo lo dejaria
+				-- descoyuntado de sus dos brazos. Las doradas se distinguen por ser
+				-- doradas y por llevar luz, que es de lejos lo que mas se ve.
+				local oro = Color3.fromRGB(255, 214, 130)
+				pieza.Color = oro
+				for _, brazo in pieza:GetChildren() do
+					if brazo:IsA("BasePart") then
+						brazo.Color = oro
+					end
+				end
 				local luz = Instance.new("PointLight")
 				luz.Color = Color3.fromRGB(255, 214, 130)
 				luz.Range = 18

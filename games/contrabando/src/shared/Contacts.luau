@@ -161,14 +161,37 @@ function Contacts.rastro(camino: { Vector3 }): { Contacto }
 		return salida
 	end
 
-	local d = desde
-	while d <= hasta do
+	-- CUANTOS CABEN, y despues se reparten a partes iguales por el corredor. Antes
+	-- se avanzaba de RASTRO_PASO en RASTRO_PASO hasta que no cupiera otro, y esa
+	-- diferencia --que parece de estilo-- resolvia mal las rutas cortas.
+	--
+	-- MEDIDO EL 20/08, y es la clase de averia que este proyecto ya conoce: nada
+	-- reventaba, la sonda daba verde y la ruta VERDE tenia UN SOLO rayo. El corredor
+	-- util son 89 studs (224 de camino menos los 110 de zona segura y los 25 del
+	-- final), asi que con paso fijo entraban uno o dos -- y su economia reparte
+	-- CUATRO doradas. Es decir: la primera ruta del juego, la que aprende todo el
+	-- mundo, no ensenaba el sistema, y ademas pagaba la mitad de lo que su tabla
+	-- decia, porque las doradas se reparten sobre las que existen.
+	--
+	-- La causa es que la ruta se acorto de 558 a 147 studs el 19/08 y el paso del
+	-- rastro se quedo donde estaba. Un numero absoluto no sobrevive a que cambie
+	-- aquello que mide.
+	local disponible = hasta - desde
+	-- `ceil` y no `floor`, que es la diferencia entre "caben N" y "no queda ningun
+	-- vano mayor que el paso". Con `floor` la separacion real sale POR ENCIMA de
+	-- RASTRO_PASO al repartir el sobrante (42 studs con el paso en 40), y el paso
+	-- deja de ser lo que promete: un techo. Lo cazo la prueba que lo vigila.
+	local cuantas = math.max(Config.RASTRO_MINIMO, math.ceil(disponible / Config.RASTRO_PASO) + 1)
+	-- El ultimo cae EXACTAMENTE en `hasta`, o sea a las puertas del destino: quien
+	-- sigue la fila tiene que acabar en la entrega, no quedarse a medio tramo.
+	local paso = disponible / (cuantas - 1)
+
+	for k = 0, cuantas - 1 do
 		table.insert(salida, {
-			pos = puntoA(camino, largos, d),
+			pos = puntoA(camino, largos, desde + k * paso),
 			valor = Config.CONTACTO_VALOR_RASTRO,
 			tipo = "rastro",
 		})
-		d += Config.RASTRO_PASO
 	end
 
 	return salida

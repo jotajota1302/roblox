@@ -26,6 +26,7 @@
 
 local Players = game:GetService("Players")
 
+local Config = require(game.ReplicatedStorage.Shared.Config)
 local MeshCatalog = require(game.ReplicatedStorage.Shared.MeshCatalog)
 
 local RESPAWN_SEGUNDOS = 4
@@ -121,6 +122,22 @@ local function vigilarMuerte(player: Player)
 		if not humanoid then
 			return
 		end
+
+		-- MAS AGIL, que es la otra mitad de "mas rapido" (Config.SALTO_ALTURA).
+		-- Con los 7,2 de serie un bordillo o el escalon de una losa te frenan, y en
+		-- un juego que consiste en desplazarse eso se siente como torpeza propia.
+		--
+		-- Se escribe AQUI y una sola vez, al nacer el personaje, y no en el bucle de
+		-- la calzada como la velocidad: la velocidad depende de lo que llevas encima
+		-- y cambia cada tercio de segundo; el salto no depende de nada.
+		--
+		-- `UseJumpPower` a false primero: un humanoide trae por defecto la medida
+		-- vieja (JumpPower) y escribir JumpHeight con ella activa no hace nada. Es
+		-- de los fallos que no avisan -- la propiedad acepta el numero, se queda
+		-- guardado, y el personaje sigue saltando lo de siempre.
+		humanoid.UseJumpPower = false
+		humanoid.JumpHeight = Config.SALTO_ALTURA
+
 		humanoid.Died:Connect(function()
 			-- Reaparecer lo hacemos NOSOTROS porque CharacterAutoLoads está
 			-- apagado: con él encendido, Roblox cargaría el avatar R15 de siempre

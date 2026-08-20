@@ -19,8 +19,16 @@ return function(kit)
 	kit.falsy("ni una comun cuando ya llevas tres", Cargo.cabe({ comun, comun, comun }, comun, Config.CAPACIDAD_A_PIE))
 
 	kit.eq("vacio vas a velocidad normal", Cargo.velocidad({}), Config.VELOCIDAD_BASE)
-	kit.near("una caja ya se nota", Cargo.velocidad({ comun }), 14.6)
-	kit.near("a tope vas claramente lento", Cargo.velocidad({ comun, comun, comun }), 11.8)
+	-- Derivadas de Config y no escritas a mano: el 20/08 la velocidad a pie subio de
+	-- 16 a 20 y estas dos lineas fueron lo unico que se rompio en 875 pruebas -- no
+	-- porque la carga estuviera mal, sino porque decian "14,6" en vez de decir "la
+	-- base menos lo que pesa una caja". Un numero copiado envejece solo.
+	kit.near("una caja ya se nota", Cargo.velocidad({ comun }), Config.VELOCIDAD_BASE - Config.PENALIZACION_POR_CAJA)
+	kit.near(
+		"a tope vas claramente lento",
+		Cargo.velocidad({ comun, comun, comun }),
+		Config.VELOCIDAD_BASE - 3 * Config.PENALIZACION_POR_CAJA
+	)
 
 	-- Innegociable: por muchas vueltas que dé el cálculo, nadie se queda clavado.
 	kit.truthy("la velocidad nunca baja de 8", Cargo.velocidad({ legendaria, legendaria, legendaria }) >= 8)

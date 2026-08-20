@@ -162,6 +162,53 @@ local function decaer(player: Player, estado: any, ahora: number): boolean
 	return true
 end
 
+-- LAS CHISPAS DEL IMPULSO: el golpe visible, en el mundo y para todos.
+--
+-- El tiron de camara (`Boost.luau`) solo lo ve quien coge el rayo, y eso esta bien
+-- para lo que es -- una sensacion. Pero la velocidad del otro es INFORMACION en
+-- este juego: ver a alguien salir disparado dice "ese acaba de coger la fila" y
+-- decide si te merece la pena perseguirle. Por eso esto va en el servidor, igual
+-- que la carga visible y la estela de racha.
+--
+-- El emisor se crea UNA vez por personaje y despues solo se le pide que dispare.
+-- Crear y destruir uno por recogida es la fuga lenta que este fichero ya vio en
+-- RoadService: 1.658 emisores colgando de un jugador tras diez minutos de partida,
+-- sin error y sin sintoma hasta que el movil va a tirones.
+--
+-- La textura es `rbxasset://` --de las que trae el propio cliente-- y no
+-- `rbxassetid://`: las segundas hay que publicarlas y no se ven hasta entonces.
+local function chispas(root: BasePart)
+	local ancla = root:FindFirstChild("AnclaImpulso") :: Attachment?
+	local emisor = ancla and ancla:FindFirstChild("Chispas") :: ParticleEmitter?
+	if emisor == nil then
+		local sitio = ancla or Instance.new("Attachment")
+		sitio.Name = "AnclaImpulso"
+		sitio.Position = Vector3.new(0, -1.6, 0)
+		sitio.Parent = root
+
+		emisor = Instance.new("ParticleEmitter")
+		local e = emisor :: ParticleEmitter
+		e.Name = "Chispas"
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Color = ColorSequence.new(Color3.fromRGB(255, 226, 140))
+		e.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1.5),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.1),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.Lifetime = NumberRange.new(0.25, 0.5)
+		e.Speed = NumberRange.new(9, 18)
+		e.SpreadAngle = Vector2.new(180, 180)
+		e.LightEmission = 1
+		e.Rate = 0 -- solo dispara cuando se le pide
+		e.Parent = sitio
+	end
+	(emisor :: ParticleEmitter):Emit(26)
+end
+
 local function raiz(player: Player): BasePart?
 	local character = player.Character
 	return character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -228,6 +275,16 @@ function ContactService.tick(ahora: number)
 			CargoService.aplicarVelocidad(player)
 			PlayerState.sync(player)
 			Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+
+			-- Y EL EMPUJON SE VE. Las dos mitades del mismo instante: las chispas en
+			-- el mundo (las ve todo el mundo) y el tiron de camara (lo sientes tu).
+			-- Un pcall alrededor porque son adorno: que falle el efecto no puede
+			-- costar la recogida, que es lo unico que cuenta de verdad aqui.
+			local ok, err = pcall(chispas, root)
+			if not ok then
+				quejarse("chispas", err)
+			end
+			Remotes.event(Remotes.IMPULSO):FireClient(player)
 		end
 	end)
 
