@@ -780,162 +780,98 @@ local function explanada(padre: Instance)
 	end
 end
 
--- Los detectores de una zona, repartidos por el camino hacia su destino.
+-- LA VIGILANCIA DE LA CIUDAD: una esquina fichada en cada cruce de la retícula.
 --
--- EN SITIOS FIJOS, con una semilla constante por ruta. Es la decisión de diseño
--- más importante de esta función: con posiciones aleatorias en cada partida no
--- habría nada que aprender, y esquivarlos sería suerte. Fijos, el jugador que
--- repite la ruta reconoce el cruce malo y lo rodea -- y esa es exactamente la
--- habilidad que el viaje tenía que pedir y no pedía.
-local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: Instance): { BasePart }
-	local origen = Config.ALMACEN_POS
+-- ANTES SE SEMBRABAN POR RUTA, repartidas sobre la recta de casa a cada destino, y
+-- eso dejaba el resto del mapa a oscuras. JJ lo dijo mirando el resultado: *"los
+-- ladrones deberían salir siempre, por todo el mapa; no está libre ninguna ruta"*.
+-- Tenía razón y era literal -- bastaba salirse del corredor para que la ciudad dejara
+-- de vigilarte, y lo más rápido era precisamente ignorar el camino marcado.
+--
+-- En los CRUCES, y no repartidas a ojo, porque es donde el jugador toma sus decisiones:
+-- seguir recto o girar. Vigilar un cruce es vigilar una elección; vigilar mitad de una
+-- recta es cobrar un peaje.
+--
+-- Y DE REGALO, LA DIFICULTAD SALE SOLA. Con el reparto viejo cada ruta llevaba su
+-- número a mano --la verde 2, la ámbar 9, la roja 18-- y había que mantenerlo cuadrado
+-- con su longitud. Ahora una ruta larga cruza más cruces que una corta, así que la
+-- roja se calienta más que la verde sin que nadie lo escriba en ningún sitio. Un número
+-- menos que pueda contradecir al mapa.
+--
+-- Siguen siendo SITIOS FIJOS, que es lo que importa: con posiciones aleatorias no
+-- habría nada que aprender y esquivarlas sería suerte. Fijas, el jugador reconoce el
+-- cruce malo y lo rodea, que es la habilidad que el viaje tenía que pedir.
+local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart }
 	local puestos: { BasePart } = {}
+	local n = 0
 
-	-- DÓNDE van los postes lo decide Detectors, que es puro y está probado. Aquí
-	-- sólo se bajan al suelo y se construyen.
-	--
-	-- La cuenta que vive allí es la que este fichero se saltó dos veces: si el
-	-- desvío respecto al camino es mayor que el radio de detección, la vigilancia
-	-- no vigila nada. Medido antes del cambio: la ruta roja entera, andada de punta
-	-- a punta, daba CALOR 0 con dieciocho detectores plantados.
-	for i, sitio in Detectors.sitios(origen, ruta.destino, ruta.detectores) do
-		local x, z = sitio.posicion.X, sitio.posicion.Z
+	for i = 0, Grid.COLUMNAS do
+		for j = 0, Grid.FILAS do
+			local cruce = Grid.cruce(i, j)
 
-		-- Suelo de CALLE, no lo primero que toque el rayo: la mitad de los postes
-		-- acababa en tejados, donde no se disparan nunca (ver sueloTransitable).
-		--
-		-- Pero al del CORREDOR se le busca calle en corto: si se le deja vagar cien
-		-- studs buscando asfalto acaba fuera del alcance del camino, que es
-		-- justamente lo que venía a garantizar. Antes que eso, se queda donde está.
-		-- DENTRO DEL MAPA, siempre. El reparto aparta cada esquina fichada
-		-- perpendicularmente al camino, y las de los tramos que van pegados al borde se
-		-- salían de la ciudad: dos acabaron en el margen de césped, donde no pasa nadie
-		-- y por tanto no fichan a nadie. No rompía nada -- la ruta simplemente tenía
-		-- menos vigilancia de la que su selector promete-- y ahora encima pintan su
-		-- zona en el suelo, así que se ven desde dentro.
-		do
-			local bx0, bx1, bz0, bz1 = Grid.limites()
-			local margen = Config.DETECTOR_RADIO / 2
-			x = math.clamp(x, bx0 + margen, bx1 - margen)
-			z = math.clamp(z, bz0 + margen, bz1 - margen)
-		end
-
-		local y, cx, cz = sueloTransitable(ciudad, x, z)
-		if y ~= nil and sitio.enElCorredor then
-			local desplazado = math.sqrt((cx - x) ^ 2 + (cz - z) ^ 2)
-			if desplazado > Config.DETECTOR_RADIO then
-				y = sueloDeLaCiudad(ciudad, x, z)
-				cx, cz = x, z
+			-- NI EN CASA NI ENCIMA DE UN DESTINO. Dentro de la zona segura no se
+			-- calienta nadie, así que una esquina fichada ahí no decide nada; y sobre un
+			-- destino sería fichar al jugador justo mientras cobra, que es el único
+			-- momento del viaje en que ya no puede hacer nada al respecto.
+			if (cruce - Config.ALMACEN_POS).Magnitude <= Config.ZONA_SEGURA_RADIO + 30 then
+				continue
 			end
+			local sobreDestino = false
+			for _, ruta in Config.RUTAS do
+				if (Vector2.new(cruce.X, cruce.Z) - Vector2.new(ruta.destino.X, ruta.destino.Z)).Magnitude < 60 then
+					sobreDestino = true
+				end
+			end
+			if sobreDestino then
+				continue
+			end
+
+			-- Suelo de CALLE, no lo primero que toque el rayo: la mitad de los postes
+			-- acababa en tejados, donde no se disparan nunca (ver sueloTransitable).
+			local y, cx, cz = sueloTransitable(ciudad, cruce.X, cruce.Z)
+			if y == nil then
+				continue
+			end
+			n += 1
+
+			-- EL FOCO, Y SÓLO EL FOCO. Aquí se pintaban DOS círculos por esquina: el área
+			-- entera (70 studs de diámetro, en un tono apenas más cálido que el asfalto) y
+			-- este foco encima. Con veintinueve esquinas eran cincuenta y ocho círculos
+			-- sobre la calzada, y JJ los miró sin saber qué eran: *"hay círculos en el
+			-- suelo que no sé qué son, si objetivos o decorativos"*, y *"que el suelo sea
+			-- consistente, todo del mismo color"*.
+			--
+			-- El área se va y se queda la marca. Se pierde saber dónde empieza el radio
+			-- exacto, y se gana un suelo que se lee: un círculo naranja es una cosa y
+			-- significa una, en vez de dos tonos de mancha que no se distinguen del
+			-- asfalto ni entre sí.
+			local foco = part(
+				string.format("Detector_%d", n),
+				Vector3.new(0.2, 22, 22),
+				Vector3.new(cx, (y :: number) + 0.08, cz),
+				Color3.fromRGB(240, 146, 70),
+				padre
+			)
+			foco.Shape = Enum.PartType.Cylinder
+			-- Un cilindro de Roblox nace tumbado sobre X: se gira para dejarlo como una
+			-- mancha en el suelo.
+			foco.CFrame = CFrame.new(foco.Position) * CFrame.Angles(0, 0, math.rad(90))
+			foco.Size = Vector3.new(0.2, 22, 22)
+			-- OPACO. Roblox no ordena bien las piezas semitransparentes que se solapan y
+			-- el orden cambia de un fotograma a otro: con varias planas sobre el mismo
+			-- suelo, eso es un centelleo constante. Ya se pagó una vez.
+			foco.Material = Enum.Material.SmoothPlastic
+			foco.Transparency = 0
+			foco.CanCollide = false
+			foco.CanQuery = false
+			foco.CanTouch = false
+			-- SIN RUTA: la vigilancia es de la ciudad, no de un corredor. Es lo que hace
+			-- que ninguna ruta esté libre.
+			foco:SetAttribute("zonaFichada", true)
+			foco:SetAttribute("opacidad", 0)
+			foco:SetAttribute("detectorId", foco.Name)
+			table.insert(puestos, foco)
 		end
-		x, z = cx, cz
-		if y == nil then
-			-- Ni siquiera hay suelo (un hueco entre parcelas): se cae a la línea del
-			-- trayecto, que sí lo tiene, en vez de plantar un poste en el vacío.
-			local centro = origen:Lerp(ruta.destino, (i - 0.5) / math.max(ruta.detectores, 1))
-			y = sueloDeLaCiudad(ciudad, centro.X, centro.Z) or centro.Y
-			x, z = centro.X, centro.Z
-		end
-
-		-- SIN POSTE. Aquí se plantaba una columna de 22 studs con una lente roja
-		-- encima y su luz: la "esquina fichada" era literalmente un palo.
-		--
-		-- Tenía sentido cuando el peligro no se veía de ninguna otra forma. Desde que
-		-- la zona va PINTADA EN EL SUELO --el área y su foco-- el palo no añade nada y
-		-- sí resta: son treinta y un postes verticales en un mapa del que JJ pidió
-		-- quitar todo lo vertical, y los vio enseguida.
-		--
-		-- El detector no desaparece: es una POSICIÓN con un radio, no una pieza. El
-		-- `detectorId` que HeatService necesita para no dispararse dos veces por el
-		-- mismo sitio se muda a la marca del suelo, y el minimapa la encuentra igual.
-
-		-- Y SU ZONA, PINTADA EN EL SUELO. Ésta es la diferencia entre transitar y
-		-- decidir.
-		--
-		-- Hasta ahora el radio de una esquina fichada existía sólo en Config: te
-		-- fichaban al entrar en él y no había forma de saber dónde empezaba. Un
-		-- peligro que no se puede anticipar no es tensión, es un impuesto -- y JJ lo
-		-- dijo dos veces, "los enemigos aparecen de repente" y "no pasa nada por el
-		-- camino". Las dos frases son la misma: si no puedes ver el peligro, no hay
-		-- nada que decidir mientras andas.
-		--
-		-- Con la mancha en la calzada, cruzar pasa a ser una elección con tres
-		-- respuestas -- paso deprisa, rodeo por la calle de al lado, o me meto por el
-		-- callejón-- y las tres las toma el jugador mirando, sin leer nada.
-		--
-		-- Va PLANA y en el suelo, no en el aire: JJ pidió quitar todo lo vertical y
-		-- esto no lo reabre. Y seis centésimas por encima de la calzada, porque dos
-		-- superficies en el mismo plano parpadean.
-		local zona = part(
-			string.format("ZonaFichada_%s_%d", ruta.id, i),
-			Vector3.new(Config.DETECTOR_RADIO * 2, 0.2, Config.DETECTOR_RADIO * 2),
-			Vector3.new(x, (y :: number) + 0.06, z),
-			Color3.fromRGB(235, 120, 70),
-			padre
-		)
-		zona.Shape = Enum.PartType.Cylinder
-		-- Un cilindro de Roblox nace tumbado sobre X: se gira para dejarlo como una
-		-- mancha en el suelo.
-		zona.CFrame = CFrame.new(zona.Position) * CFrame.Angles(0, 0, math.rad(90))
-		zona.Size = Vector3.new(0.2, Config.DETECTOR_RADIO * 2, Config.DETECTOR_RADIO * 2)
-		-- NI NEON NI SATURADO. La primera versión usaba Neon a 0,82 y el resultado,
-		-- visto en pantalla, era media calle naranja: el Neon no se apaga con la
-		-- transparencia --sigue emitiendo-- y con treinta y una zonas de 35 studs de
-		-- radio, muchas solapadas, la calzada desaparecía debajo. Una señal que tapa
-		-- el sitio que señala no informa de nada.
-		--
-		-- Ahora es un TINTE: se nota el borde del área al cruzarlo y se sigue viendo el
-		-- asfalto. El foco de verdad va en el núcleo de aquí abajo.
-		-- OPACA. Y ésta es la causa de verdad del parpadeo que JJ seguía viendo después
-		-- de arreglar las coplanares: Roblox no ordena bien las piezas SEMITRANSPARENTES
-		-- que se solapan, y el orden en que las dibuja cambia de un fotograma a otro.
-		-- Con treinta y una zonas, treinta y un focos y once líneas, todas planas y
-		-- superpuestas sobre el mismo suelo, eso es un centelleo constante -- y no se
-		-- arregla separándolas en altura, porque no es un empate de profundidad.
-		--
-		-- Pintura opaca de un tono apagado: se lee como una marca en el asfalto, no
-		-- tapa menos que un velo al 0,9, y no entra en la cola de transparencias.
-		zona.Material = Enum.Material.SmoothPlastic
-		-- CASI DEL COLOR DEL ASFALTO. Al pasar de velo a pintura opaca, el naranja
-		-- pasó de tapar poco a tapar del todo: con 31 zonas de 35 studs de radio,
-		-- muchas solapadas, media calle era naranja y el asfalto desaparecía otra vez.
-		-- Un tono apenas más cálido que la calzada marca el borde del área al cruzarlo
-		-- sin robarle la ciudad al jugador. Lo llamativo es el foco del centro.
-		zona.Color = Color3.fromRGB(78, 66, 62)
-		zona.Transparency = 0
-		zona.CanCollide = false
-		zona.CanQuery = false
-		zona.CanTouch = false
-		zona:SetAttribute("ruta", ruta.id)
-		zona:SetAttribute("zonaFichada", true)
-		zona:SetAttribute("opacidad", 0)
-
-		-- El foco: dónde está exactamente la esquina fichada. Pequeño y claro, para
-		-- que el ojo lo encuentre sin que compita con el resto del mapa.
-		local foco = part(
-			string.format("FocoFichada_%s_%d", ruta.id, i),
-			Vector3.new(0.2, 17, 17),
-			Vector3.new(x, (y :: number) + 0.08, z),
-			Color3.fromRGB(255, 150, 90),
-			padre
-		)
-		foco.Shape = Enum.PartType.Cylinder
-		foco.CFrame = CFrame.new(foco.Position) * CFrame.Angles(0, 0, math.rad(90))
-		foco.Material = Enum.Material.SmoothPlastic
-		foco.Color = Color3.fromRGB(240, 146, 70)
-		foco.Transparency = 0
-		foco.CanCollide = false
-		foco.CanQuery = false
-		foco.CanTouch = false
-		foco:SetAttribute("ruta", ruta.id)
-		foco:SetAttribute("zonaFichada", true)
-		-- La marca ES el detector ahora. El nombre se conserva --Detector_ruta_i--
-		-- porque HeatService lo usa de clave y SelfCheck lo busca por él.
-		foco.Name = string.format("Detector_%s_%d", ruta.id, i)
-		foco:SetAttribute("detectorId", foco.Name)
-		foco:SetAttribute("opacidad", 0)
-
-		table.insert(puestos, foco)
 	end
 
 	return puestos
@@ -2391,9 +2327,13 @@ function CityBuilder.build(): Mundo
 		texto.Parent = cartel
 
 		table.insert(destinos, destino)
-		for _, poste in sembrarDetectores(ciudad, ruta, mundo) do
-			table.insert(detectores, poste)
-		end
+	end
+
+	-- LA VIGILANCIA, UNA VEZ Y PARA TODA LA CIUDAD. Iba dentro del bucle de rutas
+	-- --cada una sembraba las suyas sobre su recta-- y eso dejaba el resto del mapa a
+	-- oscuras: bastaba salirse del corredor para que nadie te fichara.
+	for _, poste in sembrarVigilancia(ciudad, mundo) do
+		table.insert(detectores, poste)
 	end
 
 	-- Los refugios, uno por cada sitio que propone Shelter para cada ruta. Se

@@ -175,56 +175,82 @@ local function vigilancia()
 		return
 	end
 
+	local postes: { BasePart } = {}
+	for _, x in m:GetChildren() do
+		if x:IsA("BasePart") and string.match(x.Name, "^Detector_") then
+			table.insert(postes, x)
+		end
+	end
+
+	-- LA VIGILANCIA ES DE LA CIUDAD, NO DE CADA RUTA. Hasta el 20/08 se sembraba sobre
+	-- la recta de cada corredor y esta sonda contaba los de cada uno, y con ella se nos
+	-- escapaba lo importante: fuera de los corredores el mapa estaba a oscuras, asi que
+	-- lo mas rapido era ignorar el camino marcado. Ahora va una en cada cruce de la
+	-- reticula y lo que hay que comprobar cambia -- no "cuantas tiene la roja" sino que
+	-- NINGUNA RUTA SE PUEDA HACER LIMPIA.
+	comprobar(
+		"hay vigilancia plantada",
+		#postes >= 1,
+		"ninguna esquina fichada -- se puede cruzar la ciudad sin que nadie te vea"
+	)
+	if #postes == 0 then
+		return
+	end
+
+	-- CON LOS PIES EN EL SUELO. Una esquina sobre un tejado no se dispara jamas: por
+	-- debajo pasa la calle, a ochenta studs de su radio. La base se saca del CFrame y no
+	-- de Size.Y, porque es un CILINDRO TUMBADO -- su Size.Y es el DIAMETRO, no la
+	-- altura, y medirlo por Y daba "31 en el aire" con el mundo perfecto. Un falso rojo
+	-- es la peor averia que puede tener una sonda: ensena a ignorarla.
+	local enElAire = 0
+	for _, poste in postes do
+		local mitad = poste.CFrame:VectorToWorldSpace(poste.Size / 2)
+		local base = poste.Position.Y - math.abs(mitad.Y)
+		if bajoLosPies(poste.Position.X, base + 0.5, poste.Position.Z, 10) == nil then
+			enElAire += 1
+		end
+	end
+	comprobar("la vigilancia toca el suelo", enElAire == 0, string.format("%d en el aire", enElAire))
+
+	-- Y NINGUNA RUTA SE HACE LIMPIA. Es la comprobacion que sustituye a las de antes, y
+	-- dice lo que de verdad importa: recorriendo el camino de cualquier ruta te tienen
+	-- que fichar al menos una vez. Si una ruta da CERO, su selector promete un peligro
+	-- que no existe -- y eso ya paso, con la roja entera dando calor 0.
 	for _, ruta in Routes.todas() do
-		local postes: { BasePart } = {}
-		for _, x in m:GetChildren() do
-			if x:IsA("BasePart") and x:GetAttribute("ruta") == ruta.id and string.match(x.Name, "^Detector_") then
-				table.insert(postes, x)
-			end
-		end
-		comprobar(
-			string.format("la %s tiene sus %d detectores", ruta.id, ruta.detectores),
-			#postes == ruta.detectores,
-			string.format("hay %d", #postes)
-		)
-
-		-- CON LOS PIES EN EL SUELO. Un poste sobre un tejado no se dispara jamás:
-		-- por debajo pasa la calle, a ochenta studs de su radio de treinta y cinco.
-		-- La base se saca del CFrame, no de Size.Y. Desde que la esquina fichada dejó
-		-- de ser un poste y pasó a ser una marca pintada en el suelo, es un CILINDRO
-		-- TUMBADO: su Size.Y es el DIÁMETRO (17 studs), no su altura, así que la
-		-- cuenta de antes situaba su base ocho studs bajo tierra y daba "en el aire"
-		-- para las treinta y una. Un falso rojo por un mundo correcto, que es la peor
-		-- avería que puede tener una sonda: enseña a ignorarla.
-		local enElAire = 0
-		for _, poste in postes do
-			-- El punto más bajo de la pieza, sea cual sea su orientación.
-			local mitad = poste.CFrame:VectorToWorldSpace(poste.Size / 2)
-			local alto = math.abs(mitad.Y)
-			local base = poste.Position.Y - alto
-			if bajoLosPies(poste.Position.X, base + 0.5, poste.Position.Z, 10) == nil then
-				enElAire += 1
-			end
-		end
-		comprobar(
-			string.format("los detectores de la %s tocan suelo", ruta.id),
-			enElAire == 0,
-			string.format("%d en el aire", enElAire)
-		)
-
-		-- Y ALCANZAN EL CAMINO. Es la cuenta que este proyecto se saltó dos veces:
-		-- si el desvío respecto al trayecto es mayor que el radio, la vigilancia no
-		-- vigila nada aunque los postes existan y se vean perfectamente.
-		local alcanzan = 0
+		local puntos = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
+		local fichan = 0
 		for _, poste in postes do
 			if alTrayecto(poste.Position, ruta.destino) <= Config.DETECTOR_RADIO then
-				alcanzan += 1
+				fichan += 1
 			end
 		end
+		local _ = puntos
 		comprobar(
-			string.format("la %s tiene vigilancia sobre el camino", ruta.id),
-			alcanzan >= 1,
-			string.format("ninguno de los %d postes llega al trayecto", #postes)
+			string.format("la %s pasa por vigilancia", ruta.id),
+			fichan >= 1,
+			string.format("ninguna de las %d esquinas llega a su camino: se hace limpia", #postes)
+		)
+	end
+
+	-- Y QUE LA LARGA ESTE MAS VIGILADA QUE LA CORTA. Con el reparto por cruces esto sale
+	-- solo --una ruta larga cruza mas cruces-- y por eso mismo hay que comprobarlo: lo
+	-- que sale solo es lo que nadie mantiene, y el dia que alguien mueva un destino la
+	-- progresion de dificultad puede darse la vuelta sin que nada avise.
+	local function cuantasFichan(ruta: any): number
+		local n = 0
+		for _, poste in postes do
+			if alTrayecto(poste.Position, ruta.destino) <= Config.DETECTOR_RADIO then
+				n += 1
+			end
+		end
+		return n
+	end
+	local verde, roja = Routes.get("verde"), Routes.get("roja")
+	if verde ~= nil and roja ~= nil then
+		comprobar(
+			"la roja esta mas vigilada que la verde",
+			cuantasFichan(roja) > cuantasFichan(verde),
+			string.format("verde %d, roja %d", cuantasFichan(verde), cuantasFichan(roja))
 		)
 	end
 end
