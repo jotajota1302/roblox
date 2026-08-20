@@ -895,6 +895,70 @@ end
 --
 -- Se mide lo unico que importa: que desde el pie de la guarida se pueda ANDAR hasta
 -- el destino de la ruta. Un ladron sin camino no es un ladron.
+-- QUE HAYA DONDE METERSE EN TODO EL CAMINO, no solo al principio.
+--
+-- El criterio no es un numero elegido a ojo: un refugio no puede estar MAS LEJOS que
+-- el alcance de la guarida que te suelta al ladron (`GUARIDA_ALCANCE`). Si lo esta,
+-- hay tramos donde te pueden perseguir y no tienes a donde correr, y eso no es
+-- dificultad: es una ruta a la que le falta la mitad de sus reglas.
+--
+-- Nace de medirlo el 20/08: la ROJA tenia el 45 % de su recorrido a mas de 200 studs
+-- del unico refugio del mapa, con un punto a 345 -- y es la ruta con mas ladrones,
+-- mas detectores y la unica que paga x10. La causa era geometrica y callada: mide el
+-- doble que la ambar y comparte con ella el primer tramo, asi que sus candidatos
+-- chocaban y el que sobrevivia era siempre el del principio.
+local function cobertura()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local refugios: { Vector3 } = {}
+	for _, x in m:GetChildren() do
+		if x:IsA("BasePart") and x:GetAttribute("refugio") == true then
+			table.insert(refugios, x.Position)
+		end
+	end
+	if #refugios == 0 then
+		return
+	end
+
+	local tope = Config.GUARIDA_ALCANCE
+	local descubiertas = {}
+	for _, ruta in Routes.todas() do
+		-- Las rutas que renuncian al peligro no piden cobertura: sin ladrones no hay
+		-- de que refugiarse, y exigirles un refugio seria plantar mobiliario.
+		if (ruta.refugios or Config.REFUGIOS_POR_RUTA) <= 0 then
+			continue
+		end
+		local puntos = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
+		local peor = 0
+		for i = 2, #puntos do
+			local a, b = puntos[i - 1], puntos[i]
+			if (b - a).Magnitude > 1 then
+				for t = 0, 1, 0.05 do
+					local q = a:Lerp(b, t)
+					local masCerca = math.huge
+					for _, r in refugios do
+						local dx, dz = r.X - q.X, r.Z - q.Z
+						masCerca = math.min(masCerca, math.sqrt(dx * dx + dz * dz))
+					end
+					peor = math.max(peor, masCerca)
+				end
+			end
+		end
+		if peor > tope then
+			table.insert(descubiertas, string.format("%s (%d studs)", ruta.id, math.floor(peor)))
+		end
+	end
+
+	comprobar(
+		"en todo el camino hay un refugio mas cerca que el alcance de una guarida",
+		#descubiertas == 0,
+		string.format("%s -- ahi te persiguen y no tienes donde meterte", table.concat(descubiertas, ", "))
+	)
+end
+
 local function guaridasConSalida()
 	local m = mundo()
 	if m == nil then
@@ -1556,6 +1620,7 @@ function SelfCheck.run(): string
 		{ nombre = "contactos", fn = contactos },
 		{ nombre = "dianas", fn = dianas },
 		{ nombre = "salida de las guaridas", fn = guaridasConSalida },
+		{ nombre = "cobertura de refugios", fn = cobertura },
 		{ nombre = "rampa de entrada", fn = rampaDeEntrada },
 		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },

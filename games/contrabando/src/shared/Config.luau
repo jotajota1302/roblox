@@ -475,6 +475,20 @@ Config.RUTAS = {
 		id = "roja",
 		multiplicador = 10,
 		nivel = 8,
+		-- DOS REFUGIOS, y es el unico sitio del juego donde hace falta mas de uno.
+		--
+		-- Medido el 20/08 recorriendo el camino de cada ruta y buscando el refugio mas
+		-- cercano: la roja tenia el 45 % de su recorrido a mas de 200 studs del unico
+		-- que hay, con un punto a 345. Y es la ruta con mas ladrones, mas detectores y
+		-- la unica que paga x10 -- justo la que no puede quedarse sin sitio donde
+		-- meterse.
+		--
+		-- La causa es geometrica: mide 730 studs, el doble que la ambar, y comparte con
+		-- ella el primer tramo, asi que sus candidatos chocaban --`sitioLlano` rechaza
+		-- lo que cae encima de algo ya puesto-- y el que sobrevivia era siempre el del
+		-- principio. Con dos, el reparto los separa a lo largo del camino y el tramo
+		-- final deja de estar desnudo.
+		refugios = 2,
 		-- Y ADEMÁS PIDE VEHÍCULO DE MOTOR. Es la única ruta con dos requisitos, y
 		-- es a propósito: el ×10 es la palanca más fuerte del juego y tenía que
 		-- estar DETRÁS del sumidero en vez de compitiendo con él. Con esto, el

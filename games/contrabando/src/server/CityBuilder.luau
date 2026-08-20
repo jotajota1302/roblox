@@ -2464,12 +2464,27 @@ function CityBuilder.build(): Mundo
 	-- gracioso, es el sitio al que corres siendo el sitio del que huyes.
 	local refugios: { Vector3 } = {}
 	local tomados: { Vector3 } = table.clone(guaridas)
+	-- Y SI SE PIERDE UNO, QUE SE OIGA. `refugio()` devuelve nil cuando no encuentra
+	-- sitio llano libre, y hasta hoy eso pasaba callado: el mapa pedia dos refugios,
+	-- plantaba uno --el segundo caia encima del primero, porque la ambar y la roja
+	-- comparten su primer tramo-- y nadie se enteraba. La sonda cuenta que haya al
+	-- menos uno, no que esten todos los que se pidieron.
+	local pedidos = #Shelter.repartir(grupos)
 	for _, sitio in Shelter.repartir(grupos) do
 		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo, tomados)
 		if pieza then
 			table.insert(refugios, pieza.Position)
 			table.insert(tomados, pieza.Position)
 		end
+	end
+	if #refugios < pedidos then
+		warn(
+			string.format(
+				"[Contrabando] se pidieron %d refugios y solo caben %d: alguna ruta se queda sin sitio donde bajar el calor",
+				pedidos,
+				#refugios
+			)
+		)
 	end
 
 	-- LOS CONTACTOS, EL ÚLTIMO DE TODO, y el orden es la regla entera.
