@@ -915,19 +915,55 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 			cabeza.Material = Enum.Material.Metal
 			cabeza.Parent = padre
 
-			-- El OJO, del mismo naranja que su cono: es lo que ata la cámara a la mancha
-			-- del suelo. Sin él son dos cosas distintas en el mismo sitio.
-			local ojo = Instance.new("Part")
-			ojo.Name = "CamaraOjo"
-			ojo.Size = Vector3.new(1.2, 1.2, 0.4)
-			ojo.CFrame = mirando * CFrame.new(0, 8.6, -2.9)
-			ojo.Anchored = true
-			ojo.CanCollide = false
-			ojo.CanQuery = false
-			ojo.CanTouch = false
-			ojo.Color = Color3.fromRGB(240, 146, 70)
-			ojo.Material = Enum.Material.Neon
-			ojo.Parent = padre
+			-- LA LENTE, redonda y pequena. La primera version era una placa cuadrada de
+			-- 1,2 studs en neon naranja, y en neon el naranja satura a amarillo: JJ
+			-- mando la captura preguntando *"eso que es?"*, y lo que se veia era una
+			-- pantalla amarilla colgada de un poste -- un cartel, no un ojo.
+			--
+			-- Una esfera pequena y oscura con un punto rojo dentro se lee como lente sin
+			-- que nadie lo explique, y sobre todo NO COMPITE con el cono: el cono es la
+			-- informacion (hasta donde te ve) y la camara solo dice de quien es.
+			local lente = Instance.new("Part")
+			lente.Name = "CamaraOjo"
+			lente.Shape = Enum.PartType.Ball
+			lente.Size = Vector3.new(1.5, 1.5, 1.5)
+			lente.CFrame = mirando * CFrame.new(0, 8.6, -2.4)
+			lente.Anchored = true
+			lente.CanCollide = false
+			lente.CanQuery = false
+			lente.CanTouch = false
+			lente.Color = Color3.fromRGB(24, 24, 28)
+			lente.Material = Enum.Material.Glass
+			lente.Reflectance = 0.3
+			lente.Parent = padre
+
+			-- El piloto: minusculo y rojo, que es como se sabe que una camara esta
+			-- encendida sin que nadie te lo diga.
+			local piloto = Instance.new("Part")
+			piloto.Name = "CamaraPiloto"
+			piloto.Size = Vector3.new(0.35, 0.35, 0.35)
+			piloto.CFrame = mirando * CFrame.new(0.75, 9.5, -0.4)
+			piloto.Anchored = true
+			piloto.CanCollide = false
+			piloto.CanQuery = false
+			piloto.CanTouch = false
+			piloto.Color = Color3.fromRGB(255, 70, 60)
+			piloto.Material = Enum.Material.Neon
+			piloto.Parent = padre
+
+			-- Y LA VISERA sobre la lente, que es lo que remata la silueta: sin ella el
+			-- cabezal es una caja, y con ella se reconoce de lejos y de espaldas.
+			local visera = Instance.new("Part")
+			visera.Name = "CamaraVisera"
+			visera.Size = Vector3.new(2.6, 0.3, 1.6)
+			visera.CFrame = mirando * CFrame.new(0, 9.5, -2.2)
+			visera.Anchored = true
+			visera.CanCollide = false
+			visera.CanQuery = false
+			visera.CanTouch = false
+			visera.Color = Color3.fromRGB(40, 42, 48)
+			visera.Material = Enum.Material.Metal
+			visera.Parent = padre
 
 			foco:SetAttribute("rumbo", rumbo)
 			-- SIN `zonaFichada` en la base ni en el mastil: ese atributo lo lee el
@@ -947,13 +983,14 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 					base,
 					Config.DETECTOR_VISION_ANGULO,
 					Config.DETECTOR_RADIO,
-					Color3.fromRGB(240, 146, 70),
-					0.82
+					Color3.fromRGB(214, 126, 58),
+					-- OPACO: ver la cabecera de Cone.
+					0
 				)
 			do
 				pieza.Name = "ConoDetector"
 				pieza:SetAttribute("zonaFichada", true)
-				pieza:SetAttribute("opacidad", 0.82)
+				pieza:SetAttribute("opacidad", 0)
 				pieza.Parent = padre
 			end
 

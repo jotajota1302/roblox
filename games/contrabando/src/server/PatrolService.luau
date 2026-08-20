@@ -236,8 +236,10 @@ local function vestir(modelo: Model)
 				CFrame.new(0, 0, 0),
 				Config.LADRON_VISION_ANGULO,
 				Config.LADRON_VISION_ALCANCE,
-				Color3.fromRGB(255, 132, 58),
-				0.8
+				Color3.fromRGB(226, 116, 46),
+				-- OPACO: ver la cabecera de Cone. Translucido, el solape de las tajadas suma
+				-- brillo y dibuja una raya en cada junta -- o sea, el abanico de palos otra vez.
+				0
 			)
 		do
 			pieza.Parent = modelo
