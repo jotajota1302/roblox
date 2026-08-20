@@ -353,6 +353,46 @@ end
 -- ángulos y se coge el primero que tenga suelo: soltar un agente sobre un hueco lo
 -- deja cayendo al vacío, y una patrulla que se suicida al aparecer no persigue a
 -- nadie -- y encima el jugador no se entera de nada.
+-- Por encima de esto ya no es calle, es tejado. La calzada esta a 19,2 y las losas
+-- del juego a 22; treinta deja margen para aceras y zocalos sin llegar a confundir una
+-- azotea con un sitio donde se puede estar.
+local COTA_PISABLE = 30
+
+-- EL SUELO PISABLE BAJO UN PUNTO, saltandose lo que estorbe por arriba.
+--
+-- ESTO EXISTE POR EL PEOR FALLO MEDIDO EN ESTE PROYECTO, y es de los que no dan
+-- ningun error. Un rayo desde el cielo devuelve LO PRIMERO que toca, y sobre una
+-- guarida lo primero es su nave: 26x18x26 macizos encima de la losa. Los ladrones
+-- nacian a Y=44, sobre el tejado, sin camino para bajar.
+--
+-- Medido el 20/08 quedandome QUIETO cuarenta segundos en mitad de la ruta roja con
+-- siete cajas y el calor al maximo: los tres perseguidores se quedaron clavados entre
+-- 122 y 132 studs y en cuarenta segundos avanzaron DIEZ. `ComputeAsync` desde ellos
+-- hasta mi devolvia `NoPath`. O sea que el calor, las guaridas, los ladrones, los
+-- refugios y la ruta roja pagando x10 estaban ahi, se veian en el mapa, costaban
+-- CPU... y no hacian absolutamente nada. El juego no tenia riesgo.
+--
+-- Es la trampa que este repo ya tiene escrita para los arboles --"un rayo desde el
+-- cielo se para en la copa"-- y la misma que puso quince detectores en las azoteas.
+-- Se paga una vez por cada sistema que planta algo en el mundo.
+local function sueloPisable(x: number, z: number, desdeY: number, params: RaycastParams): Vector3?
+	local altura = desdeY
+	-- Seis rebotes: sobre una guarida hay losa, nave y tejado en la misma vertical, y
+	-- con margen por si alguna vez se apila algo mas.
+	for _ = 1, 6 do
+		local golpe = workspace:Raycast(Vector3.new(x, altura, z), Vector3.new(0, -500, 0), params)
+		if golpe == nil then
+			return nil
+		end
+		if golpe.Position.Y <= COTA_PISABLE then
+			return golpe.Position
+		end
+		-- Lo que ha tocado es un tejado: se sigue bajando desde justo debajo.
+		altura = golpe.Position.Y - 1
+	end
+	return nil
+end
+
 local function puntoDeAparicion(centro: Vector3, rng: Random, haciaDonde: Vector3?): Vector3?
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -369,9 +409,22 @@ local function puntoDeAparicion(centro: Vector3, rng: Random, haciaDonde: Vector
 	-- sin guarida que ningún ladrón.
 	local cerca, distancia = Lairs.masCercana(centro, guaridas)
 	if cerca ~= nil and Lairs.sirve(distancia, APARICION_MIN) then
-		local golpe = workspace:Raycast(Vector3.new(cerca.X, cerca.Y + 60, cerca.Z), Vector3.new(0, -200, 0), params)
-		if golpe then
-			return golpe.Position + Vector3.new(0, 4, 0)
+		-- AL PIE DE LA GUARIDA, NO EN SU CENTRO. En el centro esta la nave, y salir de
+		-- dentro de un edificio cerrado es no salir. Se prueba primero el centro --por
+		-- si algun dia una guarida no lleva nave-- y luego un anillo por su borde, que
+		-- es donde esta el porton. El radio sale de la losa (34 de lado) menos lo que
+		-- ocupa la nave (26): el pasillo de en medio.
+		for _, radio in { 0, 15, 20 } do
+			local vueltas = if radio == 0 then 1 else 8
+			for k = 0, vueltas - 1 do
+				local a = (k / vueltas) * math.pi * 2
+				local x = cerca.X + math.cos(a) * radio
+				local z = cerca.Z + math.sin(a) * radio
+				local suelo = sueloPisable(x, z, cerca.Y + 60, params)
+				if suelo ~= nil then
+					return suelo + Vector3.new(0, 4, 0)
+				end
+			end
 		end
 	end
 
@@ -404,9 +457,9 @@ local function puntoDeAparicion(centro: Vector3, rng: Random, haciaDonde: Vector
 		local radio = rng:NextNumber(APARICION_MIN, APARICION_MAX)
 		local x = centro.X + math.cos(angulo) * radio
 		local z = centro.Z + math.sin(angulo) * radio
-		local golpe = workspace:Raycast(Vector3.new(x, centro.Y + 200, z), Vector3.new(0, -500, 0), params)
-		if golpe then
-			return golpe.Position + Vector3.new(0, 4, 0)
+		local suelo = sueloPisable(x, z, centro.Y + 200, params)
+		if suelo ~= nil then
+			return suelo + Vector3.new(0, 4, 0)
 		end
 	end
 	return nil

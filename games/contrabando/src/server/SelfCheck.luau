@@ -882,6 +882,95 @@ end
 -- Es la firma de siempre en este proyecto: nada revienta, la pieza existe, se ve
 -- perfectamente en el arbol de Studio, y no la ve nadie desde el juego. Por eso se
 -- mide el TOPE de las dos piezas y no que la diana exista.
+-- QUE DESDE CADA GUARIDA SE PUEDA LLEGAR AL JUGADOR.
+--
+-- Nace del fallo mas caro medido en este proyecto, el 20/08: los ladrones aparecian
+-- sobre el TEJADO de la nave de su guarida --un rayo desde el cielo devuelve lo
+-- primero que toca, y ahi lo primero son 18 studs de nave-- y se quedaban clavados
+-- sin camino para bajar. Quieto cuarenta segundos en mitad de la ruta roja con la
+-- carga encima y el calor al maximo, los tres perseguidores avanzaron DIEZ studs.
+--
+-- El calor, las guaridas, los refugios y la roja pagando x10 existian, se veian en el
+-- mapa, costaban CPU y no hacian nada. El juego no tenia riesgo y nada lo decia.
+--
+-- Se mide lo unico que importa: que desde el pie de la guarida se pueda ANDAR hasta
+-- el destino de la ruta. Un ladron sin camino no es un ladron.
+local function guaridasConSalida()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local sitios: { BasePart } = {}
+	for _, x in m:GetChildren() do
+		if x:IsA("BasePart") and x:GetAttribute("guarida") == true then
+			table.insert(sitios, x)
+		end
+	end
+	if #sitios == 0 then
+		return
+	end
+
+	local encerradas, enElAire = 0, 0
+	for _, g in sitios do
+		-- El suelo pisable a su alrededor, saltandose la nave que tiene encima. Es la
+		-- misma cuenta que hace PatrolService al plantar al ladron.
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { workspace:FindFirstChild("Patrullas") }
+		local salida: Vector3? = nil
+		for _, radio in { 15, 20, 0 } do
+			local vueltas = if radio == 0 then 1 else 8
+			for k = 0, vueltas - 1 do
+				local a = (k / vueltas) * math.pi * 2
+				local x = g.Position.X + math.cos(a) * radio
+				local z = g.Position.Z + math.sin(a) * radio
+				local altura = g.Position.Y + 60
+				for _ = 1, 6 do
+					local golpe = workspace:Raycast(Vector3.new(x, altura, z), Vector3.new(0, -500, 0), params)
+					if golpe == nil then
+						break
+					end
+					if golpe.Position.Y <= 30 then
+						salida = golpe.Position
+						break
+					end
+					altura = golpe.Position.Y - 1
+				end
+				if salida ~= nil then
+					break
+				end
+			end
+			if salida ~= nil then
+				break
+			end
+		end
+
+		if salida == nil then
+			enElAire += 1
+		else
+			local camino = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
+			local ok = pcall(function()
+				camino:ComputeAsync(salida :: Vector3, Config.POLIGONO_SALIDA)
+			end)
+			if not ok or camino.Status ~= Enum.PathStatus.Success then
+				encerradas += 1
+			end
+		end
+	end
+
+	comprobar(
+		"todas las guaridas tienen suelo donde soltar a su ladron",
+		enElAire == 0,
+		string.format("%d sin sitio pisable alrededor -- el ladron nace en un tejado", enElAire)
+	)
+	comprobar(
+		"y desde todas se puede andar hasta la ciudad",
+		encerradas == 0,
+		string.format("%d encerradas: sus ladrones no pueden llegar a nadie", encerradas)
+	)
+end
+
 local function dianas()
 	local m = mundo()
 	if m == nil then
@@ -1464,6 +1553,7 @@ function SelfCheck.run(): string
 		{ nombre = "guaridas", fn = guaridas },
 		{ nombre = "contactos", fn = contactos },
 		{ nombre = "dianas", fn = dianas },
+		{ nombre = "salida de las guaridas", fn = guaridasConSalida },
 		{ nombre = "rampa de entrada", fn = rampaDeEntrada },
 		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },
