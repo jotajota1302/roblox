@@ -245,18 +245,24 @@ end
 -- carga. Un peligro que no se puede anticipar no es tensión, es un impuesto.
 local peligrosPintados = false
 
--- CADA PELIGRO CON SU RUTA, para poder ensenar solo los tuyos.
+-- CADA PELIGRO CON SU RUTA Y SU PAPEL, para poder darles pesos distintos.
 --
--- Se pintan todos una vez --construirlos cuesta y no se mueven-- pero se ENSENAN
--- segun el viaje que lleves. Sin este filtro el plano mostraba los 29 detectores de
--- las tres rutas a la vez, y eso es lo que JJ describio mirandolo: *"en el minimapa
--- estan saliendo muchas cosas que no se lo que son"*. Tenia razon: veintinueve
--- manchas naranjas sobre un mapa de 610 studs no dicen por donde no pasar, dicen que
--- la ciudad es naranja.
+-- El plano ensenaba los 29 detectores de las tres rutas con su disco de radio 35
+-- entero, y eso es lo que JJ describio mirandolo: *"en el minimapa estan saliendo
+-- muchas cosas que no se lo que son"*. Tenia razon -- veintinueve discos de 35 studs
+-- sobre un mapa de 610 no dicen por donde no pasar, dicen que la ciudad es naranja.
 --
--- Es la misma regla que gobierna el mundo en 3D (`Senales`): se ensena lo que te
--- sirve AHORA. Un plano es el mapa de TU viaje, no un atlas de la ciudad.
-local peligros: { { marco: Frame, ruta: string? } } = {}
+-- LA PRIMERA VERSION DE ESTE ARREGLO ESCONDIA LOS DE LAS OTRAS RUTAS, y estaba mal.
+-- Se vio yendo a mirar el servidor en vez de suponerlo: `HeatService` recorre TODOS
+-- los detectores sin filtrar por ruta, asi que una esquina ambar te ficha igual
+-- aunque vayas a la verde. Ocultarla habria hecho un plano legible y MENTIROSO, que
+-- es peor que uno recargado: el jugador confia en el, cruza por donde el mapa dice
+-- que no hay nada, y le sube el calor sin explicacion.
+--
+-- Asi que se ensenan todos y lo que cambia es el PESO: de tu ruta, el disco entero
+-- --por donde no pasar-- y de las demas solo el nucleo, un punto de 7 studs que dice
+-- "aqui hay ojos" sin tapar el plano. La informacion esta toda; la que estorba, no.
+local peligros: { { marco: Frame, ruta: string?, disco: boolean } } = {}
 
 local function pintarPeligros(capa: Frame)
 	local mundo = workspace:FindFirstChild("Mundo")
@@ -315,8 +321,9 @@ local function pintarPeligros(capa: Frame)
 			local nucleo =
 				mancha("FichadaNucleo_" .. pieza.Name, pieza.Position, 7, Color3.fromRGB(255, 170, 60), 0.15, 3)
 			local suya = pieza:GetAttribute("ruta")
-			table.insert(peligros, { marco = disco, ruta = if typeof(suya) == "string" then suya else nil })
-			table.insert(peligros, { marco = nucleo, ruta = if typeof(suya) == "string" then suya else nil })
+			local deQuien = if typeof(suya) == "string" then suya else nil
+			table.insert(peligros, { marco = disco, ruta = deQuien, disco = true })
+			table.insert(peligros, { marco = nucleo, ruta = deQuien, disco = false })
 			fichadas += 1
 		elseif pieza:GetAttribute("guarida") == true then
 			-- SU ALCANCE VA COMO ANILLO, NO COMO MANCHA. Es la distancia a la que esa
@@ -457,11 +464,20 @@ function Minimap.refrescar()
 	pintarPeligros(capa)
 
 	local rutaEnCurso = estado and estado.ruta
-	-- Y SOLO LOS DE TU RUTA. Sin viaje no se ensena ninguno: un peligro sin nada que
-	-- perder no es informacion, es decoracion, y ensenar los veintinueve a la vez es
-	-- lo que hacia el plano ilegible.
+	-- SIN VIAJE NO SE ENSENA NINGUNO: los detectores no disparan sin carga --lo
+	-- comprueba el servidor antes de mirar distancias-- asi que pintarlos seria
+	-- ensenar un peligro que no existe, y el jugador aprenderia a ignorarlos justo
+	-- antes de que empiecen a importar. Es la misma regla que `Senales` aplica en 3D.
+	--
+	-- Con viaje: el disco entero solo el de tu ruta; de las demas, el nucleo.
 	for _, p in peligros do
-		p.marco.Visible = rutaEnCurso ~= nil and (p.ruta == nil or p.ruta == rutaEnCurso)
+		if rutaEnCurso == nil then
+			p.marco.Visible = false
+		elseif p.disco then
+			p.marco.Visible = p.ruta == nil or p.ruta == rutaEnCurso
+		else
+			p.marco.Visible = true
+		end
 	end
 
 	-- El camino que estas haciendo, por debajo de todo lo demas.
