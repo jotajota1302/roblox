@@ -166,6 +166,20 @@ Avisos verificados:
 
 - **`get_console_output` se cuelga y da timeout.** No usarlo; diagnosticar con
   `execute_luau` inspeccionando el estado.
+- **`screen_capture` también se cuelga, pero sólo en Play.** En `Edit` responde; con una
+  sesión de Play viva se queda colgado los 120 s y acaba en *Request timeout*. Así que
+  durante una partida no hay ojos: todo lo visual hay que deducirlo midiendo cotas,
+  tamaños y colores de las piezas. Fue así como se cazó que la diana del destino estaba
+  enterrada dentro de su losa — comparando topes, no mirando.
+- **El `require` del sandbox de `execute_luau` CACHEA entre llamadas.** No es sólo que no
+  comparta estado con el servidor: es que una vez cargado un módulo, volver a pedirlo
+  devuelve la copia vieja aunque Rojo ya haya sincronizado el fichero nuevo. El síntoma es
+  cruel — el `Source` del módulo en el datamodel demuestra que el cambio ESTÁ, y la prueba
+  sigue fallando por la línea que acabas de borrar. La salida es clonar la carpeta entera
+  (`ReplicatedStorage.Shared:Clone()`) y requerir los módulos de dentro del clon: un
+  `Instance` nuevo es una entrada de caché nueva, y clonar la carpeta **entera** —y no el
+  módulo suelto— es lo que conserva las rutas relativas (`script.Parent.Parent`) de las que
+  cuelga todo.
 - **`start_stop_play` se atasca a partir del segundo arranque de la sesión.** El primero
   va; el siguiente se queda colgado más de 120 s, pasa a segundo plano y ya no completa
   nunca -- y a partir de ahí `execute_luau` sólo responde en `Edit`, aunque Studio siga
