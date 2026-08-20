@@ -636,26 +636,13 @@ local function poligono(ciudad: Instance?, padre: Instance)
 	muro("MuroSur", Vector3.new(medida.X, 7, 3), Vector3.new(0, 0, medida.Y / 2))
 	-- El norte queda ABIERTO: es por donde se sale a la ciudad.
 
-	-- Farolas, para que de noche el polígono no sea una mancha negra.
-	for i = -1, 1, 2 do
-		for j = -1, 1, 2 do
-			local poste = part(
-				string.format("Farola_%d_%d", i, j),
-				Vector3.new(1.2, 22, 1.2),
-				Vector3.new(centro.X + i * (medida.X / 2 - 20), cota + 11, centro.Z + j * (medida.Y / 2 - 20)),
-				Color3.fromRGB(70, 70, 76),
-				padre
-			)
-			poste.Material = Enum.Material.Metal
-			poste.CanCollide = false
-			local luz = Instance.new("PointLight")
-			luz.Range = 60
-			luz.Brightness = 1.4
-			luz.Color = Color3.fromRGB(255, 238, 205)
-			luz.Parent = poste
-		end
-	end
-
+	-- SIN FAROLAS. Eran cuatro postes de 22 studs con su luz, puestos para que el
+	-- recinto no fuera una mancha negra de noche. Pero el juego corre a las 18:00 y
+	-- nunca anochece, así que alumbraban un sitio ya iluminado -- decoración vertical
+	-- pura, de la que JJ pidió quitar ("quita árboles o palos que he visto, dejemos un
+	-- mapa básico").
+	--
+	-- El día que haya ciclo de día y noche, vuelven.
 	return suelo
 end
 
@@ -850,41 +837,17 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 			x, z = centro.X, centro.Z
 		end
 
-		local poste = part(
-			string.format("Detector_%s_%d", ruta.id, i),
-			Vector3.new(2, 22, 2),
-			Vector3.new(x, (y :: number) + 11, z),
-			Color3.fromRGB(40, 44, 52),
-			padre
-		)
-		poste.Material = Enum.Material.Metal
-		poste.CanCollide = false
-		-- El id viaja con la pieza: HeatService necesita distinguirlos para que el
-		-- bloqueo de re-disparo sea POR POSTE (ver Heat.luau).
-		poste:SetAttribute("detectorId", poste.Name)
-		poste:SetAttribute("ruta", ruta.id)
-
-		-- La marca, arriba y encendida. UN PELIGRO INVISIBLE NO ES TENSIÓN, ES
-		-- INJUSTICIA: si el jugador no puede ver de dónde le vino el problema, no
-		-- aprende nada y sólo siente que el juego le castiga por sorpresa.
+		-- SIN POSTE. Aquí se plantaba una columna de 22 studs con una lente roja
+		-- encima y su luz: la "esquina fichada" era literalmente un palo.
 		--
-		-- Con el tema nuevo esto ya no es una cámara de policía sino una esquina
-		-- fichada: el sitio donde te ven pasar con género y corre la voz.
-		local lente = part(
-			"Lente",
-			Vector3.new(3.4, 3.4, 3.4),
-			Vector3.new(x, (y :: number) + 22, z),
-			Color3.fromRGB(230, 90, 80),
-			poste
-		)
-		lente.Material = Enum.Material.Neon
-		lente.CanCollide = false
-
-		local luz = Instance.new("PointLight")
-		luz.Color = Color3.fromRGB(255, 120, 100)
-		luz.Range = Config.DETECTOR_RADIO
-		luz.Brightness = 1.6
-		luz.Parent = lente
+		-- Tenía sentido cuando el peligro no se veía de ninguna otra forma. Desde que
+		-- la zona va PINTADA EN EL SUELO --el área y su foco-- el palo no añade nada y
+		-- sí resta: son treinta y un postes verticales en un mapa del que JJ pidió
+		-- quitar todo lo vertical, y los vio enseguida.
+		--
+		-- El detector no desaparece: es una POSICIÓN con un radio, no una pieza. El
+		-- `detectorId` que HeatService necesita para no dispararse dos veces por el
+		-- mismo sitio se muda a la marca del suelo, y el minimapa la encuentra igual.
 
 		-- Y SU ZONA, PINTADA EN EL SUELO. Ésta es la diferencia entre transitar y
 		-- decidir.
@@ -904,7 +867,7 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		-- esto no lo reabre. Y seis centésimas por encima de la calzada, porque dos
 		-- superficies en el mismo plano parpadean.
 		local zona = part(
-			"ZonaFichada_" .. poste.Name,
+			string.format("ZonaFichada_%s_%d", ruta.id, i),
 			Vector3.new(Config.DETECTOR_RADIO * 2, 0.2, Config.DETECTOR_RADIO * 2),
 			Vector3.new(x, (y :: number) + 0.06, z),
 			Color3.fromRGB(235, 120, 70),
@@ -950,7 +913,7 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		-- El foco: dónde está exactamente la esquina fichada. Pequeño y claro, para
 		-- que el ojo lo encuentre sin que compita con el resto del mapa.
 		local foco = part(
-			"FocoFichada_" .. poste.Name,
+			string.format("FocoFichada_%s_%d", ruta.id, i),
 			Vector3.new(0.2, 17, 17),
 			Vector3.new(x, (y :: number) + 0.08, z),
 			Color3.fromRGB(255, 150, 90),
@@ -966,9 +929,13 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		foco.CanTouch = false
 		foco:SetAttribute("ruta", ruta.id)
 		foco:SetAttribute("zonaFichada", true)
+		-- La marca ES el detector ahora. El nombre se conserva --Detector_ruta_i--
+		-- porque HeatService lo usa de clave y SelfCheck lo busca por él.
+		foco.Name = string.format("Detector_%s_%d", ruta.id, i)
+		foco:SetAttribute("detectorId", foco.Name)
 		foco:SetAttribute("opacidad", 0)
 
-		table.insert(puestos, poste)
+		table.insert(puestos, foco)
 	end
 
 	return puestos

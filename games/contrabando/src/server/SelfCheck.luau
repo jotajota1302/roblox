@@ -190,10 +190,19 @@ local function vigilancia()
 
 		-- CON LOS PIES EN EL SUELO. Un poste sobre un tejado no se dispara jamás:
 		-- por debajo pasa la calle, a ochenta studs de su radio de treinta y cinco.
+		-- La base se saca del CFrame, no de Size.Y. Desde que la esquina fichada dejó
+		-- de ser un poste y pasó a ser una marca pintada en el suelo, es un CILINDRO
+		-- TUMBADO: su Size.Y es el DIÁMETRO (17 studs), no su altura, así que la
+		-- cuenta de antes situaba su base ocho studs bajo tierra y daba "en el aire"
+		-- para las treinta y una. Un falso rojo por un mundo correcto, que es la peor
+		-- avería que puede tener una sonda: enseña a ignorarla.
 		local enElAire = 0
 		for _, poste in postes do
-			local base = poste.Position.Y - poste.Size.Y / 2
-			if bajoLosPies(poste.Position.X, base, poste.Position.Z, 10) == nil then
+			-- El punto más bajo de la pieza, sea cual sea su orientación.
+			local mitad = poste.CFrame:VectorToWorldSpace(poste.Size / 2)
+			local alto = math.abs(mitad.Y)
+			local base = poste.Position.Y - alto
+			if bajoLosPies(poste.Position.X, base + 0.5, poste.Position.Z, 10) == nil then
 				enElAire += 1
 			end
 		end
