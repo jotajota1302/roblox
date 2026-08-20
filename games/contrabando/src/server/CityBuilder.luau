@@ -805,10 +805,30 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 	local puestos: { BasePart } = {}
 	local n = 0
 
+	-- LOS CRUCES Y LOS MEDIOS DE CADA TRAMO. Con sólo los cruces la RUTA VERDE SE HACÍA
+	-- LIMPIA, y lo cazó la sonda nueva a la primera: mide 146 studs --un paso de
+	-- retícula-- y va de un cruce que cae en la zona segura a otro que es su propio
+	-- destino, así que los dos estaban excluidos y no la fichaba nadie.
+	--
+	-- No es un caso raro que se pueda ignorar: es la primera ruta que juega alguien.
+	-- Con el medio de cada tramo, la vigilancia pasa a estar cada 73 studs y ningún
+	-- trayecto de la ciudad se libra, que es exactamente lo que se pedía.
+	local sitios: { Vector3 } = {}
 	for i = 0, Grid.COLUMNAS do
 		for j = 0, Grid.FILAS do
-			local cruce = Grid.cruce(i, j)
+			table.insert(sitios, Grid.cruce(i, j))
+			-- El medio del tramo hacia el siguiente cruce, en los dos ejes.
+			if j < Grid.FILAS then
+				table.insert(sitios, Grid.cruce(i, j):Lerp(Grid.cruce(i, j + 1), 0.5))
+			end
+			if i < Grid.COLUMNAS then
+				table.insert(sitios, Grid.cruce(i, j):Lerp(Grid.cruce(i + 1, j), 0.5))
+			end
+		end
+	end
 
+	do
+		for _, cruce in sitios do
 			-- NI EN CASA NI ENCIMA DE UN DESTINO. Dentro de la zona segura no se
 			-- calienta nadie, así que una esquina fichada ahí no decide nada; y sobre un
 			-- destino sería fichar al jugador justo mientras cobra, que es el único
