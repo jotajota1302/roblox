@@ -725,7 +725,24 @@ Config.REFUGIO_SEPARACION = 70
 --
 -- Con una por ruta, cada zona tiene un origen de peligro que se puede aprender y
 -- rodear, que es lo que la guarida vino a ser.
-Config.GUARIDAS_POR_RUTA = 1
+-- CERO DESDE EL 20/08, y el sistema se queda entero por debajo.
+--
+-- Las guaridas eran edificios fijos de los que salian los ladrones, marcados en el
+-- mapa para poder rodearlos. La idea era buena y estuvo ROTA desde el principio: el
+-- ladron nacia sobre el tejado de su propia nave y no podia bajar, asi que durante
+-- todo el desarrollo el peligro fue decorativo. Se arreglo esa misma manana, y JJ --que
+-- las habia sufrido sin funcionar-- pidio quitarlas: *"el tema guaridas quitalo por
+-- ahora porque no funcionan"*.
+--
+-- Se apaga con un cero en vez de borrar el codigo: la maquinaria --plantarlas, marcarlas
+-- en el minimapa, hacer que el ladron salga por su puerta-- sigue ahi y probada, y
+-- volver a encenderlas es cambiar este numero. Lo que no se puede es dejar a medias un
+-- sistema que ya demostro que se rompe en silencio.
+--
+-- Sin guaridas, los ladrones salen por el respaldo que siempre existio: un cono hacia
+-- donde vas, para que aparezcan DELANTE y los veas venir en vez de encontrartelos
+-- encima.
+Config.GUARIDAS_POR_RUTA = 0
 
 -- Cuánto se apartan del camino recto. Menos que los refugios (100): una guarida
 -- pegada al corredor es un obstáculo que hay que rodear, y ése es su trabajo.
@@ -741,6 +758,29 @@ Config.GUARIDA_DESVIO = 16
 -- veinte segundos en plantarse encima -- va más rápido que tú cargado, así que
 -- llega igual, y llega desde un sitio que estaba en el mapa.
 Config.GUARIDA_ALCANCE = 250
+
+-- EL CAMPO DE VISION DEL LADRON, que es lo que le da espalda.
+--
+-- Hasta el 20/08 te perseguia por el hecho de existir: en cuanto el calor lo sacaba a
+-- la calle sabia donde estabas, y la unica respuesta posible era correr mas. Eso hace
+-- un juego de reflejos, y este quiere ser uno de decisiones. Lo pidio JJ viendolos
+-- funcionar por primera vez: *"que solo detecten a la persona cuando esten mirando
+-- hacia el... para que si pasas por detras no se enteren"*.
+--
+-- 60 de SEMIapertura, o sea 120 de par en par: es lo que abarca una persona sin girar
+-- la cabeza, y deja una espalda de 240 por la que de verdad se puede pasar.
+Config.LADRON_VISION_ANGULO = 60
+
+-- Y hasta donde llega. Un poco mas que la distancia a la que aparecen (90-140), para
+-- que el que sale delante de ti te vea de entrada: si naciera ya ciego, la mitad de las
+-- apariciones no significarian nada.
+Config.LADRON_VISION_ALCANCE = 120
+
+-- CUANTO RECUERDA DONDE TE VIO. Sin memoria, un ladron que te pierde se queda plantado
+-- y se le nota tonto enseguida; con memoria infinita no tiene espalda. Cuatro segundos
+-- bastan para que venga hasta la esquina por la que desapareciste -- y si al llegar no
+-- estas, te ha perdido de verdad.
+Config.LADRON_MEMORIA = 4
 
 Config.PATRULLAS = {
 	[0] = { cantidad = 0, velocidad = 0 },

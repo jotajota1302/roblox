@@ -28,6 +28,7 @@ local Cargo = require(game.ReplicatedStorage.Shared.Cargo)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Heat = require(game.ReplicatedStorage.Shared.Heat)
 local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
+local Vision = require(game.ReplicatedStorage.Shared.Vision)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
@@ -200,35 +201,42 @@ local function vestir(modelo: Model)
 		-- tumbarlo un cuarto de vuelta para que quede como un disco en el suelo.
 		pegar(anillo, raiz, CFrame.new(0, -2.9, 0) * CFrame.Angles(0, 0, math.rad(90)))
 
-		-- EL PILAR DE LUZ, y es lo que faltaba para verlos llegar. Un ladrón aparece
-		-- entre 90 y 140 studs (o desde una guarida, hasta 380), y a esa distancia
-		-- un muñeco de cinco studs vestido de oscuro no se distingue de la acera:
-		-- *"no los veo a lo lejos aunque se supone que están"* (JJ). Todo lo que le
-		-- habíamos puesto --antifaz, mochila, anillo de alcance-- sólo se lee de
-		-- cerca, es decir, cuando ya no sirve para decidir nada.
+		-- AQUI HABIA UN PILAR DE LUZ DE 70 STUDS, y se ha ido por donde se fue todo lo
+		-- demas vertical. Nacio contra una queja buena --*"no los veo a lo lejos"*-- y
+		-- se midio bien: sin columna, seis de cada diez veces el ladron que viene a por
+		-- ti no se puede ver aunque mires hacia el.
 		--
-		-- 70 studs de columna, y la altura sale de medirlo: 571 ladrones virtuales a
-		-- 120 studs del camino, contando desde qué fracción hay línea de visión
-		-- limpia hacia cada altura de su cuerpo.
+		-- Pero resolvia el problema pasandose de largo. JJ, viendolo funcionar el
+		-- 20/08: *"quitales el rectangulo ese hacia arriba, que los hace demasiado
+		-- evidentes"*. Y tiene razon: un ladron que se ve desde el otro lado de la
+		-- ciudad no se esquiva, se ignora -- sabes exactamente donde esta todo el rato
+		-- y el juego deja de pedirte que mires.
 		--
-		--      3 studs (su cabeza) ... 38% de las veces
-		--     20 ....................... 53%
-		--     35 ....................... 60%
-		--     70 ....................... 69%
-		--    100 ....................... 76%
+		-- Lo que se queda para verlos llegar es el `Highlight`, que contornea al ladron
+		-- de rojo a traves de las paredes: dice POR DONDE viene sin plantar una torre
+		-- en mitad de la calle.
 		--
-		-- O sea que sin columna, seis de cada diez veces el ladrón que viene a por ti
-		-- no se puede ver aunque mires justo hacia él. Con 70 se dobla la cifra y
-		-- ahí se corta: más alto asomaría por encima de los tejados y se le seguiría
-		-- por toda la ciudad, y despistarlos --que es la otra mitad del sistema--
-		-- dejaría de existir. Por eso es más bajo que el farol de una guarida (170):
-		-- la guarida es un sitio fijo que hay que poder rodear desde el otro barrio;
-		-- el ladrón se ve en la calle en la que está.
-		local faro = pieza("Faro", Vector3.new(1.6, 70, 1.6), Color3.fromRGB(255, 60, 50), modelo)
-		faro.Material = Enum.Material.Neon
-		faro.Transparency = 0.55
-		faro.CastShadow = false
-		pegar(faro, raiz, CFrame.new(0, 35, 0))
+		-- Y AHORA SE VE HACIA DONDE MIRA, que es lo que convierte esto en una decision.
+		-- El cono se dibuja con un abanico de rayos finos y no con una pieza en forma de
+		-- sector, porque en Roblox un triangulo en PLANTA obliga a tumbar una cuna con
+		-- rotaciones que no se pueden comprobar sin mirar la pantalla -- y en Play no hay
+		-- capturas. Siete rayos se leen igual de bien y su geometria es evidente.
+		local mitad = Config.LADRON_VISION_ANGULO
+		local largo = Config.LADRON_VISION_ALCANCE
+		for i = 0, 6 do
+			local grados = -mitad + (2 * mitad) * (i / 6)
+			local rayo = pieza("Vista", Vector3.new(0.5, 0.12, largo), Color3.fromRGB(255, 150, 60), modelo)
+			rayo.Material = Enum.Material.Neon
+			rayo.Transparency = 0.6
+			rayo.CastShadow = false
+			-- A los pies y hacia DELANTE, que en Roblox es el -Z local: se gira primero y
+			-- se avanza despues, o el abanico saldria desplazado en vez de abierto.
+			pegar(
+				rayo,
+				raiz,
+				CFrame.new(0, -2.6, 0) * CFrame.Angles(0, math.rad(grados), 0) * CFrame.new(0, 0, -largo / 2)
+			)
+		end
 
 		-- Y su nombre, para que se distinga de un peatón en una ciudad llena de
 		-- muñecos. Sin AlwaysOnTop, igual que las placas de los jugadores: si se
@@ -487,6 +495,10 @@ end
 -- RETRASA, NO ANULA, y eso no es un detalle de equilibrio: es la regla de oro. La
 -- persecución sigue viva todo el rato -- sólo cambia a dónde van mientras dura --
 -- y tiene recarga, así que nadie se vuelve inalcanzable por comprarlo.
+-- LO ULTIMO QUE VIO CADA LADRON. En memoria y por patrulla: es lo que le permite
+-- seguirte hasta la esquina por la que desapareciste sin volverse omnisciente.
+local visto: { [any]: Vision.Recuerdo } = {}
+
 local senuelos: { [Player]: { donde: Vector3, hasta: number } } = {}
 
 function PatrolService.senuelo(player: Player, donde: Vector3, hasta: number)
@@ -609,6 +621,56 @@ local function perseguir(patrulla: Patrulla, player: Player)
 			local cebo = objetivoDe(player, patrulla.raiz.Position, os.clock())
 			if cebo then
 				patrulla.humanoid:MoveTo(cebo)
+				task.wait(0.5)
+				continue
+			end
+
+			-- ¿TE VE? Es la regla que le da espalda al peligro.
+			--
+			-- Se mira ANTES que el alcance: un ladron que te roba de espaldas no tiene
+			-- campo de vision, tiene una excusa. Y se mira contra su LookVector real, no
+			-- contra hacia donde va, porque lo que el jugador ve en el suelo es el cono
+			-- --el abanico de rayos-- y las dos cosas tienen que decir lo mismo. Que el
+			-- dibujo y la regla se separen es como se pierde la confianza en un sistema.
+			local mirando = patrulla.raiz.CFrame.LookVector
+			local teVe = Vision.dentroDelCono(
+				patrulla.raiz.Position,
+				mirando,
+				objetivo.Position,
+				Config.LADRON_VISION_ANGULO,
+				Config.LADRON_VISION_ALCANCE
+			)
+			-- Y CON LA PARED DE POR MEDIO TAMPOCO. Sin esto, el cono atravesaria una
+			-- manzana entera y esconderse detras de un edificio no serviria de nada, que
+			-- es justo la mitad de lo que se venia a arreglar.
+			if teVe then
+				local rayo = RaycastParams.new()
+				rayo.FilterType = Enum.RaycastFilterType.Exclude
+				rayo.FilterDescendantsInstances = { patrulla.modelo, player.Character :: any, contenedor() }
+				local golpe =
+					workspace:Raycast(patrulla.raiz.Position, objetivo.Position - patrulla.raiz.Position, rayo)
+				if golpe ~= nil then
+					teVe = false
+				end
+			end
+
+			if teVe then
+				visto[patrulla] = { donde = objetivo.Position, cuando = os.clock() }
+			end
+
+			-- SI NO TE VE, VA A DONDE TE VIO. Un ladron que se queda plantado se nota
+			-- tonto enseguida; uno que sigue sabiendo donde estas no tiene espalda. La
+			-- memoria corta resuelve las dos: viene hasta la esquina por la que
+			-- desapareciste, y si al llegar no estas, te ha perdido de verdad.
+			if not teVe then
+				local rastro = Vision.aDondeVa(visto[patrulla], os.clock(), Config.LADRON_MEMORIA)
+				if rastro == nil then
+					-- Te ha perdido. Se queda donde esta en vez de morirse: el calor
+					-- sigue alto y en cuanto vuelvas a cruzarte te ve otra vez.
+					task.wait(0.6)
+					continue
+				end
+				patrulla.humanoid:MoveTo(rastro)
 				task.wait(0.5)
 				continue
 			end

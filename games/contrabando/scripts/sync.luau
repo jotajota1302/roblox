@@ -39,15 +39,33 @@ if not vale then
 	return "el servidor contesto algo que no es JSON: " .. tostring(lista)
 end
 
--- Baja por el datamodel siguiendo la ruta ("ReplicatedStorage/Shared/Config"). No se
--- crean instancias que falten: si un modulo no existe, es que el place esta construido
--- con otra version del project.json, y crearlo a medias esconderia ese problema.
-local function buscar(ruta: string): Instance?
+-- Baja por el datamodel siguiendo la ruta ("ReplicatedStorage/Shared/Config") y CREA
+-- el modulo si no existe.
+--
+-- Crearlos hizo falta enseguida: un fichero nuevo --`Vision.luau`, el primer dia que se
+-- uso esto-- no tiene sitio en un place compilado antes de escribirlo, y sin esto habia
+-- que recompilar y reabrir Studio, que es justo lo que el sincronizador venia a evitar.
+--
+-- Lo que NO se crea son las carpetas intermedias: si falta `Shared`, el place esta
+-- construido con otro `project.json` y eso es un problema de verdad que no hay que
+-- esconder plantando una carpeta vacia encima.
+local function buscar(ruta: string, clase: string?): Instance?
 	local aqui: Instance = game
+	local trozos = {}
 	for trozo in string.gmatch(ruta, "[^/]+") do
+		table.insert(trozos, trozo)
+	end
+	for i, trozo in trozos do
 		local siguiente = aqui:FindFirstChild(trozo)
 		if siguiente == nil then
-			return nil
+			if i < #trozos then
+				-- Falta una carpeta intermedia: eso no se inventa.
+				return nil
+			end
+			local nueva = Instance.new((clase or "ModuleScript") :: any)
+			nueva.Name = trozo
+			nueva.Parent = aqui
+			return nueva
 		end
 		aqui = siguiente
 	end
@@ -56,7 +74,7 @@ end
 
 local cambiados, iguales, perdidos = {}, 0, {}
 for _, entrada in lista do
-	local destino = buscar(entrada.ruta)
+	local destino = buscar(entrada.ruta, entrada.clase)
 	if destino == nil or not destino:IsA("LuaSourceContainer") then
 		table.insert(perdidos, entrada.ruta)
 		continue

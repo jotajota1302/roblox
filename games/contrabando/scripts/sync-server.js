@@ -41,7 +41,10 @@ function recoger(nodo, camino, fuera) {
 	if (fichero) {
 		const abs = path.join(raiz, fichero);
 		if (fs.existsSync(abs)) {
-			fuera.push({ ruta: aqui, codigo: fs.readFileSync(abs, "utf8") });
+			// La CLASE viaja con el modulo para que el otro lado pueda CREARLO si no
+			// existe. Sin esto, un fichero nuevo obligaba a recompilar el place y
+			// reabrir Studio -- justo lo que este servidor venia a evitar.
+			fuera.push({ ruta: aqui, clase: nodo.className || "ModuleScript", codigo: fs.readFileSync(abs, "utf8") });
 		}
 	}
 	for (const hijo of nodo.children || []) {

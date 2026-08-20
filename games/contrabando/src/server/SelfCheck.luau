@@ -474,6 +474,20 @@ local function guaridas()
 			table.insert(sitios, x)
 		end
 	end
+	-- CON LAS GUARIDAS APAGADAS, ESTA SONDA CALLA. Desde el 20/08
+	-- `GUARIDAS_POR_RUTA` es 0 --se apagaron a peticion de JJ, ver el comentario en
+	-- Config-- y exigir guaridas seria dar rojo por cumplir una decision. Lo que NO se
+	-- hace es borrar las comprobaciones: el dia que se vuelvan a encender, tienen que
+	-- estar esperandolas.
+	if Config.GUARIDAS_POR_RUTA <= 0 then
+		comprobar(
+			"sin guaridas, no queda ninguna suelta en el mapa",
+			#sitios == 0,
+			string.format("%d plantadas con el sistema apagado", #sitios)
+		)
+		return
+	end
+
 	comprobar(
 		"hay guaridas plantadas",
 		#sitios >= 1,

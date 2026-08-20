@@ -496,6 +496,32 @@ function Minimap.refrescar()
 	casa.Visible = true
 
 	local rutaActiva = estado and estado.ruta
+
+	-- LA ZONA DE ENTREGA, CON HALO. Lo pidio JJ jugando: *"lo que si marcaria mejor es
+	-- la zona de entrega, donde esta en el mapa, porque puedes ir por otro camino y te
+	-- pierdes"*. Y es exactamente el caso que el resto del sistema no cubre: el rastro
+	-- del suelo y la linea del plano dibujan UN camino, y en cuanto te sales de el --por
+	-- un atajo, por rodear a un ladron, porque te has despistado-- lo unico que queda es
+	-- un punto de nueve pixeles entre otros dos iguales.
+	--
+	-- El halo va DEBAJO del punto y es cuatro veces mas ancho: se ve desde el otro lado
+	-- del plano y no tapa nada, porque lo que hay debajo es la retícula. Solo el de tu
+	-- ruta, claro -- tres halos serian tres sitios y ninguno.
+	local halo = punto("HaloDestino", Color3.fromRGB(255, 255, 255), 34, 4)
+	if rutaActiva ~= nil then
+		local ok, suya = pcall(Routes.get, rutaActiva)
+		if ok and suya ~= nil then
+			halo.BackgroundColor3 = Palette.ruta(rutaActiva)
+			halo.BackgroundTransparency = 0.55
+			halo.Position = (aPantalla(centro, suya.destino, lado))
+			halo.Visible = true
+		else
+			halo.Visible = false
+		end
+	else
+		halo.Visible = false
+	end
+
 	for _, ruta in Routes.todas() do
 		local p = punto("Destino_" .. ruta.id, Palette.ruta(ruta.id), 9, 5)
 		p.Position = (aPantalla(centro, ruta.destino, lado))
