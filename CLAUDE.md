@@ -280,6 +280,36 @@ Avisos verificados:
   es Studio. **La cura es borrar el `.lock` antes de abrir.** Es la hermana de la trampa de
   Rojo/Play: en las dos, lo que se mide no es lo que se acaba de escribir.
 
+- **«No se puede comprobar sin mirar la pantalla» casi siempre es mentira, y sale caro
+  creérselo.** El cono de visión del ladrón se dibujó con siete barras radiando desde
+  los pies porque un sector en planta «obliga a rotaciones que no se pueden verificar»
+  — y duró un día: *«el rayo ese que sale del ladrón es muy cutre»*. Hay **dos** formas
+  de mirar, y hacían falta las dos: `screen_capture` **sí responde en `Edit`** (sólo se
+  cuelga en Play), y la forma de algo en el suelo se mide **lanzando una rejilla de
+  rayos hacia abajo** y anotando hasta dónde llega en cada ángulo. La captura enseñó
+  que el primer abanico de cuñas salía en estrella de tres puntas; los rayos midieron
+  lo que la captura no ve — que además tenía fugas hasta los 100°, y una rendija de
+  grosor cero justo a 0° por redondeo entre dos tajadas (se cierra solapándolas un 1%).
+  Y para colocar una `WedgePart` **no se deduce su orientación, se sonda**: ocupa el
+  triángulo con el ángulo recto en `(Y=-alto/2, Z=+fondo/2)`.
+
+- **Un remote que sólo nace cuando alguien lo usa es un interbloqueo dormido.** Los
+  `RemoteEvent` se creaban al vuelo en el primer `Remotes.event(...)`, y funcionaba por
+  casualidad: casi todos se tocan al arrancar. `Impulso` no — sólo se usa al recoger,
+  así que no existía hasta la primera recogida de la partida, y el cliente lo pide con
+  `WaitForChild`. Eso no da error: da un hilo del cliente esperando para siempre. Lo
+  cazó `SelfCheck`; la cura es crearlos **todos** al arrancar `Main.server`, recorriendo
+  el propio módulo `Remotes`, en vez de depender de la suerte.
+
+- **Un número absoluto no sobrevive a que cambie aquello que mide.** `RASTRO_PASO` (22
+  studs entre migas) se calibró con la ruta verde en 558 studs. El 19/08 la verde se
+  acortó a 147 y el paso se quedó donde estaba: con el corredor útil en 89 studs, la
+  **primera ruta del juego se quedó con UNA sola miga** — ni enseñaba el sistema ni
+  pagaba las cuatro doradas que su tabla reparte, porque las doradas se reparten sobre
+  las que existen. Ninguna sonda lo vio: contaban piezas plantadas en total, no piezas
+  **por ruta**. Se arregla calculando cuántas caben y repartiéndolas a partes iguales,
+  con un mínimo por ruta.
+
 - **Un rayo desde el cielo se para en la copa de un árbol.** La ciudad del Creator Store
   tiene 2.048 hojas y 2.720 troncos (`Model` llamado `Tree`), así que "el suelo" en un
   parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
