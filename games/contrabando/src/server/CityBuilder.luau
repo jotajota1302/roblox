@@ -2193,9 +2193,10 @@ function CityBuilder.build(): Mundo
 		-- Se guardan para el taller: su parcela no puede caer sobre esta carretera.
 		local calleDestino = calle
 		local bordeDestino = if calle ~= nil then bordeDeLosa(destino, calle) else destino.Position
-		if calle ~= nil then
-			-- Sin carretera: el destino es un cruce de calle, ya está sobre asfalto.
-		else
+		-- Sin carretera de acceso: el destino ES un cruce de la retícula, así que ya
+		-- está sobre asfalto. Antes esta rama construía una vía hasta la calle más
+		-- cercana, y con el mapa propio sobra.
+		if calle == nil then
 			warn("[Contrabando] el destino " .. ruta.id .. " no tiene calle a menos de 220 studs")
 		end
 
@@ -2245,7 +2246,7 @@ function CityBuilder.build(): Mundo
 			-- SIN TALLER: nada falló, simplemente esa zona no tenía dónde cambiar de
 			-- vehículo y nadie podía saber por qué. Un concesionario algo cerca de la
 			-- vía es un defecto de reparto; una zona sin concesionario es un agujero.
-			local sitio, calleTaller = nil, nil
+			local sitio = nil
 			local mejorNota = math.huge
 			local exigente = true
 			for _, radio in { 58, 80, 105, 58, 80, 105 } do
@@ -2280,7 +2281,7 @@ function CityBuilder.build(): Mundo
 					end
 					local nota = (alto - bajo) + fuera * 3 + (radio - 58) / 15
 					if nota < mejorNota then
-						sitio, calleTaller, mejorNota = centro, calle, nota
+						sitio, mejorNota = centro, nota
 					end
 				end
 				-- Con un sitio bueno cerca no hace falta abrir el radio: alejar el
@@ -2306,12 +2307,13 @@ function CityBuilder.build(): Mundo
 					"PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.
 				concesionario(tallerZona, mundo, if ruta.destino.Z < sitio.Z then -1 else 1)
-				-- La calle es la que se encontró al elegir el sitio: buscarla otra vez
-				-- desde la losa ya construida es darle la ocasión de contestar otra
-				-- cosa, y entonces el taller y su carretera dejan de casar.
-				if calleTaller ~= nil then
-					-- Sin carretera: el taller se planta junto a una calle de la retícula.
-				end
+				-- Sin carretera propia: el taller se planta junto a una calle de la
+				-- retícula. Aquí quedaba un `if` con el cuerpo VACÍO --resto de cuando se
+				-- le construía una vía de acceso-- y con él la única lectura de la
+				-- variable que lo alimentaba. Es la misma clase de resto que hoy mató el
+				-- sistema de señales del cliente durante días: al quitar los faroles se
+				-- borró su tabla y se dejó el bucle que escribía en ella. Los restos de
+				-- un rediseño no son inofensivos por estar callados.
 				table.insert(talleres, tallerZona)
 			end
 		end
