@@ -293,12 +293,12 @@ local TEXTOS: { [string]: string } = {
 
 	-- ---- Calor y persecución -----------------------------------------------
 	HEAT_SAFE = "Safe at your warehouse",
-	HEAT_SPOTTED = "You have been spotted  ·  heat {nivel}/{maximo}",
+	HEAT_SPOTTED = "A watched corner clocked you  ·  heat {nivel}/{maximo}",
 	HEAT_CLEAR = "Nobody is chasing you",
 	HEAT_INHERITED = "You take their cargo and their heat  ·  {nivel}/{maximo}",
 	CHASE_BEHIND_YOU = "They are coming for you",
 	CHASE_LOST_THEM = "You lost them",
-	CHASE_ON_YOU = "They are on you",
+	CHASE_ON_YOU = "Someone picked up your trail",
 	ROBBED = "Robbed! They take {cuantas} items",
 	ROBBED_EMPTY = "Robbed, but you were empty",
 	ROBBED_BY_PLAYER = "{jugador} robbed {cuantas} items from you",

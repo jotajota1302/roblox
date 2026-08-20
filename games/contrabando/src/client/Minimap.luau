@@ -245,6 +245,19 @@ end
 -- carga. Un peligro que no se puede anticipar no es tensión, es un impuesto.
 local peligrosPintados = false
 
+-- CADA PELIGRO CON SU RUTA, para poder ensenar solo los tuyos.
+--
+-- Se pintan todos una vez --construirlos cuesta y no se mueven-- pero se ENSENAN
+-- segun el viaje que lleves. Sin este filtro el plano mostraba los 29 detectores de
+-- las tres rutas a la vez, y eso es lo que JJ describio mirandolo: *"en el minimapa
+-- estan saliendo muchas cosas que no se lo que son"*. Tenia razon: veintinueve
+-- manchas naranjas sobre un mapa de 610 studs no dicen por donde no pasar, dicen que
+-- la ciudad es naranja.
+--
+-- Es la misma regla que gobierna el mundo en 3D (`Senales`): se ensena lo que te
+-- sirve AHORA. Un plano es el mapa de TU viaje, no un atlas de la ciudad.
+local peligros: { { marco: Frame, ruta: string? } } = {}
+
 local function pintarPeligros(capa: Frame)
 	local mundo = workspace:FindFirstChild("Mundo")
 	if mundo == nil or peligrosPintados then
@@ -291,7 +304,7 @@ local function pintarPeligros(capa: Frame)
 			--
 			-- El disco sigue diciendo por dónde NO pasar --que es lo que sirve para
 			-- trazar un camino-- y el núcleo dice dónde está exactamente.
-			mancha(
+			local disco = mancha(
 				"Fichada_" .. pieza.Name,
 				pieza.Position,
 				Config.DETECTOR_RADIO,
@@ -299,7 +312,11 @@ local function pintarPeligros(capa: Frame)
 				0.88,
 				2
 			)
-			mancha("FichadaNucleo_" .. pieza.Name, pieza.Position, 7, Color3.fromRGB(255, 170, 60), 0.15, 3)
+			local nucleo =
+				mancha("FichadaNucleo_" .. pieza.Name, pieza.Position, 7, Color3.fromRGB(255, 170, 60), 0.15, 3)
+			local suya = pieza:GetAttribute("ruta")
+			table.insert(peligros, { marco = disco, ruta = if typeof(suya) == "string" then suya else nil })
+			table.insert(peligros, { marco = nucleo, ruta = if typeof(suya) == "string" then suya else nil })
 			fichadas += 1
 		elseif pieza:GetAttribute("guarida") == true then
 			-- SU ALCANCE VA COMO ANILLO, NO COMO MANCHA. Es la distancia a la que esa
@@ -314,6 +331,8 @@ local function pintarPeligros(capa: Frame)
 			-- "ese mapa no se entiende nada". Queda el núcleo, que es lo que hay que
 			-- rodear.
 			-- Y el núcleo, que es lo que se ve de lejos y lo que hay que rodear.
+			-- La guarida no lleva ruta: es un sitio de la ciudad y de ahi sale un ladron
+			-- vayas a donde vayas. Se ensena siempre.
 			mancha("GuaridaNucleo_" .. pieza.Name, pieza.Position, 20, Color3.fromRGB(220, 70, 60), 0.25, 3)
 			madrigueras += 1
 		end
@@ -324,6 +343,64 @@ local function pintarPeligros(capa: Frame)
 	-- en vez de quedarse con un mapa sin peligros para toda la partida.
 	if fichadas > 0 or madrigueras > 0 then
 		peligrosPintados = true
+	end
+end
+
+-- EL CAMINO, DIBUJADO. Es lo que JJ pidio mirando el plano: *"con el mapa tan
+-- sencillo el camino deberia mostrarlo el minimapa"*.
+--
+-- Y encaja con lo que el mapa ES desde que es nuestro: una reticula donde todo
+-- destino esta a un giro o a ninguno. El camino en L de `Grid.porCalles` es EL mismo
+-- que marcan las migas de pan en el suelo, asi que el plano y el mundo cuentan la
+-- misma historia -- que es justo lo que fallaba antes, cuando el rastro dibujaba una
+-- L y quien tiraba hacia el destino tomaba la otra.
+--
+-- Los tramos son horizontales o verticales SIEMPRE (van por calles), asi que se
+-- dibujan como rectangulos y no hay que rotar nada.
+local caminos: { Frame } = {}
+local caminoDe: string? = nil
+local CAMINO_GRUESO = 12
+
+local function pintarCamino(capa: Frame, rutaId: string?)
+	if caminoDe == rutaId and #caminos > 0 then
+		return
+	end
+	caminoDe = rutaId
+	for _, f in caminos do
+		f:Destroy()
+	end
+	caminos = {}
+	if rutaId == nil then
+		return
+	end
+	local ok, ruta = pcall(Routes.get, rutaId)
+	if not ok or ruta == nil then
+		return
+	end
+
+	local tramos = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
+	local color = Palette.ruta(rutaId)
+	for i = 2, #tramos do
+		local a, b = tramos[i - 1], tramos[i]
+		local x0, x1 = math.min(a.X, b.X), math.max(a.X, b.X)
+		local z0, z1 = math.min(a.Z, b.Z), math.max(a.Z, b.Z)
+		-- El grueso minimo es lo que hace visible un tramo de longitud cero: sin el,
+		-- una ruta recta --la verde-- perderia su unico tramo util.
+		local anchoX = math.max(x1 - x0, CAMINO_GRUESO)
+		local anchoZ = math.max(z1 - z0, CAMINO_GRUESO)
+		local f = Instance.new("Frame")
+		f.Name = string.format("Camino_%s_%d", rutaId, i)
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = aEscala((x0 + x1) / 2, (z0 + z1) / 2)
+		f.Size = UDim2.fromScale(anchoX / tamanoMapa.X, anchoZ / tamanoMapa.Y)
+		f.BackgroundColor3 = color
+		-- Por debajo de los peligros y de los puntos: es el fondo sobre el que se lee
+		-- todo lo demas, no algo que competir con ellos.
+		f.BackgroundTransparency = 0.45
+		f.BorderSizePixel = 0
+		f.ZIndex = 1
+		f.Parent = capa
+		table.insert(caminos, f)
 	end
 end
 
@@ -378,6 +455,17 @@ function Minimap.refrescar()
 	-- Los peligros fijos, en cuanto el mundo haya llegado al cliente. Se protege
 	-- sola: en cuanto pinta algo, no vuelve a hacer nada.
 	pintarPeligros(capa)
+
+	local rutaEnCurso = estado and estado.ruta
+	-- Y SOLO LOS DE TU RUTA. Sin viaje no se ensena ninguno: un peligro sin nada que
+	-- perder no es informacion, es decoracion, y ensenar los veintinueve a la vez es
+	-- lo que hacia el plano ilegible.
+	for _, p in peligros do
+		p.marco.Visible = rutaEnCurso ~= nil and (p.ruta == nil or p.ruta == rutaEnCurso)
+	end
+
+	-- El camino que estas haciendo, por debajo de todo lo demas.
+	pintarCamino(capa, rutaEnCurso)
 
 	local casa = punto("Almacen", Palette.ALMACEN, 10, 4)
 	casa.Position = (aPantalla(centro, Config.ALMACEN_POS, lado))
