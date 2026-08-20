@@ -1076,42 +1076,62 @@ local function sitiosSobreElCamino(
 	-- un agujero de 160 studs en medio -- y con cuatro tanteos repartidos por igual,
 	-- los cuatro caían dentro del agujero. No es que no hubiera sitio: es que no se
 	-- miraba con bastante detalle.
-	local intentos = cuantos * 8
-	for i = 1, intentos do
-		if #sitios >= cuantos then
-			break
-		end
-		local d = dMin + (dMax - dMin) * ((i - 0.5) / intentos)
-		-- Buscar en qué tramo cae esa distancia.
-		local recorrido = 0
-		for t = 1, #largos do
-			if recorrido + largos[t] >= d or t == #largos then
-				local dentro = math.clamp((d - recorrido) / largos[t], 0, 1)
-				local a, b = puntos[t], puntos[t + 1]
-				local sobre = a:Lerp(b, dentro)
-				local dir = (b - a)
-				local plano = Vector3.new(dir.X, 0, dir.Z)
-				if plano.Magnitude > 0.01 then
-					-- Perpendicular en el plano: girar 90 grados es (z, -x).
-					local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
-					-- El lado alterna por PIEZA colocada y no por intento: con intentos
-					-- descartados de por medio, alternar por intento dejaba las dos
-					-- guaridas de una ruta en el mismo lado de la calle.
-					local signo = if #sitios % 2 == 0 then 1 else -1
-					local sitio = sobre + lado * (desvio * signo)
-					-- Y fuera de la zona segura, que se mide desde el ALMACÉN y no
-					-- desde donde empiece a contar el camino: dentro de ella no se
-					-- roba ni se calienta nadie, así que un refugio ahí no decide nada.
-					if
-						(sitio - Config.ALMACEN_POS).Magnitude > Config.ZONA_SEGURA_RADIO + 10
-						and not pisaUnDestino(sitio)
-					then
-						table.insert(sitios, sitio)
-					end
-				end
+	-- POR FRANJAS, Y UNA PIEZA POR FRANJA. Esto recorria el camino de principio a fin
+	-- aceptando lo primero que pasara los filtros, y paraba al llenar el cupo: los
+	-- repuestos servian para no quedarse corto, pero el resultado era que TODAS las
+	-- piezas salian del primer trozo bueno del camino.
+	--
+	-- Medido el 20/08 con la ruta roja, que mide 731 studs: sus cuatro candidatos a
+	-- refugio cayeron entre Z=471 y Z=526, o sea en cincuenta y cinco studs de camino.
+	-- Luego `Shelter.repartir` los descarta por separacion --estan a menos de 70 unos
+	-- de otros-- y sobrevive UNO. De ahi que el mapa pidiera tres refugios y plantara
+	-- uno, y que la roja tuviera el 45 % de su recorrido sin sitio donde meterse.
+	--
+	-- No era que no hubiera sitio: es que no se buscaba repartido. Ahora el tramo util
+	-- se parte en tantas franjas como piezas hagan falta y cada franja aporta la suya,
+	-- con ocho tanteos dentro para que un filtro no le borre la pieza a esa franja.
+	local franjas = math.max(cuantos, 1)
+	for f = 0, franjas - 1 do
+		local desde = dMin + (dMax - dMin) * (f / franjas)
+		local hasta = dMin + (dMax - dMin) * ((f + 1) / franjas)
+		local puestaEnLaFranja = false
+		for k = 1, 8 do
+			if puestaEnLaFranja then
 				break
 			end
-			recorrido += largos[t]
+			local d = desde + (hasta - desde) * ((k - 0.5) / 8)
+			-- Buscar en qué tramo cae esa distancia.
+			local recorrido = 0
+			for t = 1, #largos do
+				if recorrido + largos[t] >= d or t == #largos then
+					local dentro = math.clamp((d - recorrido) / largos[t], 0, 1)
+					local a, b = puntos[t], puntos[t + 1]
+					local sobre = a:Lerp(b, dentro)
+					local dir = (b - a)
+					local plano = Vector3.new(dir.X, 0, dir.Z)
+					if plano.Magnitude > 0.01 then
+						-- Perpendicular en el plano: girar 90 grados es (z, -x).
+						local lado = Vector3.new(plano.Z, 0, -plano.X).Unit
+						-- El lado alterna por PIEZA colocada y no por intento: con intentos
+						-- descartados de por medio, alternar por intento dejaba las dos
+						-- guaridas de una ruta en el mismo lado de la calle.
+						local signo = if #sitios % 2 == 0 then 1 else -1
+						local sitio = sobre + lado * (desvio * signo)
+						-- Y fuera de la zona segura, que se mide desde el ALMACÉN y no
+						-- desde donde empiece a contar el camino: dentro de ella no se
+						-- roba ni se calienta nadie, así que un refugio ahí no decide nada.
+						if
+							(sitio - Config.ALMACEN_POS).Magnitude > Config.ZONA_SEGURA_RADIO + 10
+							and not pisaUnDestino(sitio)
+						then
+							table.insert(sitios, sitio)
+							puestaEnLaFranja = true
+						end
+					end
+					break
+				end
+				recorrido += largos[t]
+			end
 		end
 	end
 
