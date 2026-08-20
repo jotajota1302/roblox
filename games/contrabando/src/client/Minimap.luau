@@ -101,22 +101,26 @@ end
 -- manzanas oscuras encima. Lo claro es por donde se pasa, que es la convención de
 -- cualquier plano y no necesita leyenda. Trece rectángulos en vez de setecientos.
 local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
-	-- EL PLANO INCLUYE EL RECINTO, no sólo la ciudad.
+	-- SOLO LA CIUDAD. Nada de recinto.
 	--
-	-- La primera versión dibujaba únicamente la retícula, y el almacén está FUERA de
-	-- ella: el recinto ocupa de Z 755 a 1005 y el mapa acaba en 767. O sea que el
-	-- jugador, que empieza y termina cada viaje en casa, aparecía fuera del plano --
-	-- y como el lienzo se centra en él, el mapa se iba a una esquina del panel. Es
-	-- exactamente lo que se veía en la captura: un recuadro claro descolgado arriba a
-	-- la derecha y el punto blanco en ninguna parte.
-	local cx, cz, tx, tz =
-		Config.POLIGONO_CENTRO.X, Config.POLIGONO_CENTRO.Z, Config.POLIGONO_TAMANO.X, Config.POLIGONO_TAMANO.Y
-	local rx0, rx1 = cx - tx / 2, cx + tx / 2
-	local rz0, rz1 = cz - tz / 2, cz + tz / 2
-
+	-- Durante un tiempo el plano abarcaba tambien el poligono de casa, con un argumento
+	-- razonable: el almacen esta FUERA de la reticula --el recinto va de Z 755 a 1005 y
+	-- la ciudad acaba en 767-- asi que el jugador, que empieza y termina cada viaje en
+	-- casa, quedaba fuera del dibujo.
+	--
+	-- Y salia caro, medido: el recinto son 250 studs de alto y 360 de ancho, asi que el
+	-- plano pasaba a 631x702 y LA CIUDAD SE QUEDABA EN EL 66 % DEL ALTO. Ademas
+	-- sobresale 21 studs por la izquierda, que es la banda oscura sin nada que JJ vio en
+	-- su captura. Todo eso por dibujar un solar donde no hay nada que decidir.
+	--
+	-- Lo zanjo el mismo JJ: *"el mapa tiene que ser de la ciudad solo... claramente la
+	-- ciudad, el objetivo y los enemigos, ya esta"*. Lo de quedarse fuera del plano no es
+	-- un problema: `aPantalla` pega al borde lo que se sale, asi que mientras estas en
+	-- casa tu punto se apoya arriba y en cuanto pisas la ciudad se mueve. Y volver a
+	-- casa no necesita navegacion -- se entrega y el juego te lleva.
 	local gx0, gx1, gz0, gz1 = Grid.limites()
-	local xMin, xMax = math.min(gx0, rx0), math.max(gx1, rx1)
-	local zMin, zMax = math.min(gz0, rz0), math.max(gz1, rz1)
+	local xMin, xMax = gx0, gx1
+	local zMin, zMax = gz0, gz1
 
 	origenMapa = Vector2.new(xMin, zMin)
 	tamanoMapa = Vector2.new(xMax - xMin, zMax - zMin)
@@ -144,10 +148,6 @@ local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
 			rect(string.format("Manzana_%d_%d", col, fila), x0, x1, z0, z1, Color3.fromRGB(58, 62, 74), 2)
 		end
 	end
-
-	-- Y el recinto, en su propio tono: es tuyo, no es ciudad, y saber dónde queda casa
-	-- es la mitad de orientarse.
-	rect("Recinto", rx0, rx1, rz0, rz1, Color3.fromRGB(120, 104, 66), 1)
 
 	return Vector2.new(xMin, zMin)
 end
@@ -243,117 +243,18 @@ end
 -- ciudad decía que la habilidad del juego sería reconocer el cruce malo y
 -- rodearlo; con los peligros invisibles, eso sólo se podía aprender perdiendo la
 -- carga. Un peligro que no se puede anticipar no es tensión, es un impuesto.
-local peligrosPintados = false
-
--- CADA PELIGRO CON SU RUTA Y SU PAPEL, para poder darles pesos distintos.
+-- AQUI SE DIBUJABAN LAS ESQUINAS VIGILADAS Y LAS GUARIDAS: veintinueve nucleos, sus
+-- discos de radio de 35 studs y los nucleos de las guaridas, todo a la vez sobre un
+-- panel de 190x190 pixeles. Se fue con ellas la tabla que las guardaba.
 --
--- El plano ensenaba los 29 detectores de las tres rutas con su disco de radio 35
--- entero, y eso es lo que JJ describio mirandolo: *"en el minimapa estan saliendo
--- muchas cosas que no se lo que son"*. Tenia razon -- veintinueve discos de 35 studs
--- sobre un mapa de 610 no dicen por donde no pasar, dicen que la ciudad es naranja.
+-- Estaba bien pensado --el disco dice por donde NO pasar, que es lo que sirve para
+-- trazar un camino-- y aun asi el resultado era ilegible, porque el plano acabo
+-- teniendo siete familias de simbolo a la vez. *"Estan saliendo muchas cosas que no se
+-- lo que son"*, y luego, cerrandolo: *"claramente la ciudad, el objetivo y los
+-- enemigos, ya esta"*.
 --
--- LA PRIMERA VERSION DE ESTE ARREGLO ESCONDIA LOS DE LAS OTRAS RUTAS, y estaba mal.
--- Se vio yendo a mirar el servidor en vez de suponerlo: `HeatService` recorre TODOS
--- los detectores sin filtrar por ruta, asi que una esquina ambar te ficha igual
--- aunque vayas a la verde. Ocultarla habria hecho un plano legible y MENTIROSO, que
--- es peor que uno recargado: el jugador confia en el, cruza por donde el mapa dice
--- que no hay nada, y le sube el calor sin explicacion.
---
--- Asi que se ensenan todos y lo que cambia es el PESO: de tu ruta, el disco entero
--- --por donde no pasar-- y de las demas solo el nucleo, un punto de 7 studs que dice
--- "aqui hay ojos" sin tapar el plano. La informacion esta toda; la que estorba, no.
-local peligros: { { marco: Frame, ruta: string?, disco: boolean } } = {}
-
-local function pintarPeligros(capa: Frame)
-	local mundo = workspace:FindFirstChild("Mundo")
-	if mundo == nil or peligrosPintados then
-		return
-	end
-
-	local function mancha(
-		nombre: string,
-		centro: Vector3,
-		radio: number,
-		color: Color3,
-		opacidad: number,
-		orden: number
-	)
-		local f = Instance.new("Frame")
-		f.Name = nombre
-		f.AnchorPoint = Vector2.new(0.5, 0.5)
-		f.Position = aEscala(centro.X, centro.Z)
-		f.Size = UDim2.fromScale(radio * 2 / tamanoMapa.X, radio * 2 / tamanoMapa.Y)
-		f.BackgroundColor3 = color
-		f.BackgroundTransparency = opacidad
-		f.BorderSizePixel = 0
-		f.ZIndex = orden
-		f.Parent = capa
-		local redondo = Instance.new("UICorner")
-		redondo.CornerRadius = UDim.new(1, 0)
-		redondo.Parent = f
-		return f
-	end
-
-	local fichadas, madrigueras = 0, 0
-	for _, pieza in mundo:GetChildren() do
-		if not pieza:IsA("BasePart") then
-			continue
-		end
-		if pieza:GetAttribute("detectorId") ~= nil then
-			-- SU RADIO DE VERDAD, no un punto. Un punto dice dónde está; el círculo
-			-- dice por dónde NO pasar, que es lo único que sirve para trazar un
-			-- camino. Es el mismo número que usa el servidor para dispararlas.
-			-- MUY TENUE, y con un núcleo encima. El disco a 0,72 tapaba media retícula:
-			-- son 35 studs de radio sobre un mapa de 630, o sea un 11 % del ancho cada
-			-- uno, y hay treinta. Con el mapa entero a la vista eso deja de informar y
-			-- pasa a ser una mancha naranja donde estaba la ciudad.
-			--
-			-- El disco sigue diciendo por dónde NO pasar --que es lo que sirve para
-			-- trazar un camino-- y el núcleo dice dónde está exactamente.
-			-- Por encima del camino (ZIndex 2): son lo que hay que esquivar mientras lo
-			-- sigues, asi que taparlas con la propia ruta seria contarlo al reves.
-			local disco = mancha(
-				"Fichada_" .. pieza.Name,
-				pieza.Position,
-				Config.DETECTOR_RADIO,
-				Color3.fromRGB(255, 170, 60),
-				0.88,
-				3
-			)
-			local nucleo =
-				mancha("FichadaNucleo_" .. pieza.Name, pieza.Position, 7, Color3.fromRGB(255, 170, 60), 0.15, 3)
-			local suya = pieza:GetAttribute("ruta")
-			local deQuien = if typeof(suya) == "string" then suya else nil
-			table.insert(peligros, { marco = disco, ruta = deQuien, disco = true })
-			table.insert(peligros, { marco = nucleo, ruta = deQuien, disco = false })
-			fichadas += 1
-		elseif pieza:GetAttribute("guarida") == true then
-			-- SU ALCANCE VA COMO ANILLO, NO COMO MANCHA. Es la distancia a la que esa
-			-- guarida puede soltarte un ladrón encima (Config.GUARIDA_ALCANCE), y son
-			-- 260 studs: seis discos de ese tamaño pintarían el mapa entero de rojo y
-			-- no se distinguiría nada, que es justo lo contrario de lo que se le pide
-			-- a un plano. El anillo dice lo mismo y deja ver lo que hay debajo.
-			-- SIN ANILLO DE ALCANCE. Dibujaba los 250 studs a los que esa guarida puede
-			-- soltarte un ladrón, y en la ciudad prestada --de 1.600 studs-- eso era un
-			-- arco fino que informaba. En un mapa de 610 son casi el mapa entero: seis
-			-- guaridas pintaban la maraña de arcos marrones que JJ vio y resumió con
-			-- "ese mapa no se entiende nada". Queda el núcleo, que es lo que hay que
-			-- rodear.
-			-- Y el núcleo, que es lo que se ve de lejos y lo que hay que rodear.
-			-- La guarida no lleva ruta: es un sitio de la ciudad y de ahi sale un ladron
-			-- vayas a donde vayas. Se ensena siempre.
-			mancha("GuaridaNucleo_" .. pieza.Name, pieza.Position, 20, Color3.fromRGB(220, 70, 60), 0.25, 3)
-			madrigueras += 1
-		end
-	end
-
-	-- Sólo se da por pintado cuando había algo que pintar: si el mundo todavía no
-	-- ha replicado al cliente, hay que volver a intentarlo en el siguiente refresco
-	-- en vez de quedarse con un mapa sin peligros para toda la partida.
-	if fichadas > 0 or madrigueras > 0 then
-		peligrosPintados = true
-	end
-end
+-- El peligro no se ha quedado sin representar: las esquinas vigiladas se pintan en el
+-- SUELO, con su radio real y a tamano real, que es donde se decide si las rodeas.
 
 -- EL CAMINO, DIBUJADO. Es lo que JJ pidio mirando el plano: *"con el mapa tan
 -- sencillo el camino deberia mostrarlo el minimapa"*.
@@ -476,33 +377,14 @@ function Minimap.refrescar()
 		yo.Visible = true
 	end
 
-	-- Los peligros fijos, en cuanto el mundo haya llegado al cliente. Se protege
-	-- sola: en cuanto pinta algo, no vuelve a hacer nada.
-	pintarPeligros(capa)
-
 	local rutaEnCurso = estado and estado.ruta
-	-- SIN VIAJE NO SE ENSENA NINGUNO: los detectores no disparan sin carga --lo
-	-- comprueba el servidor antes de mirar distancias-- asi que pintarlos seria
-	-- ensenar un peligro que no existe, y el jugador aprenderia a ignorarlos justo
-	-- antes de que empiecen a importar. Es la misma regla que `Senales` aplica en 3D.
-	--
-	-- Con viaje: el disco entero solo el de tu ruta; de las demas, el nucleo.
-	for _, p in peligros do
-		if rutaEnCurso == nil then
-			p.marco.Visible = false
-		elseif p.disco then
-			p.marco.Visible = p.ruta == nil or p.ruta == rutaEnCurso
-		else
-			p.marco.Visible = true
-		end
-	end
 
 	-- El camino que estas haciendo, por debajo de todo lo demas.
 	pintarCamino(capa, rutaEnCurso)
 
-	local casa = punto("Almacen", Palette.ALMACEN, 10, 4)
-	casa.Position = (aPantalla(centro, Config.ALMACEN_POS, lado))
-	casa.Visible = true
+	-- SIN EL PUNTO DE CASA. Estaba fuera del plano desde que el plano es solo la
+	-- ciudad, asi que lo unico que hacia era pegarse al borde de arriba y competir con
+	-- lo que si hay que mirar. Y no se navega hacia casa: se entrega y el juego te lleva.
 
 	local rutaActiva = estado and estado.ruta
 
@@ -542,27 +424,16 @@ function Minimap.refrescar()
 
 	local vistos: { [string]: boolean } = {}
 
-	-- Los refugios, SIEMPRE visibles y pegados al borde si se salen. Es lo que se
-	-- busca cuando la cosa se pone fea, y hay que haberlos visto antes de
-	-- necesitarlos: cuando los necesitas, ya es tarde para aprendértelos.
-	local mundo = workspace:FindFirstChild("Mundo")
-	if mundo then
-		for _, pieza in mundo:GetChildren() do
-			if pieza:IsA("BasePart") and pieza:GetAttribute("refugio") == true then
-				local clave = "Refugio_" .. pieza.Name
-				local p = punto(clave, Color3.fromRGB(120, 180, 255), 11, 6)
-				local donde, dentro = aPantalla(centro, pieza.Position, lado)
-				p.Position = donde
-				-- Los de fuera de alcance, más pequeños y translúcidos: siguen
-				-- diciendo por dónde caen sin competir con los que sí puedes
-				-- alcanzar ahora mismo.
-				p.Size = if dentro then UDim2.fromOffset(11, 11) else UDim2.fromOffset(7, 7)
-				p.BackgroundTransparency = if dentro then 0 else 0.35
-				p.Visible = true
-				vistos[clave] = true
-			end
-		end
-	end
+	-- LOS REFUGIOS YA NO SE PINTAN AQUI, y con ellos se fueron las esquinas vigiladas.
+	-- El plano llego a tener a la vez: la reticula, el recinto, tres destinos, tres
+	-- refugios, veintinueve nucleos de esquina vigilada, sus discos de radio y el
+	-- jugador. JJ lo miro y dijo lo que se ve: *"estan saliendo muchas cosas que no se
+	-- lo que son"* -- y no era falta de leyenda, era exceso de dibujo. Un plano de
+	-- 190x190 pixeles no admite siete familias de simbolo.
+	--
+	-- Se queda con lo que contesta a las tres preguntas del viaje: donde estoy, a donde
+	-- voy y quien viene a por mi. *"Claramente la ciudad, el objetivo y los enemigos, ya
+	-- esta"*.
 
 	-- La gente: TODOS, con carga o sin ella. Saber que hay alguien cerca es media
 	-- decisión en la ruta roja, y esconder a los que van vacíos escondería
