@@ -373,7 +373,16 @@ function Minimap.refrescar()
 	-- Y el jugador, en su sitio del plano.
 	local yo = puntos["Yo"]
 	if yo then
-		yo.Position = aEscala(centro.X, centro.Z)
+		-- CON `aPantalla` Y NO CON `aEscala`, que es la diferencia entre verse y no
+		-- verse. El plano es SOLO la ciudad, y el almacen esta fuera de la reticula
+		-- --250 studs mas al sur-- asi que estando en casa tu punto caia en Y=1,09,
+		-- fuera del panel, y el panel recorta a sus hijos: desaparecias.
+		--
+		-- O sea que no te veias a ti mismo en el sitio donde EMPIEZA Y TERMINA CADA
+		-- VIAJE. La cabecera de `pintarPlano` ya describia el comportamiento correcto
+		-- --*"tu punto se apoya arriba y en cuanto pisas la ciudad se mueve"*-- y lo
+		-- atribuia a `aPantalla`; lo que faltaba era usarla aqui.
+		yo.Position = (aPantalla(centro, centro, lado))
 		yo.Visible = true
 	end
 

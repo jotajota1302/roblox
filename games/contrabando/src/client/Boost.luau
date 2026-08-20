@@ -10,8 +10,9 @@
 	Subir el valor arregla la mitad --ahora una pieza es +15 %-- pero solo la mitad:
 	un cambio de velocidad, por grande que sea, es dificil de percibir cuando no
 	tienes con que compararlo. Lo que lo hace evidente es el instante. Por eso esto
-	no dibuja "vas rapido", dibuja "ACABAS de acelerar": un tiron de campo de vision
-	que se abre de golpe y se cierra en medio segundo.
+	no dibuja "vas rapido", dibuja "ACABAS de acelerar": el campo de vision se abre
+	deprisa y se cierra despacio. DEPRISA NO ES DE GOLPE -- la primera version lo
+	escribia en un solo fotograma y se sintio como un tiron, no como un empujon.
 
 	VA EN EL CLIENTE Y SOLO PARA TI, y no por ahorro: la camara es tuya. Lo que el
 	servidor manda es el instante (Remotes.IMPULSO); lo que se hace con el es cosa
@@ -33,14 +34,30 @@ local Boost = {}
 -- segundo: es el margen en el que el ojo lo registra como un empujon y no como un
 -- mareo. El tope a 16 esta para el caso de la cadena -- tres rayos en dos segundos
 -- no pueden dejar la pantalla en ojo de pez.
-local POR_RAYO = 8
-local TOPE = 16
+-- Cuanto pide el impulso por rayo, y hasta donde. Grados de campo de vision.
+--
+-- BAJADO DE 8 A 5 (y el tope de 16 a 10) el mismo dia que se estreno: *"los efectos
+-- son bruscos"*. Y lo eran por dos motivos distintos que se sumaban -- era mucho, y
+-- ademas entraba de golpe.
+local POR_RAYO = 5
+local TOPE = 10
 
--- Lo que tarda en volver. Rapido al abrir (el golpe) y lento al cerrar (la
--- inercia): si volviera a la misma velocidad, se leeria como un parpadeo.
-local CIERRE_POR_SEGUNDO = 22
+-- Lo que tarda en volver a su sitio, en grados por segundo.
+local CIERRE_POR_SEGUNDO = 14
 
-local extra = 0
+-- Y LO QUE TARDA EN LLEGAR, que es lo que faltaba. La primera version escribia el
+-- campo de vision de golpe en el mismo fotograma de la recogida: un salto de 8
+-- grados en 16 milisegundos no se lee como aceleracion, se lee como un tiron.
+--
+-- Ahora hay dos numeros --lo que el impulso PIDE y lo que la camara PINTA-- y el
+-- segundo persigue al primero con suavizado exponencial. Sube en 90 ms (rapido, es
+-- el golpe) y baja en 260 (lento, es la inercia). Que no sean iguales es justo lo
+-- que lo hace sentir un empujon en vez de un parpadeo.
+local TAU_SUBIDA = 0.09
+local TAU_BAJADA = 0.26
+
+local pedido = 0
+local pintado = 0
 local base: number? = nil
 local conectado = false
 
@@ -61,11 +78,24 @@ end
 
 local function tick(dt: number)
 	local cam = camara()
-	if cam == nil or extra <= 0 then
+	if cam == nil then
 		return
 	end
-	extra = math.max(0, extra - CIERRE_POR_SEGUNDO * dt)
-	cam.FieldOfView = referencia(cam) + extra
+	if pedido <= 0 and pintado <= 0.05 then
+		-- Ya no queda nada que animar: se deja el campo de vision EXACTO y se para.
+		-- Sin este remate quedaria una decima de grado colgando para siempre, y la
+		-- siguiente vez que algo lea el valor de referencia lo leeria torcido.
+		if pintado ~= 0 then
+			pintado = 0
+			cam.FieldOfView = referencia(cam)
+		end
+		return
+	end
+
+	pedido = math.max(0, pedido - CIERRE_POR_SEGUNDO * dt)
+	local tau = if pedido > pintado then TAU_SUBIDA else TAU_BAJADA
+	pintado += (pedido - pintado) * (1 - math.exp(-dt / tau))
+	cam.FieldOfView = referencia(cam) + pintado
 end
 
 -- Se llama al recibir Remotes.IMPULSO.
@@ -75,8 +105,7 @@ function Boost.golpe()
 		return
 	end
 	referencia(cam)
-	extra = math.min(extra + POR_RAYO, TOPE)
-	cam.FieldOfView = (base :: number) + extra
+	pedido = math.min(pedido + POR_RAYO, TOPE)
 
 	if not conectado then
 		conectado = true
@@ -88,7 +117,8 @@ end
 -- esto, reaparecer en mitad de un tiron deja la camara abierta hasta que se
 -- consuma sola, y el jugador nuevo ve el mundo deformado sin saber por que.
 function Boost.soltar()
-	extra = 0
+	pedido = 0
+	pintado = 0
 	local cam = camara()
 	if cam and base then
 		cam.FieldOfView = base
