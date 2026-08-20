@@ -590,6 +590,31 @@ OK`, la sonda pasa, y lo que se está midiendo es el código de antes.
 Saltarse el paso 3 es cómo se llega a "lo he probado y no cambia nada" sin haberlo
 probado.
 
+## 3-ter. Lo que salió jugando el 20/08
+
+La sesión anterior cerró la sonda en verde y el juego seguía roto por dentro. Estos seis
+no los cazó ninguna herramienta: salieron de **jugar partidas y medir lo que pasaba**, y
+los seis compilaban perfectamente.
+
+| Qué | Por qué pasaba | Cómo se vio |
+|---|---|---|
+| **El sistema de señales llevaba días muerto** | `Senales.reunir()` escribía en una tabla borrada al quitar los faroles: `nil["1"]`. Reventaba en su primera línea y el `pcall` de `Main` se lo tragaba | El mundo con TODO encendido: las 49 migas de las otras rutas, sus 27 detectores y los ocho raíles superpuestos. Cuatro quejas de JJ el mismo día, ninguna parecida a la causa |
+| **Los ladrones nacían en un tejado** | El punto de aparición lanza un rayo sobre el CENTRO de la guarida, y ahí hay 26×18×26 de nave maciza | Quieto 40 s en la roja con la carga y el calor al máximo: los perseguidores avanzaron **diez studs**. `ComputeAsync` daba `NoPath` |
+| **Y luego se quedaban en el patio** | Bajarlos del tejado los dejó sobre la losa de la guarida, que está 2,8 studs sobre el asfalto. El pathfinder sin saltos no baja eso | La sonda nueva: *"2 encerradas: sus ladrones no pueden llegar a nadie"* |
+| **El reparto no repartía** | Aceptaba lo primero que pasara los filtros y paraba al llenar el cupo, así que todo salía del primer trozo bueno del camino | Los cuatro candidatos de la roja, en 55 studs de un recorrido de 731 |
+| **El cupo de refugios era global** | `Shelter.repartir` topaba en `REFUGIOS_POR_RUTA` para todas | La roja pedía dos y se llevaba uno |
+| **El nivel medía la suerte, no el juego** | `xp = valor × 0,5`, y el valor varía ×100 por rareza | Doce viajes daban nivel 7. Subir del 6 al 7 son 30 viajes verdes… o UNO ámbar con mercancía marcada |
+
+**La moraleja está en la primera fila y vale para todas: un `pcall` alrededor de un
+sistema entero convierte "está roto" en "se ve raro".** El juego arrancaba, la sonda daba
+verde y las 865 pruebas pasaban, porque ninguna de las tres mira lo que el jugador ve.
+
+Lo que se llevó de herramienta: `scripts/verificar.ps1` con **análisis estático**
+(`luau-lsp`), que caza los símbolos que no existen — la familia exacta del primer fallo — y
+que está probado reintroduciendo el bug a propósito. En esa misma prueba, `rojo build`
+dijo `BUILD OK`. Tres veces en la sesión el build dio luz verde a algo roto, una de ellas
+a un fichero que ni siquiera parseaba.
+
 ## 4. Antes de publicar
 
 - [ ] **Poner `Config.PROTOTIPO = false`.** Una línea, y con eso las probabilidades de caja
