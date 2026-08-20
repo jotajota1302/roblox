@@ -31,6 +31,7 @@ local Senales = {}
 
 local piezas: { BasePart } = {}
 local zonas: { BasePart } = {}
+local lineas: { BasePart } = {}
 
 -- Cada farol de guarida con la ruta de SU guarida. El farol no lleva el atributo
 -- (es una pieza aparte), pero comparte índice con ella: `GuaridaFarol_3` alumbra
@@ -47,7 +48,7 @@ local function reunir()
 		return
 	end
 	mundoVisto = mundo
-	piezas, zonas = {}, {}
+	piezas, zonas, lineas = {}, {}, {}
 
 	for _, d in mundo:GetDescendants() do
 		local indice = string.match(d.Name, "^Guarida_(%d+)$")
@@ -67,6 +68,8 @@ local function reunir()
 			table.insert(piezas, d)
 		elseif d:GetAttribute("zonaFichada") == true then
 			table.insert(zonas, d)
+		elseif d:GetAttribute("lineaDeRuta") == true then
+			table.insert(lineas, d)
 		end
 		-- Balizas, faroles y faros ya no existen: el 19/08 se quitó del mapa todo lo
 		-- vertical, a petición de JJ y con el argumento que lo cierra -- los puntos
@@ -102,6 +105,13 @@ function Senales.actualizar(estado: any)
 	for _, pieza in piezas do
 		local mia = hayViaje and pieza:GetAttribute("ruta") == ruta
 		pintar(pieza, mia and pieza:GetAttribute("apagada") ~= true, 0)
+	end
+
+	-- LA LÍNEA DE TU RUTA, y sólo la tuya. Cuatro líneas pintadas a la vez serían
+	-- cuatro caminos y ninguno: es la misma razón por la que sólo se encienden tus
+	-- migas.
+	for _, linea in lineas do
+		pintar(linea, hayViaje and linea:GetAttribute("ruta") == ruta, 0.35)
 	end
 
 	-- LAS ZONAS FICHADAS, sólo mientras llevas algo. Sin carga no te fichan --el

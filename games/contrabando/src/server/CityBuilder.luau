@@ -54,6 +54,11 @@ local LADO_SALIDA = 30
 local RESALTE_VIA = 1.6
 local GROSOR_VIA = 2.4
 
+-- La cota de la línea que dibuja la ruta en el suelo. Por encima de la calzada (19,2)
+-- y de las losas del juego (19,6) con margen de sobra: dos superficies a menos de dos
+-- décimas parpadean, y esa lección ya costó una tarde.
+local Y_LINEA_RUTA = 19.9
+
 local function part(nombre: string, tamano: Vector3, posicion: Vector3, color: Color3, padre: Instance): Part
 	local p = Instance.new("Part")
 	p.Name = nombre
@@ -287,8 +292,13 @@ local function zocalo(losa: BasePart, bajo: number, padre: Instance)
 		losa.Name .. "Zocalo",
 		-- Un pelo más estrecho que la losa, para que el borde de arriba siga
 		-- leyéndose como un escalón y no como un bloque macizo.
-		Vector3.new(losa.Size.X - 1.5, caida + ALTO_LOSA + MARGEN, losa.Size.Z - 1.5),
-		Vector3.new(losa.Position.X, suelo - (caida + MARGEN) / 2, losa.Position.Z),
+		-- Y LA CARA, MEDIO STUD POR DEBAJO DE LA LOSA. Antes subía ALTO_LOSA por
+		-- encima de la base --o sea que asomaba por el costado-- y con la losa ya
+		-- empotrada eso dejaba su borde a un par de décimas de la calzada: dos
+		-- superficies a esa distancia parpadean. El zócalo existe para tapar el hueco
+		-- de abajo, no para verse.
+		Vector3.new(losa.Size.X - 1.5, caida + MARGEN, losa.Size.Z - 1.5),
+		Vector3.new(losa.Position.X, suelo - 0.5 - (caida + MARGEN) / 2, losa.Position.Z),
 		Color3.new(losa.Color.R * 0.55, losa.Color.G * 0.55, losa.Color.B * 0.55),
 		padre
 	)
@@ -549,6 +559,14 @@ local function poligono(ciudad: Instance?, padre: Instance)
 	local medida = Config.POLIGONO_TAMANO
 	local cota = centro.Y
 
+	-- A SU COTA DE SIEMPRE. Se probó a subirlo cuatro décimas para separarlo de la
+	-- calzada --se solapan doce studs y estaban coplanares, que es el peor parpadeo que
+	-- hay-- y el remedio fue peor: dentro del recinto TODO se apoya en esta cota, así
+	-- que subir el suelo lo puso por encima del almacén, de la salida y del taller. La
+	-- sonda lo cantó a la primera: "Almacen se pisa por arriba, lo que se pisa ahí es
+	-- Poligono".
+	--
+	-- El solape se arregla donde nace: la calzada de la ciudad ya no entra aquí.
 	local suelo = part(
 		"Poligono",
 		Vector3.new(medida.X, 4, medida.Y),
@@ -1166,6 +1184,45 @@ local function sembrarContactos(
 	-- Las del rastro, en orden, para dorarlas DESPUÉS de saber cuáles cabían.
 	local delRastro: { BasePart } = {}
 
+	-- LA RUTA, PINTADA EN LA CALZADA.
+	--
+	-- Las migas solas no bastan y lo dijo JJ por cuarta vez: "no se ve dónde tienes
+	-- que ir". Son cubos de dos studs, del color de la crema, sobre un asfalto claro y
+	-- con la luz de un atardecer -- se ven al pisarlos y no a treinta studs, que es
+	-- cuando hacen falta. Y entre uno y otro hay veintidós studs de nada.
+	--
+	-- Una LÍNEA CONTINUA se lee desde el otro extremo de la calle sin mirarla: es lo
+	-- que hacen las señales de un aeropuerto y no necesitan explicarse. Va del color
+	-- de la ruta, así que además dice CUÁL es la tuya.
+	--
+	-- Plana y en el suelo, como las zonas fichadas: nada de esto reabre lo vertical.
+	-- Y sin colisión, así que su altura no puede crear un escalón.
+	local ANCHO_LINEA = 3.4
+	for i = 2, #camino do
+		local a, b = camino[i - 1], camino[i]
+		local plano = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+		local largo = plano.Magnitude
+		if largo > 2 then
+			local centro = Vector3.new((a.X + b.X) / 2, Y_LINEA_RUTA, (a.Z + b.Z) / 2)
+			local linea = part(
+				string.format("LineaRuta_%s_%d", ruta.id, i),
+				Vector3.new(ANCHO_LINEA, 0.2, largo),
+				centro,
+				Palette.ruta(ruta.id),
+				padre
+			)
+			linea.CFrame = CFrame.lookAt(centro, centro + plano.Unit)
+			linea.Material = Enum.Material.Neon
+			linea.Transparency = 0.35
+			linea.CanCollide = false
+			linea.CanQuery = false
+			linea.CanTouch = false
+			linea:SetAttribute("ruta", ruta.id)
+			linea:SetAttribute("lineaDeRuta", true)
+			table.insert(piezas, linea)
+		end
+	end
+
 	for i, contacto in Contacts.deRuta(ruta.id, camino, anclas) do
 		local x, z = contacto.pos.X, contacto.pos.Z
 
@@ -1203,12 +1260,16 @@ local function sembrarContactos(
 
 		local esRacimo = contacto.tipo == "racimo"
 		local esRastro = contacto.tipo == "rastro"
-		local lado = if esRacimo then 3.4 elseif esRastro then 1.9 else 2.2
+		-- MÁS GRANDES. 1,9 studs de crema sobre asfalto claro no se veía a la
+		-- distancia a la que hace falta verlo, que es la siguiente, no la que pisas.
+		local lado = if esRacimo then 3.4 elseif esRastro then 3 else 2.6
 		local pieza = part(
 			string.format("Contacto_%s_%d", ruta.id, i),
 			Vector3.new(lado, lado, 0.7),
 			Vector3.new(x, (y :: number) + 3.2, z),
-			if esRacimo then Color3.fromRGB(255, 196, 84) else Color3.fromRGB(236, 226, 196),
+			-- DEL COLOR DE SU RUTA, como la línea del suelo. El crema se confundía con
+			-- todo; el color dice además cuál es la tuya de un vistazo.
+			if esRacimo then Color3.fromRGB(255, 196, 84) else Palette.ruta(ruta.id),
 			padre
 		)
 		pieza.Material = Enum.Material.Neon
@@ -2007,6 +2068,45 @@ function CityBuilder.build(): Mundo
 	-- a la ciudad. Antes se calculaba como "60 studs hacia el centro del mapa" y
 	-- con el polígono eso caería en mitad del patio, sin ningún borde que cruzar.
 	local salidaPos = Config.POLIGONO_SALIDA
+
+	-- UN ARCO, NO UNA LOSA AMARILLA.
+	--
+	-- Aquí había una plataforma de color en el suelo que JJ pisó tres veces sin que
+	-- pasara nada y resumió igual de veces: "el cuadrado amarillo que no hace nada".
+	-- Tenía razón por partida doble -- desde que la ruta se elige al coger la carga,
+	-- la losa dejó de abrir el selector, y una losa de color no dice qué es de todos
+	-- modos.
+	--
+	-- Un arco sí lo dice sin una palabra: **al otro lado empieza la ciudad**. Es la
+	-- forma más vieja que hay de marcar un umbral y no hace falta explicarla. Y separa
+	-- lo que JJ pidió separar -- de aquí para dentro es tuyo, el almacén y el taller;
+	-- de aquí para fuera se juega.
+	--
+	-- No reabre lo vertical que se quitó: aquello eran columnas de luz que señalaban
+	-- sitios a los que ir. Esto es una puerta, y una puerta se cruza.
+	local ANCHO_ARCO, ALTO_ARCO, GROSOR_PILAR = 46, 20, 5
+	local cotaArco = Config.ALMACEN_POS.Y
+	for _, lado in { -1, 1 } do
+		local pilar = part(
+			"ArcoPilar" .. (if lado < 0 then "O" else "E"),
+			Vector3.new(GROSOR_PILAR, ALTO_ARCO, GROSOR_PILAR),
+			Vector3.new(salidaPos.X + lado * ANCHO_ARCO / 2, cotaArco + ALTO_ARCO / 2, salidaPos.Z),
+			Palette.SALIDA,
+			mundo
+		)
+		pilar.Material = Enum.Material.Concrete
+	end
+	local dintel = part(
+		"ArcoDintel",
+		Vector3.new(ANCHO_ARCO + GROSOR_PILAR, 4, GROSOR_PILAR),
+		Vector3.new(salidaPos.X, cotaArco + ALTO_ARCO + 2, salidaPos.Z),
+		Palette.SALIDA,
+		mundo
+	)
+	dintel.Material = Enum.Material.Concrete
+	dintel.CanCollide = false
+
+	-- La losa se queda, pero de umbral y no de botón: marca el suelo bajo el arco.
 	local salida = losa(
 		ciudad,
 		"Salida",
@@ -2016,32 +2116,18 @@ function CityBuilder.build(): Mundo
 		mundo
 	)
 
-	-- Y su baliza, que es lo que la convierte en un sitio al que se puede VOLVER.
-	-- Los tres destinos tenían la suya desde el principio y la salida no, y eso
-	-- dejaba el peor hueco posible: la única losa que hay que encontrar con la
-	-- carga puesta era también la única invisible. Más baja que las de destino
-	-- (60 studs frente a 300) porque se busca desde dentro del recinto, no desde
-	-- el otro extremo del mapa.
-	-- SIN BALIZA DE SALIDA. La losa ya se ve por su color y su cartel; la columna era
-	-- una más del bosque vertical que JJ pidió quitar entero.
 	local balizaSalida = salida
 	balizaSalida.CanCollide = true
-	balizaSalida.Material = Enum.Material.Neon
-	-- Más baja y menos encendida que antes (110 studs y opaca). Tenía que gritar
-	-- cuando la salida era una losa perdida entre edificios; ahora está en la boca
-	-- de un polígono cerrado por muros, y un pilar de cien studs en mitad del patio
-	-- tapaba la vista de la propia base.
-	balizaSalida.Transparency = 0.35
 
 	local cartelSalida = Instance.new("BillboardGui")
 	cartelSalida.Name = "Cartel"
 	cartelSalida.Size = UDim2.fromScale(30, 8)
-	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 8, 0)
+	cartelSalida.StudsOffsetWorldSpace = Vector3.new(0, 26, 0)
 	-- SÓLO AL PIE DE LA LOSA. Se leía a 700 studs y por encima de todo, así que el
 	-- "EXIT · pick a route" te acompañaba durante medio viaje. Y además ya no dice la
 	-- verdad: desde el 19/08 la ruta se elige al coger el paquete, no al salir.
 	cartelSalida.AlwaysOnTop = false
-	cartelSalida.MaxDistance = 60
+	cartelSalida.MaxDistance = 130
 	cartelSalida.Adornee = balizaSalida
 	cartelSalida.Parent = balizaSalida
 

@@ -235,7 +235,9 @@ local TEXTOS: { [string]: string } = {
 	SIGN_OFFICE = "OFFICE",
 	-- La salida ya no elige nada: desde el 19/08 la ruta se escoge al coger el
 	-- paquete. El cartel se queda diciendo sólo qué es este sitio.
-	SIGN_EXIT = "EXIT",
+	-- Bajo el arco. Dice lo que separa, no lo que hay que hacer: de aquí para dentro es
+	-- tu polígono -- almacén y taller-- y de aquí para fuera, la ciudad.
+	SIGN_EXIT = "CITY  ·  keep your cargo safe",
 	SIGN_PARKED = "you parked here",
 	PROMPT_BUY = "Buy",
 	PROMPT_BUY_VEHICLE = "Buy vehicle",

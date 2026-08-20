@@ -252,6 +252,17 @@ end
 -- de CityBuilder, y cuanto más pequeña es la pieza que devuelve, más barato sale.
 local function plantarCalzada(padre: Instance)
 	local xMin, xMax, zMin, zMax = Grid.limites()
+
+	-- SIN METERSE BAJO EL RECINTO. El polígono ocupa de Z 755 en adelante y el mapa
+	-- llega a 767, así que doce studs de asfalto quedaban DEBAJO de la explanada de
+	-- casa, las dos superficies a la misma cota exacta -- coplanares perfectas, el peor
+	-- caso de parpadeo que existe, y justo en el sitio por el que se sale y se entra
+	-- cada viaje.
+	--
+	-- Se recorta aquí y no se sube el polígono: dentro del recinto todo se apoya en su
+	-- cota, así que moverlo pone el suelo por encima del almacén.
+	local bordeSurDelRecinto = Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
+	zMax = math.min(zMax, bordeSurDelRecinto)
 	local PASO = 160
 	local indice = 0
 	local x = xMin

@@ -896,7 +896,15 @@ Config.RASTRO_HASTA = 25
 -- consecuencia directa de acortar las rutas: con la verde en 26 s de ida, una
 -- recarga de 45 dejaba TODO el viaje de vuelta a oscuras y sin racha. La vuelta
 -- ya era la mitad floja del ciclo; no podía además quedarse sin el gancho.
-Config.CONTACTO_RECARGA = 15
+-- LA RECARGA, LARGA A PROPÓSITO. Con 15 segundos, una miga que cogías al empezar
+-- estaba otra vez encendida antes de llegar al destino -- y desde dentro eso se ve
+-- exactamente como lo describió JJ: "los paquetes que se cogen no desaparecen". No era
+-- que no desaparecieran: es que volvían.
+--
+-- Con 240 no vuelven dentro del mismo viaje ni del siguiente. La recarga existe para
+-- que el mapa no se quede pelado en una partida larga, no para reponer el rastro que
+-- acabas de recorrer.
+Config.CONTACTO_RECARGA = 240
 
 -- Cuántos por ruta. Ahora `sueltos` NO es cuántas piezas hay, sino cuántas de las
 -- del rastro son DORADAS (las que además pagan contacto). El total de piezas lo
