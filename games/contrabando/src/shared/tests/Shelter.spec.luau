@@ -133,4 +133,24 @@ return function(kit)
 	-- Casos límite que no pueden reventar el arranque del mundo.
 	kit.eq("cero refugios devuelve lista vacia", #Shelter.sitiosDeRuta(origen, destino, 0), 0)
 	kit.eq("un origen y destino iguales no revientan", #Shelter.sitiosDeRuta(origen, origen, 2), 0)
+
+	-- CADA RUTA CON SU CUPO. La roja mide el doble que la ambar y pide dos refugios;
+	-- hasta el 20/08 el tope era global --`REFUGIOS_POR_RUTA`, o sea 1-- asi que la
+	-- ruta que mas los necesitaba era la unica a la que se le quedaba corto. Y no se
+	-- podia arreglar sin subirselo a todas.
+	local lejos = {
+		{ Vector3.new(0, 0, 0), Vector3.new(0, 0, 500), Vector3.new(0, 0, 1000) },
+		{ Vector3.new(3000, 0, 0), Vector3.new(3000, 0, 500), Vector3.new(3000, 0, 1000) },
+	}
+	kit.eq("con un numero, el cupo vale para todos", #Shelter.repartir(lejos, 100, 1), 2)
+	kit.eq("y con dos, cada grupo coge el suyo", #Shelter.repartir(lejos, 100, { 2, 1 }), 3)
+	kit.eq("sin decir nada se comporta como antes", #Shelter.repartir(lejos, 100), 2)
+
+	-- La red de seguridad sigue: un grupo cuyos sitios chocan todos con lo ya puesto
+	-- coloca el primero igualmente. Una ruta sin refugio es un agujero de juego.
+	local pegados = {
+		{ Vector3.new(0, 0, 0) },
+		{ Vector3.new(1, 0, 1) },
+	}
+	kit.eq("ninguna ruta se queda sin refugio", #Shelter.repartir(pegados, 100, { 1, 1 }), 2)
 end

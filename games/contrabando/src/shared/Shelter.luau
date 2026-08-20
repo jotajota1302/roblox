@@ -138,10 +138,25 @@ end
 -- respetando la separación; si no cabe ninguno, se coge el primero igualmente. Un
 -- refugio algo cerca de otro es un defecto de reparto; una ruta sin refugio es un
 -- agujero de juego.
-function Shelter.repartir(grupos: { { Vector3 } }, separacion: number?, porGrupo: number?): { Vector3 }
+-- CADA GRUPO PUEDE PEDIR LO SUYO. `porGrupo` admite un numero --el cupo para todos,
+-- que es como se llamaba hasta hoy-- o una LISTA con el cupo de cada grupo.
+--
+-- Hizo falta el 20/08: la roja mide 731 studs, el doble que la ambar, y pide dos
+-- refugios. El reparto le daba UNO porque el tope era global y valia
+-- `REFUGIOS_POR_RUTA`, o sea 1. La ruta que mas los necesita era la unica a la que el
+-- cupo se le quedaba corto, y no habia forma de decirlo sin subirselo a todas.
+function Shelter.repartir(grupos: { { Vector3 } }, separacion: number?, porGrupo: (number | { number })?): { Vector3 }
 	local minimo = separacion or Config.REFUGIO_SEPARACION
-	local tope = porGrupo or Config.REFUGIOS_POR_RUTA
 	local aceptados: { Vector3 } = {}
+
+	local function cupoDe(indice: number): number
+		if typeof(porGrupo) == "table" then
+			return (porGrupo :: { number })[indice] or Config.REFUGIOS_POR_RUTA
+		elseif typeof(porGrupo) == "number" then
+			return porGrupo :: number
+		end
+		return Config.REFUGIOS_POR_RUTA
+	end
 
 	local function lejosDeTodos(sitio: Vector3): boolean
 		for _, puesto in aceptados do
@@ -154,7 +169,8 @@ function Shelter.repartir(grupos: { { Vector3 } }, separacion: number?, porGrupo
 		return true
 	end
 
-	for _, grupo in grupos do
+	for indice, grupo in grupos do
+		local tope = cupoDe(indice)
 		local puestos = 0
 		for _, sitio in grupo do
 			if puestos >= tope then

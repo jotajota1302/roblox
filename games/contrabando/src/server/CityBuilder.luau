@@ -2437,6 +2437,9 @@ function CityBuilder.build(): Mundo
 	-- ruta en vez de dejarla sin refugio -- que es lo que pasaba, y lo destapó la
 	-- sonda del mundo.
 	local grupos: { { Vector3 } } = {}
+	-- Y el cupo de cada uno, en paralelo: la roja pide dos y las demas uno, y sin esto
+	-- el reparto le daba uno a todas porque el tope era global.
+	local cupos: { number } = {}
 	for _, ruta in Routes.todas() do
 		-- Las rutas sin peligro NO PIDEN SITIO. Medido al entrar el barrio: sus
 		-- candidatos competían con los de la verde --Shelter.repartir descarta los
@@ -2444,6 +2447,7 @@ function CityBuilder.build(): Mundo
 		-- refugio. Un solar pedido por quien no lo necesita se lo quita a quien sí.
 		local cuantos = ruta.refugios or Config.REFUGIOS_POR_RUTA
 		if cuantos > 0 then
+			table.insert(cupos, cuantos)
 			table.insert(
 				grupos,
 				sitiosSobreElCamino(
@@ -2489,8 +2493,9 @@ function CityBuilder.build(): Mundo
 	-- plantaba uno --el segundo caia encima del primero, porque la ambar y la roja
 	-- comparten su primer tramo-- y nadie se enteraba. La sonda cuenta que haya al
 	-- menos uno, no que esten todos los que se pidieron.
-	local pedidos = #Shelter.repartir(grupos)
-	for _, sitio in Shelter.repartir(grupos) do
+	local reparto = Shelter.repartir(grupos, nil, cupos)
+	local pedidos = #reparto
+	for _, sitio in reparto do
 		local pieza = refugio(ciudad, #refugios + 1, sitio, mundo, tomados)
 		if pieza then
 			table.insert(refugios, pieza.Position)
