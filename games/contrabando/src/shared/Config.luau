@@ -321,8 +321,26 @@ Config.RAREZAS = if Config.PROTOTIPO then Config.RAREZAS_PROTOTIPO else Config.R
 --
 -- La ciudad va de X -774 a 774 y de Z -790 a 780 (medido). El polígono empieza
 -- justo detrás de ese borde.
-Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 880)
-Config.POLIGONO_TAMANO = Vector2.new(360, 250)
+-- ENCOGIDO A LA MITAD el 20/08. Lo pidio JJ --*"deberiamos reducir la parte donde
+-- esta el taller y el almacen, hay mucho terreno que no sirve para nada"*-- y
+-- medirlo le dio la razon de sobra: contando las piezas por franjas de 25 studs
+-- desde la boca, **de Z 880 a 1005 no habia NI UNA**. La mitad trasera del recinto
+-- era cesped. A lo ancho, lo construido iba de X -713 a -486: 226 studs de los 360.
+--
+--   antes  360 x 250 = 90.000 studs cuadrados
+--   ahora  300 x 150 = 45.000, con lo util cabiendo entero y con margen
+--
+-- Y no es una cuestion de estetica: el recinto es donde EMPIEZA Y TERMINA cada
+-- viaje, asi que cada stud de cesped vacio es tiempo andando sin decidir nada. La
+-- caja negra del 20/08 lo enseño en crudo -- del ciclo medido, la parte de dentro
+-- de casa se lleva mas que el viaje.
+--
+-- EL CENTRO EN X NO SE MUEVE, y eso es innegociable: la calle X=-620 de la
+-- reticula pasa por la boca del recinto (ver la cabecera de Grid), asi que al salir
+-- ya estas EN una calle. Mover el centro para "centrar el contenido" alinearia la
+-- puerta con una manzana. Lo que se mueve es el fondo, que es donde sobra.
+Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 830)
+Config.POLIGONO_TAMANO = Vector2.new(300, 150)
 -- Por dónde se sale a la ciudad: el extremo norte del polígono, y desde ahí una
 -- carretera hasta la calle más cercana.
 -- EN LA BOCA EXACTA (centro.Z - alto/2 = 880 - 115), no unos studs más adentro:

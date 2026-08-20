@@ -73,6 +73,13 @@ local bajadoAProposito: { [Player]: boolean } = {}
 -- aviso, y con la limpieza escribiendo en una tabla que no es ésta.
 local ultimoSitio: { [Player]: Vector3 } = {}
 
+-- Y hacia donde iba. De comparar esta direccion con la de ahora sale el DERRAPE:
+-- girar mucho yendo deprisa. Vive aqui arriba con las demas por el mismo motivo
+-- que `ultimoSitio` -- `RoadService.olvidar` la limpia y esta por encima, y un
+-- nombre usado antes de declararse como local se resuelve como global nil, sin
+-- error y sin aviso.
+local ultimoRumbo: { [Player]: Vector3 } = {}
+
 local function contenedor(): Folder
 	local f = workspace:FindFirstChild("VehiculosAparcados")
 	if f then
@@ -317,6 +324,7 @@ function RoadService.olvidar(player: Player)
 	bajadoAProposito[player] = nil
 	ultimaCalzada[player] = nil
 	ultimoSitio[player] = nil
+	ultimoRumbo[player] = nil
 end
 
 -- LOS EFECTOS DE MOVERSE: polvo bajo los pies y estela cuando vas lanzado.
@@ -352,14 +360,119 @@ end
 -- dos posiciones seguidas da la velocidad real sin depender de quién manda en la
 -- física. Y de paso sale un dato mejor que WalkSpeed: WalkSpeed es lo que PODRÍAS
 -- correr, y esto es lo que estás corriendo.
-local function velocidadReal(player: Player, root: BasePart): number
+-- Devuelve la velocidad y CUANTO HA GIRADO desde la muestra anterior, en grados.
+--
+-- Las dos salen de lo mismo --restar dos posiciones-- y por eso van juntas: son la
+-- misma medida vista por sus dos componentes, el modulo y el angulo. Separarlas
+-- obligaria a guardar la posicion anterior dos veces y garantizaria que un dia una
+-- se actualice y la otra no.
+local function velocidadReal(player: Player, root: BasePart): (number, number)
 	local antes = ultimoSitio[player]
 	ultimoSitio[player] = root.Position
 	if antes == nil then
-		return 0
+		return 0, 0
 	end
 	local dx, dz = root.Position.X - antes.X, root.Position.Z - antes.Z
-	return math.sqrt(dx * dx + dz * dz) / PERIODO
+	local recorrido = math.sqrt(dx * dx + dz * dz)
+	local velocidad = recorrido / PERIODO
+
+	-- El giro solo tiene sentido si te estas moviendo: parado, la direccion es ruido
+	-- y saldrian derrapes por quedarse quieto.
+	local giro = 0
+	if recorrido > 1 then
+		local rumbo = Vector3.new(dx, 0, dz).Unit
+		local anterior = ultimoRumbo[player]
+		if anterior ~= nil then
+			-- Producto escalar de dos unitarios = coseno del angulo entre ellos. Se
+			-- recorta a [-1,1] porque el redondeo puede sacarlo por una millonesima y
+			-- `math.acos` de 1,0000001 devuelve nan -- que se propaga en silencio y
+			-- deja el efecto encendido para siempre.
+			giro = math.deg(math.acos(math.clamp(rumbo:Dot(anterior), -1, 1)))
+		end
+		ultimoRumbo[player] = rumbo
+	end
+	return velocidad, giro
+end
+
+-- CUANDO CUENTA COMO DERRAPE. Lo pidio JJ: *"podriamos tener efectos al correr o
+-- girar rapido, tipo derrape"*.
+--
+-- Dos condiciones a la vez, y las dos hacen falta: girar despacio no derrapa (es
+-- una curva) y correr recto tampoco (para eso ya esta el polvo). Lo que se ve es
+-- justo el cruce de ambas -- ir lanzado y cambiar de direccion de golpe.
+--
+-- Los numeros salen del bucle: se muestrea cada 0,3 s, asi que 45 grados entre
+-- muestras es un giro de casi 150 grados por segundo. A pie eso no pasa andando;
+-- pasa cuando das la vuelta huyendo, que es exactamente el momento que el efecto
+-- quiere subrayar.
+local DERRAPE_GIRO = 45
+local DERRAPE_VELOCIDAD = 17
+
+-- Las marcas de neumatico duran esto y se van solas. Cortas: son la huella de un
+-- instante, y un mapa que se llena de rayas negras deja de leerse -- que es la
+-- averia que ya costo una vez el rastro de migas.
+local MARCA_SEGUNDOS = 5
+
+local function derrapar(root: BasePart, rumbo: Vector3, motor: boolean)
+	-- La rafaga de humo. El emisor se crea UNA vez y despues solo se le pide que
+	-- dispare: crear y destruir uno por derrape es la fuga lenta que este mismo
+	-- fichero ya pago con el polvo -- 1.658 emisores colgando de un jugador tras
+	-- diez minutos, sin error y sin sintoma hasta que el movil va a tirones.
+	local ancla = root:FindFirstChild("AnclaPies") :: Attachment?
+	if ancla ~= nil then
+		local humo = ancla:FindFirstChild("HumoDerrape") :: ParticleEmitter?
+		if humo == nil then
+			local e = Instance.new("ParticleEmitter")
+			e.Name = "HumoDerrape"
+			e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+			e.Color = ColorSequence.new(Color3.fromRGB(220, 216, 208))
+			e.Size = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1.2),
+				NumberSequenceKeypoint.new(1, 4.5),
+			})
+			e.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.35),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			e.Lifetime = NumberRange.new(0.4, 0.8)
+			e.Speed = NumberRange.new(2, 6)
+			e.SpreadAngle = Vector2.new(40, 40)
+			e.LightEmission = 0.2
+			e.Rate = 0
+			e.Parent = ancla
+			humo = e
+		end
+		(humo :: ParticleEmitter):Emit(if motor then 16 else 9)
+	end
+
+	-- Y LA HUELLA EN EL SUELO, que es lo que de verdad dice "aqui he derrapado": el
+	-- humo se lo lleva el aire en medio segundo y la marca se queda mirandote.
+	--
+	-- Va PERPENDICULAR al rumbo y no a lo largo: una rueda que patina deja la raya
+	-- cruzada respecto a donde iba, y ese detalle es la diferencia entre que parezca
+	-- un frenazo y que parezca una alfombra.
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { root.Parent :: Instance }
+	local golpe = workspace:Raycast(root.Position, Vector3.new(0, -8, 0), params)
+	if golpe == nil then
+		return
+	end
+	local marca = Instance.new("Part")
+	marca.Name = "Derrape"
+	marca.Size = Vector3.new(if motor then 5 else 3, 0.08, 1.1)
+	marca.CFrame =
+		CFrame.lookAt(golpe.Position + Vector3.new(0, 0.06, 0), golpe.Position + rumbo + Vector3.new(0, 0.06, 0))
+	marca.Anchored = true
+	marca.CanCollide = false
+	marca.CanQuery = false
+	marca.CanTouch = false
+	marca.CastShadow = false
+	marca.Color = Color3.fromRGB(38, 36, 36)
+	marca.Material = Enum.Material.SmoothPlastic
+	marca.Transparency = 0.35
+	marca.Parent = workspace
+	game:GetService("Debris"):AddItem(marca, MARCA_SEGUNDOS)
 end
 
 local function efectos(root: BasePart, velocidad: number, quieto: boolean, racha: number, motor: boolean)
@@ -567,8 +680,22 @@ local function paso(player: Player)
 		-- del sonido, que sólo existe cuando hay vehículo con ruido.
 		-- Con la velocidad MEDIDA, no la teórica: el polvo responde a lo que está
 		-- pasando, no a lo que el vehículo podría dar si el jugador acelerase.
-		local real = velocidadReal(player, root)
-		efectos(root, real, real < 2, Contacts.racha(estado.recogidos or 0), def ~= nil and def.motor == true)
+		local real, giro = velocidadReal(player, root)
+		local conMotor = def ~= nil and def.motor == true
+		efectos(root, real, real < 2, Contacts.racha(estado.recogidos or 0), conMotor)
+
+		-- EL DERRAPE, con los mismos numeros que acaban de decidir el polvo. Va
+		-- despues y no dentro de `efectos` porque no es un estado continuo sino un
+		-- INSTANTE: el polvo se enciende y se apaga, esto ocurre una vez y se acaba.
+		if giro >= DERRAPE_GIRO and real >= DERRAPE_VELOCIDAD then
+			local rumbo = ultimoRumbo[player]
+			if rumbo ~= nil then
+				local ok, err = pcall(derrapar, root, rumbo, conMotor)
+				if not ok then
+					warn("[Contrabando] fallo derrapando: " .. tostring(err))
+				end
+			end
+		end
 	end
 end
 
