@@ -13,8 +13,8 @@
 
 ## 1. En una frase
 
-**Eres un repartidor.** Cargas mercancía en tu nave, eliges a qué barrio la llevas —cuanto
-más lejos y más vigilado, más paga— y cruzas la ciudad con ella encima. Por el camino te
+**Eres un repartidor.** Cargas mercancía en tu nave, eliges a qué zona la llevas —verde,
+ámbar o roja; cuanto más lejos y más vigilada, más paga— y cruzas la ciudad con ella encima. Por el camino te
 ven pasar, y lo que te ve venir detrás son **ladrones**: PNJ mientras juegas solo, otros
 jugadores cuando hay gente.
 
@@ -47,13 +47,14 @@ La vuelta no es tiempo muerto: se paga al 60 % de la ida y también te la pueden
 | 0-5 s | Apareces en el polígono, tu zona propia fuera de la ciudad. La nave tiene 3 piezas esperando |
 | 5-15 s | Las coges por su aviso de "pulsa aquí". El zurrón cabe **3** — hay que elegir cuál dejas |
 | 15-25 s | Sales hacia la boca del polígono. **Si llevas carga y no has elegido ruta, una valla ámbar te frena**: "ELIGE DESTINO PARA SALIR" |
-| 25-30 s | **La primera vez no eliges: el destino ya viene puesto** (el barrio). A partir de la segunda entrega, eliges tú entre los cuatro |
+| 25-30 s | **Eliges destino.** A nivel 1 sólo la verde está abierta; la ámbar pide nivel 3 y la roja, nivel 8 y motor |
 | 30-45 s | Viaje por el **rastro**: una píldora cada 1,4 s, y cada una te acelera. Las esquinas fichadas te ven pasar, el peligro sube de 0 a 3, salen ladrones |
-| 45-55 s | Entregas en el barrio. Número grande, XP, y el destino te ofrece carga de vuelta |
+| 45-55 s | Entregas en la verde. Número grande, XP, **vuelta a casa al instante** y el almacén repuesto |
 
-El ciclo completo del barrio son **49 segundos** siguiendo el rastro. Antes del 19/08 la
-primera entrega llegaba a los ~100 s… en la ruta verde, porque **el barrio no tenía camino**
-y no se podía completar de ninguna manera.
+El viaje a la verde son **20 segundos medidos** andando, y el ciclo completo con carga y
+entrega ronda los 30. Hasta el 20/08 había por debajo una cuarta ruta de aprendizaje que el
+selector llamaba LOCAL; se fundió en la verde, que se mudó a su cruce — el mapa promete tres
+bandas y el selector daba cuatro etiquetas, una de las cuales no era un color.
 
 ## 3. Los números de hoy
 
@@ -89,15 +90,16 @@ es ésta. El ciclo es ida y vuelta, contando el tramo de casa a la boca del pol�
 
 | Ruta | Paga | Licencia | Esquinas fichadas | Robo entre jugadores | Camino | Ciclo | Con el rastro |
 |---|---|---|---|---|---|---|---|
-| ⬜ Barrio | ×0,4 | — | 1 | ninguno | 147 | 32 s | **26 s** |
-| 🟢 Verde | ×1 | — | 3 | ninguno | 261 | 38 s | **28 s** |
+| 🟢 Verde | ×1 | — | 2 | ninguno | 147 | 32 s | **26 s** |
 | 🟡 Ámbar | ×3 | **nivel 3** | 9 | sólo entre los que llevan carga | 374 | 53 s | **40 s** |
 | 🔴 Roja | ×10 | **nivel 8 + vehículo de motor** | 18 | libre | 572 | 66 s | **48 s** |
 
 > **Caminos medidos el 19/08 con el pathfinder sobre la retícula propia** (`Grid`), desde la
-> boca del recinto. Los cuatro destinos son cruces de calle y están a **un giro o ninguno**
-> de la salida: al barrio se va recto, a la verde girando al oeste, a la ámbar y la roja al
-> este. Sobre el plano los caminos serían 146 / 292 / 438 / 730; los medidos salen más
+> boca del recinto. Los tres destinos son cruces de calle y están a **un giro o ninguno**
+> de la salida: a la verde se va recto, a la ámbar y la roja girando al este. Sobre el plano
+> los caminos son 146 / 438 / 730 — **dos pasos de retícula entre ruta y ruta**, así que cada
+> escalón vale lo mismo; hasta el 20/08 los saltos eran 146 / 146 / 292 y elegir entre las
+> dos primeras significaba la mitad. Los medidos salen más
 > cortos porque por dentro de las manzanas se puede cortar entre edificios, y eso es un
 > atajo real que se descubre andando.
 >
@@ -308,10 +310,10 @@ eso ni marcaba camino ni se sentía como premio continuo.
 | | |
 |---|---|
 | Cuántas | Las que caben: el número sale del largo del camino, no de una tabla |
-| Plantadas hoy | barrio **9** · verde **24** · ámbar **41** · roja **58** (antes 3 · 7 · 12 · 19) |
+| Plantadas hoy | verde **9** · ámbar **41** · roja **58** — salen del largo de cada camino |
 | Ritmo | A pie, una cada **1,4 segundos** |
 | Cuándo se ven | **Sólo las de TU ruta, y sólo llevando algo que entregar.** Sin misión, la ciudad está a oscuras |
-| Doradas | Unas cuantas del rastro pagan contacto: 3 · 6 · 10 · 16, **las mismas de antes** |
+| Doradas | Unas cuantas del rastro pagan contacto: 4 · 10 · 16 |
 | Racimos | Apartados 55 studs hacia una guarida, valor 5. Dan la **decisión** |
 | Qué son los contactos | Fichas que **no ocupan hueco** y **no se pueden robar**. Solo se gastan en habilidades |
 | Cuándo cuentan | Solo con misión activa (carga + ruta). Pasar sin nada no da nada |
@@ -399,10 +401,14 @@ la batería, no confiado a un comentario.
   —despacio a 2, deprisa a 3—. A partir de 2 y no de 1 porque con uno sólo te han visto
   pasar, y un aviso encendido medio viaje deja de ser un aviso. El centro queda limpio: es
   ambiente, no algo que haya que leer.
-- **El primer reparto viene ya elegido.** Con cero entregas, coger carga te pone el destino
-  del barrio y sales directo. Decidir viene después de haber cobrado una vez — antes, lo
-  primero que se encontraba un jugador nuevo era una valla pidiéndole que eligiera entre
-  cuatro rutas sin haber hecho un solo viaje.
+- **El primer reparto no tiene competencia.** A nivel 1 sólo la verde está abierta, así que
+  la primera decisión del jugador nuevo no es entre tres cosas que no conoce: es coger carga
+  y salir. La ámbar aparece con el nivel 3 y la roja con el 8, cuando ya sabe qué significan.
+- **Entregar repone el almacén.** Lo que dejas en el destino vuelve a tu nave como género
+  nuevo, así que el viaje siguiente sale sin esperar. El goteo por tiempo sigue detrás como
+  suelo, para quien vuelve mañana o se queda a cero porque le han robado. Antes sólo existía
+  el goteo, y salían **veinte segundos jugando y setenta esperando** encerrado en tu propio
+  almacén: el bucle se quedaba sin combustible en el minuto uno.
 
 ## 6. Lo que está guardado
 
