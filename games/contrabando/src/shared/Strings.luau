@@ -203,7 +203,11 @@ local TEXTOS: { [string]: string } = {
 	MENU_GARAGE_SUB = "still at the workshop: which one you take is the run's decision",
 
 	-- ---- Taller y muelle, en el mundo -------------------------------------
-	GATE_PICK_ROUTE = "PICK A ROUTE TO LEAVE",
+	GATE_PICK_ROUTE = "LOAD UP TO LEAVE",
+	-- Los dos motivos por los que la valla se cierra, cada uno con su frase: un texto
+	-- unico mandaba a elegir ruta al que salia de vacio, que es lo que no le falta.
+	GATE_NO_CARGO = "Nothing to deliver: load up at the warehouse",
+	GATE_NO_ROUTE = "You cannot leave with cargo and no route",
 	GARAGE_CARD = "{vehiculo}{fuera}\n{huecos} slots  ·  {terreno}",
 	GARAGE_OUT = "  (out)",
 	GARAGE_ROAD_ONLY = "road only",

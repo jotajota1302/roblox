@@ -111,7 +111,7 @@ function Senales.actualizar(estado: any)
 	-- cuatro caminos y ninguno: es la misma razón por la que sólo se encienden tus
 	-- migas.
 	for _, linea in lineas do
-		pintar(linea, hayViaje and linea:GetAttribute("ruta") == ruta, 0.35)
+		pintar(linea, hayViaje and linea:GetAttribute("ruta") == ruta, 0)
 	end
 
 	-- LAS ZONAS FICHADAS, sólo mientras llevas algo. Sin carga no te fichan --el

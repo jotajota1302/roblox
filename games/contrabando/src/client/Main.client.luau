@@ -129,7 +129,15 @@ local function refrescarValla(root: BasePart?): boolean
 	end
 	local cerrada = Perimeter.debeCerrar(ultimoEstado, root.Position)
 	if Gate.mostrar(cerrada) and cerrada then
-		Hud.aviso("You cannot leave with cargo and no route", Color3.fromRGB(232, 176, 64))
+		-- El aviso dice CUÁL de los dos motivos es. Con un solo texto para los dos, el
+		-- que sale de vacío leía "no puedes salir sin ruta" y se iba a elegir una,
+		-- que es justo lo que no le falta.
+		local motivo = Perimeter.motivoDeCierre(ultimoEstado, root.Position)
+		if motivo == "sin_carga" then
+			Hud.aviso(Strings.get("GATE_NO_CARGO"), Color3.fromRGB(232, 176, 64))
+		else
+			Hud.aviso(Strings.get("GATE_NO_ROUTE"), Color3.fromRGB(232, 176, 64))
+		end
 	end
 	return cerrada
 end

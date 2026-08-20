@@ -64,17 +64,40 @@ end
 -- La carga DE VUELTA no cuenta: en ese viaje no hay ruta que elegir (ya la
 -- elegiste a la ida) y el destino es precisamente el almacén, así que una puerta
 -- cerrada ahí sería exactamente el encierro que la regla 3 existe para evitar.
+-- LA VALLA SE CIERRA POR DOS MOTIVOS, y los dos son el mismo: salir así no lleva a
+-- ninguna parte.
+--
+--   · SIN CARGA. Petición de JJ jugando: "no debería poder salir de la zona donde
+--     están los almacenes y el taller sin paquete". Tiene razón y arregla un agujero
+--     del arranque -- hoy se puede cruzar el arco de vacío, andar hasta un destino y
+--     descubrir allí que no había nada que entregar. Un juego que te deja hacer un
+--     viaje entero para nada no es libertad, es una trampa.
+--
+--   · CON CARGA Y SIN DESTINO. La de siempre: llegar y no cobrar porque nunca
+--     elegiste a dónde ibas.
+--
+-- En los dos casos la valla no castiga, INFORMA: aparece justo donde ibas a
+-- equivocarte, y se abre sola en cuanto arreglas lo que le falta al viaje.
 function Perimeter.debeCerrar(estado: EstadoRecinto?, posicion: Vector3): boolean
 	if estado == nil then
 		return false
 	end
-	if #estado.cajas == 0 then
-		return false
-	end
-	if estado.ruta ~= nil or estado.retornoZona ~= nil then
+	local sinCarga = #estado.cajas == 0
+	local sinDestino = estado.ruta == nil and estado.retornoZona == nil
+	if not sinCarga and not sinDestino then
 		return false
 	end
 	return Perimeter.dentro(posicion, 20)
+end
+
+-- Por qué está cerrada, para que el aviso pueda decirlo. Devuelve nil si está
+-- abierta: dos preguntas distintas --¿cierra? ¿por qué?-- comparten una sola regla,
+-- que es lo que impide que se contradigan.
+function Perimeter.motivoDeCierre(estado: EstadoRecinto?, posicion: Vector3): string?
+	if not Perimeter.debeCerrar(estado, posicion) then
+		return nil
+	end
+	return if estado ~= nil and #estado.cajas == 0 then "sin_carga" else "sin_destino"
 end
 
 -- ¿Está el jugador llegando a la puerta? Es lo que reabre el selector de ruta que

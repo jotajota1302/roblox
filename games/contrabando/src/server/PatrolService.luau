@@ -309,6 +309,27 @@ local function crearAgente(donde: Vector3, velocidad: number, vehiculo: string?)
 		end
 
 		modelo:PivotTo(CFrame.new(donde))
+		-- QUE SE VEA VENIR DESDE LEJOS. "No veo los enemigos a lo lejos" (JJ), dicho
+		-- tres veces con distintas palabras. Ya salen por delante y no a la espalda,
+		-- pero un R6 gris a ciento treinta studs, entre edificios grises, no lo
+		-- distingue nadie -- y un peligro que no se ve no se puede esquivar, así que
+		-- deja de ser una decisión y vuelve a ser un impuesto.
+		--
+		-- Un Highlight lo contornea de rojo Y SE VE A TRAVÉS DE LAS PAREDES. Eso último
+		-- es deliberado: lo que hace falta saber es POR DÓNDE viene, para meterse por
+		-- otra calle antes de tenerlo encima. Si sólo se viera en línea recta, te
+		-- enterarías al doblar la esquina, que es tarde.
+		--
+		-- No es una torre ni una columna: va pegado al ladrón y se mueve con él.
+		local aviso = Instance.new("Highlight")
+		aviso.Name = "Aviso"
+		aviso.FillColor = Color3.fromRGB(220, 60, 50)
+		aviso.FillTransparency = 0.55
+		aviso.OutlineColor = Color3.fromRGB(255, 120, 100)
+		aviso.OutlineTransparency = 0
+		aviso.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		aviso.Parent = modelo
+
 		modelo.Parent = contenedor()
 
 		-- Su vehículo, si le toca uno. Va DESPUÉS de meterlo en el mundo porque

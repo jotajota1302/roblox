@@ -923,14 +923,24 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		--
 		-- Ahora es un TINTE: se nota el borde del área al cruzarlo y se sigue viendo el
 		-- asfalto. El foco de verdad va en el núcleo de aquí abajo.
+		-- OPACA. Y ésta es la causa de verdad del parpadeo que JJ seguía viendo después
+		-- de arreglar las coplanares: Roblox no ordena bien las piezas SEMITRANSPARENTES
+		-- que se solapan, y el orden en que las dibuja cambia de un fotograma a otro.
+		-- Con treinta y una zonas, treinta y un focos y once líneas, todas planas y
+		-- superpuestas sobre el mismo suelo, eso es un centelleo constante -- y no se
+		-- arregla separándolas en altura, porque no es un empate de profundidad.
+		--
+		-- Pintura opaca de un tono apagado: se lee como una marca en el asfalto, no
+		-- tapa menos que un velo al 0,9, y no entra en la cola de transparencias.
 		zona.Material = Enum.Material.SmoothPlastic
-		zona.Transparency = 0.9
+		zona.Color = Color3.fromRGB(150, 96, 62)
+		zona.Transparency = 0
 		zona.CanCollide = false
 		zona.CanQuery = false
 		zona.CanTouch = false
 		zona:SetAttribute("ruta", ruta.id)
 		zona:SetAttribute("zonaFichada", true)
-		zona:SetAttribute("opacidad", 0.9)
+		zona:SetAttribute("opacidad", 0)
 
 		-- El foco: dónde está exactamente la esquina fichada. Pequeño y claro, para
 		-- que el ojo lo encuentre sin que compita con el resto del mapa.
@@ -943,14 +953,15 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		)
 		foco.Shape = Enum.PartType.Cylinder
 		foco.CFrame = CFrame.new(foco.Position) * CFrame.Angles(0, 0, math.rad(90))
-		foco.Material = Enum.Material.Neon
-		foco.Transparency = 0.45
+		foco.Material = Enum.Material.SmoothPlastic
+		foco.Color = Color3.fromRGB(226, 138, 74)
+		foco.Transparency = 0
 		foco.CanCollide = false
 		foco.CanQuery = false
 		foco.CanTouch = false
 		foco:SetAttribute("ruta", ruta.id)
 		foco:SetAttribute("zonaFichada", true)
-		foco:SetAttribute("opacidad", 0.45)
+		foco:SetAttribute("opacidad", 0)
 
 		table.insert(puestos, poste)
 	end
@@ -1212,8 +1223,11 @@ local function sembrarContactos(
 				padre
 			)
 			linea.CFrame = CFrame.lookAt(centro, centro + plano.Unit)
-			linea.Material = Enum.Material.Neon
-			linea.Transparency = 0.35
+			-- Opaca, por lo mismo: once tiras translúcidas cruzando la ciudad eran once
+			-- fuentes más de centelleo. Pintada se ve MEJOR, además -- una línea de
+			-- color pleno en el asfalto se sigue con el rabillo del ojo.
+			linea.Material = Enum.Material.SmoothPlastic
+			linea.Transparency = 0
 			linea.CanCollide = false
 			linea.CanQuery = false
 			linea.CanTouch = false
@@ -2163,9 +2177,12 @@ function CityBuilder.build(): Mundo
 				Palette.SALIDA,
 				mundo
 			)
+			-- OPACA, como el resto de lo pintado en el suelo. Catorce rayas Neon
+			-- translúcidas dentro del recinto eran catorce fuentes más de centelleo, y
+			-- justo en el sitio donde el jugador empieza y termina cada viaje.
 			raya.CanCollide = false
-			raya.Material = Enum.Material.Neon
-			raya.Transparency = 0.35
+			raya.Material = Enum.Material.SmoothPlastic
+			raya.Transparency = 0
 			raya.CastShadow = false
 			raya:SetAttribute("rodable", true)
 			-- Orientada a lo largo del camino: una raya atravesada parecería un paso de
@@ -2335,6 +2352,30 @@ function CityBuilder.build(): Mundo
 		-- Lo que marca la ruta es la fila de migas de pan por la calle, y lo que dice
 		-- qué es esto al llegar es el cartel de aquí abajo. Una torre no añadía
 		-- información: tapaba el centro de la pantalla durante todo el viaje.
+		-- LA DIANA DE LLEGADA. "No sé cuándo he llegado al punto de delivery" (JJ), y
+		-- es cierto: la losa del destino está EMPOTRADA en el asfalto para no hacer
+		-- escalón, así que desde lejos no se distingue del suelo. El sitio donde acaba
+		-- el viaje era lo menos visible del viaje.
+		--
+		-- Un círculo pintado, del color de la ruta y más ancho que la losa: se ve a
+		-- media calle de distancia y dice "es aquí" sin una palabra ni nada vertical.
+		-- Y es donde muere la línea que te ha traído, así que el camino tiene final.
+		local diana = part(
+			"Diana_" .. ruta.id,
+			Vector3.new(0.2, 58, 58),
+			destino.Position + Vector3.new(0, 0.45, 0),
+			Palette.ruta(ruta.id),
+			mundo
+		)
+		diana.Shape = Enum.PartType.Cylinder
+		diana.CFrame = CFrame.new(diana.Position) * CFrame.Angles(0, 0, math.rad(90))
+		diana.Material = Enum.Material.SmoothPlastic
+		diana.CanCollide = false
+		diana.CanQuery = false
+		diana.CanTouch = false
+		diana:SetAttribute("ruta", ruta.id)
+		diana:SetAttribute("lineaDeRuta", true)
+
 		local baliza = destino
 
 		local cartel = Instance.new("BillboardGui")
