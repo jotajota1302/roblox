@@ -416,10 +416,16 @@ function Minimap.refrescar()
 	for _, ruta in Routes.todas() do
 		local p = punto("Destino_" .. ruta.id, Palette.ruta(ruta.id), 9, 5)
 		p.Position = (aPantalla(centro, ruta.destino, lado))
-		-- El de tu ruta, más grande: es el que persigues y tiene que distinguirse
-		-- de un vistazo entre los tres.
-		p.Size = if rutaActiva == ruta.id then UDim2.fromOffset(14, 14) else UDim2.fromOffset(8, 8)
-		p.Visible = true
+		-- CON VIAJE, SOLO EL TUYO. Los tres a la vez estaban bien mientras el plano
+		-- servia para elegir --saber donde cae cada zona es la decision de la valla--
+		-- pero en cuanto sales ya has decidido, y entonces los otros dos solo compiten
+		-- con el unico que importa. *"La ciudad, el objetivo y los enemigos"*: el
+		-- objetivo, en singular.
+		--
+		-- Sin ruta se ensenan los tres, que es cuando de verdad hay algo que comparar.
+		local mio = rutaActiva == ruta.id
+		p.Size = if mio then UDim2.fromOffset(14, 14) else UDim2.fromOffset(8, 8)
+		p.Visible = rutaActiva == nil or mio
 	end
 
 	local vistos: { [string]: boolean } = {}
