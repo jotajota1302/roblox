@@ -933,7 +933,12 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		-- Pintura opaca de un tono apagado: se lee como una marca en el asfalto, no
 		-- tapa menos que un velo al 0,9, y no entra en la cola de transparencias.
 		zona.Material = Enum.Material.SmoothPlastic
-		zona.Color = Color3.fromRGB(150, 96, 62)
+		-- CASI DEL COLOR DEL ASFALTO. Al pasar de velo a pintura opaca, el naranja
+		-- pasó de tapar poco a tapar del todo: con 31 zonas de 35 studs de radio,
+		-- muchas solapadas, media calle era naranja y el asfalto desaparecía otra vez.
+		-- Un tono apenas más cálido que la calzada marca el borde del área al cruzarlo
+		-- sin robarle la ciudad al jugador. Lo llamativo es el foco del centro.
+		zona.Color = Color3.fromRGB(78, 66, 62)
 		zona.Transparency = 0
 		zona.CanCollide = false
 		zona.CanQuery = false
@@ -946,7 +951,7 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		-- que el ojo lo encuentre sin que compita con el resto del mapa.
 		local foco = part(
 			"FocoFichada_" .. poste.Name,
-			Vector3.new(0.2, 13, 13),
+			Vector3.new(0.2, 17, 17),
 			Vector3.new(x, (y :: number) + 0.08, z),
 			Color3.fromRGB(255, 150, 90),
 			padre
@@ -954,7 +959,7 @@ local function sembrarDetectores(ciudad: Instance?, ruta: Routes.Ruta, padre: In
 		foco.Shape = Enum.PartType.Cylinder
 		foco.CFrame = CFrame.new(foco.Position) * CFrame.Angles(0, 0, math.rad(90))
 		foco.Material = Enum.Material.SmoothPlastic
-		foco.Color = Color3.fromRGB(226, 138, 74)
+		foco.Color = Color3.fromRGB(240, 146, 70)
 		foco.Transparency = 0
 		foco.CanCollide = false
 		foco.CanQuery = false

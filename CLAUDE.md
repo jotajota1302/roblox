@@ -166,6 +166,13 @@ Avisos verificados:
 
 - **`get_console_output` se cuelga y da timeout.** No usarlo; diagnosticar con
   `execute_luau` inspeccionando el estado.
+- **`start_stop_play` se atasca a partir del segundo arranque de la sesión.** El primero
+  va; el siguiente se queda colgado más de 120 s, pasa a segundo plano y ya no completa
+  nunca -- y a partir de ahí `execute_luau` sólo responde en `Edit`, aunque Studio siga
+  vivo y respondiendo (`$p.Responding` en `True`). Ni `TaskStop` ni volver a llamar lo
+  desatascan: **la única cura es reiniciar Studio**, y eso le cierra la sesión al
+  usuario, así que conviene AGRUPAR todo lo que haya que verificar en una sola pasada de
+  Play en vez de hacer stop/start entre cambio y cambio.
 - **`require()` dentro de `execute_luau` NO comparte estado con el servidor real** (corre en
   un sandbox aparte). Para verificar hay que actuar sobre el mundo (mover partes, disparar
   remotes) y leer el resultado, no llamar a los módulos.
