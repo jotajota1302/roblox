@@ -53,4 +53,30 @@ return function(kit)
 	kit.truthy("entregar mas valor da mas experiencia", Levels.xpPorEntrega(1000) > Levels.xpPorEntrega(100))
 	kit.truthy("una entrega minima da algo", Levels.xpPorEntrega(1) >= 1)
 	kit.truthy("y una entrega de cero no da negativo", Levels.xpPorEntrega(0) >= 0)
+
+	-- LA RUTA MANDA, Y LA SUERTE NO. Es la regla que se cambio el 20/08 despues de
+	-- medir doce viajes seguidos: con la formula vieja --valor por medio-- subir del
+	-- nivel 6 al 7 eran treinta viajes verdes normales o UN viaje ambar con mercancia
+	-- marcada. El nivel media que te habia tocado en el almacen, no cuanto habias
+	-- jugado, y el nivel es la llave de las rutas.
+	kit.truthy(
+		"la ruta peligrosa da mas nivel que la facil con la misma carga",
+		Levels.xpPorEntrega(100, 3) > Levels.xpPorEntrega(100, 1)
+	)
+	kit.truthy(
+		"y elegir ruta pesa mas que la carga que te toque",
+		Levels.xpPorEntrega(30, 3) > Levels.xpPorEntrega(2830, 1)
+	)
+
+	-- LA LOTERIA, APLASTADA. Entre la entrega mas pobre y una afortunada de la misma
+	-- ruta no puede haber mas de un factor CINCO: con la formula vieja habia noventa y
+	-- cuatro, y eso es lo que hacia que la curva de niveles no gobernara nada.
+	local pobre = Levels.xpPorEntrega(30, 1)
+	local afortunada = Levels.xpPorEntrega(2830, 1)
+	kit.truthy("la suerte sigue contando", afortunada > pobre)
+	kit.truthy("pero no vale treinta viajes", afortunada <= pobre * 5)
+
+	-- Sin multiplicador se comporta como una ruta x1: quien llame sin el parametro no
+	-- se encuentra un cero.
+	kit.eq("sin ruta se asume la mas facil", Levels.xpPorEntrega(100), Levels.xpPorEntrega(100, 1))
 end

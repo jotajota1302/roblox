@@ -35,6 +35,15 @@ Config.PROTOTIPO = true
 
 -- Economía
 Config.CAJA_VALOR_BASE = 10
+
+-- LO QUE DA DE EXPERIENCIA UN VIAJE, antes de multiplicarlo por la ruta. Con 25, la
+-- verde da 25, la ambar 75 y la roja 250, que son sus multiplicadores exactos: la
+-- decision del juego --a que zona me meto-- es la que gobierna el nivel.
+--
+-- El numero sale de la curva: el nivel 2 pide 100 y con 25 cae en cuatro viajes
+-- verdes, que es lo que este proyecto quiere --que el jugador nuevo vea el sistema
+-- funcionar en su primera sesion-- sin que caiga en el primero, que no ensena nada.
+Config.XP_POR_VIAJE = 25
 Config.DINERO_INICIAL = 0
 
 -- Carga a pie

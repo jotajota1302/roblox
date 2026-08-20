@@ -24,6 +24,8 @@
 	con el vehículo del perseguido.
 ]]
 
+local Config = require(script.Parent.Config)
+
 local Levels = {}
 
 -- Cuánta experiencia hace falta para pasar de nivel. Crece, pero MUY despacio al
@@ -79,12 +81,32 @@ function Levels.progreso(xp: number): number
 	return math.clamp((xp - base) / (siguiente - base), 0, 1)
 end
 
--- La experiencia que da una entrega. Es el VALOR de lo entregado, no el número de
--- piezas: si contaran las piezas, la jugada óptima sería llenar el zurrón de
--- basura común y hacer viajes cortos, que es justo lo contrario de lo que el
--- juego quiere premiar. Así subir de nivel y ganar dinero apuntan al mismo sitio.
-function Levels.xpPorEntrega(valorCobrado: number): number
-	return math.max(1, math.floor(valorCobrado * 0.5))
+-- LA EXPERIENCIA QUE DA UNA ENTREGA: la manda LA RUTA, no la suerte.
+--
+-- Esto era `valorCobrado * 0,5`, y el razonamiento original era bueno --contar
+-- piezas haría que la jugada óptima fuese llenar el zurrón de baratijas-- pero el
+-- valor arrastra una varianza que la experiencia no debería heredar: la rareza va de
+-- ×1 a ×135 y la ruta de ×1 a ×10, así que dos entregas idénticas en esfuerzo podían
+-- pagar cien veces distinto.
+--
+-- Medido jugando doce viajes seguidos el 20/08: subir del nivel 6 al 7 son TREINTA
+-- viajes verdes normales... o UN viaje ámbar con mercancía marcada, que da 1.415 de
+-- golpe y te planta en el nivel 6 de una sentada. El nivel dejaba de medir cuánto has
+-- jugado y pasaba a medir qué te ha tocado en el almacén -- y el nivel es la llave de
+-- las rutas, así que una caja sellada te abría media ciudad.
+--
+-- Ahora manda la ruta que ELIGES, que es la decisión del juego: repetir progresa de
+-- forma predecible y arriesgarse progresa más. La carga sigue contando, pero por su
+-- RAÍZ, que aplasta la lotería sin borrarla: entre una entrega de 30 y una de 2.830 la
+-- diferencia baja de ×94 a ×4. Y la mercancía valiosa no se queda sin premio -- su
+-- premio es el dinero, que es de lo que siempre fue.
+function Levels.xpPorEntrega(valorCobrado: number, multiplicadorRuta: number?): number
+	-- Sin multiplicador se comporta como una ruta ×1: quien llame sin el parámetro no
+	-- se encuentra un cero, que sería peor que un número discutible.
+	local ruta = multiplicadorRuta or 1
+	local porElViaje = Config.XP_POR_VIAJE * ruta
+	local porLaCarga = math.sqrt(math.max(valorCobrado, 0))
+	return math.max(1, math.floor(porElViaje + porLaCarga))
 end
 
 return Levels

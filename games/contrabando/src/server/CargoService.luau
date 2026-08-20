@@ -617,7 +617,10 @@ local function cobrar(player: Player, destino: BasePart)
 	-- vehículos; el nivel se queda, y por eso es lo que sirve para saber quién
 	-- tienes delante cuando os cruzáis en una calle.
 	local nivelAntes = Levels.nivelDe(estado.xp or 0)
-	estado.xp = (estado.xp or 0) + Levels.xpPorEntrega(cobrado)
+	-- CON EL MULTIPLICADOR DE LA RUTA, que es de donde sale ahora la mayor parte de la
+	-- experiencia. Se pasa el mismo que se uso para pagar --incluida la fraccion del
+	-- retorno-- para que media entrega valga medio viaje tambien en nivel.
+	estado.xp = (estado.xp or 0) + Levels.xpPorEntrega(cobrado, multiplicador)
 	local nivelAhora = Levels.nivelDe(estado.xp)
 
 	RouteService.limpiar(player)
