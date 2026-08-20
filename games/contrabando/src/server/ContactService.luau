@@ -102,6 +102,28 @@ local function vigilarRuta(player: Player, estado: any)
 		ultimaRuta[player] = estado.ruta
 		ultimoContacto[player] = nil
 		CargoService.reiniciarRacha(player)
+
+		-- Y EL RASTRO DE LA RUTA NUEVA SE ENCIENDE ENTERO.
+		--
+		-- La recarga son 240 segundos y un viaje al barrio dura 18. Sin esto haces el
+		-- primer reparto con camino y los DOCE siguientes a ciegas -- y desde que no
+		-- hay ningun indicador vertical, estas migas son la unica senal que dice hacia
+		-- donde tirar. Medido jugando el 20/08: entregar en el barrio dejaba sus cinco
+		-- migas apagadas cuatro minutos, o sea que el bucle que el juego pide repetir
+		-- se repetia sin senalizacion. Es la queja de las tres partidas perdidas --*no
+		-- se hacia donde tirar*-- reaparecida por culpa de un numero.
+		--
+		-- La recarga no se toca y sigue haciendo su trabajo: impide recoger dos veces
+		-- la misma miga DENTRO de un viaje, que es donde el farmeo tendria gracia. Lo
+		-- que no puede es sobrevivir al viaje.
+		if estado.ruta ~= nil then
+			for _, pieza in piezas do
+				if pieza:GetAttribute("ruta") == estado.ruta then
+					recargaHasta[pieza] = nil
+					encender(pieza, true)
+				end
+			end
+		end
 	end
 end
 

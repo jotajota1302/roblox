@@ -2332,11 +2332,33 @@ function CityBuilder.build(): Mundo
 		-- Un círculo pintado, del color de la ruta y más ancho que la losa: se ve a
 		-- media calle de distancia y dice "es aquí" sin una palabra ni nada vertical.
 		-- Y es donde muere la línea que te ha traído, así que el camino tiene final.
+		-- SOBRE EL TOPE REAL DE LA LOSA, no a un palmo de su centro.
+		--
+		-- Esto sumaba 0,45 a la posicion del destino dando por hecho que la losa
+		-- quedaba empotrada en el asfalto. No queda: su huella de 44 studs es mas ancha
+		-- que la calle de 26, asi que muerde la acera de las cuatro esquinas --que va
+		-- 0,8 mas alta-- y `losa()` se apoya, con razon, en el punto MAS ALTO de lo que
+		-- cubre. Medido en el mundo construido el 20/08: la losa acaba con el tope en
+		-- 20,05 y la diana quedaba en 19,60. Enterrada DENTRO de la losa, en las cuatro
+		-- rutas, sin asomar por ningun lado. Y del mismo color que ella, de propina.
+		--
+		-- O sea que la unica senal de "has llegado" era invisible por partida doble, y
+		-- "no se cuando he llegado al punto de delivery" no era una impresion: era una
+		-- descripcion exacta de lo que habia en pantalla.
+		--
+		-- Se calcula la cota en vez de suponerla, y el disco pasa a tener GROSOR: apoya
+		-- en el asfalto y asoma por encima de la losa, asi que se ve desde lejos por el
+		-- canto y desde cerca por arriba, y no deja aire debajo del borde.
+		local topeLosa = destino.Position.Y + destino.Size.Y / 2
+		local baseDiana = Grid.Y + 0.05
+		local grosorDiana = math.max((topeLosa + 0.3) - baseDiana, 0.4)
 		local diana = part(
 			"Diana_" .. ruta.id,
-			Vector3.new(0.2, 58, 58),
-			destino.Position + Vector3.new(0, 0.45, 0),
-			Palette.ruta(ruta.id),
+			Vector3.new(grosorDiana, 58, 58),
+			Vector3.new(destino.Position.X, baseDiana + grosorDiana / 2, destino.Position.Z),
+			-- Aclarada, para que se despegue de la losa a la que rodea. Del color de la
+			-- ruta seguia siendo, pero identico al de la losa no distinguia nada.
+			Palette.ruta(ruta.id):Lerp(Color3.new(1, 1, 1), 0.45),
 			mundo
 		)
 		diana.Shape = Enum.PartType.Cylinder

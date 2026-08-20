@@ -21,9 +21,26 @@ return function(kit)
 	-- LA REGLA: con carga y sin destino, no se sale.
 	kit.truthy("con carga y sin ruta, la puerta se cierra", Perimeter.debeCerrar(estado(1), dentroDelPoligono()))
 
-	-- Y las tres formas de que NO se cierre, que son las que impiden encerrar a
-	-- nadie. Cada una vale por sí sola.
-	kit.falsy("de vacio no hay puerta", Perimeter.debeCerrar(estado(0), dentroDelPoligono()))
+	-- Y DE VACIO TAMBIEN SE CIERRA, desde el 19/08. Es un cambio de regla pedido
+	-- jugando: *"no deberia poder salir de la zona donde estan los almacenes y el
+	-- taller sin paquete, deberia salir como una pared transparente roja que me
+	-- obligue a ir a por un paquete"*. Salir con las manos vacias no era una jugada,
+	-- era la forma mas comun de empezar mal una partida.
+	--
+	-- Esta linea afirmaba lo contrario y se quedo sin tocar cuando se cambio la
+	-- regla, asi que la bateria defendia el diseno viejo contra el nuevo. Se ve
+	-- porque falla; el peligro real es la prueba que se ajusta al codigo sin mirar,
+	-- y por eso queda escrito de donde viene la regla.
+	kit.truthy("de vacio la puerta se cierra", Perimeter.debeCerrar(estado(0), dentroDelPoligono()))
+	kit.eq("y dice por que", Perimeter.motivoDeCierre(estado(0), dentroDelPoligono()), "sin_carga")
+	kit.eq(
+		"con carga y sin ruta el motivo es otro",
+		Perimeter.motivoDeCierre(estado(1), dentroDelPoligono()),
+		"sin_destino"
+	)
+
+	-- Las formas de que NO se cierre, que son las que impiden encerrar a nadie.
+	-- Cada una vale por si sola.
 	kit.falsy("con ruta elegida tampoco", Perimeter.debeCerrar(estado(2, "roja"), dentroDelPoligono()))
 	kit.falsy(
 		"y con carga de vuelta menos: su destino ES el almacen",

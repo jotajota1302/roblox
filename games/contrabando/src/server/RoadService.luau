@@ -363,9 +363,15 @@ local function velocidadReal(player: Player, root: BasePart): number
 end
 
 local function efectos(root: BasePart, velocidad: number, quieto: boolean, racha: number, motor: boolean)
-	local polvo = root:FindFirstChild("PolvoPies") :: ParticleEmitter?
+	-- OJO AL SITIO DONDE SE BUSCA. El emisor cuelga del ANCLA, no de root, asi que
+	-- `root:FindFirstChild("PolvoPies")` devolvia nil SIEMPRE y este bloque creaba un
+	-- ancla y un emisor nuevos en cada tick. Medido en una partida real: 1.658 de
+	-- cada uno colgando del jugador. No daba error, no se veia y no rompia nada --
+	-- solo iba pesando mas cuanto mas jugabas, que es la averia que no se busca.
+	local ancla = root:FindFirstChild("AnclaPies") :: Attachment?
+	local polvo = ancla and ancla:FindFirstChild("PolvoPies") :: ParticleEmitter?
 	if polvo == nil then
-		local pies = Instance.new("Attachment")
+		local pies = ancla or Instance.new("Attachment")
 		pies.Name = "AnclaPies"
 		pies.Position = Vector3.new(0, -2.6, 0)
 		pies.Parent = root

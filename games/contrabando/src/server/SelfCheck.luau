@@ -874,6 +874,57 @@ end
 --
 -- LA REGLA, que vale para cualquier sistema de este tipo: si el desvío típico
 -- respecto al camino supera el radio de acción, el sistema no existe.
+-- QUE LA SENAL DE LLEGADA SE VEA. Nace de una partida del 20/08: la diana estaba
+-- enterrada DENTRO de la losa de su destino en las cuatro rutas, y ademas pintada
+-- de su mismo color. O sea que "no se cuando he llegado al punto de delivery" no
+-- era una impresion del jugador, era la descripcion exacta de lo que habia.
+--
+-- Es la firma de siempre en este proyecto: nada revienta, la pieza existe, se ve
+-- perfectamente en el arbol de Studio, y no la ve nadie desde el juego. Por eso se
+-- mide el TOPE de las dos piezas y no que la diana exista.
+local function dianas()
+	local m = mundo()
+	if m == nil then
+		return
+	end
+
+	local enterradas, sinContraste, cuantas = 0, 0, 0
+	for _, x in m:GetChildren() do
+		local ruta = x.Name:match("^Diana_(%a+)$")
+		if ruta ~= nil and x:IsA("BasePart") then
+			cuantas += 1
+			local losa = m:FindFirstChild("Destino_" .. ruta)
+			if losa ~= nil and losa:IsA("BasePart") then
+				-- La diana es un cilindro TUMBADO: tras el giro de 90 grados el que
+				-- queda vertical es el eje X, asi que su semialtura es Size.X/2 y no
+				-- Size.Y/2. Medirlo por Y es el mismo error que puso 31 detectores
+				-- "en el aire" con el mundo perfecto.
+				local mitad = x.CFrame:VectorToWorldSpace(x.Size / 2)
+				local topeDiana = x.Position.Y + math.abs(mitad.Y)
+				local topeLosa = losa.Position.Y + losa.Size.Y / 2
+				if topeDiana <= topeLosa then
+					enterradas += 1
+				end
+				if x.Color == losa.Color then
+					sinContraste += 1
+				end
+			end
+		end
+	end
+
+	comprobar("hay una diana por destino", cuantas >= 1, "ninguna -- no hay senal de llegada")
+	comprobar(
+		"ninguna diana enterrada en su losa",
+		enterradas == 0,
+		string.format("%d por debajo del tope de su destino -- no se ven", enterradas)
+	)
+	comprobar(
+		"las dianas se distinguen de su losa",
+		sinContraste == 0,
+		string.format("%d del mismo color exacto que el destino que rodean", sinContraste)
+	)
+end
+
 local function contactos()
 	local m = mundo()
 	if m == nil then
@@ -1409,6 +1460,7 @@ function SelfCheck.run(): string
 		{ nombre = "refugios", fn = refugios },
 		{ nombre = "guaridas", fn = guaridas },
 		{ nombre = "contactos", fn = contactos },
+		{ nombre = "dianas", fn = dianas },
 		{ nombre = "barrio", fn = barrio },
 		{ nombre = "encaje", fn = encaje },
 		{ nombre = "economía", fn = economia },
