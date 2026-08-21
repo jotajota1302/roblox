@@ -2210,12 +2210,33 @@ local function reticula()
 	-- Lo tenía la primera retícula: una tira por calle, cruzándose, y en cada uno de
 	-- los veinte cruces dos piezas ocupando el mismo volumen con la cara superior a la
 	-- misma cota.
+	--
+	-- ESTA SONDA DABA VERDE CON EL DEFECTO DELANTE, y por dos motivos a la vez. El
+	-- 21/08 JJ vio *"parpadeos en el suelo del garaje donde estan los coches"*:
+	--
+	--   · MIRABA SOLO `Ciudad`. Las losas del juego --almacen, taller, salida,
+	--     destinos-- viven en `Mundo`, que es otra carpeta. O sea que las piezas que
+	--     mas parpadeaban eran justo las que no se miraban.
+	--   · Y EL UMBRAL ERA 0,02. Las losas se apoyaban a 0,05 del suelo, asi que
+	--     pasaban el filtro por tres centesimas -- y a la distancia a la que se juega
+	--     0,05 studs pelean por el z-buffer igual que cero. El umbral tiene que medir
+	--     lo que la TARJETA no distingue, no lo que es matematicamente distinto.
+	--
+	-- Se mira lo GRANDE de las dos carpetas: dos chinas de dos studs solapadas no las
+	-- nota nadie, y el bucle es cuadratico.
 	local piezas: { BasePart } = {}
-	for _, d in ciudad:GetDescendants() do
-		if d:IsA("BasePart") then
-			table.insert(piezas, d)
+	local function recoger(raiz: Instance?)
+		if raiz == nil then
+			return
+		end
+		for _, d in raiz:GetDescendants() do
+			if d:IsA("BasePart") and d.Size.X >= 8 and d.Size.Z >= 8 and d.Transparency < 0.9 then
+				table.insert(piezas, d)
+			end
 		end
 	end
+	recoger(ciudad)
+	recoger(mundo())
 	local parpadeos = 0
 	local ejemplo = ""
 	for i = 1, #piezas do
@@ -2223,9 +2244,16 @@ local function reticula()
 			local a, b = piezas[i], piezas[j]
 			local caraA = a.Position.Y + a.Size.Y / 2
 			local caraB = b.Position.Y + b.Size.Y / 2
-			if math.abs(caraA - caraB) < 0.02 then
-				local solapaX = math.abs(a.Position.X - b.Position.X) < (a.Size.X + b.Size.X) / 2 - 0.02
-				local solapaZ = math.abs(a.Position.Z - b.Position.Z) < (a.Size.Z + b.Size.Z) / 2 - 0.02
+			-- QUINCE CENTESIMAS, no dos: es la separacion por debajo de la cual la
+			-- tarjeta grafica no puede decidir cual esta delante. Ver arriba.
+			if math.abs(caraA - caraB) < 0.15 then
+				-- SOLAPE MINIMO DE UN STUD, no de medio. Con medio saltaban las molduras de
+				-- ventanas de dos alas contiguas: sobresalen 0,3 de la fachada por cada lado,
+				-- asi que dos alas que se tocan en la esquina se rozan 0,6 studs. Un roce de
+				-- una decima no parpadea a la vista de nadie; lo que hay que cazar son dos
+				-- superficies montadas una sobre otra.
+				local solapaX = math.abs(a.Position.X - b.Position.X) < (a.Size.X + b.Size.X) / 2 - 1
+				local solapaZ = math.abs(a.Position.Z - b.Position.Z) < (a.Size.Z + b.Size.Z) / 2 - 1
 				if solapaX and solapaZ then
 					parpadeos += 1
 					if ejemplo == "" then
@@ -2240,6 +2268,68 @@ local function reticula()
 		parpadeos == 0,
 		string.format("%d pares coplanares, p.ej. %s", parpadeos, ejemplo)
 	)
+
+	-- SE PUEDE LLEGAR A CASA DESDE CUALQUIER MANZANA POR LA QUE SE CORTA.
+	--
+	-- Vivia en `MapBuilder`, al final de `buildCiudad`, y desde ahi no podia funcionar:
+	-- en ese momento el recinto y el almacen todavia no existen --los planta
+	-- `CityBuilder` despues-- asi que el destino del camino era un punto en el aire y
+	-- el pathfinder contestaba `NoPath` a todo. Nueve avisos rojos en cada arranque, y
+	-- los nueve mentira. Aqui el mundo esta terminado, que es la unica forma de medir
+	-- un camino.
+	--
+	-- QUE COMPRUEBA DE VERDAD: que una manzana atravesable no se haya quedado
+	-- encerrada. Son las vias de escape del juego --se cortan por dentro mientras la
+	-- patrulla, atada a las calles, tiene que rodear-- y una que no conecte no da
+	-- ningun error: simplemente deja de ser una salida el dia que la necesitas.
+	--
+	-- SE MIRAN DOS, NO LAS NUEVE. Cada `ComputeAsync` cuesta cerca de un segundo y
+	-- esto corre al arrancar cada partida; con la mas lejana y la mas cercana se caza
+	-- un mapa partido en dos, que es el fallo que importa. Y se dice cuales, porque
+	-- una sonda que recorta en silencio se lee como si lo hubiera mirado todo.
+	do
+		local Districts = require(game.ReplicatedStorage.Shared.Districts)
+		local abiertas = {}
+		for _, mz in Districts.manzanas() do
+			if Districts.atravesable(mz.uso) then
+				table.insert(abiertas, mz)
+			end
+		end
+		local aProbar = {}
+		if #abiertas > 0 then
+			table.insert(aProbar, abiertas[1])
+			if #abiertas > 1 then
+				table.insert(aProbar, abiertas[#abiertas])
+			end
+		end
+
+		local ok, pathfinding = pcall(function()
+			return game:GetService("PathfindingService")
+		end)
+		for _, mz in aProbar do
+			if not ok then
+				break
+			end
+			local centro = Grid.centroManzana(mz.col, mz.fila)
+			local origen = Vector3.new(centro.X, Grid.Y + 2, centro.Z)
+			local bien, path = pcall(function()
+				local ruta = pathfinding:CreatePath({
+					AgentRadius = 2,
+					AgentHeight = 5,
+					AgentCanJump = true,
+					WaypointSpacing = 4,
+				})
+				ruta:ComputeAsync(origen, Config.ALMACEN_POS)
+				return ruta
+			end)
+			local estado = if bien then tostring((path :: any).Status) else "error: " .. tostring(path)
+			comprobar(
+				string.format("hay camino a casa desde la manzana %d,%d (%s)", mz.col, mz.fila, mz.uso),
+				bien and (path :: any).Status == Enum.PathStatus.Success,
+				estado
+			)
+		end
+	end
 
 	-- Y LAS MANZANAS SE LEVANTAN SOBRE EL ASFALTO, aunque sea por poco.
 	--

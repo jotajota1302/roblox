@@ -131,10 +131,51 @@ local SENTADO: { [string]: boolean } = {
 -- a la física, y ahí empiezan las volcadas, los atascos y el "me he quedado
 -- pegado al asiento". Aquí el jugador sigue moviéndose exactamente igual que
 -- siempre; lo único que cambia es cómo se le ve.
+-- ¿A ESTE PERSONAJE SE LE PUEDEN MOVER LOS HUESOS A MANO?
+--
+-- No es una pregunta retorica y la respuesta cambia de jugador a jugador. En este
+-- servidor conviven tres clases de esqueleto: el R6 de respaldo que monta
+-- `Avatar.luau` (Motor6D clasicos), el R15 de siempre (Motor6D con otros nombres) y
+-- el avatar nuevo de Roblox, cuyas articulaciones son `AnimationConstraint` y NO
+-- Motor6D -- medido el 22/08 en el avatar real de JJ: quince ataduras y cero
+-- Motor6D.
+--
+-- Los dos primeros se posan (`client/Riders.luau` sabe escribir en los dos: `C0` en
+-- uno, `Transform` en el otro). Si algun dia aparece un rig que no tenga ni una cosa
+-- ni la otra, esto devuelve false y el personaje se queda ANDANDO encima del
+-- monopatin en vez de rigido -- moverse de mas es mucho mejor que no moverse.
+local function tieneHuesos(character: Model): boolean
+	for _, d in character:GetDescendants() do
+		local cadera = d.Name == "Right Hip" or d.Name == "RightHip"
+		if cadera and (d:IsA("Motor6D") or d.ClassName == "AnimationConstraint") then
+			return true
+		end
+	end
+	return false
+end
+
 local function postura(character: Model, montado: boolean, sentado: boolean)
+	-- APAGAR `Animate` SOLO SI ALGUIEN VA A PONER UNA POSE EN SU LUGAR.
+	--
+	-- Esto decia `animate.Disabled = montado` a secas, y ahi esta el fallo que dejaba
+	-- al monopatin como una estatua: apagar el script que mueve las extremidades es la
+	-- MITAD del trabajo, y la otra mitad --la pose-- no siempre se puede hacer.
+	--
+	--   · SENTADO: la pose viene de una animacion oficial de Roblox, que funciona en
+	--     cualquier rig. Se apaga.
+	--   · DE PIE CON HUESOS: la pone `client/Riders.luau` moviendo los Motor6D. Se
+	--     apaga.
+	--   · DE PIE SIN HUESOS (el avatar nuevo): no hay nada que ponga una pose, asi
+	--     que apagarlo deja a un muneco rigido deslizandose por la calle. Se DEJA
+	--     ANDANDO -- moverse de mas es infinitamente mejor que no moverse nada, y
+	--     encima en un monopatin se lee casi como que va empujando.
+	--
+	-- Sin esto, el arreglo del monopatin funcionaria en Studio (donde el avatar de
+	-- respaldo es R6) y no funcionaria en el juego publicado, que es justo donde se
+	-- juega. La clase de fallo que se descubre tarde y mal.
 	local animate = character:FindFirstChild("Animate")
 	if animate and animate:IsA("LuaSourceContainer") then
-		animate.Disabled = montado
+		animate.Disabled = montado and (sentado or tieneHuesos(character))
 	end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")

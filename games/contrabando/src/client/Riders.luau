@@ -66,18 +66,34 @@ local ARRIBA = Pose.ARRIBA
 local FRENTE = Pose.FRENTE
 local ADELANTE = Pose.ADELANTE
 
--- LA POSTURA, en grados. La pierna de delante casi recta y la de atras retrasada:
--- es la silueta de alguien sobre una tabla, y se reconoce sin ver la tabla.
-local PIE_DELANTERO = 12
-local PIE_TRASERO = -20
+-- LA POSTURA, en grados, y los numeros salen de MEDIR sobre el avatar de verdad --
+-- no de lo que parece razonable escribiendo.
+--
+-- LO QUE HACE QUE SE LEA COMO UN MONOPATIN ES IR DE LADO. La primera version separaba
+-- los pies doblando las caderas adelante y atras, y medido dio 0,41 studs sobre una
+-- tabla de 4,4 de largo: el jugador se veia de pie con los pies juntos, o sea igual
+-- que andando. Subir el angulo no arreglaba gran cosa (34 grados daban 1,18 y ya se
+-- veia forzado).
+--
+-- Un skater no doble las caderas: gira el CUERPO ENTERO. Girando la raiz 55 grados y
+-- abriendo las piernas de lado, los pies quedan a 1,67 studs A LO LARGO de la tabla y
+-- a 0,39 a lo ancho -- o sea en linea sobre ella, que es exactamente como se va. Y
+-- sale mas barato: un giro grande dice mas que cuatro pequenos.
+--
+-- El torso CONTRAGIRA la mitad: de lado del todo el jugador iria mirando a la acera,
+-- y hay que mirar hacia donde se va.
+local CUERPO_ABIERTO = 55
+local TORSO_CONTRA = 0.45
+local CUERPO_AGACHADO = 8
+-- Y las piernas, abiertas de lado sobre la tabla. Poco adelante y atras: con el
+-- cuerpo ya girado, la separacion sale sola.
+local PIE_DELANTERO = 14
+local PIE_TRASERO = -14
+local PIERNA_ABIERTA = 16
 -- Los brazos, abiertos para equilibrar. Poco: un patinador con los brazos en cruz
 -- parece que se cae, no que va.
 local BRAZO_ABIERTO = 26
 local BRAZO_ADELANTE = 14
--- El cuerpo, girado hacia su lado y algo agachado. El giro es media postura: de
--- frente al avance se lee como "de pie sobre algo", no como patinar.
-local CUERPO_ABIERTO = 24
-local CUERPO_AGACHADO = 8
 
 -- LA PATADA: cada cuanto empuja y cuanto dura el gesto.
 --
@@ -103,15 +119,33 @@ local RODANDO = 3
 -- Hasta donde se anima. Mas lejos no se distingue una pierna de otra.
 local CERCA = 400
 
+-- UNA ARTICULACION, SEA DEL RIG QUE SEA. En este servidor conviven dos formas de
+-- tener esqueleto y no se parecen en nada:
+--
+--   · Motor6D (R6 y R15 clasico): la pose se escribe en `C0`, SOBRE el C0 de
+--     fabrica, que hay que guardar para no acumular giros.
+--   · AnimationConstraint (el avatar moderno de Roblox): no hay C0 que valga; se
+--     escribe `Transform`, que YA es la desviacion respecto al reposo del rig. La
+--     base, por tanto, es la identidad.
+--
+-- Medido el 22/08 en el avatar real de JJ: quince `AnimationConstraint` y CERO
+-- Motor6D. O sea que sin esta rama, el arreglo del monopatin funcionaba en Studio
+-- --donde el avatar de respaldo es R6-- y no funcionaba en el juego publicado, que
+-- es donde se juega. La clase de fallo que se descubre tarde y mal.
+type Junta = {
+	motor: Motor6D?,
+	atadura: any?,
+	base: CFrame,
+}
+
 type Patinador = {
 	personaje: Model,
 	raiz: BasePart,
-	caderaD: Motor6D?,
-	caderaI: Motor6D?,
-	hombroD: Motor6D?,
-	hombroI: Motor6D?,
-	tronco: Motor6D?,
-	bases: { [Motor6D]: CFrame },
+	caderaD: Junta?,
+	caderaI: Junta?,
+	hombroD: Junta?,
+	hombroI: Junta?,
+	tronco: Junta?,
 	-- El reloj de la patada, SUYO: dos patinadores en la misma calle empujando a la
 	-- vez se leen como una animacion en bucle, no como dos personas.
 	fase: number,
@@ -120,6 +154,8 @@ type Patinador = {
 	-- vuelta entera, y el patinador se tira al suelo de golpe.
 	rumbo: Vector3,
 	balanceo: number,
+	-- Cuando toca volver a mirar si hay animaciones sonando. Ver `callarAnimaciones`.
+	revision: number,
 }
 
 local patinadores: { [Model]: Patinador } = {}
@@ -128,14 +164,27 @@ local patinadores: { [Model]: Patinador } = {}
 -- avatar de respaldo es R6 y un jugador con el place publicado viene en R15-- y los
 -- nombres cambian: "Right Hip" con espacio en el clasico, "RightHip" pegado en el
 -- moderno, y el tronco es "RootJoint" en uno y "Root" en el otro.
-local function junta(personaje: Model, nombres: { string }): Motor6D?
-	for _, hijo in personaje:GetDescendants() do
-		if hijo:IsA("Motor6D") then
-			for _, nombre in nombres do
-				if hijo.Name == nombre then
-					return hijo
-				end
+local function junta(personaje: Model, nombres: { string }): Junta?
+	local function llamada(inst: Instance): boolean
+		for _, nombre in nombres do
+			if inst.Name == nombre then
+				return true
 			end
+		end
+		return false
+	end
+	for _, hijo in personaje:GetDescendants() do
+		if hijo:IsA("Motor6D") and llamada(hijo) then
+			-- EL C0 DE FABRICA, guardado antes de tocar nada. La pose se aplica siempre
+			-- sobre el, nunca sobre el ultimo valor: acumular sobre lo ya girado es como
+			-- una pierna acaba dando la vuelta entera en diez segundos.
+			return { motor = hijo, atadura = nil, base = hijo.C0 }
+		end
+		if hijo.ClassName == "AnimationConstraint" and llamada(hijo) then
+			-- Aqui la base es la IDENTIDAD: `Transform` no es la postura absoluta de la
+			-- junta sino lo que se desvia del reposo del rig, asi que escribir la
+			-- rotacion a secas es exactamente lo que se quiere.
+			return { motor = nil, atadura = hijo, base = CFrame.identity }
 		end
 	end
 	return nil
@@ -155,10 +204,13 @@ local function adoptar(personaje: Model): Patinador?
 		hombroD = junta(personaje, { "Right Shoulder", "RightShoulder" }),
 		hombroI = junta(personaje, { "Left Shoulder", "LeftShoulder" }),
 		tronco = junta(personaje, { "RootJoint", "Root" }),
-		bases = {},
+		-- El torso alto: `Waist` en R15, y en R6 no existe -- ahi el contragiro se
+		-- hace con el cuello, que es lo unico que hay por encima de la cintura.
+		torso = junta(personaje, { "Waist", "Neck" }),
 		fase = 0,
 		rumbo = raiz.CFrame.LookVector,
 		balanceo = 0,
+		revision = 0,
 	}
 
 	-- Sin una sola articulacion no hay nada que animar: un rig con articulaciones
@@ -168,34 +220,71 @@ local function adoptar(personaje: Model): Patinador?
 		return nil
 	end
 
-	-- EL C0 DE FABRICA, guardado antes de tocar nada. La pose se aplica siempre
-	-- sobre el, nunca sobre el ultimo valor: acumular sobre lo ya girado es como una
-	-- pierna acaba dando la vuelta entera en diez segundos.
-	for _, motor in { p.caderaD, p.caderaI, p.hombroD, p.hombroI, p.tronco } do
-		if motor then
-			p.bases[motor] = motor.C0
-		end
-	end
 	return p
+end
+
+-- Lo que hay escrito ahora mismo en la junta, y como se escribe. Es lo unico que
+-- cambia entre los dos rigs; la pose de arriba no se entera de cual es cual.
+local function leer(j: Junta): CFrame
+	if j.motor then
+		return j.motor.C0
+	end
+	return j.atadura.Transform
+end
+
+local function escribir(j: Junta, cf: CFrame)
+	if j.motor then
+		j.motor.C0 = cf
+	else
+		j.atadura.Transform = cf
+	end
 end
 
 -- Lleva una junta a su pose, persiguiendola en vez de saltando: el `Lerp` es lo que
 -- convierte un cambio de postura en un gesto.
-local function posar(p: Patinador, motor: Motor6D?, giro: (CFrame) -> CFrame, suave: number)
-	if motor == nil then
+local function posar(j: Junta?, giro: (CFrame) -> CFrame, suave: number)
+	if j == nil then
 		return
 	end
-	local base = p.bases[motor]
-	if base == nil then
+	escribir(j, leer(j):Lerp(j.base * giro(j.base), suave))
+end
+
+-- CALLAR LAS ANIMACIONES QUE PISAN LA POSE, y esto es lo que separaba "el codigo
+-- corre" de "se ve".
+--
+-- `Ride.postura` apaga el script `Animate` y para las pistas... EN EL SERVIDOR. Y el
+-- `Animator` de un jugador vive en SU cliente: las pistas que estaban sonando ahi
+-- siguen sonando, escribiendo en las mismas articulaciones cada fotograma. El
+-- resultado es una pelea que se pierde -- nosotros escribimos, el animador
+-- sobrescribe, y el cuerpo no se mueve.
+--
+-- Medido el 22/08 con el monopatin puesto: dos pistas de prioridad `Core` sonando y
+-- los pies a 0,14 studs uno de otro (o sea juntos, como andando). Parandolas a mano,
+-- 0,82 al instante -- con la MISMA pose, que ya se estaba escribiendo.
+--
+-- Se revisa cada poco en vez de una sola vez al montar: el personaje puede recibir
+-- una pista nueva --al aterrizar de un salto, por ejemplo-- y una sola pasada al
+-- principio dejaria la pose muerta a partir de ahi.
+local REVISAR_CADA = 0.4
+
+local function callarAnimaciones(p: Patinador)
+	local humanoid = p.personaje:FindFirstChildOfClass("Humanoid")
+	if humanoid == nil then
 		return
 	end
-	motor.C0 = motor.C0:Lerp(base * giro(base), suave)
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if animator == nil then
+		return
+	end
+	for _, pista in animator:GetPlayingAnimationTracks() do
+		pista:Stop(0)
+	end
 end
 
 local function soltar(p: Patinador)
-	for motor, base in p.bases do
-		if motor.Parent ~= nil then
-			motor.C0 = base
+	for _, j in { p.caderaD, p.caderaI, p.hombroD, p.hombroI, p.tronco, p.torso } do
+		if j and (if j.motor then j.motor.Parent ~= nil else j.atadura.Parent ~= nil) then
+			escribir(j, j.base)
 		end
 	end
 end
@@ -275,36 +364,49 @@ local function animar(p: Patinador, delta: number, dondeEstoy: Vector3?)
 		end
 	end
 
+	p.revision -= delta
+	if p.revision <= 0 then
+		p.revision = REVISAR_CADA
+		callarAnimaciones(p)
+	end
+
 	local suave = math.min(1, delta * 12)
 
-	-- EL TRONCO: abierto de lado, algo agachado y balanceandose en las curvas. Lleva
-	-- la mayor parte de la lectura -- las piernas dicen "va en tabla" y el tronco
-	-- dice "esta girando".
-	local agacha = (CUERPO_AGACHADO + empuje * 5) * ADELANTE
-	posar(p, p.tronco, function(base)
-		return Pose.enTorso(base, ARRIBA, CUERPO_ABIERTO)
-			* Pose.enTorso(base, DERECHA, agacha)
-			* Pose.enTorso(base, FRENTE, p.balanceo)
+	-- LA RAIZ: el cuerpo entero girado sobre la tabla. Es la pieza que hace que esto
+	-- se lea como un monopatin y no como alguien de pie; el resto son matices.
+	--
+	-- El balanceo de las curvas va aqui tambien: inclinar el cuerpo entero hacia
+	-- dentro es lo que se siente como inercia. Y NO mueve la camara -- la camara
+	-- sigue al HumanoidRootPart, que no gira con esto.
+	posar(p.tronco, function(base)
+		return Pose.enTorso(base, ARRIBA, CUERPO_ABIERTO) * Pose.enTorso(base, FRENTE, p.balanceo)
 	end, suave)
 
-	-- LAS PIERNAS: la de delante fija, la de atras es la que empuja.
-	posar(p, p.caderaD, function(base)
-		return Pose.enTorso(base, DERECHA, PIE_DELANTERO * ADELANTE)
+	-- EL TORSO ALTO CONTRAGIRA y se agacha con el empuje: de lado del todo se iria
+	-- mirando a la acera, y hay que mirar hacia donde se va.
+	local agacha = (CUERPO_AGACHADO + empuje * 5) * ADELANTE
+	posar(p.torso, function(base)
+		return Pose.enTorso(base, ARRIBA, -CUERPO_ABIERTO * TORSO_CONTRA) * Pose.enTorso(base, DERECHA, agacha)
+	end, suave)
+
+	-- LAS PIERNAS: abiertas de lado sobre la tabla, y la de atras es la que empuja.
+	posar(p.caderaD, function(base)
+		return Pose.enTorso(base, DERECHA, PIE_DELANTERO * ADELANTE) * Pose.enTorso(base, FRENTE, -PIERNA_ABIERTA)
 	end, suave)
 	local trasera = (PIE_TRASERO - empuje * PATADA_ARCO) * ADELANTE
-	posar(p, p.caderaI, function(base)
-		return Pose.enTorso(base, DERECHA, trasera)
+	posar(p.caderaI, function(base)
+		return Pose.enTorso(base, DERECHA, trasera) * Pose.enTorso(base, FRENTE, PIERNA_ABIERTA)
 	end, suave)
 
 	-- LOS BRAZOS, abiertos y contrapesando el balanceo: el de fuera de la curva sube
 	-- y el de dentro baja. Es como se equilibra cualquiera, y en pantalla es lo que
 	-- remata la sensacion de peso.
 	local contrapeso = p.balanceo * 0.5
-	posar(p, p.hombroD, function(base)
+	posar(p.hombroD, function(base)
 		return Pose.enTorso(base, FRENTE, -BRAZO_ABIERTO - contrapeso)
 			* Pose.enTorso(base, DERECHA, BRAZO_ADELANTE * ADELANTE)
 	end, suave)
-	posar(p, p.hombroI, function(base)
+	posar(p.hombroI, function(base)
 		return Pose.enTorso(base, FRENTE, BRAZO_ABIERTO - contrapeso)
 			* Pose.enTorso(base, DERECHA, BRAZO_ADELANTE * ADELANTE)
 	end, suave)
@@ -354,6 +456,7 @@ function Riders.build()
 						-- Desfasado al montar, para que dos patinadores no empujen a la vez.
 						local donde = p.raiz.Position
 						p.fase = (math.abs(donde.X) + math.abs(donde.Z)) % PATADA_CADA
+						callarAnimaciones(p)
 						patinadores[personaje] = p
 					end
 				end

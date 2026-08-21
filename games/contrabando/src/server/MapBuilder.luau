@@ -1220,63 +1220,19 @@ local function validarPuntosFijos(edificios: { Part })
 	end
 end
 
--- Verificación de conectividad por PathfindingService. Cara (~0,6-1,3 s por
--- path según DISENO-CIUDAD.md), así se hace UNA vez al construir y dentro
--- de pcall — si PathfindingService falla por cualquier motivo, el juego
--- sigue arrancando. Lo importante no es la métrica, es detectar **callejones
--- sin salida** antes de jugar: si una patrulla se queda atascada, el bug se
--- ve aquí, no en mitad de una ronda.
-local function verificarConectividad(almacen: Vector3): { string }
-	local issues: { string } = {}
-	local ok, pathfinding = pcall(function()
-		return game:GetService("PathfindingService")
-	end)
-	if not ok then
-		return { "(PathfindingService no disponible, saltando verificación)" }
-	end
-
-	-- DESDE CADA MANZANA POR LA QUE SE PUEDE CORTAR, y ya no solo desde los dos
-	-- solares: con ocho usos distintos, "atravesable" dejo de ser una lista escrita a
-	-- mano y paso a ser una propiedad del plano. Si un dia un mercado queda encerrado
-	-- entre naves, esto lo dice al arrancar en vez de en mitad de una huida.
-	for _, mz in Districts.manzanas() do
-		if not Districts.atravesable(mz.uso) then
-			continue
-		end
-		local solar = mz
-		local x = xDeColumna(solar.col) + TAMANO_MANZANA / 2
-		local z = zDeFila(solar.fila) + TAMANO_MANZANA / 2
-		local origen = Vector3.new(x, Y_CALZADA + 2, z)
-		local okPath, path = pcall(function()
-			local p = pathfinding:CreatePath({
-				AgentRadius = 2,
-				AgentHeight = 5,
-				AgentCanJump = true,
-				WaypointSpacing = 4,
-			})
-			p:ComputeAsync(origen, almacen)
-			return p
-		end)
-		if not okPath then
-			table.insert(
-				issues,
-				string.format("solar(%d,%d): PathfindingService error: %s", solar.col, solar.fila, tostring(path))
-			)
-		elseif (path :: any).Status ~= Enum.PathStatus.Success then
-			table.insert(
-				issues,
-				string.format(
-					"solar(%d,%d): NO hay camino al almacén (Status=%s)",
-					solar.col,
-					solar.fila,
-					tostring((path :: any).Status)
-				)
-			)
-		end
-	end
-
-	return issues
-end
+-- LA VERIFICACION DE CONECTIVIDAD SE FUE A `SelfCheck` (22/08), y no por orden.
+--
+-- Corria aqui, al final de `buildCiudad`, y medía el camino a pie desde cada manzana
+-- atravesable hasta `Config.ALMACEN_POS`. El problema es CUANDO: en ese momento la
+-- ciudad esta puesta pero el recinto, el almacen y el taller todavia no existen --
+-- los planta `CityBuilder` despues-- asi que el destino del camino era un punto en
+-- el aire y el pathfinder contestaba `NoPath` para todas. Nueve avisos rojos en la
+-- consola de arranque, y las nueve mentira: medido con el mundo ya terminado, hay
+-- camino desde las dos manzanas mas lejanas (115 y 158 puntos de ruta).
+--
+-- Es la trampa de siempre en este proyecto -- *cada cosa que se planta cambia el
+-- mundo que la siguiente mide*-- y la cura tambien: la sonda va al final DEL TODO,
+-- no al final de su fichero.
 
 -- Punto de entrada. Crea un Model "Ciudad" con el mapa procedural y lo deja
 -- como hijo del padre que se le pasa (en producción, workspace).
@@ -1405,17 +1361,6 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	table.sort(usos)
 	for _, uso in usos do
 		print(string.format("  · %-13s %d", uso, porUso[uso]))
-	end
-
-	-- 7. Verificación de conectividad: solar → almacén. Cara, dentro de pcall.
-	local issues = verificarConectividad(Config.ALMACEN_POS)
-	if #issues == 0 then
-		print("[MapBuilder] verificación de conectividad: OK — todos los solares tienen camino al almacén")
-	else
-		warn("[MapBuilder] verificación de conectividad: " .. #issues .. " avisos")
-		for _, msg in issues do
-			warn("  · " .. msg)
-		end
 	end
 
 	ciudad.Parent = padre

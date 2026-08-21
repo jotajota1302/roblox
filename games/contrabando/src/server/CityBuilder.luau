@@ -696,10 +696,27 @@ local function losa(
 	-- brinco, el mundo se construye igual, y sólo el pathfinder --o sea las patrullas
 	-- y los ladrones-- se queda fuera.
 	--
-	-- Los cinco centímetros son para que la cara de la losa no quede EXACTAMENTE en el
-	-- plano del asfalto: dos superficies coplanares parpadean, y ese defecto también
-	-- se pagó hoy.
-	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + 0.05 - ALTO_LOSA / 2, centro.Z), color, padre)
+	-- CUANTO SOBRESALE, y el numero ha costado dos quejas.
+	--
+	-- Eran CINCO CENTESIMAS, puestas para que la cara de la losa no quedara
+	-- exactamente en el plano del suelo. Y cinco centesimas NO SEPARAN NADA: a la
+	-- distancia a la que se juega, dos superficies grandes a 0,05 studs siguen
+	-- peleando por el z-buffer exactamente igual que si fueran coplanares, y la
+	-- tarjeta va enseñando trozos de una y de otra.
+	--
+	-- Lo que se veia: *"el cuadrado ese que hay en el suelo que conecta con la ciudad
+	-- parpadea"* (la losa de la salida, 20/08) y *"hay parpadeos en el suelo del
+	-- garaje donde estan los coches"* (la losa del taller, 21/08). Dos sintomas, un
+	-- solo numero -- y el primero se "arreglo" poniendo aquella losa invisible, que
+	-- era tratar el sintoma: el taller, el almacen y los tres destinos seguian igual.
+	--
+	-- VEINTICINCO CENTESIMAS es el mismo orden que la acera de las manzanas (0,2, que
+	-- lleva desde el 20/08 sin dar un parpadeo) con un poco de margen para no caer
+	-- justo en su cota si una losa acaba sobre una manzana. Y sigue sin ser un
+	-- escalon: el personaje sube dos decimas sin cambiar de estado, y el pathfinder
+	-- --que es lo que se rompio con 1,5-- cruza esto sin saltar.
+	local SOBRESALE = 0.25
+	local pieza = part(nombre, tamano, Vector3.new(centro.X, y + SOBRESALE - ALTO_LOSA / 2, centro.Z), color, padre)
 
 	if bajo ~= nil then
 		zocalo(pieza, bajo, padre)
@@ -2645,7 +2662,17 @@ function CityBuilder.build(): Mundo
 	local talleres: { BasePart } = {}
 
 	-- El taller de casa va en el polígono, al lado del almacén: nada que despejar.
-	local taller = losa(ciudad, "Taller", Vector3.new(96, ALTO_LOSA, 60), Config.TALLER_POS, Palette.TALLER, mundo)
+	-- OCHENTA Y OCHO DE ANCHA, QUE ES LO QUE MIDE SU COBERTIZO. Eran 96, ocho de mas
+	-- que no cubrian nada y que hacian que la losa del taller pisara la del almacen
+	-- cinco studs, las dos a la cota exacta 19,45: *"hay parpadeos en el suelo del
+	-- garaje donde estan los coches"* (JJ, 22/08). Dos superficies coplanares.
+	--
+	-- Se recorta la losa en vez de separar los edificios porque no habia sitio: el
+	-- taller tiene que quedarse DENTRO de la zona segura (radio 90 desde el almacen,
+	-- es una promesa del diseno -- nadie puede emboscarte mientras compras) y moverlo
+	-- lo justo para no solaparse lo sacaba a 96. Lo canto la bateria pura, que tiene
+	-- esa regla escrita desde hace dos meses.
+	local taller = losa(ciudad, "Taller", Vector3.new(88, ALTO_LOSA, 60), Config.TALLER_POS, Palette.TALLER, mundo)
 	prompt(taller, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 14).Name = "PromptTaller"
 	concesionario(taller, mundo, frenteCasa)
 	table.insert(talleres, taller)
@@ -3189,7 +3216,7 @@ function CityBuilder.build(): Mundo
 			if sitio ~= nil then
 				despejar(ciudad, sitio, 110, 45, true)
 				local tallerZona =
-					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(96, ALTO_LOSA, 60), sitio, Palette.TALLER, mundo)
+					losa(ciudad, "Taller_" .. ruta.id, Vector3.new(88, ALTO_LOSA, 60), sitio, Palette.TALLER, mundo)
 				prompt(tallerZona, Strings.get("PROMPT_BUY_VEHICLE"), Strings.get("PROMPT_DEALERSHIP"), 26).Name =
 					"PromptTaller"
 				-- Y los de las zonas miran a su destino, que es donde está la acción.

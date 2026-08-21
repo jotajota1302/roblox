@@ -431,7 +431,22 @@ Config.POLIGONO_ENGANCHE = Grid.cruce(1, Grid.FILA_MAX)
 -- Ahora están a 77 studs de la boca. No es un ajuste de estética: es la mitad de
 -- los treinta segundos que se iban en entrar y salir de casa.
 Config.ALMACEN_POS = Vector3.new(-668, 19.2, 815)
-Config.TALLER_POS = Vector3.new(-580, 19.2, 815)
+-- MOVIDO OCHO STUDS AL ESTE (22/08). *"Hay parpadeos en el suelo del garaje donde
+-- estan los coches"* (JJ), y la causa se midio: la losa del taller (96 x 60) y la
+-- del almacen (90 x 90) se solapaban CINCO STUDS a lo largo de setenta y cinco, y
+-- las dos a la cota exacta 19,45 -- dos superficies coplanares, que es el defecto
+-- que este mapa lleva pagando desde que existe.
+--
+-- Se separan en vez de escalonarlas: una losa 0,2 studs por encima de la otra
+-- taparia el parpadeo y dejaria un canto en mitad del patio de casa.
+--
+-- DOS STUDS, NO OCHO, y el limite no es geometrico: el taller tiene que quedarse
+-- DENTRO de la zona segura --radio 90 desde el almacen, es una promesa del diseno,
+-- nadie puede emboscarte mientras compras-- y a ocho se salia. Lo canto la bateria
+-- pura, que tiene esa regla escrita desde hace dos meses. Los cinco studs que
+-- faltaban salen de la otra punta: la losa del taller se recorto de 96 a 88, que es
+-- lo que mide su cobertizo (los ocho de mas no cubrian nada).
+Config.TALLER_POS = Vector3.new(-578, 19.2, 815)
 
 -- Rutas. Ya NO se definen por distancia sino por DESTINO: con la ciudad de por
 -- medio, la distancia es una consecuencia de dónde cae el sitio y de qué calles

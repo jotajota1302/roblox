@@ -197,11 +197,19 @@ for i = 1, #grandes do
 	for j = i + 1, #grandes do
 		local b = grandes[j]
 		local by = b.Position.Y + b.Size.Y / 2
-		if math.abs(ay - by) > 0.02 then
+		-- 0,15 y no 0,02: es la separacion por debajo de la cual la tarjeta no puede
+		-- decidir cual esta delante. Con 0,02, las losas del juego --que se apoyaban a
+		-- 0,05-- pasaban el filtro por tres centesimas y parpadeaban igual.
+		if math.abs(ay - by) > 0.15 then
 			continue
 		end
-		local solapaX = math.abs(a.Position.X - b.Position.X) < (a.Size.X + b.Size.X) / 2 - 0.5
-		local solapaZ = math.abs(a.Position.Z - b.Position.Z) < (a.Size.Z + b.Size.Z) / 2 - 0.5
+		-- SOLAPE MINIMO DE UN STUD, no de medio. Con medio saltaban las molduras de
+		-- ventanas de dos alas contiguas: sobresalen 0,3 de la fachada por cada lado,
+		-- asi que dos alas que se tocan en la esquina se rozan 0,6 studs. Un roce de
+		-- una decima no parpadea a la vista de nadie; lo que hay que cazar son dos
+		-- superficies montadas una sobre otra.
+		local solapaX = math.abs(a.Position.X - b.Position.X) < (a.Size.X + b.Size.X) / 2 - 1
+		local solapaZ = math.abs(a.Position.Z - b.Position.Z) < (a.Size.Z + b.Size.Z) / 2 - 1
 		if solapaX and solapaZ then
 			pares += 1
 			if #ejemplos < 6 then
