@@ -44,6 +44,9 @@ local HeatService = {}
 -- fichar una cámara, y estaba aquí". Ver dónde se llama, más abajo.
 HeatService.alDelatar = nil :: ((Player, Vector3) -> ())?
 local calor: { [Player]: Heat.Estado } = {}
+-- Cuando se le puede volver a decir a cada jugador que le estan viendo. En memoria
+-- y no en el estado: es del instante, no de la partida.
+local ultimoVigilado: { [Player]: number } = {}
 local detectores: { BasePart } = {}
 local refugios: { Vector3 } = {}
 
@@ -193,6 +196,26 @@ local function muestra(player: Player, ahora: number): boolean
 		end
 		local siguiente, subio = Heat.detectar(estado, id, ahora)
 		estado = siguiente
+
+		-- Y SE DICE DE QUE CAMARA VIENE. Es la mitad que faltaba: hasta ahora ser
+		-- fichado era una linea de texto y un numero que sube, o sea una consecuencia
+		-- sin causa visible. Con la posicion, el cliente puede tirar el rayo desde el
+		-- ojo que te esta mirando -- y entonces la respuesta a "quien me ve" deja de
+		-- ser una suposicion.
+		--
+		-- Se manda mientras dure, no una sola vez, para que el efecto se apague solo
+		-- al salir del cono; y con freno, porque este bucle corre cinco veces por
+		-- segundo y el efecto dura casi uno.
+		local libre = ultimoVigilado[player] or 0
+		if os.clock() >= libre then
+			ultimoVigilado[player] = os.clock() + 0.4
+			-- El id PRIMERO: es lo que le permite al cliente encender el cono de esa
+			-- camara y no el de la de al lado. La posicion va detras como respaldo --
+			-- si el indice del cliente fallara, el rayo sigue saliendo del sitio
+			-- correcto.
+			Remotes.event(Remotes.VIGILADO):FireClient(player, id, poste.Position, estado.nivel, subio)
+		end
+
 		if subio then
 			avisar(player, "HEAT_SPOTTED", { nivel = estado.nivel, maximo = Config.CALOR_MAXIMO }, Palette.AVISO_MALO)
 			Telemetry.evento(player, "calor_sube", { nivel = estado.nivel, detector = id })
@@ -290,6 +313,7 @@ function HeatService.start()
 	Players.PlayerRemoving:Connect(function(player)
 		calor[player] = nil
 		perseguidos[player] = nil
+		ultimoVigilado[player] = nil
 	end)
 
 	task.spawn(function()

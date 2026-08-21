@@ -327,6 +327,11 @@ local TEXTOS: { [string]: string } = {
 	HEAT_SAFE = "Safe at your warehouse",
 	HEAT_SPOTTED = "A watched corner clocked you  ·  heat {nivel}/{maximo}",
 	HEAT_CLEAR = "Nobody is chasing you",
+	-- Mientras una camara te tiene dentro del cono. Va aparte de HEAT_SPOTTED
+	-- porque no es lo mismo: aquel salta cuando SUBE el calor (una vez por camara y
+	-- recarga) y este dice "ahora mismo te estan mirando", que es lo que hay que
+	-- poder leer sin apartar la vista de la calle. Corto a proposito.
+	ALERT_WATCHED = "SPOTTED",
 	HEAT_INHERITED = "You take their cargo and their heat  ·  {nivel}/{maximo}",
 	CHASE_BEHIND_YOU = "They are coming for you",
 	CHASE_LOST_THEM = "You lost them",

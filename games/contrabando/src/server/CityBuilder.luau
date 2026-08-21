@@ -1031,6 +1031,11 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 				pieza.Name = "ConoDetector"
 				pieza:SetAttribute("zonaFichada", true)
 				pieza:SetAttribute("opacidad", 0)
+				-- DE QUE CAMARA ES. Todos los conos cuelgan de la misma carpeta, asi
+				-- que sin esto el cliente no puede saber cual encender cuando el
+				-- servidor le dice que la camara X le esta viendo -- y encenderlos
+				-- todos seria la ciudad entera en rojo. Ver `Alerta.luau`.
+				pieza:SetAttribute("detectorId", foco.Name)
 				pieza.Parent = padre
 			end
 

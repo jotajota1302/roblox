@@ -38,7 +38,25 @@
 
 local Cone = {}
 
-local TAJADAS = 4
+-- SEIS Y NO CUATRO. Cuatro bastaban para que la figura no mintiera (el error de
+-- alcance baja al 6 %), pero el sector se pinta ahora con un degradado por tajada y
+-- con cuatro escalones el degradado se ve como cuatro franjas: el escalon se lee
+-- antes que la forma. Con seis, el ojo lo lee como un foco.
+--
+-- Y ademas el cliente las usa de resolucion para el BARRIDO --la franja clara que
+-- recorre el sector, ver `Alerta.luau`--: con cuatro pasos el barrido da saltos.
+local TAJADAS = 6
+
+-- CUANTO SE APAGA EL BORDE respecto al centro del haz. Un foco real no ilumina
+-- igual el eje que el canto, y esa diferencia es la que hace que una mancha plana
+-- pase a leerse como luz proyectada.
+--
+-- SE HACE CON COLOR Y NO CON TRANSPARENCIA, y no es un detalle de estilo: las
+-- tajadas se solapan un 1 % para que no quede una rendija entre ellas (ver arriba),
+-- y dos piezas translucidas superpuestas SUMAN brillo -- o sea una raya luminosa en
+-- cada junta, que es exactamente el abanico de palos que este modulo vino a
+-- sustituir. Opaco no suma.
+local BORDE_APAGADO = 0.45
 
 -- Dibuja el sector y devuelve sus piezas SIN PADRE ASIGNADO en el mundo: quien
 -- llama decide donde cuelgan y como se pegan (el ladron las suelda a su raiz, la
@@ -77,11 +95,19 @@ function Cone.piezas(
 
 	for t = 0, TAJADAS - 1 do
 		local centro = -mitad + delta * (2 * t + 1)
+		-- El degradado: 0 en el eje del haz, 1 en el canto. `centro` es el angulo de
+		-- ESTA tajada, asi que el tono sale de cuanto se aparta del frente.
+		local fuera = math.abs(centro) / math.max(mitad, 0.001)
+		local tono = color:Lerp(Color3.new(0, 0, 0), BORDE_APAGADO * fuera)
 		for _, signo in { 1, -1 } do
 			local cuna = Instance.new("WedgePart")
 			cuna.Name = "Vista"
+			-- El indice de la tajada viaja con la pieza: es lo que le permite al
+			-- cliente encender una sola --la del barrido-- sin recalcular angulos.
+			cuna:SetAttribute("tajada", t)
+			cuna:SetAttribute("tajadas", TAJADAS)
 			cuna.Size = Vector3.new(0.2, semi, prof)
-			cuna.Color = color
+			cuna.Color = tono
 			-- RELLENO EN PLASTICO, NO EN NEON. El neon opaco satura: un naranja en neon
 			-- se ve amarillo blanquecino y se come su propio borde, que es justo la
 			-- linea que el jugador tiene que leer. El neon se reserva para los bordes,

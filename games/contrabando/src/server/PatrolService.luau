@@ -791,7 +791,24 @@ local function perseguir(patrulla: Patrulla, player: Player)
 					end
 					local antes = patrulla.raiz.Position
 					patrulla.humanoid:MoveTo(puntos[i].Position)
-					patrulla.humanoid.MoveToFinished:Wait()
+					-- NO SE ESPERA A `MoveToFinished`, y ese detalle es la mitad de la
+					-- queja *"los ladrones se mueven mal"*. El evento salta cuando el
+					-- humanoide LLEGA, o sea despues de frenar: encadenando veinte
+					-- waypoints, el ladron anda-para-anda-para veinte veces y lo que se
+					-- ve es alguien dudando, no alguien persiguiendo.
+					--
+					-- Se sale en cuanto entra en el radio del waypoint, que es como
+					-- conduce cualquiera: se empieza a girar antes de llegar a la
+					-- esquina. Y con techo de tiempo, porque un waypoint inalcanzable
+					-- --contra una valla-- colgaria el bucle para siempre; ese caso lo
+					-- recoge el detector de atascos de abajo.
+					local t = os.clock()
+					while os.clock() - t < 1.4 do
+						if (patrulla.raiz.Position - puntos[i].Position).Magnitude < 4.5 then
+							break
+						end
+						task.wait(0.06)
+					end
 
 					-- ¿SE HA QUEDADO ENCALLADA? Medido recorriendo el mapa: hay 116
 					-- vallas repartidas por la ciudad, y el pathfinding manda contra

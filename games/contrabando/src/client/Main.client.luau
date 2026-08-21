@@ -24,7 +24,9 @@ local Garage = require(script.Parent:WaitForChild("Garage"))
 local Gate = require(script.Parent:WaitForChild("Gate"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Menu = require(script.Parent:WaitForChild("Menu"))
+local Alerta = require(script.Parent:WaitForChild("Alerta"))
 local Pad = require(script.Parent:WaitForChild("Pad"))
+local Patrullas = require(script.Parent:WaitForChild("Patrullas"))
 local Popups = require(script.Parent:WaitForChild("Popups"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local Senales = require(script.Parent:WaitForChild("Senales"))
@@ -100,6 +102,8 @@ construir("Compass", Compass.build)
 construir("Minimap", Minimap.build)
 construir("Menu", Menu.build)
 construir("Popups", Popups.build)
+construir("Alerta", Alerta.build)
+construir("Patrullas", Patrullas.build)
 
 construir("RoutePicker", function()
 	RoutePicker.build(function(rutaId)
@@ -730,6 +734,20 @@ end)
 
 Remotes.event(Remotes.SONIDO).OnClientEvent:Connect(function(clave)
 	Sfx.reproducir(clave)
+end)
+
+-- TE ESTA VIENDO UNA CAMARA. Llega varias veces por segundo mientras dure, asi que
+-- aqui no se hace nada caro: se apunta quien y desde donde, y de pintarlo se encarga
+-- el bucle de fotograma de `Alerta`.
+--
+-- La sirena la dispara el cliente y no el servidor --que ya tiene un remote de
+-- sonido-- porque tiene que sonar UNA vez por alerta y no una por aviso: el
+-- servidor no sabe si esta es la primera o la decima del mismo cono.
+Remotes.event(Remotes.VIGILADO).OnClientEvent:Connect(function(id, posicion, nivel, subio)
+	Alerta.vigilado(id, posicion, nivel, subio)
+	if Alerta.hayQueSonar() then
+		Sfx.reproducir("alerta")
+	end
 end)
 
 -- EL CARTELON DE ENTREGA. Envuelto en pcall como el resto de la interfaz: que falle
