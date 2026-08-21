@@ -315,6 +315,23 @@ Avisos verificados:
   parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
   bajando saltándose el árbol -- y con margen: cuatro rebotes se agotan donde hay dos
   árboles en la misma vertical.
+- **UNA pieza anclada soldada a un personaje ancla el ENSAMBLAJE ENTERO.** El cono de
+  visión del ladrón se dibuja con `Cone.piezas`, compartido con la cámara -- y las
+  cuñas nacían `Anchored = true`, que es lo correcto para una cámara y letal para
+  alguien que anda. Ocho cuñas soldadas a la raíz dejaban al ladrón clavado en el
+  sitio: estado `FallingDown`, `FloorMaterial = Air`, y `MoveTo` sin ningún efecto.
+  **Salían las patrullas, se veían en el minimapa, y ninguna se movía jamás** -- de
+  ahí *"me detectan y no hay nadie"*, que se llevaba meses arrastrando y parecía un
+  problema de la detección.
+  Se cazó midiendo el `Humanoid` de una patrulla (`GetState`, `FloorMaterial`, cuántas
+  de sus piezas están ancladas) y se confirmó **desanclándolas en vivo**: pasaron a
+  `Running`, tocaron suelo y anduvieron 14 studs en cuatro segundos. Reintroducir el
+  fallo a propósito y ver que se cura es la única prueba que vale.
+  Dos defensas, porque el fallo no es del cono sino de vestir a un personaje: el
+  parámetro `anclado` de `Cone.piezas` **no tiene valor por defecto** (quien dibuje un
+  cono contesta "esto se mueve o no"), y `crearAgente` desancla lo que le hayan puesto
+  encima antes de soltarlo a la calle.
+
 - **Un agujero en el suelo no mata: te deja andando POR DEBAJO del mapa.** *"Cuando
   llego al medio desaparezco"* (JJ) se buscó leyendo el código --nada de lo que mueve
   al jugador estaba sin acotar-- y con una rejilla de raycasts que dio verde. El

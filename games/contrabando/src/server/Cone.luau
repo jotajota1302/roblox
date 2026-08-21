@@ -46,7 +46,30 @@ local TAJADAS = 4
 --
 -- `base` es el CFrame del VERTICE del cono, con su frente en -Z, que es el frente
 -- de Roblox. Asi se le puede pasar tal cual el CFrame de una raiz de personaje.
-function Cone.piezas(base: CFrame, mitad: number, largo: number, color: Color3, transparencia: number): { BasePart }
+--
+-- `anclado` NO TIENE VALOR POR DEFECTO, y es a proposito. Estas cunas nacian
+-- ancladas siempre --lo correcto para una camara, que no se mueve-- y al reutilizar
+-- el dibujo en el LADRON se llevaron el anclaje con ellas. Una pieza anclada soldada
+-- a la raiz de un personaje ancla el ENSAMBLAJE ENTERO: el ladron se quedaba clavado
+-- en el sitio, en estado `FallingDown` y con `FloorMaterial = Air`, y `MoveTo` no le
+-- hacia nada.
+--
+-- No reventaba, no avisaba, y lo que se veia era un juego donde te fichan y no
+-- aparece nadie -- que es una queja que este proyecto lleva arrastrando. Medido:
+-- desanclando las ocho cunas en vivo, las patrullas pasaron a `Running`, tocaron
+-- suelo y anduvieron 14 studs en cuatro segundos.
+--
+-- Por eso el parametro se pide siempre: quien dibuje un cono nuevo tiene que
+-- contestar "esto se mueve o no", en vez de heredar en silencio la respuesta del
+-- primero que lo uso.
+function Cone.piezas(
+	base: CFrame,
+	mitad: number,
+	largo: number,
+	color: Color3,
+	transparencia: number,
+	anclado: boolean
+): { BasePart }
 	local salida: { BasePart } = {}
 	local delta = mitad / TAJADAS
 	local prof = largo * math.cos(math.rad(delta))
@@ -65,7 +88,7 @@ function Cone.piezas(base: CFrame, mitad: number, largo: number, color: Color3, 
 			-- que es donde brillar significa algo.
 			cuna.Material = Enum.Material.SmoothPlastic
 			cuna.Transparency = transparencia
-			cuna.Anchored = true
+			cuna.Anchored = anclado
 			cuna.CanCollide = false
 			cuna.CanQuery = false
 			cuna.CanTouch = false

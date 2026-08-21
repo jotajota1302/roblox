@@ -239,7 +239,13 @@ local function vestir(modelo: Model)
 				Color3.fromRGB(226, 116, 46),
 				-- OPACO: ver la cabecera de Cone. Translucido, el solape de las tajadas suma
 				-- brillo y dibuja una raya en cada junta -- o sea, el abanico de palos otra vez.
-				0
+				0,
+				-- SIN ANCLAR, Y ES LA LINEA MAS IMPORTANTE DE ESTE BLOQUE. Estas cunas se
+				-- sueldan a la raiz del ladron, y una pieza anclada soldada a un personaje
+				-- ancla el ensamblaje ENTERO: el ladron se quedaba clavado, en estado
+				-- `FallingDown`, sin tocar suelo, y `MoveTo` no le hacia nada. Salian las
+				-- patrullas, se veian en el mapa, y ninguna se movia jamas. Ver `Cone.piezas`.
+				false
 			)
 		do
 			pieza.Parent = modelo
@@ -309,6 +315,23 @@ local function crearAgente(donde: Vector3, velocidad: number, vehiculo: string?)
 		end
 
 		vestir(modelo)
+
+		-- Y NADA DE LO QUE LE HEMOS PUESTO ENCIMA PUEDE QUEDAR ANCLADO. Una sola
+		-- pieza anclada soldada al personaje ancla el ENSAMBLAJE ENTERO, y a partir
+		-- de ahi el ladron se queda clavado: estado `FallingDown`, sin tocar suelo, y
+		-- `MoveTo` sin efecto. No revienta y no avisa; lo que se ve es un juego donde
+		-- te fichan y no aparece nadie.
+		--
+		-- El caso concreto ya esta arreglado en origen --el cono se pide sin anclar--
+		-- pero esto se queda porque el fallo no es del cono: es de que ADORNAR a un
+		-- personaje con una pieza anclada lo paraliza, y aqui se le ponen gorro,
+		-- antifaz, placa, vehiculo y cono. La proxima pieza decorativa que alguien
+		-- anada tiene el mismo agujero esperandola.
+		for _, p in modelo:GetDescendants() do
+			if p:IsA("BasePart") and p.Anchored then
+				p.Anchored = false
+			end
+		end
 
 		local cabeza = modelo:FindFirstChild("Head")
 		if cabeza and cabeza:IsA("BasePart") then

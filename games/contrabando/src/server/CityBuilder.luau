@@ -1005,7 +1005,10 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 					Config.DETECTOR_RADIO,
 					Color3.fromRGB(214, 126, 58),
 					-- OPACO: ver la cabecera de Cone.
-					0
+					0,
+					-- ANCLADO: una camara de vigilancia no se mueve, y sin anclar las
+					-- cunas se caerian por su propio peso.
+					true
 				)
 			do
 				pieza.Name = "ConoDetector"
