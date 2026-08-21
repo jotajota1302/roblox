@@ -1379,41 +1379,42 @@ local function dianas()
 		return
 	end
 
-	local enterradas, sinContraste, cuantas = 0, 0, 0
-	for _, x in m:GetChildren() do
-		local ruta = x.Name:match("^Diana_(%a+)$")
-		if ruta ~= nil and x:IsA("BasePart") then
-			cuantas += 1
-			local losa = m:FindFirstChild("Destino_" .. ruta)
-			if losa ~= nil and losa:IsA("BasePart") then
-				-- La diana es un cilindro TUMBADO: tras el giro de 90 grados el que
-				-- queda vertical es el eje X, asi que su semialtura es Size.X/2 y no
-				-- Size.Y/2. Medirlo por Y es el mismo error que puso 31 detectores
-				-- "en el aire" con el mundo perfecto.
-				local mitad = x.CFrame:VectorToWorldSpace(x.Size / 2)
-				local topeDiana = x.Position.Y + math.abs(mitad.Y)
-				local topeLosa = losa.Position.Y + losa.Size.Y / 2
-				if topeDiana <= topeLosa then
-					enterradas += 1
-				end
-				if x.Color == losa.Color then
-					sinContraste += 1
-				end
-			end
+	-- YA NO HAY DIANAS. El disco de 58 studs del cruce se quito el 20/08 al mudarse
+	-- el cobro dentro de la vivienda: senalaba un sitio donde ya no pasa nada.
+	--
+	-- Esta sonda no se borra, CAMBIA DE PREGUNTA. La de antes era "se ve la diana";
+	-- la de ahora es la misma en el fondo -- *se sabe donde hay que entregar* -- pero
+	-- contra lo que de verdad lo contesta hoy: un portal iluminado con su rotulo.
+	--
+	-- Borrarla habria dejado el hueco sin que nadie lo notara, que es como se pierden
+	-- las comprobaciones: no se desactivan, se quedan sin objeto.
+	local sinPortal, apagados = 0, 0
+	for _, ruta in Routes.todas() do
+		local casa = m:FindFirstChild("Vivienda_" .. ruta.id)
+		local portal = casa and casa:FindFirstChild("Portal") :: BasePart?
+		if portal == nil then
+			sinPortal += 1
+			continue
+		end
+		-- Y QUE SE VEA: neon y con luz. Un portal del color del ladrillo seria una
+		-- puerta que hay que buscar, y buscarla no es la mecanica.
+		if portal.Material ~= Enum.Material.Neon then
+			apagados += 1
 		end
 	end
+	comprobar("cada ruta tiene su portal de entrega", sinPortal == 0, string.format("%d rutas sin portal", sinPortal))
+	comprobar("y el portal se ve encendido", apagados == 0, string.format("%d apagados", apagados))
 
-	comprobar("hay una diana por destino", cuantas >= 1, "ninguna -- no hay senal de llegada")
-	comprobar(
-		"ninguna diana enterrada en su losa",
-		enterradas == 0,
-		string.format("%d por debajo del tope de su destino -- no se ven", enterradas)
-	)
-	comprobar(
-		"las dianas se distinguen de su losa",
-		sinContraste == 0,
-		string.format("%d del mismo color exacto que el destino que rodean", sinContraste)
-	)
+	-- Y QUE NO QUEDE NINGUNA DIANA SUELTA. Si alguien vuelve a plantarlas sin quitar
+	-- el portal, el cruce tendria dos senales diciendo cosas distintas sobre el mismo
+	-- sitio -- y la que gana siempre es la mas grande, que es la equivocada.
+	local sobran = 0
+	for _, x in m:GetChildren() do
+		if x.Name:match("^Diana_%a+$") then
+			sobran += 1
+		end
+	end
+	comprobar("no quedan dianas del cruce", sobran == 0, string.format("%d dianas plantadas", sobran))
 end
 
 local function contactos()

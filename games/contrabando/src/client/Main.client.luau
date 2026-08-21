@@ -469,6 +469,24 @@ end)
 --
 -- Sin este último caso la brújula se apagaría justo después de cobrar, que es el
 -- momento en que estás más lejos de casa y menos sabes dónde estás.
+-- DONDE SE ENTREGA DE VERDAD, que desde el 20/08 ya no es el cruce sino el
+-- MOSTRADOR de dentro de la vivienda.
+--
+-- La bruja seguia apuntando a `ruta.destino`, o sea al cruce, y eso se ve desde
+-- dentro: JJ mando una captura con *"GREEN drop, 3 m"* estando a cincuenta y cinco
+-- studs de la puerta. Una bruja que dice que has llegado cuando te faltan
+-- cincuenta studs no es imprecisa, es una bruja que miente -- y es la razon por la
+-- que el jugador se planta en el cruce a mirar alrededor.
+--
+-- Se busca en el mundo y no se pide al servidor porque la casa YA esta replicada:
+-- preguntar por algo que se tiene delante es anadir un mensaje que puede fallar.
+-- Si no hubiera casa se cae al cruce, que es lo que habia.
+local function dondeSeEntrega(rutaId: string, porDefecto: Vector3): Vector3
+	local casa = mundo and mundo:FindFirstChild("Vivienda_" .. rutaId)
+	local mostrador = casa and casa:FindFirstChild("Mostrador") :: BasePart?
+	return if mostrador then mostrador.Position else porDefecto
+end
+
 local function apuntarBrujula(estado: any)
 	if estado == nil then
 		return
@@ -483,7 +501,11 @@ local function apuntarBrujula(estado: any)
 	if estado.retornoZona ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.retornoZona)
 		if ok and ruta then
-			Compass.apuntar(ruta.destino, Strings.get("COMPASS_RETURN_CARGO"), Palette.ruta(ruta.id))
+			Compass.apuntar(
+				dondeSeEntrega(ruta.id, ruta.destino),
+				Strings.get("COMPASS_RETURN_CARGO"),
+				Palette.ruta(ruta.id)
+			)
 			return
 		end
 	end
@@ -492,7 +514,7 @@ local function apuntarBrujula(estado: any)
 		local ok, ruta = pcall(Routes.get, estado.ruta)
 		if ok and ruta then
 			Compass.apuntar(
-				ruta.destino,
+				dondeSeEntrega(ruta.id, ruta.destino),
 				Strings.get("COMPASS_DROP", { ruta = Strings.ref("ROUTE_" .. ruta.id) }),
 				Palette.ruta(ruta.id)
 			)

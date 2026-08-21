@@ -2689,12 +2689,16 @@ function CityBuilder.build(): Mundo
 
 	for _, ruta in Routes.todas() do
 		despejar(ciudad, ruta.destino, 50, 45)
+		-- LA LOSA, MAS PEQUENA Y MAS APAGADA. Era 44x44 del color puro de la ruta y,
+		-- con la diana encima, el cruce entero era una mancha. Ahora que el sitio de
+		-- entregar es un portal, esto no tiene que decir "aqui": tiene que decir "por
+		-- aqui se va" -- una acera, no un objetivo.
 		local destino = losa(
 			ciudad,
 			"Destino_" .. ruta.id,
-			Vector3.new(44, ALTO_LOSA, 44),
+			Vector3.new(26, ALTO_LOSA, 26),
 			ruta.destino,
-			Palette.ruta(ruta.id),
+			Palette.ruta(ruta.id):Lerp(Color3.fromRGB(96, 96, 100), 0.55),
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
@@ -2939,26 +2943,19 @@ function CityBuilder.build(): Mundo
 		-- Se calcula la cota en vez de suponerla, y el disco pasa a tener GROSOR: apoya
 		-- en el asfalto y asoma por encima de la losa, asi que se ve desde lejos por el
 		-- canto y desde cerca por arriba, y no deja aire debajo del borde.
-		local topeLosa = destino.Position.Y + destino.Size.Y / 2
-		local baseDiana = Grid.Y + 0.05
-		local grosorDiana = math.max((topeLosa + 0.3) - baseDiana, 0.4)
-		local diana = part(
-			"Diana_" .. ruta.id,
-			Vector3.new(grosorDiana, 58, 58),
-			Vector3.new(destino.Position.X, baseDiana + grosorDiana / 2, destino.Position.Z),
-			-- Aclarada, para que se despegue de la losa a la que rodea. Del color de la
-			-- ruta seguia siendo, pero identico al de la losa no distinguia nada.
-			Palette.ruta(ruta.id):Lerp(Color3.new(1, 1, 1), 0.45),
-			mundo
-		)
-		diana.Shape = Enum.PartType.Cylinder
-		diana.CFrame = CFrame.new(diana.Position) * CFrame.Angles(0, 0, math.rad(90))
-		diana.Material = Enum.Material.SmoothPlastic
-		diana.CanCollide = false
-		diana.CanQuery = false
-		diana.CanTouch = false
-		diana:SetAttribute("ruta", ruta.id)
-		diana:SetAttribute("lineaDeRuta", true)
+		-- AQUI HABIA UNA DIANA: un disco de 58 studs del color de la ruta, pintado en
+		-- el cruce. Nacio contra una queja buena --*"no se cuando he llegado al punto
+		-- de delivery"*-- y funcionaba mientras el cobro estaba AHI.
+		--
+		-- Se quita el 20/08 porque desde que se entrega DENTRO de la vivienda, el disco
+		-- senala un sitio donde ya no pasa nada. Y eso no es que sobre: es que MIENTE.
+		-- Es exactamente el mismo error que el circulo de las camaras --una senal que
+		-- describe una mecanica que ya cambio-- y produjo la misma reaccion, palabra
+		-- por palabra: *"que es esto amarillo??? no esta bien el mapa"*.
+		--
+		-- La pregunta "donde se entrega" ya la contesta algo mejor que un disco: un
+		-- portal iluminado con su rotulo, al final de la fila de recogibles. Lo que
+		-- queda en el asfalto es la losa, que ahora es la ACERA de esa puerta.
 
 		local baliza = portalDeEntrega or destino
 

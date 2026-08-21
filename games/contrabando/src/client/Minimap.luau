@@ -55,6 +55,19 @@ local estado: any = nil
 local origenMapa = Vector2.new(0, 0)
 local tamanoMapa = Vector2.new(1, 1)
 
+-- DONDE SE ENTREGA DE VERDAD. El plano marcaba el CRUCE, y desde que se entrega
+-- dentro de la vivienda eso son cincuenta y cinco studs de diferencia -- lo justo
+-- para plantarte donde dice el mapa y no ver ninguna puerta.
+--
+-- Se lee del mundo, que ya esta replicado al cliente. Si no hubiera casa se cae al
+-- cruce, que es lo que habia.
+local function dondeSeEntrega(rutaId: string, porDefecto: Vector3): Vector3
+	local mundo = workspace:FindFirstChild("Mundo")
+	local casa = mundo and mundo:FindFirstChild("Vivienda_" .. rutaId)
+	local mostrador = casa and casa:FindFirstChild("Mostrador") :: BasePart?
+	return if mostrador then mostrador.Position else porDefecto
+end
+
 -- DEL MUNDO AL PANEL, en fracción y no en píxeles.
 --
 -- Antes el plano se dibujaba a una escala fija y era el LIENZO el que se movía para
@@ -413,7 +426,7 @@ function Minimap.refrescar()
 		if ok and suya ~= nil then
 			halo.BackgroundColor3 = Palette.ruta(rutaActiva)
 			halo.BackgroundTransparency = 0.55
-			halo.Position = (aPantalla(centro, suya.destino, lado))
+			halo.Position = (aPantalla(centro, dondeSeEntrega(rutaActiva, suya.destino), lado))
 			halo.Visible = true
 		else
 			halo.Visible = false
@@ -424,7 +437,7 @@ function Minimap.refrescar()
 
 	for _, ruta in Routes.todas() do
 		local p = punto("Destino_" .. ruta.id, Palette.ruta(ruta.id), 9, 5)
-		p.Position = (aPantalla(centro, ruta.destino, lado))
+		p.Position = (aPantalla(centro, dondeSeEntrega(ruta.id, ruta.destino), lado))
 		-- CON VIAJE, SOLO EL TUYO. Los tres a la vez estaban bien mientras el plano
 		-- servia para elegir --saber donde cae cada zona es la decision de la valla--
 		-- pero en cuanto sales ya has decidido, y entonces los otros dos solo compiten
