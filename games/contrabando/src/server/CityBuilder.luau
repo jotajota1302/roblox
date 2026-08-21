@@ -1296,18 +1296,69 @@ end
 -- Y CADA UNO CON SU PALABRA ENCIMA. La forma sola no basta -- a la distancia a la
 -- que hay que decidir si te desvias, un rayo y una flecha son cuatro pixeles cada
 -- uno. Tres palabras cortas se aprenden una vez y se leen siempre.
+-- CADA TROZO SE PEGA DOS VECES, EN CRUZ. Y esa es la diferencia entre un icono y
+-- una raya.
+--
+-- Estas siluetas son placas planas orientadas hacia el camino, y el cliente las hace
+-- GIRAR --que es lo que separa un recogible del decorado--, asi que media vuelta de
+-- cada giro se ven de canto: medio segundo de rayo y medio segundo de palito. Con la
+-- copia girada un cuarto de vuelta siempre hay una cara de frente, y ademas el
+-- conjunto deja de leerse como una pegatina y pasa a tener cuerpo.
+--
+-- Cuesta el doble de piezas por icono y se paga a gusto: son cuatro piezas por
+-- recogible sobre un mapa de siete mil, y es LO QUE SE MIRA cada pocos segundos
+-- durante todo el viaje.
 local function pegarIcono(pieza: BasePart, nombre: string, tamano: Vector3, offset: CFrame, color: Color3)
-	local trozo = Instance.new("Part")
-	trozo.Name = nombre
-	trozo.Size = tamano
-	trozo.Color = color
-	trozo.Material = Enum.Material.Neon
-	trozo.Anchored = true
-	trozo.CanCollide = false
-	trozo.CastShadow = false
-	trozo.CFrame = pieza.CFrame * offset
-	trozo.Parent = pieza
-	return trozo
+	local primero: BasePart? = nil
+	for _, giro in { CFrame.new(), CFrame.Angles(0, math.rad(90), 0) } do
+		local trozo = Instance.new("Part")
+		trozo.Name = nombre
+		trozo.Size = tamano
+		trozo.Color = color
+		trozo.Material = Enum.Material.Neon
+		trozo.Anchored = true
+		trozo.CanCollide = false
+		-- SIN CONSULTA: son adorno, y un rayo que devuelve un raycast es un rayo que
+		-- puede pasar por suelo -- que es como quince detectores acabaron en las
+		-- azoteas.
+		trozo.CanQuery = false
+		trozo.CanTouch = false
+		trozo.CastShadow = false
+		trozo.CFrame = pieza.CFrame * giro * offset
+		trozo.Parent = pieza
+		primero = primero or trozo
+	end
+	return primero :: BasePart
+end
+
+-- LA MARCA DEL SUELO. Un disco fino del color del recogible, del tamano exacto
+-- desde el que se coge.
+--
+-- Hace dos cosas que el icono no puede: se ve desde el otro extremo de la calle --a
+-- esa distancia la silueta son cuatro pixeles-- y dice DONDE HAY QUE PISAR, que
+-- hasta ahora habia que adivinar. Y ancla la pieza al suelo: un icono flotando sin
+-- nada debajo se lee como un adorno colgado, no como algo que se recoge.
+--
+-- No es una columna de luz. Las columnas se quitaron el 19/08 --*"quitales el
+-- rectangulo ese hacia arriba, que los hace demasiado evidentes"*-- y esto es lo
+-- contrario: pegado al suelo, no tapa nada y no se ve desde el otro barrio.
+local function pegarHalo(pieza: BasePart, suelo: number, color: Color3, radio: number)
+	local halo = Instance.new("Part")
+	halo.Name = "Halo"
+	halo.Shape = Enum.PartType.Cylinder
+	halo.Size = Vector3.new(0.2, radio * 1.7, radio * 1.7)
+	halo.CFrame = CFrame.new(Vector3.new(pieza.Position.X, suelo + 0.12, pieza.Position.Z))
+		* CFrame.Angles(0, 0, math.rad(90))
+	halo.Color = color
+	halo.Material = Enum.Material.Neon
+	halo.Transparency = 0.62
+	halo.Anchored = true
+	halo.CanCollide = false
+	halo.CanQuery = false
+	halo.CanTouch = false
+	halo.CastShadow = false
+	halo.Parent = pieza
+	return halo
 end
 
 -- EL RAYO: dos brazos en zigzag colgando del travesano, que es la pieza ancla.
@@ -1625,6 +1676,11 @@ local function sembrarContactos(
 			pieza.CFrame = deFrente * CFrame.Angles(0, 0, math.rad(-34))
 			iconoBoost(pieza, color, escala)
 		end
+
+		-- Y SU MARCA EN EL SUELO, del tamano desde el que se coge de verdad: el radio
+		-- sale de Config y no de un numero a ojo, para que el circulo no pueda mentir
+		-- sobre donde hay que ponerse.
+		pegarHalo(pieza, y :: number, color, Config.CONTACTO_RADIO)
 
 		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo
 		-- que hay plantado. Si algún día el reparto cambia, no hay dos versiones.

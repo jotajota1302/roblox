@@ -102,7 +102,10 @@ local function pintar(pieza: BasePart, visible: boolean, opacidad: number)
 		-- de verdad, o sea al empezar y al terminar un viaje.
 		for _, hijo in pieza:GetChildren() do
 			if hijo:IsA("BasePart") then
-				hijo.Transparency = quiero
+				-- El halo tiene su propia opacidad: es un tinte en el suelo, y pintarlo
+				-- opaco como el icono lo convertiria en una mancha de pintura. Se apaga
+				-- con la pieza, eso si -- ver `pegarHalo` en CityBuilder.
+				hijo.Transparency = if hijo.Name == "Halo" and visible then 0.62 else quiero
 			end
 		end
 	end
@@ -130,8 +133,35 @@ end
 -- por segundo el giro no se lee como un giro, se lee como un objeto que da saltos.
 -- Lo que se decide a 4 Hz es CUALES se animan; el movimiento va aparte.
 local giroBase: { [BasePart]: CFrame } = {}
+-- LOS TROZOS DEL DIBUJO Y DONDE VAN respecto a su ancla.
+--
+-- POR QUE HACE FALTA ESTA TABLA, y es el fallo que hacia que *"los elementos que
+-- recogemos se vean muy mal"*: un recogible NO es una pieza, son tres o cuatro --el
+-- travesano del rayo y sus dos brazos, el asta de la flecha y sus alas-- y todas
+-- estan ANCLADAS, que en Roblox significa que cada una se queda donde la pusieron.
+-- Aqui se movia solo el ancla, asi que en cuanto empezaba a girar el icono SE
+-- DESMONTABA: la barra bailando y los brazos clavados en el aire.
+--
+-- Medido en Play: los dos brazos estaban a 1,31 studs del ancla; despues de girarla
+-- setenta grados, uno quedo a 0,16 y el otro a 2,50. Sesenta veces por segundo.
+--
+-- Se guarda la posicion RELATIVA de cada trozo la primera vez que se anima, y a
+-- partir de ahi el conjunto se mueve entero. El halo se queda fuera a proposito: es
+-- la marca del suelo, y una marca de suelo que flota deja de decir donde hay que
+-- pisar.
+local trozos: { [BasePart]: { { pieza: BasePart, donde: CFrame } } } = {}
 local animadas: { BasePart } = {}
 local animando = false
+
+local function apuntarTrozos(pieza: BasePart, base: CFrame)
+	local lista: { { pieza: BasePart, donde: CFrame } } = {}
+	for _, hijo in pieza:GetChildren() do
+		if hijo:IsA("BasePart") and hijo.Name ~= "Halo" then
+			table.insert(lista, { pieza = hijo, donde = base:ToObjectSpace(hijo.CFrame) })
+		end
+	end
+	trozos[pieza] = lista
+end
 
 local function tick()
 	local ahora = os.clock()
@@ -143,11 +173,23 @@ local function tick()
 		if base == nil then
 			base = pieza.CFrame
 			giroBase[pieza] = base
+			apuntarTrozos(pieza, base)
 		end
 		-- Desfasadas por indice: si todas subieran y bajaran a la vez pareceria un
 		-- unico objeto parpadeando, no una fila de cosas que se recogen.
 		local t = ahora + i * 0.35
-		pieza.CFrame = (base :: CFrame) * CFrame.new(0, math.sin(t * 2.2) * 0.55, 0) * CFrame.Angles(0, t * 1.6, 0)
+		local donde = (base :: CFrame) * CFrame.new(0, math.sin(t * 2.2) * 0.55, 0) * CFrame.Angles(0, t * 1.6, 0)
+		pieza.CFrame = donde
+		for _, trozo in trozos[pieza] or {} do
+			trozo.pieza.CFrame = donde * trozo.donde
+		end
+		-- Y EL HALO LATE, quieto en el suelo. Es lo que se ve desde el otro extremo de
+		-- la calle --a esa distancia el icono son cuatro pixeles-- y lo que dice donde
+		-- hay que pisar.
+		local halo = pieza:FindFirstChild("Halo")
+		if halo and halo:IsA("BasePart") then
+			halo.Transparency = 0.62 + 0.16 * math.sin(t * 2.2)
+		end
 	end
 end
 
@@ -177,7 +219,12 @@ function Senales.actualizar(estado: any)
 	end
 	if not animando then
 		animando = true
-		game:GetService("RunService").RenderStepped:Connect(tick)
+		-- EN HEARTBEAT Y NO EN RenderStepped, por lo mismo que `Alerta` y `Patrullas`:
+		-- esto no va sincronizado con la camara, y RenderStepped da CERO llamadas por
+		-- segundo cuando la ventana pierde el foco -- con lo que el rastro se queda
+		-- congelado y, peor, no se puede medir desde fuera. Fue justo lo que escondio
+		-- durante meses que los iconos se desmontaban al girar.
+		game:GetService("RunService").Heartbeat:Connect(tick)
 	end
 
 	-- LA LÍNEA DE TU RUTA, y sólo la tuya. Cuatro líneas pintadas a la vez serían
