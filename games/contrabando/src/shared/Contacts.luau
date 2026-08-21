@@ -289,30 +289,40 @@ end
 -- Es la misma comprobación que Detectors.disparadosEnLineaRecta y existe por lo
 -- mismo, sólo que aquí ya cazó su fallo: con el reparto sobre la recta, esto daba
 -- 0 de 7 en la ruta verde. Un contacto que el jugador no pisa es decorado.
-function Contacts.cercaDelCamino(contactos: { Contacto }, camino: { Vector3 }, radio: number): number
+-- A QUE DISTANCIA DEL CAMINO CAE UN PUNTO, en el plano.
+--
+-- Vive aqui --y no copiada en quien la necesite-- porque la usan los DOS lados de
+-- la misma regla: la siembra, para no apartar una miga mas alla del alcance, y la
+-- sonda, para comprobar que no lo ha hecho. Con dos copias, el dia que una cambie
+-- la otra dara verde sobre un mundo roto, que es exactamente lo que ya paso aqui.
+--
+-- EN EL PLANO. Medir en 3D convirtio una vez 83 studs de altura en "83 studs de
+-- desviacion".
+function Contacts.distanciaAlCamino(pos: Vector3, camino: { Vector3 }): number
 	if #camino < 2 then
-		return 0
+		return math.huge
 	end
+	local mejor = math.huge
+	for i = 1, #camino - 1 do
+		local a, b = camino[i], camino[i + 1]
+		local ab = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+		if ab.Magnitude < 0.01 then
+			continue
+		end
+		local ap = Vector3.new(pos.X - a.X, 0, pos.Z - a.Z)
+		local t = math.clamp(ap:Dot(ab.Unit), 0, ab.Magnitude)
+		local d = (ap - ab.Unit * t).Magnitude
+		if d < mejor then
+			mejor = d
+		end
+	end
+	return mejor
+end
 
+function Contacts.cercaDelCamino(contactos: { Contacto }, camino: { Vector3 }, radio: number): number
 	local cuenta = 0
 	for _, c in contactos do
-		local mejor = math.huge
-		for i = 1, #camino - 1 do
-			local a, b = camino[i], camino[i + 1]
-			local ab = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
-			if ab.Magnitude < 0.01 then
-				continue
-			end
-			-- EN EL PLANO. Medir en 3D convirtió una vez 83 studs de altura en "83
-			-- studs de desviación".
-			local ap = Vector3.new(c.pos.X - a.X, 0, c.pos.Z - a.Z)
-			local t = math.clamp(ap:Dot(ab.Unit), 0, ab.Magnitude)
-			local d = (ap - ab.Unit * t).Magnitude
-			if d < mejor then
-				mejor = d
-			end
-		end
-		if mejor <= radio then
+		if Contacts.distanciaAlCamino(c.pos, camino) <= radio then
 			cuenta += 1
 		end
 	end

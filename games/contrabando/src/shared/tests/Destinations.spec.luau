@@ -11,9 +11,13 @@ local Perimeter = require(script.Parent.Parent.Perimeter)
 return function(kit)
 	local Destinations = require(game.ServerScriptService.Server.Destinations)
 
-	-- Los destinos NOMINALES, tal y como están en Config antes de tocarlos. Hay que
-	-- guardarlos porque `sortear` escribe encima: sin esta copia, la segunda prueba
-	-- que corriera mediría contra un destino ya sorteado.
+	-- Los destinos tal y como estan en Config AHORA. En una partida de verdad no son
+	-- los de diseno sino los que se sortearon al arrancar, y da igual: de lo que se
+	-- parta, lo que se comprueba es que el sorteo respeta la banda y la distancia.
+	--
+	-- Se pasan a `elegir` en vez de escribirlos: asi cuarenta sorteos seguidos parten
+	-- todos del mismo sitio sin que nadie tenga que "restaurar" nada -- y restaurar
+	-- era justo donde estaba el fallo.
 	local nominales: { [string]: Vector3 } = {}
 	for _, ruta in Config.RUTAS do
 		nominales[ruta.id] = ruta.destino
@@ -51,12 +55,20 @@ return function(kit)
 	end
 
 	-- MISMA SEMILLA, MISMO REPARTO. Es lo que permite reproducir una partida rara:
-	-- sin determinismo, "me salió un destino imposible" no se puede volver a mirar.
-	local a = Destinations.sortear(12345)
-	for _, ruta in Config.RUTAS do
-		ruta.destino = nominales[ruta.id]
-	end
-	local b = Destinations.sortear(12345)
+	-- sin determinismo, "me salio un destino imposible" no se puede volver a mirar.
+	--
+	-- SE PRUEBA `elegir` Y NUNCA `sortear`, y esa linea es la moraleja de un fallo
+	-- caro. `sortear` ESCRIBE en el `Config` del servidor, y esta bateria corre
+	-- dentro del servidor de una partida en marcha: la version anterior de esta
+	-- prueba sorteaba cuarenta veces y luego "restauraba" los destinos... en su copia
+	-- clonada de Config, mientras `sortear` escribia en el real. Correr las pruebas
+	-- dejaba la partida con destinos que no eran los del mundo ya construido, y la
+	-- sonda del mundo cantaba un rastro roto que estaba perfecto.
+	--
+	-- `elegir` no escribe nada, asi que esto se puede correr mil veces sin tocar la
+	-- partida de nadie.
+	local a = Destinations.elegir(12345, nominales)
+	local b = Destinations.elegir(12345, nominales)
 	for id, sitio in a do
 		kit.truthy(
 			string.format("con la misma semilla, %s sale en el mismo sitio", id),
@@ -65,13 +77,10 @@ return function(kit)
 	end
 
 	-- Y semillas distintas tienen que poder dar repartos distintos: si siempre
-	-- saliera lo mismo, el sorteo sería decorativo y el fallo que arregla seguiría ahí.
+	-- saliera lo mismo, el sorteo seria decorativo y el fallo que arregla seguiria ahi.
 	local distintos = false
 	for intento = 1, 40 do
-		for _, ruta in Config.RUTAS do
-			ruta.destino = nominales[ruta.id]
-		end
-		local otro = Destinations.sortear(intento * 7919)
+		local otro = Destinations.elegir(intento * 7919, nominales)
 		for id, sitio in otro do
 			if (sitio - a[id]).Magnitude > 0.01 then
 				distintos = true
@@ -80,10 +89,12 @@ return function(kit)
 	end
 	kit.truthy("con semillas distintas el reparto cambia de verdad", distintos)
 
-	-- Y se deja Config como estaba: este fichero corre dentro de la misma sesión que
-	-- el resto de la batería, y dejarlo sorteado haría fallar a las pruebas de mapa
-	-- que miden contra los destinos nominales.
+	-- Y NADA DE ESTO HA TOCADO LA PARTIDA. La comprobacion que cierra el circulo:
+	-- si algun dia alguien vuelve a poner aqui la version que escribe, esto lo caza.
 	for _, ruta in Config.RUTAS do
-		ruta.destino = nominales[ruta.id]
+		kit.truthy(
+			string.format("elegir no ha movido el destino de %s", ruta.id),
+			(ruta.destino - nominales[ruta.id]).Magnitude < 0.01
+		)
 	end
 end

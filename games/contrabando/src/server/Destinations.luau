@@ -77,21 +77,51 @@ function Destinations.candidatos(rutaId: string, nominal: Vector3): { Vector3 }
 	return lista
 end
 
--- Elige y ESCRIBE el destino de cada ruta. Se llama una sola vez, desde
--- `Main.server`, antes de construir el mundo.
+-- ELIGE, Y NO ESCRIBE NADA. Devuelve el reparto y deja `Config` como estaba.
 --
--- La semilla entra por parámetro en vez de leerse aquí para que se pueda probar: con
--- una semilla fija el resultado es fijo, y así una prueba puede comprobar que los
--- tres destinos salen dentro de su banda y a la distancia correcta sin depender de
--- la hora a la que se ejecute.
-function Destinations.sortear(semilla: number): { [string]: Vector3 }
+-- La separacion entre elegir y aplicar no es orden por el orden: es un fallo real,
+-- y de los que dan verde. La version anterior escribia `ruta.destino` aqui mismo, y
+-- su prueba --que corre en el MISMO servidor-- sorteaba cuarenta veces para
+-- comprobar que el reparto cambia. Guardaba los destinos originales para
+-- devolverlos... en su copia CLONADA de `Config` (la bateria pura clona
+-- `ReplicatedStorage.Shared` para saltarse la cache del sandbox), mientras esto
+-- escribia en el `Config` de verdad.
+--
+-- Resultado: correr las pruebas dejaba al servidor con destinos que no eran los del
+-- mundo que ya estaba construido. Y la sonda del mundo, que corre despues, medía
+-- las migas contra un camino que iba a otro sitio: cantaba "solo 4 de 7 al alcance"
+-- senalando un rastro que estaba perfecto. Media hora buscando un fallo que no
+-- existia, hasta que las coordenadas lo dijeron: las migas y la casa de entrega
+-- coincidian entre si --al oeste-- y `ruta.destino` decia el este.
+--
+-- Con la eleccion pura, ninguna prueba puede tocar la partida.
+--
+-- La semilla entra por parametro para que el resultado sea reproducible: con una
+-- semilla fija, una prueba puede comprobar que los tres destinos salen dentro de su
+-- banda y a la distancia correcta sin depender de la hora a la que se ejecute.
+function Destinations.elegir(semilla: number, nominales: { [string]: Vector3 }?): { [string]: Vector3 }
 	local rng = Random.new(semilla)
 	local elegidos: { [string]: Vector3 } = {}
 	for _, ruta in Config.RUTAS do
-		local opciones = Destinations.candidatos(ruta.id, ruta.destino)
-		local elegido = opciones[rng:NextInteger(1, #opciones)]
-		ruta.destino = elegido
-		elegidos[ruta.id] = elegido
+		-- Se puede pasar de que destinos partir. Por defecto, los que haya en Config
+		-- --que al arrancar son los de diseno-- pero una prueba que sortee varias
+		-- veces necesita partir siempre de los mismos sin escribirlos en ningun sitio.
+		local base = if nominales then nominales[ruta.id] else ruta.destino
+		local opciones = Destinations.candidatos(ruta.id, base)
+		elegidos[ruta.id] = opciones[rng:NextInteger(1, #opciones)]
+	end
+	return elegidos
+end
+
+-- Y ESTO es lo que escribe, en un solo sitio y llamado desde un solo sitio
+-- (`Main.server`, antes de construir el mundo).
+function Destinations.sortear(semilla: number): { [string]: Vector3 }
+	local elegidos = Destinations.elegir(semilla)
+	for _, ruta in Config.RUTAS do
+		local elegido = elegidos[ruta.id]
+		if elegido then
+			ruta.destino = elegido
+		end
 	end
 	return elegidos
 end

@@ -1515,15 +1515,24 @@ local function sembrarContactos(
 			-- sirve cuando la camara mira en la direccion en que se avanza: entonces
 			-- correrse por el camino es quedarse dentro del mismo cono.
 			local lado = Vector3.new(dir.Z, 0, -dir.X)
+			-- LOS SALTOS DE LADO SON CORTOS, Y ESE NUMERO NO ES DE ESTILO. El radio de
+			-- recogida es 14, asi que apartar una miga 16 studs de lado la saca del
+			-- alcance de quien va por la ruta: sigue plantada, sigue encendida, sigue
+			-- contando... y no se puede coger. Medido con la sonda del mundo el 21/08:
+			-- 4 de 7 en la verde, 7 de 11 en la ambar y 10 de 18 en la roja.
+			--
+			-- A lo largo del camino se puede correr mas --avanzar por la ruta no te
+			-- aparta de ella-- pero en una esquina si aparta, y por eso ademas de
+			-- acortar el lateral se comprueba abajo la distancia REAL al camino.
 			local intentos = {
 				dir * 15,
 				dir * -15,
-				lado * 10,
-				lado * -10,
+				lado * 7,
+				lado * -7,
 				dir * 28,
 				dir * -28,
-				lado * 16,
-				lado * -16,
+				lado * 11,
+				lado * -11,
 			}
 			for _, salto in intentos do
 				local nx, nz = x + salto.X, z + salto.Z
@@ -1532,6 +1541,13 @@ local function sembrarContactos(
 					continue
 				end
 				if math.sqrt((ncx - nx) ^ 2 + (ncz - nz) ^ 2) > Config.CONTACTO_RADIO - 2 then
+					continue
+				end
+				-- Y EL SITIO NUEVO TIENE QUE SEGUIR ESTANDO EN EL CAMINO. Es la misma
+				-- cuenta que hace la sonda (`Contacts.distanciaAlCamino`, compartida a
+				-- proposito): sin esto, esquivar una camara y quedarse fuera del alcance
+				-- son el mismo movimiento.
+				if Contacts.distanciaAlCamino(Vector3.new(ncx, 0, ncz), camino) > Config.CONTACTO_RADIO - 3 then
 					continue
 				end
 				if enConoDeCamara(Vector3.new(ncx, (ny :: number) + 4, ncz), camaras) then

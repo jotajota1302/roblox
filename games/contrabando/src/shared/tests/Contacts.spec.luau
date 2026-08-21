@@ -240,6 +240,24 @@ return function(kit)
 	kit.eq("el dinero tampoco", viaje.dinero, 900)
 	kit.eq("y la marca del ladrón sigue corriendo", viaje.marcadoHasta, 1234)
 
+	-- LA DISTANCIA AL CAMINO, que ahora usan los dos lados de la misma regla: la
+	-- siembra para no apartar una miga fuera del alcance, y la sonda para
+	-- comprobarlo. Con dos copias, el dia que una cambie la otra da verde sobre un
+	-- mundo roto.
+	local ele = { Vector3.new(0, 0, 0), Vector3.new(100, 0, 0), Vector3.new(100, 0, 100) }
+	kit.eq("un punto sobre el camino esta a cero", Contacts.distanciaAlCamino(Vector3.new(50, 0, 0), ele), 0)
+	kit.eq("y uno apartado, a lo que se ha apartado", Contacts.distanciaAlCamino(Vector3.new(50, 0, 12), ele), 12)
+	kit.eq("la altura no cuenta como desviacion", Contacts.distanciaAlCamino(Vector3.new(50, 80, 0), ele), 0)
+	kit.eq(
+		"se mide contra el tramo mas cercano, no contra el primero",
+		Contacts.distanciaAlCamino(Vector3.new(100, 0, 90), ele),
+		0
+	)
+	kit.truthy(
+		"sin camino no hay distancia que medir",
+		Contacts.distanciaAlCamino(Vector3.new(0, 0, 0), {}) == math.huge
+	)
+
 	-- LAS CASILLAS. Lo que cambia con ellas no es la interfaz: es que la pieza deja
 	-- de gastarse donde la puso el generador y pasa a gastarse donde el jugador
 	-- decide.
