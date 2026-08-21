@@ -209,8 +209,30 @@ local function animar(p: Patinador, delta: number, dondeEstoy: Vector3?)
 	-- monopatin tiene que devolver el cuerpo a su sitio, y un
 	-- `GetAttributeChangedSignal` por personaje son conexiones que hay que acordarse
 	-- de soltar cuando el personaje muere -- y aqui muere a menudo.
-	if p.personaje:GetAttribute("vehiculoDePie") ~= true then
-		soltar(p)
+	--
+	-- Y `nil` NO ES LO MISMO QUE `false`, que es un fallo que estuvo escrito:
+	--
+	--   · nil   -> va A PIE. Hay que devolver las articulaciones a su sitio, o se
+	--              queda andando por la calle en postura de tabla.
+	--   · false -> se ha subido a algo en lo que se va SENTADO. Ahi la pose la pone
+	--              `Ride.postura` en el servidor --piernas al frente-- y restaurar
+	--              seria pisarsela: bajarse del monopatin para subirse a la moto
+	--              dejaba al jugador con las piernas rectas sobre el asiento, que es
+	--              exactamente la queja que abrio todo esto ("aunque voy en moto voy
+	--              andando, es muy raro"). El cliente solo deshace lo que hizo el
+	--              cliente.
+	local bandera = p.personaje:GetAttribute("vehiculoDePie")
+	if bandera ~= true then
+		if bandera == nil then
+			soltar(p)
+		end
+		patinadores[p.personaje] = nil
+		return
+	end
+	-- Y si la raiz se ha ido --el personaje muriendo a mitad de fotograma-- se suelta
+	-- sin tocarla: leerle la posicion lanzaria, y el pcall de arriba se llevaria por
+	-- delante la animacion de todos los demas ese fotograma.
+	if p.raiz.Parent == nil then
 		patinadores[p.personaje] = nil
 		return
 	end
