@@ -1456,6 +1456,60 @@ local function contactos()
 		string.format("%d en el aire o sobre un tejado -- ahí no los pisa nadie", flotando)
 	)
 
+	-- Y QUE SE PUEDA IR DE UNA A OTRA SIN CAERSE. Que cada miga esté apoyada no
+	-- dice nada del TRAMO entre dos: la sonda de arriba las mira de una en una y da
+	-- verde con un abismo de veinte studs en medio.
+	--
+	-- Esto es literalmente lo que hace el jugador -- *"sólo yendo recto a recoger el
+	-- paquete me caigo y muero"* (JJ) -- así que se mide igual: se va de miga a miga
+	-- en línea recta, sondeando el suelo cada 4 studs. Cuatro y no doce porque un
+	-- personaje mide 2 de ancho y por una rendija de 12 se cuela; ya se pagó una vez.
+	local rayos = RaycastParams.new()
+	rayos.FilterType = Enum.RaycastFilterType.Exclude
+	rayos.FilterDescendantsInstances = { m:FindFirstChild("Red") :: any }
+	local vanos, tramos, primerVano = 0, 0, ""
+	for _, ruta in Routes.todas() do
+		local suyas: { BasePart } = {}
+		for _, p in piezas do
+			if p:GetAttribute("ruta") == ruta.id then
+				table.insert(suyas, p)
+			end
+		end
+		-- Por cercanía al origen, que es el orden en que se recogen.
+		table.sort(suyas, function(a, b)
+			return (a.Position - Config.POLIGONO_SALIDA).Magnitude < (b.Position - Config.POLIGONO_SALIDA).Magnitude
+		end)
+		for i = 2, #suyas do
+			tramos += 1
+			local desde, hasta = suyas[i - 1].Position, suyas[i].Position
+			local largo = (hasta - desde).Magnitude
+			local pasos = math.max(1, math.floor(largo / 4))
+			for k = 0, pasos do
+				local punto = desde:Lerp(hasta, k / pasos)
+				local golpe = workspace:Raycast(punto + Vector3.new(0, 30, 0), Vector3.new(0, -200, 0), rayos)
+				if golpe == nil or golpe.Position.Y < Bounds.fondo() then
+					vanos += 1
+					if primerVano == "" then
+						primerVano = string.format(
+							"%s entre sus migas %d y %d, en (%.0f, %.0f)",
+							ruta.id,
+							i - 1,
+							i,
+							punto.X,
+							punto.Z
+						)
+					end
+					break
+				end
+			end
+		end
+	end
+	comprobar(
+		"se va de miga a miga sin caerse",
+		vanos == 0,
+		string.format("%d tramos de %d con vacio, el primero: %s", vanos, tramos, primerVano)
+	)
+
 	-- Y EL CAMINO, ruta por ruta. Dos caminos distintos y los dos importan:
 	--
 	--   · el del PATHFINDER, para comprobar que al destino se llega andando y sin

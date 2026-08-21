@@ -193,14 +193,67 @@ end
 local ultimoBueno: { [Player]: Vector3 } = {}
 local avisadoDelFallo = false
 
+-- ¿Hay SUELO FIRME bajo este punto? Devuelve dónde está, o nil.
+--
+-- Es la pregunta que le faltaba a la primera versión del guardián y la que lo
+-- convirtió en un bucle. Guardaba como "último sitio bueno" cualquier punto que
+-- `Bounds.fuera` diera por dentro -- y la caja de Bounds lleva 600 studs de margen
+-- a propósito, así que un punto EN EL AIRE, fuera del mapa y sin nada debajo,
+-- contaba como bueno. Resultado: te caías, el guardián te devolvía exactamente a
+-- donde te habías caído, y vuelta a empezar. JJ lo vio en pantalla -- el aviso de
+-- rescate puesto, y el personaje cayendo contra el cielo.
+--
+-- Estar dentro de los límites y estar en un sitio donde se puede jugar no son la
+-- misma pregunta, y confundirlas es lo que hace que una red de seguridad se
+-- convierta en una trampa.
+local function sueloBajo(punto: Vector3, ignorar: Instance?): Vector3?
+	local rayos = RaycastParams.new()
+	rayos.FilterType = Enum.RaycastFilterType.Exclude
+	rayos.FilterDescendantsInstances = if ignorar then { ignorar } else {}
+	local golpe = workspace:Raycast(punto + Vector3.new(0, 6, 0), Vector3.new(0, -200, 0), rayos)
+	if golpe == nil then
+		return nil
+	end
+	-- La red de seguridad NO es suelo: está para que Roblox no destruya a nadie,
+	-- no para jugar encima. Devolver a alguien ahí sería dejarlo donde estaba.
+	if golpe.Position.Y < Bounds.fondo() then
+		return nil
+	end
+	return golpe.Position
+end
+
 local function rescatar(player: Player, root: BasePart, motivo: string)
 	local char = player.Character
 	if char == nil then
 		return
 	end
 
+	local donde = root.Position
 	local vuelta = ultimoBueno[player]
-	local sitio = if vuelta then vuelta + Vector3.new(0, 4, 0) else Config.ALMACEN_POS + Vector3.new(0, 6, 40)
+	-- Y SI NO HAY SITIO BUENO, A CASA. Antes se caía al almacén "más cuarenta studs",
+	-- que es una posición inventada a mano; el punto de aparición es el sitio del que
+	-- sabemos con certeza que se puede salir andando, porque es por donde empieza
+	-- todo el mundo.
+	--
+	-- Y SE COMPRUEBA OTRA VEZ AQUI, aunque al guardarlo ya tuviera suelo: entre que
+	-- se guardo y ahora pueden haber pasado varios segundos, y devolver a alguien a
+	-- un sitio que ya no existe es como se monta un bucle -- cae, se le devuelve
+	-- donde cayo, vuelve a caer. Es exactamente lo que JJ vio en pantalla: el aviso
+	-- de rescate puesto y el personaje cayendo contra el cielo.
+	local sitio = nil
+	if vuelta ~= nil then
+		local ok, firme = pcall(sueloBajo, vuelta, char)
+		if ok and firme ~= nil then
+			sitio = (firme :: Vector3) + Vector3.new(0, 4, 0)
+		end
+	end
+	if sitio == nil then
+		-- Sin sitio bueno fiable, AL PUNTO DE APARICION. Se pierde el viaje, y es
+		-- preferible: del punto de aparicion sabemos con certeza que se puede salir
+		-- andando, porque es por donde empieza todo el mundo.
+		local punto = aparicion
+		sitio = if punto then punto.Position + Vector3.new(0, 4, 0) else Config.ALMACEN_POS + Vector3.new(0, 6, 40)
+	end
 
 	-- Una sola vez por sesión, pero que se oiga: si esto sale por consola es que el
 	-- fallo existe de verdad y hay por dónde tirar. El detalle va todo junto porque
@@ -209,12 +262,12 @@ local function rescatar(player: Player, root: BasePart, motivo: string)
 		avisadoDelFallo = true
 		warn(
 			string.format(
-				"[Contrabando] jugador FUERA DEL MUNDO (%s): %s estaba en %s, velocidad %.1f, ultimo sitio bueno %s",
+				"[Contrabando] jugador FUERA DEL MUNDO (%s): %s estaba en %s, velocidad %.1f, devuelto a %s",
 				motivo,
 				player.Name,
-				tostring(root.Position),
+				tostring(donde),
 				root.AssemblyLinearVelocity.Magnitude,
-				tostring(vuelta)
+				tostring(sitio)
 			)
 		)
 	end
@@ -223,15 +276,30 @@ local function rescatar(player: Player, root: BasePart, motivo: string)
 	-- propiedad de red del cliente y escribirle la posición pieza a pieza se
 	-- revierte en cuanto el cliente manda su siguiente actualización. Es la misma
 	-- lección que ya pagó el regreso al almacén de CargoService.
-	char:PivotTo(CFrame.new(sitio))
+	char:PivotTo(CFrame.new(sitio :: Vector3))
 	-- Y se le para en seco: si lo que le sacó del mapa fue la física, devolverlo
 	-- con la velocidad puesta lo saca otra vez al instante siguiente.
 	pcall(function()
 		root.AssemblyLinearVelocity = Vector3.zero
 	end)
 
+	-- CON LAS COORDENADAS PUESTAS, y no es ruido de depuración: este fallo sólo le
+	-- pasa a quien juega, la consola de Studio no la lee nadie durante una partida
+	-- (`get_console_output` se cuelga) y sin saber DÓNDE se cae no hay diagnóstico
+	-- posible. Poniéndolo en el aviso, una captura de pantalla del jugador vale por
+	-- una sesión entera de sondas.
 	pcall(function()
-		Remotes.event(Remotes.AVISO):FireClient(player, "RESCUE_BACK", nil, Palette.AVISO_MALO)
+		Remotes.event(Remotes.AVISO):FireClient(player, "RESCUE_BACK", {
+			-- EL MOTIVO Y LA VELOCIDAD son la mitad del diagnóstico y por eso van en
+			-- pantalla: "abajo" es un agujero en el suelo, "lejos" es que algo te ha
+			-- empujado, y "nan" es un CFrame roto. Tres causas distintas que se
+			-- arreglan en tres sitios distintos, y sin el dato hay que adivinar.
+			motivo = motivo,
+			x = math.floor(donde.X),
+			y = math.floor(donde.Y),
+			z = math.floor(donde.Z),
+			velocidad = math.floor(root.AssemblyLinearVelocity.Magnitude),
+		}, Palette.AVISO_MALO)
 	end)
 end
 
@@ -250,7 +318,15 @@ local function vigilarLimites()
 						-- Un guardián que se muere en silencio es peor que no tenerlo.
 						pcall(rescatar, player, root, motivo)
 					else
-						ultimoBueno[player] = root.Position
+						-- SÓLO SI HAY SUELO DEBAJO. Estar dentro de la caja no basta:
+						-- ver `sueloBajo`. Y si no lo hay, no se toca lo que ya había
+						-- guardado -- el sitio bueno de hace tres segundos sigue siendo
+						-- bueno, y quien va por el aire (saltando, cayendo, en la rampa)
+						-- no debe borrarlo.
+						local ok, suelo = pcall(sueloBajo, root.Position, char)
+						if ok and suelo ~= nil then
+							ultimoBueno[player] = (suelo :: Vector3) + Vector3.new(0, 3, 0)
+						end
 					end
 				end
 			end

@@ -280,7 +280,7 @@ local TEXTOS: { [string]: string } = {
 	-- ---- La red de seguridad -----------------------------------------------
 	-- Se ve cuando el guardián de Avatar te devuelve al mapa. Dice que ha pasado
 	-- algo y no lo disimula: si un día esto sale a menudo, quiero que se note.
-	RESCUE_BACK = "You fell out of the world. Back on track.",
+	RESCUE_BACK = "Out of the world ({motivo}) at {x},{y},{z}, speed {velocidad}. Back on track.",
 
 	-- ---- Entregas y cobros -------------------------------------------------
 	CARGO_NEED_BIGGER = "You need a bigger vehicle: that one is {tamano}",
