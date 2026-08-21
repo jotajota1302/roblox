@@ -1166,6 +1166,26 @@ Config.SALTO_IMPULSO_SEGUNDOS = 8
 -- premio que casi siempre caduca sin haber servido para nada.
 Config.ESCUDO_SEGUNDOS = 12
 
+-- CUANTOS CABEN EN LA CASILLA de cada clase.
+--
+-- POR QUE HAY CASILLA. *"El super salto deberia tener una casilla igual que el
+-- sprint o el escudo y activarse con un boton o con el mando"* (JJ). Y no es solo
+-- interfaz: cambia lo que la pieza SIGNIFICA. Un impulso que se gasta solo al
+-- pisarlo se gasta SIEMPRE donde esta la pieza, o sea donde lo puso el generador --
+-- el jugador no decide nada, solo pasa por encima. Guardado, la pieza pasa a ser
+-- munición: la coges aqui y la usas donde te hace falta, que es tres calles mas
+-- alla cuando aparece el ladron.
+--
+-- DOS Y NO MAS. Con uno, coger el segundo del rastro seria tirarlo; con cinco, el
+-- jugador acumula toda la ruta y la decision se pospone hasta que deja de existir.
+-- Dos deja guardar uno para la vuelta y obliga a gastar el resto por el camino.
+Config.OBJETOS_TOPE = 2
+
+-- Los que se guardan. La VELOCIDAD no esta y es a proposito: es la racha, el pulso
+-- del rastro -- se nota en el paso siguiente y se cae sola si dejas de recoger.
+-- Meterla en una casilla la convertiria en otra cosa.
+Config.OBJETOS_GUARDABLES = { Config.RECOGIBLE_SALTO, Config.RECOGIBLE_ESCUDO }
+
 -- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
 -- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs
 -- después -- y llega casi hasta el destino, al revés que los sueltos, que se

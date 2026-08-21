@@ -75,6 +75,12 @@ export type Estado = {
 	-- caduca sola aunque nadie la mire, y un contador que hay que descontar deja el
 	-- efecto encendido para siempre el dia que falle quien lo descuenta.
 	escudoHasta: number?,
+	-- LO QUE LLEVAS EN LAS CASILLAS: cuantos saltos y cuantos escudos. Antes esto no
+	-- existia porque las dos piezas se gastaban solas al pisarlas; desde que se
+	-- guardan (ver `Config.OBJETOS_TOPE`), son municion. NO SE PERSISTE, por lo
+	-- mismo que la racha: es del viaje, y volver manana con el escudo de ayer seria
+	-- premio por desconectarse.
+	objetos: { [string]: number }?,
 	-- Entregas hechas en toda la partida. Es lo que mueve los hitos de abajo, y se
 	-- cuenta aquí y no se deduce del dinero: dos jugadores con la misma cartera
 	-- pueden llevar uno diez entregas y otro una con suerte.
@@ -129,6 +135,7 @@ function PlayerState.get(player: Player): Estado
 			recogidos = 0,
 			saltoHasta = nil,
 			escudoHasta = nil,
+			objetos = {},
 			entregas = 0,
 			hitos = {},
 			retorno = {},
@@ -177,6 +184,14 @@ function PlayerState.sync(player: Player)
 		-- La racha viaja calculada, como el nivel: el cliente dibuja "+2,0" y no
 		-- aplica ninguna regla.
 		recogidos = estado.recogidos or 0,
+		-- LAS CASILLAS Y LO QUE QUEDA DE CADA EFECTO. Los segundos viajan YA
+		-- RESTADOS y no como instante: `saltoHasta` esta en `os.clock()` DEL
+		-- SERVIDOR, que no tiene nada que ver con el reloj del cliente -- mandarlo
+		-- tal cual daria cuentas atras de horas o de numeros negativos. El cliente
+		-- recibe "te quedan 6,2 segundos" y los descuenta el solo entre sync y sync.
+		objetos = estado.objetos or {},
+		saltoRestante = math.max(0, (estado.saltoHasta or 0) - os.clock()),
+		escudoRestante = math.max(0, (estado.escudoHasta or 0) - os.clock()),
 		entregas = estado.entregas or 0,
 		hitos = estado.hitos or {},
 		-- El hito actual viaja YA RESUELTO, como el nivel: el cliente lo dibuja y no

@@ -65,6 +65,24 @@ local dineroMostrado: number? = nil
 local avisoLabel: TextLabel
 local misionLabel: TextLabel
 local accionesPanel: Frame
+
+-- LAS CASILLAS. Una por clase guardable, con lo que llevas y lo que queda de lo que
+-- has activado. Ver `Config.OBJETOS_TOPE` para el porque de que se guarden.
+type Casilla = {
+	marco: Frame,
+	cuantos: TextLabel,
+	tecla: TextLabel,
+	barra: Frame,
+	icono: Frame,
+}
+local casillas: { [string]: Casilla } = {}
+local casillasPanel: Frame?
+-- Lo que quedaba de cada efecto en el ultimo sync, y cuando llego. Entre sync y
+-- sync se descuenta aqui: el servidor manda "te quedan 6,2 s" y el reloj sigue
+-- corriendo aunque no llegue nada nuevo. Sin esto la barra daria saltos de medio
+-- segundo, que en una cuenta atras de ocho se lee como que va rota.
+local restante: { [string]: number } = {}
+local medidoEn = 0
 type FilaAccion = { marco: Frame, tecla: TextLabel, accion: TextLabel }
 local filasAccion: { FilaAccion } = {}
 local modal = false
@@ -113,6 +131,113 @@ local function arrancarContador()
 		end
 		dineroLabel.Text = UiKit.millares(math.floor(dineroMostrado :: number))
 	end)
+end
+
+-- LAS CASILLAS, abajo y al centro.
+--
+-- No a los lados: la columna izquierda es informacion que se lee (dinero, mision,
+-- controles) y la derecha es el menu. Y NUNCA en las esquinas de abajo, que son del
+-- joystick y del boton de salto de Roblox -- regla del proyecto, ya pagada una vez.
+-- El centro inferior es el unico hueco que queda libre en movil, y ademas es donde
+-- el pulgar llega sin soltar la direccion.
+--
+-- El icono se DIBUJA con marcos, no con una imagen: un asset hay que subirlo y no
+-- se ve hasta publicar el place (la trampa de los meshes). Una flecha son dos
+-- rectangulos y un cuadrado girado; un escudo, un rombo con borde.
+local function construirCasilla(padre: Instance, tipo: string, orden: number, color: Color3): Casilla
+	local marco = Instance.new("Frame")
+	marco.Name = "Casilla_" .. tipo
+	marco.LayoutOrder = orden
+	marco.Size = UDim2.fromOffset(62, 62)
+	marco.BackgroundColor3 = UiKit.TINTA
+	marco.BackgroundTransparency = 0.15
+	marco.BorderSizePixel = 0
+	marco.Parent = padre
+	UiKit.redondear(marco, 10)
+	UiKit.borde(marco, color, 2, 0.25)
+
+	local icono = Instance.new("Frame")
+	icono.Name = "Icono"
+	icono.AnchorPoint = Vector2.new(0.5, 0.5)
+	icono.Position = UDim2.fromScale(0.5, 0.44)
+	icono.Size = UDim2.fromOffset(26, 26)
+	icono.BackgroundTransparency = 1
+	icono.Parent = marco
+
+	if tipo == "salto" then
+		-- Flecha: el asta y la punta.
+		local asta = Instance.new("Frame")
+		asta.AnchorPoint = Vector2.new(0.5, 1)
+		asta.Position = UDim2.fromScale(0.5, 1)
+		asta.Size = UDim2.fromOffset(8, 14)
+		asta.BackgroundColor3 = color
+		asta.BorderSizePixel = 0
+		asta.Parent = icono
+		local punta = Instance.new("Frame")
+		punta.AnchorPoint = Vector2.new(0.5, 0)
+		punta.Position = UDim2.fromScale(0.5, 0.06)
+		punta.Size = UDim2.fromOffset(15, 15)
+		punta.Rotation = 45
+		punta.BackgroundColor3 = color
+		punta.BorderSizePixel = 0
+		punta.Parent = icono
+	else
+		-- Escudo: un rombo con el centro hueco, que a este tamano se lee mejor que
+		-- una silueta de escudo -- que a 26 pixeles es una mancha.
+		local rombo = Instance.new("Frame")
+		rombo.AnchorPoint = Vector2.new(0.5, 0.5)
+		rombo.Position = UDim2.fromScale(0.5, 0.5)
+		rombo.Size = UDim2.fromOffset(20, 20)
+		rombo.Rotation = 45
+		rombo.BackgroundTransparency = 1
+		rombo.Parent = icono
+		UiKit.borde(rombo, color, 3, 0)
+		UiKit.redondear(rombo, 4)
+	end
+
+	-- CUANTOS LLEVAS. Abajo, grande y en el color de la casilla: es el dato por el
+	-- que se mira aqui mientras conduces.
+	local cuantos = Instance.new("TextLabel")
+	cuantos.Name = "Cuantos"
+	cuantos.AnchorPoint = Vector2.new(0.5, 1)
+	cuantos.Position = UDim2.fromScale(0.5, 0.99)
+	cuantos.Size = UDim2.new(1, -6, 0, 16)
+	cuantos.BackgroundTransparency = 1
+	cuantos.TextColor3 = color
+	cuantos.TextScaled = true
+	cuantos.Font = Enum.Font.GothamBold
+	cuantos.Text = ""
+	cuantos.Parent = marco
+
+	-- Y CON QUE SE USA. Cambia con el aparato: la misma etiqueta que la lista de
+	-- controles, para que digan lo mismo (ver `etiqueta` en Main.client).
+	local tecla = Instance.new("TextLabel")
+	tecla.Name = "Tecla"
+	tecla.AnchorPoint = Vector2.new(0, 0)
+	tecla.Position = UDim2.fromOffset(4, 2)
+	tecla.Size = UDim2.fromOffset(24, 13)
+	tecla.BackgroundTransparency = 1
+	tecla.TextColor3 = UiKit.APAGADO
+	tecla.TextScaled = true
+	tecla.Font = Enum.Font.GothamBold
+	tecla.TextXAlignment = Enum.TextXAlignment.Left
+	tecla.Text = ""
+	tecla.Parent = marco
+
+	-- LA CUENTA ATRAS del efecto puesto, como una barra que se vacia por debajo.
+	-- Un numero haria falta leerlo; una barra se ve de reojo, que es como se mira
+	-- el HUD cuando te persiguen.
+	local barra = Instance.new("Frame")
+	barra.Name = "Barra"
+	barra.AnchorPoint = Vector2.new(0, 1)
+	barra.Position = UDim2.fromScale(0, 1)
+	barra.Size = UDim2.fromScale(0, 0.06)
+	barra.BackgroundColor3 = color
+	barra.BorderSizePixel = 0
+	barra.Visible = false
+	barra.Parent = marco
+
+	return { marco = marco, cuantos = cuantos, tecla = tecla, barra = barra, icono = icono }
 end
 
 function Hud.build()
@@ -527,6 +652,43 @@ function Hud.build()
 	misionSize.MaxSize = Vector2.new(300, 38)
 	misionSize.Parent = misionLabel
 
+	-- EL PANEL DE CASILLAS. Se monta al final porque cuelga del ScreenGui y no de la
+	-- columna: es lo unico del HUD que no se lee, se PULSA.
+	local panel = Instance.new("Frame")
+	panel.Name = "Casillas"
+	panel.AnchorPoint = Vector2.new(0.5, 1)
+	panel.Position = UDim2.fromScale(0.5, 0.985)
+	panel.Size = UDim2.fromOffset(62 * 2 + 10, 62)
+	panel.BackgroundTransparency = 1
+	panel.Parent = gui
+	casillasPanel = panel
+
+	local fila = Instance.new("UIListLayout")
+	fila.FillDirection = Enum.FillDirection.Horizontal
+	fila.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	fila.Padding = UDim.new(0, 10)
+	fila.Parent = panel
+
+	-- Los ids NO se traducen y de ellos se deriva todo lo demas: el nombre sale de
+	-- `SLOT_<id>` en Strings, igual que las rutas.
+	casillas.salto = construirCasilla(panel, "salto", 1, Color3.fromRGB(96, 226, 236))
+	casillas.escudo = construirCasilla(panel, "escudo", 2, Color3.fromRGB(150, 240, 150))
+
+	-- LA CUENTA ATRAS, EN SU PROPIO BUCLE. El HUD se repinta cuando llega estado del
+	-- servidor --que puede ser cada varios segundos si no pasa nada-- y una barra que
+	-- solo se mueve con el trafico de red no es una cuenta atras, es un escalon.
+	RunService.Heartbeat:Connect(function()
+		local ahora = os.clock()
+		for tipo, casilla in casillas do
+			local queda = (restante[tipo] or 0) - (ahora - medidoEn)
+			local tope = if tipo == "salto" then Config.SALTO_IMPULSO_SEGUNDOS else Config.ESCUDO_SEGUNDOS
+			casilla.barra.Visible = queda > 0
+			if queda > 0 then
+				casilla.barra.Size = UDim2.fromScale(math.clamp(queda / tope, 0, 1), 0.06)
+			end
+		end
+	end)
+
 	arrancarContador()
 end
 
@@ -545,6 +707,44 @@ end
 -- Recibe una lista de { tecla, accion }. Vacía = no hay ninguna, y entonces el
 -- panel desaparece en vez de quedarse ocupando sitio.
 export type Accion = { tecla: string, accion: string }
+
+-- Lo que se dibuja en cada casilla. Se llama con cada estado que llega.
+function Hud.objetos(estado: any)
+	if casillasPanel == nil then
+		return
+	end
+	local objetos = (estado and estado.objetos) or {}
+	restante.salto = if estado then estado.saltoRestante or 0 else 0
+	restante.escudo = if estado then estado.escudoRestante or 0 else 0
+	medidoEn = os.clock()
+
+	for tipo, casilla in casillas do
+		local cuantos = objetos[tipo] or 0
+		casilla.cuantos.Text = if cuantos > 0 then "x" .. cuantos else Strings.get("SLOT_EMPTY")
+		-- VACIA SE APAGA, no se esconde: una casilla que desaparece cuando no llevas
+		-- nada no ensena que existe, y lo que hay que aprender aqui es justamente que
+		-- esas piezas del suelo se guardan.
+		casilla.marco.BackgroundTransparency = if cuantos > 0 then 0.15 else 0.55
+		casilla.icono.Visible = true
+		for _, hijo in casilla.icono:GetChildren() do
+			if hijo:IsA("Frame") then
+				hijo.BackgroundTransparency = if cuantos > 0 then 0 else 0.6
+			end
+		end
+	end
+	casillasPanel.Visible = not modal
+end
+
+-- Con que se pulsa cada casilla. Lo decide Main.client, que es quien sabe si hay un
+-- mando en la mano; aqui solo se pinta.
+function Hud.teclasDeObjetos(salto: string, escudo: string)
+	if casillas.salto then
+		casillas.salto.tecla.Text = salto
+	end
+	if casillas.escudo then
+		casillas.escudo.tecla.Text = escudo
+	end
+end
 
 function Hud.acciones(lista: { Accion })
 	if not accionesPanel then

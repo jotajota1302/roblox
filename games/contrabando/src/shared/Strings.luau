@@ -332,6 +332,19 @@ local TEXTOS: { [string]: string } = {
 	-- recarga) y este dice "ahora mismo te estan mirando", que es lo que hay que
 	-- poder leer sin apartar la vista de la calle. Corto a proposito.
 	ALERT_WATCHED = "SPOTTED",
+
+	-- LAS CASILLAS. La clave se DERIVA del id del recogible ("SLOT_" .. tipo), como
+	-- las rutas: el id ("salto", "escudo") es codigo y no se traduce nunca, y el
+	-- nombre sale de aqui. Dos sitios donde escribir el nombre de una cosa es
+	-- exactamente como se colaron nueve castellanos en la version inglesa.
+	SLOT_salto = "Super jump",
+	SLOT_escudo = "Shield",
+	ITEM_STORED = "{objeto} stored  ·  {cuantos} in the slot",
+	ITEM_FULL = "Slot full: you are already carrying every {objeto} you can",
+	ITEM_NONE = "No {objeto} in the slot",
+	ITEM_ALREADY_ON = "{objeto} is already running",
+	-- Lo que se dibuja bajo cada casilla cuando no llevas ninguno.
+	SLOT_EMPTY = "empty",
 	HEAT_INHERITED = "You take their cargo and their heat  ·  {nivel}/{maximo}",
 	CHASE_BEHIND_YOU = "They are coming for you",
 	CHASE_LOST_THEM = "You lost them",

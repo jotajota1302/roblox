@@ -26,6 +26,11 @@ Remotes.MONTAR = "Montar" -- cliente -> servidor: "me subo o me bajo del vehícu
 Remotes.MEJORAR_NAVE = "MejorarNave" -- cliente -> servidor: "pago la siguiente mejora de la nave"
 Remotes.COMPRAR_HABILIDAD = "ComprarHabilidad" -- cliente -> servidor: "compro este peldaño"
 Remotes.USAR_SENUELO = "UsarSenuelo" -- cliente -> servidor: "suelto el cebo aquí"
+-- cliente -> servidor: "gasto lo que llevo en esta casilla" (salto o escudo). Manda
+-- solo la CLASE, nunca el efecto: el servidor mira si de verdad lo tiene, lo
+-- descuenta y decide cuanto dura. Un cliente que pudiera decir "activame el escudo"
+-- seria un escudo permanente para cualquiera con un ejecutor.
+Remotes.USAR_OBJETO = "UsarObjeto"
 -- servidor -> cliente: (clave de Strings, argumentos, color). NO viaja el texto
 -- ya montado: el idioma es del jugador, y en una partida con dos personas de
 -- paises distintos el servidor no tiene un idioma correcto que elegir.

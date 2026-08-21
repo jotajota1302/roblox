@@ -625,6 +625,7 @@ Remotes.event(Remotes.SYNC_STATE).OnClientEvent:Connect(function(estado)
 	-- El candado de las rutas, antes de decidir si se enseña el selector: si se
 	-- pintara después, la primera vez que se abre saldría un instante con todas
 	-- las tarjetas encendidas.
+	intentar("Hud.objetos", Hud.objetos, estado)
 	intentar("RoutePicker.actualizar", RoutePicker.actualizar, estado)
 	refrescarSelector()
 	intentar("apuntarBrujula", apuntarBrujula, estado)
@@ -824,6 +825,52 @@ ContextActionService:BindAction("Entregar", function(_, inputState)
 	-- proximidad --se puede hacer desde cualquier punto de la losa-- así que sin
 	-- esto era la única acción del bucle que un jugador de mando no podía hacer.
 end, false, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
+
+-- LAS DOS CASILLAS: gastar lo que llevas.
+--
+-- Teclas 1 y 2 en el ordenador, y en el mando los dos gatillos IZQUIERDOS. La
+-- derecha esta toda ocupada --R1 entrega, Y sube y baja del vehiculo, X son los
+-- avisos de proximidad de Roblox, B es atras, A salta-- y ademas la izquierda es la
+-- mano que no lleva la direccion: se aprieta sin dejar de conducir.
+--
+-- El servidor decide si de verdad lo tienes; aqui solo se dice la intencion. Ver
+-- `usarObjeto` en ContactService.
+local CASILLAS = {
+	{
+		id = "salto",
+		tecla = Enum.KeyCode.One,
+		boton = Enum.KeyCode.ButtonL1,
+		etiquetaTecla = "1",
+		etiquetaBoton = "LB",
+	},
+	{
+		id = "escudo",
+		tecla = Enum.KeyCode.Two,
+		boton = Enum.KeyCode.ButtonL2,
+		etiquetaTecla = "2",
+		etiquetaBoton = "LT",
+	},
+}
+
+for _, casilla in CASILLAS do
+	ContextActionService:BindAction("Usar_" .. casilla.id, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			Remotes.event(Remotes.USAR_OBJETO):FireServer(casilla.id)
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, casilla.tecla, casilla.boton)
+end
+
+-- Y LA ETIQUETA DE CADA CASILLA sigue al aparato que tengas en la mano, igual que
+-- la lista de controles: con un mando enchufado no sirve de nada que ponga "1".
+local function pintarTeclasDeCasillas()
+	Hud.teclasDeObjetos(
+		etiqueta(CASILLAS[1].etiquetaTecla, CASILLAS[1].etiquetaBoton),
+		etiqueta(CASILLAS[2].etiquetaTecla, CASILLAS[2].etiquetaBoton)
+	)
+end
+pintarTeclasDeCasillas()
+UserInputService.LastInputTypeChanged:Connect(pintarTeclasDeCasillas)
 
 -- LA PUERTA DEL MENU PARA QUIEN JUEGA CON MANDO. Sin esto, los tres botones de la
 -- columna --habilidades, nave, taller-- no se pueden ni senalar: con un mando no

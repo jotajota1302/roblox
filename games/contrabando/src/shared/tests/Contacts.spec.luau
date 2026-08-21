@@ -240,6 +240,41 @@ return function(kit)
 	kit.eq("el dinero tampoco", viaje.dinero, 900)
 	kit.eq("y la marca del ladrón sigue corriendo", viaje.marcadoHasta, 1234)
 
+	-- LAS CASILLAS. Lo que cambia con ellas no es la interfaz: es que la pieza deja
+	-- de gastarse donde la puso el generador y pasa a gastarse donde el jugador
+	-- decide.
+	local zurron = { objetos = {} }
+	local cupo, cuantos = Contacts.guardar(zurron, Config.RECOGIBLE_SALTO)
+	kit.truthy("el primer salto entra en la casilla", cupo)
+	kit.eq("y se cuenta", cuantos, 1)
+	local _, dos = Contacts.guardar(zurron, Config.RECOGIBLE_SALTO)
+	kit.eq("el segundo tambien", dos, Config.OBJETOS_TOPE)
+	local cabe = Contacts.guardar(zurron, Config.RECOGIBLE_SALTO)
+	kit.falsy("el tercero ya no cabe", cabe)
+	kit.eq("y la casilla no se pasa del tope", zurron.objetos[Config.RECOGIBLE_SALTO], Config.OBJETOS_TOPE)
+
+	-- LA VELOCIDAD NO SE GUARDA, y es la mitad del diseno: es la racha, el pulso del
+	-- rastro. En una casilla dejaria de ser lo que es.
+	kit.falsy("la velocidad no va a ninguna casilla", (Contacts.guardar(zurron, Config.RECOGIBLE_VELOCIDAD)))
+
+	kit.truthy("se gasta lo que hay", Contacts.gastar(zurron, Config.RECOGIBLE_SALTO))
+	kit.eq("y queda uno menos", zurron.objetos[Config.RECOGIBLE_SALTO], Config.OBJETOS_TOPE - 1)
+	kit.falsy("no se puede gastar lo que no se lleva", Contacts.gastar(zurron, Config.RECOGIBLE_ESCUDO))
+	kit.falsy("ni sobre un estado sin casillas", Contacts.gastar({}, Config.RECOGIBLE_SALTO))
+
+	-- Y LO GUARDADO SOBREVIVE A LA ENTREGA. Un efecto en curso es del viaje; un
+	-- objeto guardado es inventario, y hacerlo desaparecer al entregar seria
+	-- quitarle al jugador algo que ve en pantalla y que no ha gastado.
+	zurron.recogidos = 4
+	zurron.saltoHasta = 999
+	Contacts.terminarViaje(zurron)
+	kit.eq(
+		"lo que llevas en la casilla no se pierde al entregar",
+		zurron.objetos[Config.RECOGIBLE_SALTO],
+		Config.OBJETOS_TOPE - 1
+	)
+	kit.eq("pero el efecto en curso si", zurron.saltoHasta, nil)
+
 	-- Sin nada que apagar, dice que no: quien lo llama cinco veces por segundo se
 	-- ahorra sincronizar el estado entero a todo el servidor de balde.
 	kit.falsy("un viaje ya limpio no cambia nada", Contacts.terminarViaje(viaje))

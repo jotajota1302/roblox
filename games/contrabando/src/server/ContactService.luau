@@ -54,6 +54,17 @@ local function quejarse(donde: string, err: any)
 	warn("[Contrabando] contactos, fallo en " .. donde .. ": " .. tostring(err))
 end
 
+-- Sube AQUI --antes que el bucle de recogida-- desde que las casillas avisan al
+-- guardar y al llenarse: en Luau una funcion local no existe hasta la linea en que
+-- se declara, y usarla antes no es un error de sintaxis, es una variable global
+-- vacia. Lo caza el paso de analisis estatico en un segundo; en tiempo de ejecucion
+-- seria un "attempt to call a nil value" dentro del pcall del ciclo, o sea la
+-- recogida entera muerta en silencio.
+local function avisar(player: Player, clave: string, args: { [string]: any }?, bueno: boolean?)
+	Remotes.event(Remotes.AVISO)
+		:FireClient(player, clave, args, if bueno then Palette.AVISO_BUENO else Palette.AVISO_MALO)
+end
+
 function ContactService.registrar(nuevas: { BasePart })
 	piezas = nuevas
 end
@@ -341,20 +352,22 @@ function ContactService.tick(ahora: number)
 			-- QUE HACE ESTA PIEZA. El tipo viaja con ella desde que la planto
 			-- CityBuilder, asi que aqui no se repite ningun reparto: se lee.
 			local tipo = pieza:GetAttribute("tipo")
-			if tipo == Config.RECOGIBLE_ESCUDO then
-				-- EL ESCUDO TAMPOCO SE ACUMULA: se refresca. Encadenar escudos daria
-				-- una ruta entera intocable, y entonces la ruta roja --que paga diez
-				-- veces mas porque te pueden quitar la carga-- pasaria a pagar diez
-				-- veces mas por nada.
-				estado.escudoHasta = ahora + Config.ESCUDO_SEGUNDOS
-			elseif tipo == Config.RECOGIBLE_SALTO then
-				-- EL SALTO SE REFRESCA, NO SE ACUMULA. Encadenar seis flechas dejaria
-				-- un minuto entero volando y entonces la ciudad --las calles, las
-				-- manzanas, los rodeos-- deja de existir, que es todo el mapa.
-				estado.saltoHasta = ahora + Config.SALTO_IMPULSO_SEGUNDOS
+			if tipo == Config.RECOGIBLE_ESCUDO or tipo == Config.RECOGIBLE_SALTO then
+				-- A LA CASILLA, no al cuerpo. Antes los dos se disparaban aqui mismo, y
+				-- eso significaba que se gastaban SIEMPRE donde estaba la pieza: el
+				-- jugador no elegia, solo pasaba por encima. Ahora son municion -- ver
+				-- `Contacts.guardar` y `Config.OBJETOS_TOPE`.
+				local cupo, cuantos = Contacts.guardar(estado, tipo)
+				if cupo then
+					avisar(player, "ITEM_STORED", { objeto = Strings.ref("SLOT_" .. tipo), cuantos = cuantos }, true)
+				else
+					-- Y SE DICE CUANDO NO CABE. Recoger algo que se tira sin avisar es de
+					-- las cosas que hacen que un jugador deje de fiarse de lo que ve.
+					avisar(player, "ITEM_FULL", { objeto = Strings.ref("SLOT_" .. tipo) })
+				end
 			else
-				-- La velocidad SI se encadena: es la racha de siempre, y su freno es
-				-- que se cae sola si dejas de recoger.
+				-- La velocidad SI se aplica en el acto: es la racha de siempre, el pulso
+				-- del rastro. Su freno es que se cae sola si dejas de recoger.
 				estado.recogidos = (estado.recogidos or 0) + 1
 			end
 			ultimoContacto[player] = ahora
@@ -373,13 +386,11 @@ function ContactService.tick(ahora: number)
 			-- Un pcall alrededor porque son adorno: que falle el efecto no puede
 			-- costar la recogida, que es lo unico que cuenta de verdad aqui.
 			local ok, err = pcall(function()
-				if tipo == Config.RECOGIBLE_SALTO then
-					anilloDeSalto(root)
-				elseif tipo == Config.RECOGIBLE_ESCUDO then
-					destelloEscudo(root)
-				else
-					chispas(root)
-				end
+				-- LAS CHISPAS SON DE RECOGER, SIEMPRE. El anillo y la burbuja se han
+				-- mudado al momento de USAR el objeto (`usarObjeto`), que es donde ahora
+				-- pasa algo: dibujar un impulso al guardarlo en la casilla diria que ya
+				-- esta puesto, y es justo lo contrario de lo que ha ocurrido.
+				chispas(root)
 			end)
 			if not ok then
 				quejarse("efecto de recogida", err)
@@ -406,11 +417,6 @@ end
 -- guardado: una recarga que sobrevive a cerrar el juego sólo castiga a quien se
 -- desconecta, y desconectarse no es una jugada.
 local senueloLibre: { [Player]: number } = {}
-
-local function avisar(player: Player, clave: string, args: { [string]: any }?, bueno: boolean?)
-	Remotes.event(Remotes.AVISO)
-		:FireClient(player, clave, args, if bueno then Palette.AVISO_BUENO else Palette.AVISO_MALO)
-end
 
 -- LA COMPRA LA DECIDE EL SERVIDOR. El cliente pinta el precio, pero un remote
 -- manipulado manda el id que quiera: sin esta comprobación, las habilidades
@@ -474,6 +480,58 @@ local function soltarSenuelo(player: Player)
 	Remotes.event(Remotes.SONIDO):FireClient(player, "alerta")
 end
 
+-- GASTAR LO QUE LLEVAS EN LA CASILLA.
+--
+-- El cliente manda la CLASE y nada mas. Todo lo demas --si de verdad lo tiene, si
+-- ya lo tiene puesto, cuanto dura-- lo decide aqui, por la regla de siempre: un
+-- remote que aceptara "activame el escudo" seria un escudo permanente para
+-- cualquiera con un ejecutor.
+local function usarObjeto(player: Player, tipo: any)
+	if typeof(tipo) ~= "string" then
+		return
+	end
+	local estado = PlayerState.peek(player)
+	if not estado then
+		return
+	end
+	local ahora = os.clock()
+
+	-- YA PUESTO NO SE GASTA. Sin esto, dos pulsaciones seguidas --que en un mando
+	-- pasan solas-- tiran el segundo objeto para alargar el primero medio segundo.
+	-- Y se dice por que no ha pasado nada: un boton que no responde y no explica es
+	-- indistinguible de uno roto.
+	local activo = if tipo == Config.RECOGIBLE_SALTO then estado.saltoHasta else estado.escudoHasta
+	if (activo or 0) > ahora then
+		avisar(player, "ITEM_ALREADY_ON", { objeto = Strings.ref("SLOT_" .. tipo) })
+		return
+	end
+
+	if not Contacts.gastar(estado, tipo) then
+		avisar(player, "ITEM_NONE", { objeto = Strings.ref("SLOT_" .. tipo) })
+		return
+	end
+
+	local root = raiz(player)
+	if tipo == Config.RECOGIBLE_SALTO then
+		estado.saltoHasta = ahora + Config.SALTO_IMPULSO_SEGUNDOS
+		if root then
+			pcall(anilloDeSalto, root)
+		end
+	elseif tipo == Config.RECOGIBLE_ESCUDO then
+		estado.escudoHasta = ahora + Config.ESCUDO_SEGUNDOS
+		if root then
+			pcall(destelloEscudo, root)
+		end
+	else
+		-- Una clase que no se guarda (la velocidad, o algo inventado por un
+		-- ejecutor): se ha descontado de una casilla que no existe, o sea nada.
+		return
+	end
+
+	PlayerState.sync(player)
+	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+end
+
 function ContactService.start()
 	-- Los dos remotes, creados AL ARRANCAR como todos: uno que el servidor sólo
 	-- envía no existe hasta el primer envío, y el cliente que hace WaitForChild
@@ -482,6 +540,13 @@ function ContactService.start()
 		local ok, err = pcall(comprar, player, id)
 		if not ok then
 			quejarse("la compra", err)
+		end
+	end)
+
+	Remotes.event(Remotes.USAR_OBJETO).OnServerEvent:Connect(function(player, tipo)
+		local ok, err = pcall(usarObjeto, player, tipo)
+		if not ok then
+			quejarse("el uso de un objeto", err)
 		end
 	end)
 

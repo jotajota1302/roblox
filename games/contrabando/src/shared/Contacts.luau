@@ -357,6 +357,11 @@ end
 -- es la misma clase de fallo que la racha que no se borraba.
 --
 -- LO QUE NO SE TOCA, y es la mitad de la regla:
+--   · lo que llevas EN LAS CASILLAS. Un efecto en curso es del viaje; un objeto
+--     guardado es inventario, igual que las monedas -- y hacerlo desaparecer al
+--     entregar seria quitarle al jugador algo que ve en pantalla y que no ha
+--     gastado. El tope de dos por clase es lo que impide que acumular sustituya a
+--     decidir (ver `Config.OBJETOS_TOPE`);
 --   · los contactos, que son la moneda de las habilidades -- se ganan para
 --     siempre, igual que el dinero y la experiencia;
 --   · `marcadoHasta`, que no es un premio sino el castigo de quien acaba de
@@ -365,6 +370,47 @@ end
 -- Vive aquí, puro y sobre una tabla, para que la lista de lo que caduca sea UNA
 -- sola y se pueda comprobar sin mundo. Devuelve si había algo que apagar, para no
 -- sincronizar de balde: esto se pregunta cinco veces por segundo.
+-- LAS CASILLAS: guardar y gastar. Puro, sobre la tabla de estado.
+--
+-- Lo que cambia respecto a antes: el salto y el escudo ya no se disparan al pisar
+-- la pieza, se GUARDAN. Un impulso que se gasta donde esta la pieza se gasta donde
+-- lo puso el generador, o sea que el jugador no decide nada -- solo pasa por
+-- encima. Guardado, la pieza es municion, y la decision ("me lo gasto ahora o lo
+-- guardo para cuando aparezca el ladron") es el juego.
+--
+-- Devuelve si CUPO, para poder avisar cuando la casilla esta llena: recoger algo
+-- que se tira sin decirlo es de las cosas que hacen que un jugador deje de fiarse.
+function Contacts.guardar(estado: any, tipo: string): (boolean, number)
+	local guardable = false
+	for _, id in Config.OBJETOS_GUARDABLES do
+		if id == tipo then
+			guardable = true
+			break
+		end
+	end
+	if not guardable then
+		return false, 0
+	end
+	estado.objetos = estado.objetos or {}
+	local tiene = estado.objetos[tipo] or 0
+	if tiene >= Config.OBJETOS_TOPE then
+		return false, tiene
+	end
+	estado.objetos[tipo] = tiene + 1
+	return true, tiene + 1
+end
+
+-- Gasta uno. Devuelve si habia: el servidor lo llama con lo que le manda el
+-- cliente, y el cliente miente.
+function Contacts.gastar(estado: any, tipo: string): boolean
+	local objetos = estado.objetos
+	if objetos == nil or (objetos[tipo] or 0) <= 0 then
+		return false
+	end
+	objetos[tipo] -= 1
+	return true
+end
+
 function Contacts.terminarViaje(estado: any): boolean
 	local habia = (estado.recogidos or 0) > 0 or estado.saltoHasta ~= nil or estado.escudoHasta ~= nil
 	estado.recogidos = 0
