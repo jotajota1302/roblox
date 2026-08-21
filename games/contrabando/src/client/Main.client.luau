@@ -735,6 +735,12 @@ Remotes.event(Remotes.SONIDO).OnClientEvent:Connect(function(clave)
 	Sfx.reproducir(clave)
 end)
 
+-- EL CARTELON DE ENTREGA. Envuelto en pcall como el resto de la interfaz: que falle
+-- pintando una celebracion no puede costar la partida. Ver `Hud.entregado`.
+Remotes.event(Remotes.ENTREGADO).OnClientEvent:Connect(function(monedas)
+	pcall(Hud.entregado, monedas)
+end)
+
 -- EL TIRON DE CAMARA AL COGER UN RAYO. Va sin pcall y sin adornos porque no puede
 -- fallar de forma interesante: si no hay camara, el modulo no hace nada.
 Remotes.event(Remotes.IMPULSO).OnClientEvent:Connect(function()

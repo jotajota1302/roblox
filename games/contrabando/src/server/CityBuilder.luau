@@ -1258,6 +1258,17 @@ local function caminoDeRuta(ruta: Routes.Ruta): { Vector3 }
 	-- de sus nueve tramos.
 	--
 	-- De regalo, plantar el rastro deja de costar cuatro ComputeAsync al arrancar.
+	-- ARRANCA EN EL ALMACEN, Y NO SE PUEDE QUITAR. Se probo a empezar en la boca del
+	-- recinto --para que coincidiera con el camino que mide la sonda-- y salio peor:
+	-- `Contacts.rastro` descuenta `ZONA_SEGURA_RADIO` DESDE EL PRIMER PUNTO del
+	-- camino, contando con que ese punto es el almacen. Arrancando en la boca, esos
+	-- noventa studs se comen ciudad en vez de recinto y las migas se apinan al final:
+	-- medido, 2 de 5 en el camino en vez de 4 de 7.
+	--
+	-- La discrepancia era real pero estaba en el otro lado: la sonda medía contra
+	-- `porCalles(salida, destino)` mientras aqui se siembra sobre este camino. Se
+	-- arreglo alli, que es donde tocaba -- una sonda tiene que medir lo que se
+	-- construyo, no una version parecida.
 	local puntos: { Vector3 } = { Config.ALMACEN_POS }
 	for _, p in Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino) do
 		table.insert(puntos, p)

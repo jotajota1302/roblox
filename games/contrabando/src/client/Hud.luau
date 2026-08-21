@@ -13,6 +13,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -796,6 +797,77 @@ function Hud.aviso(texto: string, color: Color3)
 			avisoLabel.Text = ""
 			avisoLabel.BackgroundTransparency = 1
 		end
+	end)
+end
+
+-- EL CARTELON DE ENTREGA. *"Que el traslado al inicio sea con un efecto y salga
+-- 'delivered'"* (JJ), y el diagnostico de fondo es acertado: entregar era el momento
+-- mas importante del bucle y se anunciaba con la misma linea de texto de tres
+-- segundos que usa "no llevas nada". El unico instante en que el juego te DA algo se
+-- perdia entre los avisos de trafico.
+--
+-- Se construye al vuelo y se destruye al acabar. Es lo unico de este HUD que no vive
+-- permanentemente en la pantalla, y a proposito: aparece una vez cada viaje, dura
+-- segundo y medio, y no puede quedarse ocupando sitio ni pintarse en la primera
+-- carga como todo lo demas.
+function Hud.entregado(monedas: number)
+	local gui = Players.LocalPlayer:FindFirstChild("PlayerGui")
+	if not gui then
+		return
+	end
+
+	local capa = Instance.new("ScreenGui")
+	capa.Name = "Entregado"
+	capa.ResetOnSpawn = false
+	-- Por encima de todo lo demas: es el unico momento en que tapar el HUD es lo
+	-- correcto.
+	capa.DisplayOrder = 50
+	capa.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+	capa.Parent = gui
+
+	local marco = Instance.new("Frame")
+	marco.AnchorPoint = Vector2.new(0.5, 0.5)
+	marco.Position = UDim2.fromScale(0.5, 0.42)
+	marco.Size = UDim2.fromScale(0.6, 0.2)
+	marco.BackgroundTransparency = 1
+	marco.Parent = capa
+
+	local titulo = Instance.new("TextLabel")
+	titulo.Size = UDim2.fromScale(1, 0.58)
+	titulo.BackgroundTransparency = 1
+	titulo.Text = Strings.get("DELIVERED_BANNER")
+	titulo.TextColor3 = Color3.fromRGB(150, 235, 165)
+	titulo.TextStrokeTransparency = 0.35
+	titulo.TextScaled = true
+	titulo.Font = Enum.Font.GothamBlack
+	titulo.Parent = marco
+
+	local cifra = Instance.new("TextLabel")
+	cifra.Position = UDim2.fromScale(0, 0.58)
+	cifra.Size = UDim2.fromScale(1, 0.42)
+	cifra.BackgroundTransparency = 1
+	cifra.Text = Strings.get("DELIVERED_AMOUNT", { monedas = monedas })
+	cifra.TextColor3 = Color3.fromRGB(238, 205, 120)
+	cifra.TextStrokeTransparency = 0.4
+	cifra.TextScaled = true
+	cifra.Font = Enum.Font.GothamBold
+	cifra.Parent = marco
+
+	-- ENTRA GRANDE Y SE VA HACIA ARRIBA. El golpe de entrada es lo que hace que se
+	-- lea sin buscarlo; la subida al desvanecerse es lo que hace que no moleste --
+	-- sale del centro justo cuando el jugador vuelve a necesitar ver el mundo.
+	marco.Size = UDim2.fromScale(0.3, 0.1)
+	TweenService:Create(marco, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromScale(0.62, 0.21),
+	}):Play()
+	task.delay(0.9, function()
+		local salida = TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(marco, salida, { Position = UDim2.fromScale(0.5, 0.3) }):Play()
+		TweenService:Create(titulo, salida, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		TweenService:Create(cifra, salida, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		task.delay(0.6, function()
+			capa:Destroy()
+		end)
 	end)
 end
 

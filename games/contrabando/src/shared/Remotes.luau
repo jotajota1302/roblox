@@ -31,6 +31,11 @@ Remotes.USAR_SENUELO = "UsarSenuelo" -- cliente -> servidor: "suelto el cebo aqu
 -- paises distintos el servidor no tiene un idioma correcto que elegir.
 Remotes.AVISO = "Aviso"
 Remotes.SONIDO = "Sonido" -- servidor -> cliente: reproducir un efecto por su clave
+-- Servidor -> cliente: "acabas de entregar, y esto has cobrado". Va aparte del
+-- AVISO normal porque no es una linea mas de texto: es el unico momento en que el
+-- juego te da algo, y se merece la pantalla entera un segundo. Ver `Hud.entregado`.
+Remotes.ENTREGADO = "Entregado"
+
 -- servidor -> cliente: "acabas de coger un rayo". Va SIN datos: el estado ya
 -- viaja por SYNC_STATE y lo unico que hace falta aqui es el instante exacto, que
 -- es lo que no se puede deducir de un numero que cambia.

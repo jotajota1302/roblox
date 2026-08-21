@@ -1532,7 +1532,20 @@ local function contactos()
 			continue
 		end
 
-		local puntos: { Vector3 } = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
+		-- EL MISMO CAMINO QUE SE SEMBRO, con el almacen delante.
+		--
+		-- Esto medía contra `porCalles(salida, destino)` a secas mientras `CityBuilder`
+		-- siembra sobre `{ALMACEN} ++ porCalles(...)`. Dos caminos parecidos y no
+		-- iguales, que es la peor clase de sonda: mientras la verde fue una recta corta
+		-- daba verde, y en cuanto un destino sorteado la alargo empezo a cantar migas
+		-- "fuera del camino" que estaban exactamente donde tenian que estar.
+		--
+		-- Una sonda mide lo que se construyo. Si el camino sembrado cambia, este
+		-- tiene que cambiar con el -- por eso comparte la misma forma linea a linea.
+		local puntos: { Vector3 } = { Config.ALMACEN_POS }
+		for _, punto in Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino) do
+			table.insert(puntos, punto)
+		end
 
 		-- Tipo propio y no `Contacts.Contacto`: aquí hace falta además el ORDEN en que
 		-- se plantaron, que el módulo puro no tiene por qué conocer.

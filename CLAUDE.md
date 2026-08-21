@@ -315,6 +315,18 @@ Avisos verificados:
   parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
   bajando saltándose el árbol -- y con margen: cuatro rebotes se agotan donde hay dos
   árboles en la misma vertical.
+- **Una sonda que mide algo PARECIDO a lo que se construyo es peor que una que no
+  mide nada.** El rastro de migas se siembra sobre `{ALMACEN} ++ porCalles(salida,
+  destino)` y la sonda lo comprobaba contra `porCalles(salida, destino)` a secas: dos
+  caminos casi iguales. Mientras la ruta verde fue una recta corta dio verde siempre;
+  el dia que un destino sorteado la alargo, empezo a cantar *"solo 4 de 7 al alcance"*
+  senalando migas que estaban exactamente donde tenian que estar. Y la reaccion
+  natural --cambiar el sembrado para que coincida con la sonda-- **lo empeoro**: sacar
+  el almacen del camino descuadro el reparto entero, porque `Contacts.rastro`
+  descuenta `ZONA_SEGURA_RADIO` DESDE EL PRIMER PUNTO contando con que ese punto es el
+  almacen. Medido: de 4 de 7 a 2 de 5. **Se arregla en la sonda, no en el mundo**: la
+  sonda se adapta a lo que hay, y si el camino sembrado cambia, cambia con el.
+
 - **UNA pieza anclada soldada a un personaje ancla el ENSAMBLAJE ENTERO.** El cono de
   visión del ladrón se dibuja con `Cone.piezas`, compartido con la cámara -- y las
   cuñas nacían `Anchored = true`, que es lo correcto para una cámara y letal para

@@ -289,6 +289,10 @@ local TEXTOS: { [string]: string } = {
 	-- El regreso instantáneo tras entregar. Sustituye a CARGO_LOADED_RETURN, que
 	-- anunciaba la carga del viaje de vuelta: ya no hay viaje de vuelta.
 	CARGO_WARPED_HOME = "Delivered. Back at the warehouse.",
+	-- El cartelon del centro de la pantalla al entregar. Una palabra y la cifra: es
+	-- lo que se lee de un vistazo mientras el mundo se desvanece a tu alrededor.
+	DELIVERED_BANNER = "DELIVERED",
+	DELIVERED_AMOUNT = "+{monedas}",
 	CARGO_LEVEL_UP = "Level {nivel}!",
 	CARGO_EMPTY = "You are not carrying anything",
 	CARGO_NO_ROUTE_FAR = "You left with no route: go back to the warehouse exit",

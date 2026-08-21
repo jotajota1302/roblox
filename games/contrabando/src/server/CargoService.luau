@@ -17,6 +17,8 @@ local Config = require(game.ReplicatedStorage.Shared.Config)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
 local GoodsLook = require(game.ReplicatedStorage.Shared.GoodsLook)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
 local Rigs = require(game.ReplicatedStorage.Shared.Rigs)
@@ -621,6 +623,63 @@ local function volverACasa(player: Player)
 	char:PivotTo(CFrame.new(sitio))
 end
 
+-- EL DESTELLO DEL TRASLADO, en los dos extremos.
+--
+-- *"Que el traslado al inicio sea con un efecto"* (JJ). Hasta ahora el jugador
+-- entregaba y aparecia en el muelle DE GOLPE, sin nada entre una cosa y la otra: un
+-- corte seco se lee como un fallo, no como una comodidad. El aviso de texto llegaba
+-- 0,6 s despues, que es tarde -- para entonces ya te has asustado.
+--
+-- Dos ondas: una donde estabas y otra donde apareces. La de salida explica que te
+-- vas de ahi; la de llegada explica que has llegado, y ademas te dice donde mirar.
+--
+-- ANCLADO, SIN COLISION Y SIN CANQUERY, como todo lo que este juego planta a modo de
+-- efecto: una pieza con cuerpo apareciendo dentro del jugador es como se sale
+-- despedido del mapa, y una que responde a los rayos ensucia las sondas.
+local function ondaDeTraslado(donde: Vector3, tono: Color3)
+	local aro = Instance.new("Part")
+	aro.Name = "OndaTraslado"
+	aro.Shape = Enum.PartType.Cylinder
+	aro.Size = Vector3.new(0.6, 6, 6)
+	aro.CFrame = CFrame.new(donde - Vector3.new(0, 2, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	aro.Anchored = true
+	aro.CanCollide = false
+	aro.CanQuery = false
+	aro.CanTouch = false
+	aro.CastShadow = false
+	aro.Color = tono
+	aro.Material = Enum.Material.Neon
+	aro.Transparency = 0.15
+	aro.Parent = workspace
+	TweenService:Create(aro, TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.6, 26, 26),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(aro, 0.8)
+
+	-- Y una columna corta que sube: el aro solo dice "aqui", la columna dice "algo se
+	-- ha ido hacia arriba", que es lo que hace que se lea como un traslado y no como
+	-- un golpe.
+	local haz = Instance.new("Part")
+	haz.Name = "HazTraslado"
+	haz.Size = Vector3.new(3.4, 10, 3.4)
+	haz.Position = donde + Vector3.new(0, 4, 0)
+	haz.Anchored = true
+	haz.CanCollide = false
+	haz.CanQuery = false
+	haz.CanTouch = false
+	haz.CastShadow = false
+	haz.Color = tono
+	haz.Material = Enum.Material.Neon
+	haz.Transparency = 0.55
+	haz.Parent = workspace
+	TweenService:Create(haz, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.6, 22, 0.6),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(haz, 0.8)
+end
+
 -- El cobro en sí. No comprueba nada: quien llama ya lo ha hecho.
 local function cobrar(player: Player, destino: BasePart)
 	local estado = PlayerState.get(player)
@@ -721,7 +780,25 @@ local function cobrar(player: Player, destino: BasePart)
 	-- que se gana en el viaje se conserva, que es lo que hace que valga la pena.
 	estado.retornoZona = nil
 	estado.retorno = {}
+
+	-- El destello DONDE ESTABAS, antes de moverlo: despues de `volverACasa` la
+	-- posicion ya es la del muelle y la onda saldria en el sitio equivocado.
+	local char = player.Character
+	local raiz = char and char:FindFirstChild("HumanoidRootPart")
+	if raiz and raiz:IsA("BasePart") then
+		pcall(ondaDeTraslado, raiz.Position, Palette.AVISO_BUENO)
+	end
+
 	volverACasa(player)
+
+	-- Y el de llegada, con un pelo de retraso: en el mismo fotograma el jugador
+	-- todavia no se ha dibujado en su sitio nuevo y el aro sale de la nada.
+	task.delay(0.12, function()
+		local ahora = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if ahora and ahora:IsA("BasePart") then
+			pcall(ondaDeTraslado, ahora.Position, Palette.AVISO_BUENO)
+		end
+	end)
 
 	-- La velocidad, con el zurrón ya en su sitio y la racha a cero. Va aquí y no
 	-- antes porque `vaciar` la escribió cuando la racha todavía contaba: sin este
@@ -739,6 +816,10 @@ local function cobrar(player: Player, destino: BasePart)
 		valor = cobrado,
 	})
 	Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+	-- EL CARTELON, que es lo que de verdad marca el momento. Va por su propio remote
+	-- y no como un aviso mas: entregar es el unico instante en que el juego te da algo
+	-- y se anunciaba con la misma linea de tres segundos que usa "no llevas nada".
+	Remotes.event(Remotes.ENTREGADO):FireClient(player, cobrado)
 	-- Y se dice que ya estás en casa. Sin esto, el jugador cobra y aparece en otro
 	-- sitio de golpe sin que nada le explique por qué: un teletransporte que no se
 	-- anuncia se lee como un fallo, no como una comodidad.

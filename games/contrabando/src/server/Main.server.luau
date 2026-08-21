@@ -77,6 +77,35 @@ for clave, valor in Remotes :: any do
 	end
 end
 
+-- A DONDE SE ENTREGA EN ESTA PARTIDA, y va ANTES que todo lo demas.
+--
+-- *"La ruta verde parece que siempre es la misma, deberia ir cambiando de manera
+-- aleatoria"* (JJ). Los tres destinos eran constantes en `Config`, asi que la
+-- primera ruta del juego llevaba siempre al mismo portal, por la misma calle, con
+-- las migas en los mismos cuatro sitios.
+--
+-- El orden es lo que hace que esto sea barato: del destino cuelgan las migas, los
+-- detectores, las guaridas, los refugios, la casa de entrega y el GPS, y sortearlo
+-- DESPUES de construir obligaria a mover una docena de sistemas a la vez. Sorteado
+-- antes, todo se siembra ya en el sitio nuevo y ningun sistema se entera.
+--
+-- La semilla sale de la hora de arranque: cada servidor reparte distinto. Ver
+-- `Destinations.luau`.
+local Destinations = safeRequire("Destinations")
+if Destinations then
+	local ok, elegidos = pcall(Destinations.sortear, os.time())
+	if ok then
+		local partes = {}
+		for id, sitio in elegidos do
+			table.insert(partes, string.format("%s -> (%.0f, %.0f)", id, sitio.X, sitio.Z))
+		end
+		table.sort(partes)
+		print("[Contrabando] destinos de esta partida: " .. table.concat(partes, " | "))
+	else
+		warn("[Contrabando] no se pudieron sortear los destinos: " .. tostring(elegidos))
+	end
+end
+
 -- El mundo primero: la ciudad, y el juego encima.
 --
 -- HAY DOS FORMAS DE TENER CIUDAD Y NO PUEDEN CONVIVIR A LA VEZ:
