@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Goals = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Goals"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
+local Grid = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Grid"))
 local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Palette"))
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local Perimeter = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Perimeter"))
@@ -487,6 +488,30 @@ local function dondeSeEntrega(rutaId: string, porDefecto: Vector3): Vector3
 	return if mostrador then mostrador.Position else porDefecto
 end
 
+-- HACIA DONDE HAY QUE TIRAR AHORA MISMO, que no es lo mismo que donde esta el
+-- destino.
+--
+-- La brujula apuntaba en linea recta, y en una ciudad eso senala A TRAVES de una
+-- manzana que no puedes atravesar: sigues la flecha, te comes un edificio y acabas
+-- rodeando a ciegas. JJ lo pidio junto al GPS del plano -- *"arriba una pequena
+-- brujula para saber por donde deberia ir ahora mismo"*.
+--
+-- Se apunta al SIGUIENTE VERTICE de la misma ruta que dibuja el minimapa, que si es
+-- alcanzable en linea recta. La distancia que se ensena sigue siendo la del destino
+-- final: lo que cambia es la direccion, porque es la unica de las dos que se usa
+-- para decidir hacia donde correr.
+local function haciaDondeTirar(rutaId: string, meta: Vector3): Vector3
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root == nil then
+		return meta
+	end
+	local ok, paso = pcall(function()
+		return Grid.siguientePaso(Grid.rutaGps(root.Position, meta), root.Position, 14)
+	end)
+	return if ok and paso then paso else meta
+end
+
 local function apuntarBrujula(estado: any)
 	if estado == nil then
 		return
@@ -513,10 +538,12 @@ local function apuntarBrujula(estado: any)
 	if estado.ruta ~= nil then
 		local ok, ruta = pcall(Routes.get, estado.ruta)
 		if ok and ruta then
+			local meta = dondeSeEntrega(ruta.id, ruta.destino)
 			Compass.apuntar(
-				dondeSeEntrega(ruta.id, ruta.destino),
+				haciaDondeTirar(ruta.id, meta),
 				Strings.get("COMPASS_DROP", { ruta = Strings.ref("ROUTE_" .. ruta.id) }),
-				Palette.ruta(ruta.id)
+				Palette.ruta(ruta.id),
+				meta
 			)
 			return
 		end

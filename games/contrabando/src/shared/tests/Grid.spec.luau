@@ -125,4 +125,56 @@ return function(kit)
 		Grid.COLUMNAS * Grid.LADO_MANZANA + (Grid.COLUMNAS + 1) * Grid.ANCHO_CALLE
 	)
 	kit.eq("y el largo de las filas", zMax - zMin, Grid.FILAS * Grid.LADO_MANZANA + (Grid.FILAS + 1) * Grid.ANCHO_CALLE)
+
+	-- LA RUTA DEL GPS. Lo que la hace un GPS y no un dibujo es que EMPIEZA DONDE
+	-- ESTAS: si el primer punto no eres tu, la linea del plano se queda quieta
+	-- mientras el jugador se mueve, y entonces solo acierta si vas por donde ella
+	-- creia. Eso es una ilustracion, no una guia.
+	local yo = Vector3.new(Grid.xDeCalle(1) + 30, Grid.Y, Grid.zDeCalle(2) + 10)
+	local meta = Grid.cruce(3, 0)
+	local ruta = Grid.rutaGps(yo, meta)
+	kit.truthy("la ruta tiene al menos dos puntos", #ruta >= 2)
+	kit.near("empieza donde estas (X)", ruta[1].X, yo.X, 0.01)
+	kit.near("y donde estas (Z)", ruta[1].Z, yo.Z, 0.01)
+	kit.near("acaba en el destino (X)", ruta[#ruta].X, meta.X, 0.01)
+	kit.near("y en el destino (Z)", ruta[#ruta].Z, meta.Z, 0.01)
+
+	-- CADA TRAMO VA POR UN SOLO EJE. Un tramo en diagonal en una reticula significa
+	-- cruzar por dentro de una manzana: el plano estaria dibujando un camino que no
+	-- existe, que es peor que no dibujar ninguno.
+	local diagonales = 0
+	for i = 2, #ruta do
+		local a, b = ruta[i - 1], ruta[i]
+		if math.abs(a.X - b.X) > 0.5 and math.abs(a.Z - b.Z) > 0.5 then
+			diagonales += 1
+		end
+	end
+	kit.eq("ningun tramo va en diagonal", diagonales, 0)
+
+	-- Y NINGUN TRAMO DE LONGITUD CERO: no se pueden dibujar y ademas rompen la
+	-- cuenta del siguiente giro, que es lo que mira la brujula.
+	local vacios = 0
+	for i = 2, #ruta do
+		if (ruta[i] - ruta[i - 1]).Magnitude < 1 then
+			vacios += 1
+		end
+	end
+	kit.eq("ni ninguno de longitud cero", vacios, 0)
+
+	-- ESTANDO YA EN UNA CALLE no hay que apartarse: la ruta no debe empezar con un
+	-- quiebro absurdo hacia el lado.
+	local enCalle = Vector3.new(Grid.xDeCalle(1), Grid.Y, Grid.zDeCalle(2) + 40)
+	local recta = Grid.rutaGps(enCalle, Grid.cruce(1, 0))
+	kit.eq("desde una calle recta, la ruta es un solo tramo", #recta, 2)
+
+	-- EL SIGUIENTE PASO es el vertice al que hay que ir AHORA, no el destino final.
+	-- Apuntar en linea recta al destino es lo que hacia la brujula, y en una ciudad
+	-- eso senala a traves de una manzana que no puedes atravesar.
+	local paso = Grid.siguientePaso(ruta, yo, 12)
+	kit.truthy("hay un siguiente paso", paso ~= nil)
+	kit.truthy("y no es el destino mientras queden giros", #ruta <= 2 or (paso :: Vector3) ~= ruta[#ruta])
+	-- Pegado al final, el siguiente paso ES el final: si no, la brujula se quedaria
+	-- apuntando a un vertice que ya has pisado.
+	local casi = ruta[#ruta] - Vector3.new(0, 0, 3)
+	kit.eq("al lado del destino, el paso es el destino", Grid.siguientePaso(ruta, casi, 12), ruta[#ruta])
 end

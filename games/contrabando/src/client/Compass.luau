@@ -38,6 +38,9 @@ local distancia: TextLabel? = nil
 -- estado: con ruta elegida, el destino; sin ella, el almacén, porque volver a por
 -- más es la otra mitad del bucle y también hay que saber por dónde se vuelve.
 local objetivo: Vector3? = nil
+-- A donde se va de verdad, si es distinto de a donde apunta la flecha. Ver
+-- `Compass.apuntar`.
+local cuantoFalta: Vector3? = nil
 local etiqueta = ""
 local tono = UiKit.PAPEL
 
@@ -136,8 +139,17 @@ function Compass.build()
 	end)
 end
 
-function Compass.apuntar(destino: Vector3?, nombre: string, color: Color3?)
+-- `haciaDonde` es a donde APUNTA la flecha y `meta` a donde se va de verdad.
+--
+-- Son dos cosas distintas desde que la flecha senala el siguiente giro y no el
+-- destino: la direccion tiene que ser alcanzable en linea recta --si no, apunta a
+-- traves de un edificio-- pero la DISTANCIA que se ensena tiene que ser la que
+-- falta para llegar, o el numero bajaria a cero en cada esquina y volveria a subir.
+-- Sin `meta` se comporta como antes, que es lo que hacen las llamadas de casa y de
+-- la salida.
+function Compass.apuntar(destino: Vector3?, nombre: string, color: Color3?, meta: Vector3?)
 	objetivo = destino
+	cuantoFalta = meta
 	etiqueta = nombre
 	tono = color or UiKit.PAPEL
 end
@@ -177,7 +189,13 @@ function Compass.refrescar()
 
 	local haciaAlla = destino - root.Position
 	local plano = Vector3.new(haciaAlla.X, 0, haciaAlla.Z)
-	if plano.Magnitude < 1 then
+	-- LO QUE FALTA se mide contra la META, no contra el vertice al que apunta la
+	-- flecha. Si se midiera contra el vertice, el numero bajaria a cero en cada
+	-- esquina y volveria a subir -- y un contador que sube al avanzar destruye lo
+	-- unico que un numero puede aportar aqui, que es saber si te acercas.
+	local hastaElFinal = cuantoFalta or destino
+	local restan = Vector3.new(hastaElFinal.X - root.Position.X, 0, hastaElFinal.Z - root.Position.Z).Magnitude
+	if plano.Magnitude < 1 and restan < 6 then
 		if distancia then
 			distancia.Text = Strings.get("COMPASS_HERE")
 		end
@@ -202,7 +220,7 @@ function Compass.refrescar()
 		-- En "m" aunque sean studs: es la unidad que el jugador entiende, y el
 		-- número absoluto da igual mientras sea consistente. Lo que se lee es si
 		-- baja.
-		distancia.Text = Strings.get("COMPASS_METERS", { metros = math.floor(plano.Magnitude) })
+		distancia.Text = Strings.get("COMPASS_METERS", { metros = math.floor(restan) })
 	end
 end
 

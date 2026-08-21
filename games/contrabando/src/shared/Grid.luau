@@ -230,4 +230,87 @@ function Grid.porCalles(desde: Vector3, hasta: Vector3): { Vector3 }
 	}
 end
 
+-- LA RUTA COMO LA DARIA UN GPS: desde DONDE ESTAS, no desde la puerta de casa.
+--
+-- Lo pidio JJ el 20/08 y describio exactamente lo que faltaba: *"el mapa de abajo
+-- deberia ensenar el punto de entrega y la ruta dinamica hasta el, segun por donde
+-- decida ir, asi no me pierdo, como si fuera un GPS del coche"*.
+--
+-- Lo que habia era una L fija de la salida del recinto al destino, calculada una
+-- vez. Servia mientras se saliera de casa y no se uno se desviara, y en cuanto te
+-- salias no volvia a decir nada: la linea seguia donde estaba y tu no. Un plano que
+-- solo acierta si vas por donde el creia no es una guia, es una ilustracion.
+--
+-- COMO SE TRAZA. Primero se sale a la CALLE MAS CERCANA --por el eje en el que
+-- menos hay que andar-- y desde ahi se va por calles hasta la vertical del destino,
+-- y por ella hasta el. Es la misma L de siempre pero anclada a la reticula en vez
+-- de al aire: la diferencia esta en que ahora el primer punto eres tu.
+--
+-- Se queda en dos giros como maximo a proposito. Un camino optimo de verdad pediria
+-- pathfinding, y eso en un plano de 190 pixeles se ve igual y cuesta cien veces
+-- mas; lo que el jugador necesita saber es "tira por esta calle y luego gira", que
+-- es justo lo que dibujan tres tramos.
+function Grid.rutaGps(desde: Vector3, hasta: Vector3): { Vector3 }
+	local y = Grid.Y
+	local aqui = Vector3.new(desde.X, y, desde.Z)
+	local alli = Vector3.new(hasta.X, y, hasta.Z)
+
+	-- La calle mas cercana de cada eje, y cuanto hay que apartarse para pisarla.
+	local mejorX, distX = aqui.X, math.huge
+	for i = 0, Grid.COLUMNAS do
+		local x = Grid.xDeCalle(i)
+		if math.abs(x - aqui.X) < distX then
+			mejorX, distX = x, math.abs(x - aqui.X)
+		end
+	end
+	local mejorZ, distZ = aqui.Z, math.huge
+	for j = 0, Grid.FILAS do
+		local z = Grid.zDeCalle(j)
+		if math.abs(z - aqui.Z) < distZ then
+			mejorZ, distZ = z, math.abs(z - aqui.Z)
+		end
+	end
+
+	local puntos: { Vector3 } = { aqui }
+	if distX <= distZ then
+		-- Estas mas cerca de una calle VERTICAL: se sale a ella y se baja por ella.
+		table.insert(puntos, Vector3.new(mejorX, y, aqui.Z))
+		table.insert(puntos, Vector3.new(mejorX, y, alli.Z))
+	else
+		-- O de una HORIZONTAL: se sale a ella y se avanza por ella.
+		table.insert(puntos, Vector3.new(aqui.X, y, mejorZ))
+		table.insert(puntos, Vector3.new(alli.X, y, mejorZ))
+	end
+	table.insert(puntos, alli)
+
+	-- Se quitan los puntos repetidos: un tramo de longitud cero no se puede dibujar
+	-- y ademas rompe la cuenta del "siguiente giro", que es lo que mira la brujula.
+	local limpio: { Vector3 } = { puntos[1] }
+	for i = 2, #puntos do
+		local ultimo = limpio[#limpio]
+		if (puntos[i] - ultimo).Magnitude > 1 then
+			table.insert(limpio, puntos[i])
+		end
+	end
+	return limpio
+end
+
+-- HACIA DONDE HAY QUE TIRAR AHORA MISMO: el siguiente punto de la ruta que no
+-- tengas ya encima. Es lo que convierte la brujula en la voz del GPS -- *"arriba
+-- una pequena brujula para saber por donde deberia ir ahora mismo"*.
+--
+-- Apuntar en linea recta al destino es lo que hacia antes, y es justo lo que no
+-- sirve en una ciudad: la flecha senala a traves de una manzana y tu no puedes
+-- atravesarla. El siguiente vertice si es alcanzable en linea recta.
+function Grid.siguientePaso(ruta: { Vector3 }, desde: Vector3, cerca: number?): Vector3?
+	local umbral = cerca or 12
+	for i = 2, #ruta do
+		local d = Vector3.new(ruta[i].X - desde.X, 0, ruta[i].Z - desde.Z).Magnitude
+		if d > umbral then
+			return ruta[i]
+		end
+	end
+	return ruta[#ruta]
+end
+
 return Grid

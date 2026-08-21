@@ -50,7 +50,7 @@ local MINIMO_LADO = 14
 local Minimap = {}
 local marco: Frame? = nil
 local lienzo: Frame? = nil
-local puntos: { [string]: Frame } = {}
+local puntos: { [string]: any } = {}
 local estado: any = nil
 local origenMapa = Vector2.new(0, 0)
 local tamanoMapa = Vector2.new(1, 1)
@@ -153,12 +153,17 @@ local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
 
 	-- El asfalto de la ciudad. Lo que no tape una manzana es calle: es la convención
 	-- de cualquier plano --lo claro es por donde se pasa-- y no necesita leyenda.
-	rect("Asfalto", gx0, gx1, gz0, gz1, Color3.fromRGB(196, 198, 204), 1)
+	-- MAS CLARO QUE ANTES. En la captura del 20/08 el plano era una rejilla de
+	-- cuadrados que apenas se distinguian del fondo del panel: *"no se ve nada"*. Lo
+	-- que separa un plano legible de una mancha es el CONTRASTE entre lo que se pisa
+	-- y lo que no, y 196 sobre un fondo de 22 no llegaba porque las manzanas (58) se
+	-- comian el hueco. Asfalto casi blanco y manzanas casi negras.
+	rect("Asfalto", gx0, gx1, gz0, gz1, Color3.fromRGB(224, 226, 232), 1)
 
 	for col = 0, Grid.COLUMNAS - 1 do
 		for fila = 0, Grid.FILAS - 1 do
 			local x0, x1, z0, z1 = Grid.manzana(col, fila)
-			rect(string.format("Manzana_%d_%d", col, fila), x0, x1, z0, z1, Color3.fromRGB(58, 62, 74), 2)
+			rect(string.format("Manzana_%d_%d", col, fila), x0, x1, z0, z1, Color3.fromRGB(34, 36, 44), 2)
 		end
 	end
 
@@ -230,7 +235,28 @@ function Minimap.build()
 	-- clavarlo en el centro obligaba a mover la ciudad debajo y eso escondía la mitad
 	-- de lo que hace falta ver -- dónde está uno RESPECTO al destino, que es la única
 	-- pregunta que se le hace a un plano mientras se corre.
-	local yo = punto("Yo", Color3.fromRGB(255, 255, 255), 9, 8)
+	-- TU, COMO UNA FLECHA QUE MIRA. Eras un punto blanco de nueve pixeles, y un punto
+	-- dice donde estas pero no hacia donde vas -- que es la mitad de la pregunta
+	-- cuando lo que quieres saber es si estas yendo bien. En un GPS de coche el
+	-- cursor SIEMPRE es una flecha, y no por gusto.
+	--
+	-- Es un triangulo hecho con un ImageLabel del propio cliente (`rbxasset://`, de
+	-- los que no hay que publicar) y girado con la camara. Mas grande que antes: 16
+	-- pixeles, porque el cursor es lo primero que hay que encontrar en el plano.
+	local yo = puntos["Yo"]
+	if yo == nil or yo.Parent == nil then
+		local f = Instance.new("ImageLabel")
+		f.Name = "Yo"
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Size = UDim2.fromOffset(18, 18)
+		f.BackgroundTransparency = 1
+		f.Image = "rbxasset://textures/ui/Controls/DirectionalIndicator.png"
+		f.ImageColor3 = Color3.fromRGB(255, 255, 255)
+		f.ZIndex = 9
+		f.Parent = marco
+		puntos["Yo"] = f :: any
+		yo = f :: any
+	end
 	yo.Visible = true
 
 	-- A 12 Hz, no en cada fotograma: los puntos se desplazan menos de un píxel
@@ -287,33 +313,46 @@ local caminoDe: string? = nil
 -- se lee de un vistazo sin tapar la reticula de debajo.
 local CAMINO_GRUESO = 22
 
-local function pintarCamino(capa: Frame, rutaId: string?)
-	if caminoDe == rutaId and #caminos > 0 then
+-- LA RUTA VIVA, recalculada desde DONDE ESTAS.
+--
+-- Lo pidio JJ y describio exactamente lo que faltaba: *"el mapa de abajo deberia
+-- ensenar el punto de entrega y la ruta dinamica hasta el, segun por donde decida
+-- ir, asi no me pierdo, como si fuera un GPS del coche"*.
+--
+-- Lo que habia era una L fija de la puerta de casa al destino, calculada UNA vez.
+-- Servia mientras no te desviaras, y en cuanto lo hacias no volvia a decir nada: la
+-- linea seguia donde estaba y tu no. Un plano que solo acierta si vas por donde el
+-- creia es una ilustracion, no una guia.
+--
+-- Se repinta cuando te has movido lo suficiente (`PASO_REPINTADO`) y no en cada
+-- vuelta: son cuatro Frames destruidos y creados, y hacerlo doce veces por segundo
+-- en un movil de gama baja se nota. Quince studs es menos de un carril, asi que la
+-- linea nunca se queda visiblemente atras.
+local PASO_REPINTADO = 15
+local ultimoTrazado: Vector3? = nil
+
+local function pintarCamino(capa: Frame, rutaId: string?, desde: Vector3, hasta: Vector3?)
+	local mismaRuta = caminoDe == rutaId
+	local cerca = ultimoTrazado ~= nil and (desde - (ultimoTrazado :: Vector3)).Magnitude < PASO_REPINTADO
+	if mismaRuta and cerca and #caminos > 0 then
 		return
 	end
 	caminoDe = rutaId
+	ultimoTrazado = desde
 	for _, f in caminos do
 		f:Destroy()
 	end
 	caminos = {}
-	if rutaId == nil then
-		return
-	end
-	local ok, ruta = pcall(Routes.get, rutaId)
-	if not ok or ruta == nil then
+	if rutaId == nil or hasta == nil then
 		return
 	end
 
-	local tramos = Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino)
+	local tramos = Grid.rutaGps(desde, hasta)
 	local color = Palette.ruta(rutaId)
 	for i = 2, #tramos do
 		local a, b = tramos[i - 1], tramos[i]
 		local x0, x1 = math.min(a.X, b.X), math.max(a.X, b.X)
 		local z0, z1 = math.min(a.Z, b.Z), math.max(a.Z, b.Z)
-		-- LOS TRAMOS DE LONGITUD CERO NO SE DIBUJAN. El camino en L de una ruta RECTA
-		-- --la verde va derecha al sur-- tiene el segundo tramo vacio, porque la esquina
-		-- coincide con el destino. Pintarlo dejaba un cuadradito de tres pixeles clavado
-		-- encima de la diana: no informa de nada y parece suciedad. Medido jugando.
 		if (x1 - x0) < 1 and (z1 - z0) < 1 then
 			continue
 		end
@@ -325,18 +364,11 @@ local function pintarCamino(capa: Frame, rutaId: string?)
 		f.Position = aEscala((x0 + x1) / 2, (z0 + z1) / 2)
 		f.Size = UDim2.fromScale(anchoX / tamanoMapa.X, anchoZ / tamanoMapa.Y)
 		f.BackgroundColor3 = color
-		-- OPACO Y POR ENCIMA DEL PLANO. Nacio discreto --0,45 de transparencia y el
-		-- ZIndex mas bajo de todos-- porque en el suelo habia una franja pintada del
-		-- color de la ruta y esto era su eco. Desde el 20/08 esa franja no existe:
-		-- *"con que salga la ruta en el plano del mapa es suficiente, y asi no
-		-- contaminamos el mapa real"*. O sea que esta linea ya no acompana a la guia,
-		-- ES la guia, y una guia no puede ser lo mas tenue del panel.
-		--
-		-- Por debajo de los puntos (destino, refugios, tu) para no taparlos, y por
-		-- encima de la reticula, que es lo unico que hay que pisar.
-		f.BackgroundTransparency = 0.1
+		-- OPACA Y POR ENCIMA DEL PLANO: esta linea ya no acompana a ninguna guia, ES
+		-- la guia, y una guia no puede ser lo mas tenue del panel.
+		f.BackgroundTransparency = 0
 		f.BorderSizePixel = 0
-		f.ZIndex = 2
+		f.ZIndex = 3
 		f.Parent = capa
 		table.insert(caminos, f)
 	end
@@ -386,6 +418,21 @@ function Minimap.refrescar()
 	-- Y el jugador, en su sitio del plano.
 	local yo = puntos["Yo"]
 	if yo then
+		-- GIRADA HACIA DONDE MIRA LA CAMARA, y AQUI y no en `build`: build corre una
+		-- sola vez, asi que la flecha se quedaba clavada en la orientacion que tuviera
+		-- al arrancar la partida. Medido girando la camara a los cuatro puntos
+		-- cardinales: cero grados en los cuatro. Una flecha que no gira es un punto
+		-- gordo, y para eso ya estaba el punto.
+		--
+		-- La camara y no el personaje: lo que el jugador entiende por "hacia delante"
+		-- es lo que tiene en pantalla.
+		local cam = workspace.CurrentCamera
+		if cam and yo:IsA("ImageLabel") then
+			local mira = cam.CFrame.LookVector
+			-- El plano tiene el norte arriba, o sea -Z hacia arriba: el angulo sale de
+			-- atan2 con la Z invertida, o la flecha giraria al reves.
+			yo.Rotation = math.deg(math.atan2(mira.X, -mira.Z))
+		end
 		-- CON `aPantalla` Y NO CON `aEscala`, que es la diferencia entre verse y no
 		-- verse. El plano es SOLO la ciudad, y el almacen esta fuera de la reticula
 		-- --250 studs mas al sur-- asi que estando en casa tu punto caia en Y=1,09,
@@ -402,7 +449,13 @@ function Minimap.refrescar()
 	local rutaEnCurso = estado and estado.ruta
 
 	-- El camino que estas haciendo, por debajo de todo lo demas.
-	pintarCamino(capa, rutaEnCurso)
+	local metaDeRuta = if rutaEnCurso ~= nil
+		then (function(): Vector3?
+			local ok, suya = pcall(Routes.get, rutaEnCurso)
+			return if ok and suya then dondeSeEntrega(rutaEnCurso, suya.destino) else nil
+		end)()
+		else nil
+	pintarCamino(capa, rutaEnCurso, centro, metaDeRuta)
 
 	-- SIN EL PUNTO DE CASA. Estaba fuera del plano desde que el plano es solo la
 	-- ciudad, asi que lo unico que hacia era pegarse al borde de arriba y competir con
