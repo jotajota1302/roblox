@@ -82,29 +82,18 @@ function Cone.piezas(base: CFrame, mitad: number, largo: number, color: Color3, 
 		end
 	end
 
-	-- LOS DOS BORDES, finos y mas claros. El relleno dice "por aqui te ven" y el
-	-- borde dice DONDE DEJA DE VERTE, que es la linea que el jugador tiene que
-	-- calcular para pasar por detras. Sin ella el limite se difumina justo donde
-	-- importa que sea nitido.
-	for _, signo in { 1, -1 } do
-		local borde = Instance.new("Part")
-		borde.Name = "VistaBorde"
-		borde.Size = Vector3.new(0.5, 0.1, largo)
-		-- ACLARADO POCO. Con +0,35 el neon lo empujaba fuera de rango y los dos bordes
-		-- salian BLANCOS: dejaban de pertenecer al cono y parecian dos barras sueltas,
-		-- que es de donde se viene. Con +0,12 sigue siendo el mismo naranja, mas vivo.
-		borde.Color = Color3.new(math.min(1, color.R + 0.12), math.min(1, color.G + 0.12), math.min(1, color.B + 0.12))
-		borde.Material = Enum.Material.Neon
-		borde.Transparency = math.max(0, transparencia - 0.45)
-		borde.Anchored = true
-		borde.CanCollide = false
-		borde.CanQuery = false
-		borde.CanTouch = false
-		borde.CastShadow = false
-		borde.Massless = true
-		borde.CFrame = base * CFrame.Angles(0, math.rad(mitad * signo), 0) * CFrame.new(0, 0.15, -largo / 2)
-		table.insert(salida, borde)
-	end
+	-- AQUI HABIA DOS BORDES, dos barras neon finas a lo largo de los limites del
+	-- sector. La idea era buena: el relleno dice "por aqui te ven" y el borde dice
+	-- DONDE DEJA DE VERTE, que es la linea que hay que calcular para pasar por detras.
+	--
+	-- Y en pantalla salio al reves. Son 45 camaras, o sea NOVENTA barras amarillas
+	-- tiradas por las calles, y a la distancia a la que se juega una barra fina y
+	-- brillante no se lee como el canto de una mancha: se lee como un objeto suelto.
+	-- JJ, mirando el suelo: *"sigue teniendo rectangulos amarillos que no se para que
+	-- estan"*.
+	--
+	-- El sector relleno ya tiene bordes -- los suyos. Y quien lo mira tiene la camara
+	-- justo en el vertice diciendo de quien es. No hacia falta subrayarlo.
 
 	return salida
 end

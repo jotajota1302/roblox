@@ -838,6 +838,24 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 			if (cruce - Config.ALMACEN_POS).Magnitude <= Config.ZONA_SEGURA_RADIO + 30 then
 				continue
 			end
+			-- NI CERCA DEL RECINTO, y esto es mas fuerte que lo de arriba.
+			--
+			-- El circulo de la zona segura sale del ALMACEN, que no esta centrado en el
+			-- recinto: medido el 21/08 quedaban DOS camaras dentro del poligono y VEINTE
+			-- conos pisandolo. Y JJ dio con la pregunta correcta: *"por que hay camaras
+			-- en la zona que esta fuera del tablero de juego? La parte de vehiculos y
+			-- almacen deberia estar fuera del mapa y no haber ahi nada"*.
+			--
+			-- Tiene razon y no es solo estetico: dentro del recinto el calor se apaga
+			-- entero, asi que una camara ahi no puede fichar a nadie. Es una amenaza
+			-- que no amenaza -- lo peor que puede haber en un mapa, porque ensena al
+			-- jugador que las senales de peligro no significan nada.
+			--
+			-- El margen es el alcance del cono: no basta con que la camara este fuera,
+			-- tiene que estarlo su vision.
+			if Perimeter.dentro(cruce, Config.DETECTOR_RADIO + 10) then
+				continue
+			end
 			local sobreDestino = false
 			for _, ruta in Config.RUTAS do
 				if (Vector2.new(cruce.X, cruce.Z) - Vector2.new(ruta.destino.X, ruta.destino.Z)).Magnitude < 60 then
