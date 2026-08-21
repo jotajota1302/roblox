@@ -26,8 +26,11 @@
 
 local Players = game:GetService("Players")
 
+local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local MeshCatalog = require(game.ReplicatedStorage.Shared.MeshCatalog)
+local Palette = require(game.ReplicatedStorage.Shared.Palette)
+local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 
 local RESPAWN_SEGUNDOS = 4
 
@@ -172,10 +175,99 @@ local function vigilarMuerte(player: Player)
 	end)
 end
 
+-- EL GUARDIÁN DE LOS LÍMITES. Ver la cabecera de `Bounds.luau`: hay un fallo sin
+-- reproducir que saca al jugador del mundo (*"cuando llego al medio desaparezco"*,
+-- con la brújula marcando 255 km EN HORIZONTAL). No se ha encontrado la causa
+-- leyendo el código, así que mientras tanto se le pone una red.
+--
+-- NO CURA EL FALLO Y NO PRETENDE HACERLO. Lo que hace son dos cosas que sí valen:
+-- que dejes de perder la partida cuando pasa, y --la importante-- DEJAR CONSTANCIA.
+-- Hoy el fallo es invisible: `get_console_output` se cuelga, el personaje se
+-- destruye a -500 y no queda ni rastro de por dónde iba. Cuando vuelva a pasar,
+-- esta línea de consola dirá desde dónde salió, a qué velocidad y con qué encima,
+-- que es exactamente lo que falta para cerrar el diagnóstico.
+--
+-- SE VUELVE AL ÚLTIMO SITIO BUENO, no al almacén. Devolver a casa castigaría al
+-- jugador por un fallo nuestro: perdería el viaje entero. El último sitio bueno es
+-- de hace un segundo como mucho, así que se pierde un paso.
+local ultimoBueno: { [Player]: Vector3 } = {}
+local avisadoDelFallo = false
+
+local function rescatar(player: Player, root: BasePart, motivo: string)
+	local char = player.Character
+	if char == nil then
+		return
+	end
+
+	local vuelta = ultimoBueno[player]
+	local sitio = if vuelta then vuelta + Vector3.new(0, 4, 0) else Config.ALMACEN_POS + Vector3.new(0, 6, 40)
+
+	-- Una sola vez por sesión, pero que se oiga: si esto sale por consola es que el
+	-- fallo existe de verdad y hay por dónde tirar. El detalle va todo junto porque
+	-- la segunda vez no se imprime.
+	if not avisadoDelFallo then
+		avisadoDelFallo = true
+		warn(
+			string.format(
+				"[Contrabando] jugador FUERA DEL MUNDO (%s): %s estaba en %s, velocidad %.1f, ultimo sitio bueno %s",
+				motivo,
+				player.Name,
+				tostring(root.Position),
+				root.AssemblyLinearVelocity.Magnitude,
+				tostring(vuelta)
+			)
+		)
+	end
+
+	-- El modelo entero con PivotTo, y NO el CFrame de la raíz: el personaje es
+	-- propiedad de red del cliente y escribirle la posición pieza a pieza se
+	-- revierte en cuanto el cliente manda su siguiente actualización. Es la misma
+	-- lección que ya pagó el regreso al almacén de CargoService.
+	char:PivotTo(CFrame.new(sitio))
+	-- Y se le para en seco: si lo que le sacó del mapa fue la física, devolverlo
+	-- con la velocidad puesta lo saca otra vez al instante siguiente.
+	pcall(function()
+		root.AssemblyLinearVelocity = Vector3.zero
+	end)
+
+	pcall(function()
+		Remotes.event(Remotes.AVISO):FireClient(player, "RESCUE_BACK", nil, Palette.AVISO_MALO)
+	end)
+end
+
+local function vigilarLimites()
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for _, player in Players:GetPlayers() do
+				local char = player.Character
+				local root = char and char:FindFirstChild("HumanoidRootPart")
+				if root and root:IsA("BasePart") then
+					local motivo = Bounds.fuera(root.Position)
+					if motivo then
+						-- Cada rescate va en su propio pcall: que uno falle no puede
+						-- dejar sin vigilancia a los demás jugadores ni matar el bucle.
+						-- Un guardián que se muere en silencio es peor que no tenerlo.
+						pcall(rescatar, player, root, motivo)
+					else
+						ultimoBueno[player] = root.Position
+					end
+				end
+			end
+		end
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		ultimoBueno[player] = nil
+	end)
+end
+
 function Avatar.start()
 	-- Queda apagado a propósito y para siempre: esta es la única puerta por la que
 	-- se crea un personaje en este juego.
 	Players.CharacterAutoLoads = false
+
+	vigilarLimites()
 
 	Players.PlayerAdded:Connect(function(player)
 		vigilarMuerte(player)

@@ -39,6 +39,7 @@ local PathfindingService = game:GetService("PathfindingService")
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
+local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Economy = require(game.ReplicatedStorage.Shared.Economy)
 local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
@@ -1659,6 +1660,129 @@ end
 -- puede estimar a ojo porque depende de tres cosas a la vez: qué sale del almacén,
 -- cuánto cabe en cada vehículo y qué paga cada ruta.
 --------------------------------------------------------------------------------
+-- LOS LIMITES DEL MUNDO. Compañera del guardián de `Avatar.luau`: él caza al
+-- jugador que se sale, y esto caza lo que PLANTAMOS nosotros fuera.
+--
+-- Mide el mundo, que es la regla de esta batería: no comprueba que la caja esté
+-- bien calculada --de eso se encargan las pruebas puras de Bounds-- sino que cada
+-- pieza que el juego construye cae dentro de ella. Si un día un destino, un
+-- recogible o un refugio acaba en el vacío, esto lo dice; y si lo que acaba fuera
+-- es el punto de aparición, entonces el guardián devolvería al jugador a un sitio
+-- del que le volvería a sacar, que es la única forma que tiene una red de
+-- seguridad de empeorar las cosas.
+local function limites()
+	local m = mundo()
+	if m == nil then
+		comprobar("los limites del mundo", false, "no hay workspace.Mundo")
+		return
+	end
+
+	local fuera = 0
+	local primero = ""
+	for _, pieza in m:GetDescendants() do
+		-- La red de seguridad NO cuenta: vive por debajo del fondo a propósito, que
+		-- es justo lo que la hace útil. Se comprueba aparte, y comprobando lo que de
+		-- verdad importa de ella, que es si CUBRE la caja.
+		if pieza:IsA("BasePart") and pieza.Name ~= "Red" then
+			local motivo = Bounds.fuera(pieza.Position)
+			if motivo then
+				fuera += 1
+				if primero == "" then
+					primero = string.format("%s (%s) en %s", pieza.Name, motivo, tostring(pieza.Position))
+				end
+			end
+		end
+	end
+	comprobar(
+		"nada del mundo cae fuera de los limites",
+		fuera == 0,
+		string.format("%d piezas fuera, p.ej. %s", fuera, primero)
+	)
+
+	-- LA RED TIENE QUE TAPAR LA CAJA ENTERA. Es la comprobación que faltaba cuando
+	-- la red estaba centrada en el origen del mundo y el mapa no: medido entonces,
+	-- 31 de 961 puntos del mapa no tenían red debajo -- el borde sur del recinto,
+	-- que es donde empieza cada partida. Caerse ahí sí mataba.
+	local red = m:FindFirstChild("Red")
+	if red and red:IsA("BasePart") then
+		local x0, x1, z0, z1 = Bounds.caja()
+		local rx0, rx1 = red.Position.X - red.Size.X / 2, red.Position.X + red.Size.X / 2
+		local rz0, rz1 = red.Position.Z - red.Size.Z / 2, red.Position.Z + red.Size.Z / 2
+		comprobar(
+			"la red de seguridad tapa la caja entera",
+			rx0 <= x0 and rx1 >= x1 and rz0 <= z0 and rz1 >= z1,
+			string.format(
+				"red X[%.0f..%.0f] Z[%.0f..%.0f] contra caja X[%.0f..%.0f] Z[%.0f..%.0f]",
+				rx0,
+				rx1,
+				rz0,
+				rz1,
+				x0,
+				x1,
+				z0,
+				z1
+			)
+		)
+		comprobar(
+			"y esta por debajo del fondo del guardian",
+			red.Position.Y < Bounds.fondo(),
+			string.format("red en %.0f, fondo en %.0f", red.Position.Y, Bounds.fondo())
+		)
+	else
+		comprobar("hay red de seguridad bajo el mapa", false, "sin ella, caerse mata a -500")
+	end
+
+	-- Y QUE NO HAYA AGUJEROS EN EL SUELO. La sonda que faltaba, y que costó el fallo
+	-- más caro de este mapa: el suelo base se paraba 78 studs antes que el recinto y
+	-- alrededor del sitio donde empieza cada partida no había NADA. Caerse por ahí
+	-- no mata --hay red-- y no da ningún error: te deja tumbado a -90, andando por
+	-- debajo del mapa, y desde arriba parece que has desaparecido.
+	--
+	-- PASO DE 12 Y NO DE 20: un personaje mide 2 studs de ancho, así que las
+	-- rejillas gruesas se saltan justo lo que hay que encontrar. La primera pasada
+	-- de este fallo se hizo a 20 y dio verde. A 12 son ~2.600 rayos, que en una
+	-- sonda que se lanza a mano sale barato.
+	local rayos = RaycastParams.new()
+	rayos.FilterType = Enum.RaycastFilterType.Exclude
+	rayos.FilterDescendantsInstances = { m:FindFirstChild("Red") :: any }
+	local mx0, mx1, mz0, mz1 = Bounds.mundo()
+	local sinSuelo, puntos, dondeFalta = 0, 0, ""
+	for x = mx0, mx1, 12 do
+		for z = mz0, mz1, 12 do
+			puntos += 1
+			if workspace:Raycast(Vector3.new(x, Grid.Y + 60, z), Vector3.new(0, -200, 0), rayos) == nil then
+				sinSuelo += 1
+				if dondeFalta == "" then
+					dondeFalta = string.format("(%.0f, %.0f)", x, z)
+				end
+			end
+		end
+	end
+	comprobar(
+		"no hay agujeros en el suelo del mundo",
+		sinSuelo == 0,
+		string.format("%d de %d puntos sin suelo, el primero en %s", sinSuelo, puntos, dondeFalta)
+	)
+
+	local aparicion = m:FindFirstChild("AparicionAlmacen")
+	if aparicion and aparicion:IsA("BasePart") then
+		comprobar(
+			"el punto de aparicion esta dentro de los limites",
+			Bounds.fuera(aparicion.Position) == nil,
+			"aparecer fuera del mundo dejaria al guardian rescatando en bucle"
+		)
+	end
+
+	-- Y que el fondo esté MUY por encima de donde Roblox destruye. Si alguien sube
+	-- Bounds.CAIDA sin mirar, el guardián dejaría de llegar a tiempo: el personaje
+	-- se destruiría antes de que el bucle de un segundo lo viera caer.
+	comprobar(
+		"el guardian salta antes de que Roblox destruya",
+		Bounds.fondo() > workspace.FallenPartsDestroyHeight + 200,
+		string.format("fondo %.0f contra destruccion en %.0f", Bounds.fondo(), workspace.FallenPartsDestroyHeight)
+	)
+end
+
 local function informe(): { string }
 	local lineas: { string } = {}
 	local rng = Random.new(20260818)
@@ -1960,6 +2084,7 @@ function SelfCheck.run(): string
 
 	local pasos: { { nombre: string, fn: () -> () } } = {
 		{ nombre = "retícula", fn = reticula },
+		{ nombre = "limites del mundo", fn = limites },
 		{ nombre = "piezas del juego", fn = piezasDelJuego },
 		{ nombre = "vigilancia", fn = vigilancia },
 		{ nombre = "accesos", fn = accesos },

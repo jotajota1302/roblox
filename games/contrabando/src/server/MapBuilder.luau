@@ -26,6 +26,7 @@
 	  ancho variable, farolas, letreros, tejados variados, paleta definitiva.
 ]]
 
+local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
@@ -208,7 +209,15 @@ end
 -- el suelo de la ciudad desaparece, esto es lo que pisa el jugador. En
 -- segmentos por el límite de 2048 studs por eje, ya pagado.
 local function plantarSueloBase(padre: Instance)
-	local xMin, xMax, zMin, zMax = Grid.limites()
+	-- DE `Bounds.mundo()` Y NO DE `Grid.limites()`, y la diferencia es un agujero:
+	-- la retícula de calles acaba en z=767 pero el RECINTO del almacén cuelga por el
+	-- sur hasta 905, y con el margen de 60 el suelo base se paraba en 827. Quedaban
+	-- 78 studs de vacío rodeando el sitio donde empieza cada partida -- medido con
+	-- una rejilla de 4 studs, 1.444 puntos sin suelo, y cero en la ciudad.
+	--
+	-- Caerse por ahí no da ningún error: te deja tumbado en la red invisible de
+	-- -90, andando por debajo del mapa. Ver la cabecera de `Bounds.luau`.
+	local xMin, xMax, zMin, zMax = Bounds.mundo()
 	-- Un margen por fuera del último bordillo: sin él, quien rodea el mapa por la
 	-- calle exterior se cae por el borde del mundo.
 	local MARGEN = 60

@@ -315,6 +315,41 @@ Avisos verificados:
   parque sale a 80-100 studs de altura y el sitio se descarta por imposible. Hay que seguir
   bajando saltándose el árbol -- y con margen: cuatro rebotes se agotan donde hay dos
   árboles en la misma vertical.
+- **Un agujero en el suelo no mata: te deja andando POR DEBAJO del mapa.** *"Cuando
+  llego al medio desaparezco"* (JJ) se buscó leyendo el código --nada de lo que mueve
+  al jugador estaba sin acotar-- y con una rejilla de raycasts que dio verde. El
+  hallazgo llegó midiendo la posición del jugador en una prueba de otra cosa: `Y =
+  -56`. No se había ido a ninguna parte; estaba tumbado sobre la **red de seguridad
+  invisible** que hay bajo la ciudad para que Roblox no destruya a nadie a -500.
+  Vivo, andando por una plancha que no se ve, y desde arriba es una desaparición.
+  Tres lecciones, y las tres se pagaron enteras:
+    · **La rejilla de sondeo tiene que ser más fina que un personaje.** El primer
+      barrido fue de 20 studs y dio cero huecos; a 4 salieron **1.444** de 23.103.
+      Un personaje mide 2 de ancho: por una rendija de 12 se cuela y una rejilla de
+      20 no la ve. Y el reparto era la mitad del diagnóstico -- cero en las calles,
+      cero en el recinto, los 1.444 en la tierra de nadie que los rodea.
+    · **La causa era un número que no se movió con el mapa.** El suelo base salía de
+      `Grid.limites()` (la retícula de calles, hasta z=767) mientras el recinto
+      cuelga hasta 905: 78 studs de vacío alrededor de donde empieza cada partida.
+      Es el mismo fallo que `RASTRO_PASO`. Ahora los tres --suelo, red y guardián--
+      salen de `Bounds.mundo()`, y mover el mapa los mueve a la vez.
+    · **Una red de seguridad puede tapar el fallo que venía a atrapar.** El guardián
+      que devuelve al jugador se escribió primero con el fondo a -130 "por prudencia",
+      y no habría cazado NADA: la red para la caída en -60. Un guardián que llega
+      tarde es peor que ninguno, porque parece que hay red. La prueba pura que fija
+      la relación (`fondo > RED_Y`) vale más que los dos números.
+
+- **El `PivotTo` del servidor sobre un personaje se revierte, y por eso una prueba
+  puede mentir.** El personaje es propiedad de RED DEL CLIENTE: teletransportarlo
+  desde `execute_luau` en el datamodel `Server` funciona durante una fracción de
+  segundo y el cliente lo devuelve. Media sesión midiendo "las patrullas no
+  persiguen" salió de ahí -- la distancia jugador-patrulla salía constante a 78,1
+  studs medición tras medición, y la conclusión (correcta) era que ninguno de los
+  dos se movía; la incorrecta era culpar a la persecución. **Para mover al jugador
+  de verdad hay que hacerlo desde el datamodel `Client`**, que es quien manda sobre
+  su personaje. Ahí el teletransporte se queda puesto y se puede medir lo que pasa
+  después.
+
 - **Editar mientras Studio está en Play NO llega al juego.** Rojo sincroniza contra el
   datamodel de **Edit**, y una sesión de Play corre sobre el snapshot que se hizo al
   arrancarla. Guardar un fichero con Studio jugando deja el disco, el `.rbxl` y la sesión

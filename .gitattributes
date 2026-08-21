@@ -1,0 +1,15 @@
+# LF SIEMPRE PARA EL CODIGO, y no es una manía: `core.autocrlf` está en `true` en
+# esta máquina, así que git reescribía los .luau a CRLF en cada checkout y stylua
+# --que sólo entiende LF-- daba el fichero entero por mal formateado. Un rojo del
+# paso 1/4 de verificar.ps1 que no lo había causado nadie.
+#
+# Y ese es justo el rojo peligroso: una sonda que se pone roja sola es una sonda
+# que se acaba ignorando, y el día que el rojo sea de verdad tampoco lo mirará
+# nadie. Se paga aquí, una vez.
+*.luau text eol=lf
+*.lua  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.ps1  text eol=crlf
+*.rbxm  binary
+*.rbxl  binary

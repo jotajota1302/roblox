@@ -18,6 +18,7 @@
 	probar. Con él, se juega igual sobre una explanada fea.
 ]]
 
+local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Cone = require(script.Parent.Cone)
 local Vision = require(game.ReplicatedStorage.Shared.Vision)
@@ -2287,20 +2288,30 @@ function CityBuilder.build(): Mundo
 	end
 
 	-- Red de seguridad, muy por debajo de todo. No decora: evita que un salto raro
-	-- acabe destruyendo el personaje a -500 studs. Va en piezas por el límite de
-	-- 2048 studs por eje.
-	for x = -900, 899, 900 do
-		for z = -900, 899, 900 do
-			local red = part(
-				string.format("Red_%d_%d", x, z),
-				Vector3.new(900, 2, 900),
-				Vector3.new(x + 450, -60, z + 450),
-				Color3.fromRGB(40, 40, 45),
-				mundo
-			)
-			red.Transparency = 1
-		end
-	end
+	-- acabe destruyendo el personaje a -500 studs.
+	--
+	-- SALE DE `Bounds.caja()`, que es la misma cuenta que usa el guardián de
+	-- `Avatar.luau` para decidir quién se ha salido del mundo. Antes eran cuatro
+	-- piezas de 900 centradas en el ORIGEN, de cuando el mapa estaba en otro sitio:
+	-- medido, la mitad de la red cubría vacío y al mapa le faltaba red en 31 de 961
+	-- puntos -- el borde sur del recinto, que llega a z=905 mientras la red se
+	-- paraba en 900. Justo donde se empieza cada partida.
+	--
+	-- Que las dos cosas salgan del MISMO sitio es lo que impide que vuelvan a
+	-- separarse: mover el mapa mueve la red y el guardián a la vez, y ninguno de los
+	-- dos hay que acordarse de tocar.
+	--
+	-- Una sola pieza: la caja mide unos 1.810 x 1.802 studs y el límite de Roblox
+	-- son 2.048 por eje, así que cabe entera y sobra el bucle.
+	local rx0, rx1, rz0, rz1 = Bounds.caja()
+	local red = part(
+		"Red",
+		Vector3.new(rx1 - rx0, 2, rz1 - rz0),
+		Vector3.new((rx0 + rx1) / 2, Bounds.RED_Y, (rz0 + rz1) / 2),
+		Color3.fromRGB(40, 40, 45),
+		mundo
+	)
+	red.Transparency = 1
 
 	-- EL POLÍGONO PRIMERO: el almacén, el taller y la salida van encima de él, no
 	-- dentro de la ciudad. Ya no hace falta despejar nada aquí -- es terreno

@@ -277,6 +277,11 @@ local TEXTOS: { [string]: string } = {
 	SHOWROOM_LEVEL = "  ·  level {nivel}",
 	ROUTE_SIGN = "{ruta}  {paga}",
 
+	-- ---- La red de seguridad -----------------------------------------------
+	-- Se ve cuando el guardián de Avatar te devuelve al mapa. Dice que ha pasado
+	-- algo y no lo disimula: si un día esto sale a menudo, quiero que se note.
+	RESCUE_BACK = "You fell out of the world. Back on track.",
+
 	-- ---- Entregas y cobros -------------------------------------------------
 	CARGO_NEED_BIGGER = "You need a bigger vehicle: that one is {tamano}",
 	CARGO_LOADED_RETURN = "You load {cuantas} items to take back",
