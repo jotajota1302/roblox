@@ -341,4 +341,36 @@ function Contacts.velocidadConRacha(base: number, recogidos: number): number
 	return math.min(base + Contacts.racha(recogidos), Config.VELOCIDAD_MAXIMA_PLAUSIBLE - 2)
 end
 
+-- LO QUE SE QUEDA EN EL VIAJE: se apaga al entregar y al empezar otro.
+--
+-- POR QUÉ EXISTE. *"Las bonificaciones de ir recogiendo cosas, cuando ya se han
+-- entregado los paquetes y vuelves, debería reiniciarse todo, ¿no?"* (JJ). La
+-- racha ya lo hacía --y ahí arriba está escrito que "quien la aplique la borra al
+-- entregar"-- pero el salto y el escudo NO: son instantes finales (`os.clock` + 8
+-- y + 12 segundos) que nadie apagaba, y entregar te devuelve al muelle AL
+-- INSTANTE. O sea que recoger un escudo a diez pasos de la casa de entrega te
+-- sacaba del almacén protegido en el porte SIGUIENTE, sin haberlo pagado.
+--
+-- Y no es un detalle: doce segundos cubren más de medio viaje al barrio, y lo que
+-- cubren es justamente la ruta roja, que paga diez veces más PORQUE te pueden
+-- quitar la carga. Una ventaja del viaje anterior aplicada a la apuesta de éste
+-- es la misma clase de fallo que la racha que no se borraba.
+--
+-- LO QUE NO SE TOCA, y es la mitad de la regla:
+--   · los contactos, que son la moneda de las habilidades -- se ganan para
+--     siempre, igual que el dinero y la experiencia;
+--   · `marcadoHasta`, que no es un premio sino el castigo de quien acaba de
+--     robar -- borrarlo al entregar sería enseñar a esquivarlo entregando.
+--
+-- Vive aquí, puro y sobre una tabla, para que la lista de lo que caduca sea UNA
+-- sola y se pueda comprobar sin mundo. Devuelve si había algo que apagar, para no
+-- sincronizar de balde: esto se pregunta cinco veces por segundo.
+function Contacts.terminarViaje(estado: any): boolean
+	local habia = (estado.recogidos or 0) > 0 or estado.saltoHasta ~= nil or estado.escudoHasta ~= nil
+	estado.recogidos = 0
+	estado.saltoHasta = nil
+	estado.escudoHasta = nil
+	return habia
+end
+
 return Contacts

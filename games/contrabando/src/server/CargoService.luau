@@ -190,6 +190,23 @@ function CargoService.reiniciarRacha(player: Player)
 	PlayerState.sync(player)
 end
 
+-- Y EL VIAJE ENTERO SE ACABA en dos momentos: al entregar y al empezar otro. Ahí
+-- no se cae sólo la racha, sino todo lo que se recogió por el camino -- el salto y
+-- el escudo incluidos. La lista de qué caduca vive en `Contacts.terminarViaje`,
+-- que es puro y tiene prueba; aquí sólo se repinta lo que depende de ella.
+--
+-- Va aparte de `reiniciarRacha` a propósito, aunque se parezcan: a quien le roban
+-- pierde la racha y nada más, porque si tuviera escudo el robo no habría ocurrido
+-- y quitarle además el salto sería un castigo que nadie ha decidido.
+function CargoService.terminarViaje(player: Player)
+	local estado = PlayerState.peek(player)
+	if not estado or not Contacts.terminarViaje(estado) then
+		return
+	end
+	CargoService.aplicarVelocidad(player)
+	PlayerState.sync(player)
+end
+
 function CargoService.aplicarVelocidad(player: Player)
 	aplicarVelocidad(player)
 end
@@ -700,8 +717,10 @@ local function cobrar(player: Player, destino: BasePart)
 	local cajas = CargoService.vaciar(player, false)
 	local cobrado = Economy.valorEntrega(cajas, multiplicador)
 	estado.dinero += cobrado
-	-- Y se acabó el viaje: la racha no viaja de una entrega a la siguiente.
-	estado.recogidos = 0
+	-- Y SE ACABÓ EL VIAJE: nada de lo recogido por el camino --racha, salto,
+	-- escudo-- viaja de una entrega a la siguiente. Sin sync ni repintado aquí: los
+	-- dos se hacen abajo con el estado ya completo.
+	Contacts.terminarViaje(estado)
 
 	-- ENTREGAR TRAE GÉNERO NUEVO, y esto es lo que hace que el bucle se pueda
 	-- repetir. Medido jugando el 20/08: un viaje al barrio dura 20 s y gasta tres

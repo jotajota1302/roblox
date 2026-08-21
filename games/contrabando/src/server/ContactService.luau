@@ -101,7 +101,12 @@ local function vigilarRuta(player: Player, estado: any)
 	if ultimaRuta[player] ~= estado.ruta then
 		ultimaRuta[player] = estado.ruta
 		ultimoContacto[player] = nil
-		CargoService.reiniciarRacha(player)
+		-- EL VIAJE ENTERO, no sólo la racha: el salto y el escudo también son del
+		-- viaje y también caducan aquí. Antes se llamaba a `reiniciarRacha` y esos
+		-- dos se quedaban puestos, así que un escudo cogido junto a la casa de
+		-- entrega salía del almacén contigo en el porte siguiente. La lista de qué
+		-- caduca está en `Contacts.terminarViaje` y no aquí, para que sea UNA.
+		CargoService.terminarViaje(player)
 
 		-- Y EL RASTRO DE LA RUTA NUEVA SE ENCIENDE ENTERO.
 		--

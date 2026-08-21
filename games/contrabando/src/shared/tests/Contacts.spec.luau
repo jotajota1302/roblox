@@ -217,4 +217,31 @@ return function(kit)
 		"una velocidad base absurda se recorta igual",
 		Contacts.velocidadConRacha(999, 999) < Config.VELOCIDAD_MAXIMA_PLAUSIBLE
 	)
+
+	-- LO QUE CADUCA AL ACABAR EL VIAJE. La regla es "lo que se recoge por el camino
+	-- se queda en el camino", y hasta hoy sólo la cumplía la racha: el salto y el
+	-- escudo sobrevivían a la entrega, que además te devuelve al muelle al instante.
+	local viaje = {
+		recogidos = 5,
+		saltoHasta = 1000,
+		escudoHasta = 1000,
+		contactos = 7,
+		marcadoHasta = 1234,
+		dinero = 900,
+	}
+	kit.truthy("terminar el viaje avisa de que había algo que apagar", Contacts.terminarViaje(viaje))
+	kit.eq("la racha se cae entera", viaje.recogidos, 0)
+	kit.eq("el salto no viaja al porte siguiente", viaje.saltoHasta, nil)
+	kit.eq("y el escudo tampoco", viaje.escudoHasta, nil)
+	-- Y LA OTRA MITAD DE LA REGLA, que es la que evita convertir un arreglo en un
+	-- robo: lo ganado para siempre no se toca, y el castigo del que acaba de robar
+	-- tampoco -- si se limpiara, entregar sería la forma de esquivarlo.
+	kit.eq("los contactos ganados no se pierden", viaje.contactos, 7)
+	kit.eq("el dinero tampoco", viaje.dinero, 900)
+	kit.eq("y la marca del ladrón sigue corriendo", viaje.marcadoHasta, 1234)
+
+	-- Sin nada que apagar, dice que no: quien lo llama cinco veces por segundo se
+	-- ahorra sincronizar el estado entero a todo el servidor de balde.
+	kit.falsy("un viaje ya limpio no cambia nada", Contacts.terminarViaje(viaje))
+	kit.falsy("y un estado recién nacido tampoco", Contacts.terminarViaje({ recogidos = 0 }))
 end
