@@ -52,11 +52,34 @@ local puedeDescargar: boolean? = nil
 
 local function sePuedeDescargarElAvatar(): boolean
 	if puedeDescargar == nil then
-		local ok = pcall(function()
-			return game:GetService("AssetService"):CreateMeshPartAsync(MeshCatalog.ALMACEN.mesh)
-		end)
+		-- DOS CONDICIONES, Y LA PRIMERA ES LA QUE FALTABA.
+		--
+		-- `PlaceId == 0` significa place sin publicar, y sin publicar los MeshPart no
+		-- se descargan: un avatar R15 son quince mallas, asi que el jugador sale
+		-- INVISIBLE -- existe, anda y colisiona, y no tiene con que dibujarse. Es la
+		-- trampa que este fichero entero existe para esquivar, y estaba documentada
+		-- en el CLAUDE.md del proyecto desde hace dias.
+		--
+		-- La comprobacion de abajo sola no basta y por eso fallaba: `CreateMeshPartAsync`
+		-- llega a funcionar dentro de Studio con la malla en cache, asi que decia "se
+		-- puede" y despues el avatar del jugador no se dibujaba. Medido el 21/08 en una
+		-- partida real: rig R15 y *"he desaparecido y estoy flotando"*.
+		--
+		-- Que la que sobraba no se quite: hace falta para el caso contrario -- place
+		-- publicado pero sin conexion al servidor de assets.
+		local publicado = game.PlaceId ~= 0
+		local ok = publicado
+			and pcall(function()
+				return game:GetService("AssetService"):CreateMeshPartAsync(MeshCatalog.ALMACEN.mesh)
+			end)
 		puedeDescargar = ok
-		print("[Contrabando] descarga de mallas: " .. (ok and "disponible" or "no disponible, avatar de bloques"))
+		print(
+			string.format(
+				"[Contrabando] avatar: %s (PlaceId=%d)",
+				if ok then "el del jugador" else "de bloques R6, que es el que se ve sin publicar",
+				game.PlaceId
+			)
+		)
 	end
 	return puedeDescargar :: boolean
 end

@@ -108,6 +108,49 @@ local function pintar(pieza: BasePart, visible: boolean, opacidad: number)
 	end
 end
 
+-- QUE FLOTEN Y GIREN, que es lo que los separa de un adorno clavado en el suelo.
+--
+-- *"Los elementos que recogemos aun se ven muy mal"*, y la mitad del problema no era
+-- la forma sino la QUIETUD: una pieza inmovil en mitad de la calle se lee como parte
+-- del decorado, y el decorado no se recoge. Todo lo cogible de cualquier juego de
+-- esta plataforma gira -- es una convencion tan vieja que ya no hay que aprenderla.
+--
+-- SE ANIMA EN EL CLIENTE, y no es un capricho: mover treinta y tres piezas desde el
+-- servidor son treinta y tres actualizaciones de red por fotograma para todos los
+-- jugadores. Aqui no cuesta nada, y ademas cada uno solo anima LAS SUYAS, que son
+-- las unicas encendidas.
+--
+-- El giro sale del RELOJ y no de un contador que se incremente: este bucle lo llama
+-- el cliente cuatro veces por segundo pero tambien cada estado que llega del
+-- servidor, asi que acumular ataria la velocidad del giro al trafico de red.
+-- Y VA EN SU PROPIO BUCLE DE FOTOGRAMA, no en el de las senales.
+--
+-- `Senales.actualizar` lo llama el cliente cuatro veces por segundo, que es de
+-- sobra para encender y apagar cosas y RIDICULO para animar: a cuatro fotogramas
+-- por segundo el giro no se lee como un giro, se lee como un objeto que da saltos.
+-- Lo que se decide a 4 Hz es CUALES se animan; el movimiento va aparte.
+local giroBase: { [BasePart]: CFrame } = {}
+local animadas: { BasePart } = {}
+local animando = false
+
+local function tick()
+	local ahora = os.clock()
+	for i, pieza in animadas do
+		if pieza.Parent == nil then
+			continue
+		end
+		local base = giroBase[pieza]
+		if base == nil then
+			base = pieza.CFrame
+			giroBase[pieza] = base
+		end
+		-- Desfasadas por indice: si todas subieran y bajaran a la vez pareceria un
+		-- unico objeto parpadeando, no una fila de cosas que se recogen.
+		local t = ahora + i * 0.35
+		pieza.CFrame = (base :: CFrame) * CFrame.new(0, math.sin(t * 2.2) * 0.55, 0) * CFrame.Angles(0, t * 1.6, 0)
+	end
+end
+
 function Senales.actualizar(estado: any)
 	reunir()
 
@@ -120,9 +163,21 @@ function Senales.actualizar(estado: any)
 
 	-- LAS PÍLDORAS: sólo las de tu ruta, y sólo las que no estén gastadas. Es lo
 	-- que convierte 140 luces sueltas en un camino.
+	table.clear(animadas)
 	for _, pieza in piezas do
 		local mia = hayViaje and pieza:GetAttribute("ruta") == ruta
-		pintar(pieza, mia and pieza:GetAttribute("apagada") ~= true, 0)
+		local encendida = mia and pieza:GetAttribute("apagada") ~= true
+		pintar(pieza, encendida, 0)
+		-- Solo se anima lo que se ve. Girar las de las otras rutas seria mover ciento
+		-- y pico piezas invisibles, que cuesta exactamente lo mismo que moverlas
+		-- visibles y no lo ve nadie.
+		if encendida then
+			table.insert(animadas, pieza)
+		end
+	end
+	if not animando then
+		animando = true
+		game:GetService("RunService").RenderStepped:Connect(tick)
 	end
 
 	-- LA LÍNEA DE TU RUTA, y sólo la tuya. Cuatro líneas pintadas a la vez serían

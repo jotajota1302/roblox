@@ -303,8 +303,26 @@ end
 -- sirve en una ciudad: la flecha senala a traves de una manzana y tu no puedes
 -- atravesarla. El siguiente vertice si es alcanzable en linea recta.
 function Grid.siguientePaso(ruta: { Vector3 }, desde: Vector3, cerca: number?): Vector3?
+	if #ruta == 0 then
+		return nil
+	end
 	local umbral = cerca or 12
-	for i = 2, #ruta do
+
+	-- DESDE EL VERTICE MAS CERCANO HACIA ADELANTE, y no desde el principio de la
+	-- lista. Recorrer desde el primero devolvia el primer vertice a mas de `umbral`
+	-- studs, que si te has saltado un tramo --por un atajo, o porque la ruta no se
+	-- ha repintado todavia-- es un vertice que YA HAS PASADO: la brujula te mandaba
+	-- de vuelta por donde venias. Lo cazo su propia prueba, plantando al jugador al
+	-- lado del destino.
+	local masCerca, mejor = 1, math.huge
+	for i, punto in ruta do
+		local d = Vector3.new(punto.X - desde.X, 0, punto.Z - desde.Z).Magnitude
+		if d < mejor then
+			masCerca, mejor = i, d
+		end
+	end
+
+	for i = masCerca, #ruta do
 		local d = Vector3.new(ruta[i].X - desde.X, 0, ruta[i].Z - desde.Z).Magnitude
 		if d > umbral then
 			return ruta[i]

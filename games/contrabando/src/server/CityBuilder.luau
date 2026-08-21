@@ -1305,30 +1305,19 @@ local function iconoEscudo(pieza: BasePart, color: Color3, escala: number)
 	end
 end
 
--- Y SU PALABRA, en el aire justo encima. `MaxDistance` corto: cerca dice QUE es, y
--- de lejos lo dice la silueta y el color. Un rotulo que se lee desde el otro lado
--- del mapa seria una lista de la compra flotando sobre la ciudad -- eso ya paso con
--- los carteles de las rutas y hubo que apagarlos.
-local function rotularIcono(pieza: BasePart, texto: string, color: Color3)
-	local cartel = Instance.new("BillboardGui")
-	cartel.Name = "Etiqueta"
-	cartel.Size = UDim2.fromScale(7, 2)
-	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
-	cartel.AlwaysOnTop = false
-	cartel.MaxDistance = 95
-	cartel.Adornee = pieza
-	cartel.Parent = pieza
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = color
-	label.TextStrokeTransparency = 0.2
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.Text = texto
-	label.Parent = cartel
-end
+-- AQUI HABIA UN ROTULO SOBRE CADA RECOGIBLE ("BOOST", "JUMP", "SHIELD").
+--
+-- Duro una hora. La idea era buena en el papel --a la distancia a la que decides si
+-- te desvias, una silueta son cuatro pixeles y una palabra corta se lee antes-- y
+-- en pantalla salio al reves: *"quita los textos de boost y cosas que salen por ahi
+-- que molestan mucho"*. Con dieciocho recogibles en la ruta roja son dieciocho
+-- carteles flotando entre tu y la calle, y tapan justo lo que hay que mirar.
+--
+-- La leccion no es "los rotulos no valen": es que un rotulo por CADA pieza de un
+-- sistema repetido no es informacion, es ruido -- lo mismo que ya paso con los
+-- carteles de las rutas y con las columnas de luz. Lo que distingue a los tres
+-- recogibles tiene que estar en el OBJETO (silueta y color) y en lo que PASA al
+-- cogerlo, no en un texto encima.
 
 -- LOS CONTACTOS de una ruta, plantados sobre su corredor.
 --
@@ -1535,11 +1524,6 @@ local function sembrarContactos(
 			[Config.RECOGIBLE_SALTO] = Color3.fromRGB(96, 226, 236),
 			[Config.RECOGIBLE_ESCUDO] = Color3.fromRGB(150, 240, 150),
 		}
-		local ROTULOS = {
-			[Config.RECOGIBLE_VELOCIDAD] = "PICKUP_BOOST",
-			[Config.RECOGIBLE_SALTO] = "PICKUP_JUMP",
-			[Config.RECOGIBLE_ESCUDO] = "PICKUP_SHIELD",
-		}
 		local color = if esRacimo
 			then Color3.fromRGB(255, 196, 84)
 			else COLORES[contacto.tipo] or Color3.fromRGB(255, 186, 70)
@@ -1568,9 +1552,6 @@ local function sembrarContactos(
 		else
 			pieza.CFrame = deFrente * CFrame.Angles(0, 0, math.rad(-34))
 			iconoBoost(pieza, color, escala)
-		end
-		if not esRacimo and ROTULOS[contacto.tipo] then
-			rotularIcono(pieza, Strings.get(ROTULOS[contacto.tipo]), color)
 		end
 
 		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo

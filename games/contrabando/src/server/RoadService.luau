@@ -475,6 +475,62 @@ local function derrapar(root: BasePart, rumbo: Vector3, motor: boolean)
 	game:GetService("Debris"):AddItem(marca, MARCA_SEGUNDOS)
 end
 
+-- LA BOLA DEL ESCUDO, que se enciende y se apaga sola con el efecto.
+--
+-- La pidio JJ por su nombre: *"que salga una bola de escudo tipo Sonic"*, y no es
+-- una referencia cualquiera -- esa burbuja funciona porque dice DOS cosas a la vez
+-- sin una palabra: que estas protegido, y cuanto te queda (parpadea al acabarse).
+--
+-- Va en el SERVIDOR y la ve todo el mundo, igual que la carga a la espalda y por lo
+-- mismo: en un juego donde puedes robar, saber si el otro esta protegido es la
+-- informacion que decide si te merece la pena ir a por el. Una burbuja que solo
+-- viera su dueno seria justo la mitad inutil del efecto.
+--
+-- Se crea UNA vez por personaje y despues solo se le mueve la transparencia. Crear
+-- y destruir una esfera por activacion es la fuga lenta que este fichero ya pago
+-- con el polvo -- 1.658 emisores colgando de un jugador tras diez minutos.
+local function burbuja(root: BasePart, quedan: number)
+	local bola = root:FindFirstChild("BurbujaEscudo") :: BasePart?
+	if bola == nil then
+		if quedan <= 0 then
+			return -- no se monta nada hasta que haga falta
+		end
+		local nueva = Instance.new("Part")
+		nueva.Name = "BurbujaEscudo"
+		nueva.Shape = Enum.PartType.Ball
+		nueva.Size = Vector3.new(8.5, 8.5, 8.5)
+		nueva.Color = Color3.fromRGB(150, 240, 150)
+		nueva.Material = Enum.Material.ForceField
+		nueva.CanCollide = false
+		nueva.CanQuery = false
+		nueva.CanTouch = false
+		nueva.Massless = true
+		nueva.CastShadow = false
+		nueva.Parent = root.Parent
+		local pegada = Instance.new("WeldConstraint")
+		pegada.Part0 = root
+		pegada.Part1 = nueva
+		pegada.Parent = nueva
+		nueva.CFrame = root.CFrame
+		bola = nueva
+	end
+
+	local b = bola :: BasePart
+	if quedan <= 0 then
+		b.Transparency = 1
+		return
+	end
+	-- LOS ULTIMOS TRES SEGUNDOS PARPADEA. Es la mitad del trabajo de la burbuja: un
+	-- escudo que se apaga de golpe te deja pensando que sigue puesto justo cuando ya
+	-- no lo esta, y esa es la unica forma de perder la carga sin haber decidido nada.
+	local base = 0.55
+	if quedan <= 3 then
+		b.Transparency = base + 0.35 * (0.5 + 0.5 * math.sin(os.clock() * 14))
+	else
+		b.Transparency = base
+	end
+end
+
 local function efectos(root: BasePart, velocidad: number, quieto: boolean, racha: number, motor: boolean)
 	-- OJO AL SITIO DONDE SE BUSCA. El emisor cuelga del ANCLA, no de root, asi que
 	-- `root:FindFirstChild("PolvoPies")` devolvia nil SIEMPRE y este bloque creaba un
@@ -696,6 +752,15 @@ local function paso(player: Player)
 		-- pasando, no a lo que el vehículo podría dar si el jugador acelerase.
 		local real, giro = velocidadReal(player, root)
 		local conMotor = def ~= nil and def.motor == true
+
+		-- LA BURBUJA DEL ESCUDO, con el mismo reloj que decide si te roban: si se
+		-- dibujara con su propio contador acabaria diciendo una cosa mientras el
+		-- servidor hace otra, y el jugador aprenderia a no fiarse de ella.
+		local restaEscudo = (estado.escudoHasta or 0) - os.clock()
+		local okBurbuja, errBurbuja = pcall(burbuja, root, restaEscudo)
+		if not okBurbuja then
+			warn("[Contrabando] fallo pintando el escudo: " .. tostring(errBurbuja))
+		end
 		efectos(root, real, real < 2, Contacts.racha(estado.recogidos or 0), conMotor)
 
 		-- EL DERRAPE, con los mismos numeros que acaban de decidir el polvo. Va

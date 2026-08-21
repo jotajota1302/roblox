@@ -179,7 +179,18 @@ local function postura(character: Model, montado: boolean, sentado: boolean)
 		end
 	end
 
-	local torso = character:FindFirstChild("Torso")
+	-- AQUI SI SE PIDE EL `Torso` DE R6 A PROPOSITO, y no `Rigs.torso`.
+	--
+	-- Lo cambie a `Rigs.torso` al arreglar la mochila y fue un error: lo de abajo son
+	-- los Motor6D "Right Hip"/"Left Hip", que SOLO existen en el R6 clasico. En R15
+	-- las caderas cuelgan del `LowerTorso` y se llaman de otra forma, asi que
+	-- devolver el `UpperTorso` aqui no arregla nada -- solo quita el `return` que
+	-- protegia al R15 de entrar en un camino que no es el suyo.
+	--
+	-- El comentario de abajo ya lo decia. La leccion es que "buscar el torso" no es
+	-- una sola pregunta: la mochila quiere el torso QUE SE ANIMA y esto quiere el
+	-- hueso del R6. Mismo nombre, dos cosas.
+	local torso = character:FindFirstChild("Torso") :: BasePart?
 	if not torso then
 		-- R15 u otro rig: la pose ya la ha puesto la animación de arriba. Los
 		-- Motor6D de abajo son el camino del R6 clásico, que no tiene "Torso".

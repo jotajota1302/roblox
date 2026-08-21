@@ -209,6 +209,74 @@ local function chispas(root: BasePart)
 	(emisor :: ParticleEmitter):Emit(26)
 end
 
+-- CADA CLASE, SU EFECTO. *"Cada elemento que tenga su efecto diferencial"*, y es
+-- mas que variedad: si los tres se cogen igual, el jugador tiene que MIRAR el icono
+-- para saber que acaba de recoger -- y a la velocidad a la que se juega no mira.
+-- Notarlo en el cuerpo es la unica forma de aprender los tres sin leer nada.
+--
+--   · BOOST  chispas doradas a los pies y tiron de camara (ya estaban);
+--   · SALTO  un anillo que se abre bajo los pies, como un impulso hacia arriba;
+--   · ESCUDO la burbuja, que la enciende RoadService, y un destello al cerrarse.
+--
+-- Las piezas se crean y se destruyen aqui --al reves que los emisores, que se
+-- reutilizan-- porque son UNA por recogida y viven medio segundo: mantener un
+-- anillo por jugador para usarlo cada veinte segundos es peor negocio que crearlo.
+local function anilloDeSalto(root: BasePart)
+	local aro = Instance.new("Part")
+	aro.Name = "AnilloSalto"
+	aro.Shape = Enum.PartType.Cylinder
+	aro.Size = Vector3.new(0.4, 5, 5)
+	aro.CFrame = CFrame.new(root.Position - Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	aro.Anchored = true
+	aro.CanCollide = false
+	aro.CanQuery = false
+	aro.CanTouch = false
+	aro.CastShadow = false
+	aro.Color = Color3.fromRGB(96, 226, 236)
+	aro.Material = Enum.Material.Neon
+	aro.Parent = workspace
+	game:GetService("Debris"):AddItem(aro, 1)
+
+	-- Se abre y se desvanece. Un anillo que solo aparece y desaparece se lee como un
+	-- parpadeo; lo que dice "impulso" es que CREZCA.
+	game:GetService("TweenService")
+		:Create(
+			aro,
+			TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.new(0.4, 22, 22), Transparency = 1 }
+		)
+		:Play()
+end
+
+local function destelloEscudo(root: BasePart)
+	local golpe = Instance.new("Part")
+	golpe.Name = "DestelloEscudo"
+	golpe.Shape = Enum.PartType.Ball
+	golpe.Size = Vector3.new(3, 3, 3)
+	golpe.CFrame = root.CFrame
+	golpe.Anchored = true
+	golpe.CanCollide = false
+	golpe.CanQuery = false
+	golpe.CanTouch = false
+	golpe.CastShadow = false
+	golpe.Color = Color3.fromRGB(150, 240, 150)
+	golpe.Material = Enum.Material.ForceField
+	golpe.Parent = workspace
+	game:GetService("Debris"):AddItem(golpe, 1)
+
+	-- Al reves que el anillo: la burbuja se CIERRA sobre ti. Crecer es empujar,
+	-- encogerse es envolver, y son las dos cosas distintas que hacen estos dos.
+	game:GetService("TweenService")
+		:Create(
+			golpe,
+			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.new(9, 9, 9), Transparency = 0.9 }
+		)
+		:Play()
+	golpe.Size = Vector3.new(16, 16, 16)
+	golpe.Transparency = 0.4
+end
+
 local function raiz(player: Player): BasePart?
 	local character = player.Character
 	return character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -299,11 +367,24 @@ function ContactService.tick(ahora: number)
 			-- el mundo (las ve todo el mundo) y el tiron de camara (lo sientes tu).
 			-- Un pcall alrededor porque son adorno: que falle el efecto no puede
 			-- costar la recogida, que es lo unico que cuenta de verdad aqui.
-			local ok, err = pcall(chispas, root)
+			local ok, err = pcall(function()
+				if tipo == Config.RECOGIBLE_SALTO then
+					anilloDeSalto(root)
+				elseif tipo == Config.RECOGIBLE_ESCUDO then
+					destelloEscudo(root)
+				else
+					chispas(root)
+				end
+			end)
 			if not ok then
-				quejarse("chispas", err)
+				quejarse("efecto de recogida", err)
 			end
-			Remotes.event(Remotes.IMPULSO):FireClient(player)
+			-- EL TIRON DE CAMARA SOLO CON EL BOOST. Es lo que significa "acabas de
+			-- acelerar", y ponerlo en los tres lo convertiria en "acabas de recoger
+			-- algo" -- o sea, en nada.
+			if tipo ~= Config.RECOGIBLE_SALTO and tipo ~= Config.RECOGIBLE_ESCUDO then
+				Remotes.event(Remotes.IMPULSO):FireClient(player)
+			end
 		end
 	end)
 

@@ -679,16 +679,12 @@ local function recogiblesLimpios()
 	-- convierte "tres herramientas" en "una y media" sin que nadie lo decida.
 	for _, ruta in Routes.todas() do
 		local hay: { [string]: number } = {}
-		local sinRotulo = 0
 		for _, pieza in piezas do
 			if pieza:GetAttribute("ruta") ~= ruta.id then
 				continue
 			end
 			local t = tostring(pieza:GetAttribute("tipo"))
 			hay[t] = (hay[t] or 0) + 1
-			if pieza:FindFirstChild("Etiqueta") == nil then
-				sinRotulo += 1
-			end
 		end
 		local faltan = {}
 		for _, clase in Config.RECOGIBLES do
@@ -700,13 +696,6 @@ local function recogiblesLimpios()
 			string.format("la %s reparte las tres clases de recogible", ruta.id),
 			#faltan == 0,
 			"falta: " .. table.concat(faltan, ", ")
-		)
-		-- Y CADA UNO CON SU PALABRA ENCIMA. La silueta sola no se lee a la distancia
-		-- a la que hay que decidir si te desvias: son cuatro pixeles.
-		comprobar(
-			string.format("y todos los de la %s llevan rotulo", ruta.id),
-			sinRotulo == 0,
-			string.format("%d sin etiqueta", sinRotulo)
 		)
 	end
 end

@@ -19,6 +19,7 @@ local GoodsLook = require(game.ReplicatedStorage.Shared.GoodsLook)
 local Levels = require(game.ReplicatedStorage.Shared.Levels)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Rarity = require(game.ReplicatedStorage.Shared.Rarity)
+local Rigs = require(game.ReplicatedStorage.Shared.Rigs)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
@@ -237,7 +238,15 @@ function CargoService.mostrarCarga(player: Player)
 	-- mucho antes que contar cajitas. Crece con los HUECOS ocupados, no con el
 	-- número de piezas, porque es el bulto lo que se ve: un piano abulta lo que
 	-- ocho sobres.
-	local torso = character:FindFirstChild("Torso") :: BasePart? or root
+	-- EL TORSO DE VERDAD, sea el rig que sea. Esto buscaba `Torso` --que solo existe
+	-- en R6-- y caia a la raiz: en una partida R15 la mochila iba soldada a la
+	-- `HumanoidRootPart`, que es una pieza invisible que NO sigue las animaciones.
+	-- De ahi *"la mochila no se mueve bien"*: flotaba rigida mientras el cuerpo
+	-- andaba. Ver `Rigs.luau`.
+	local torso = Rigs.torso(character) or root
+	-- Y el R15 tiene el torso mas corto: la misma mochila colocada con las medidas
+	-- del R6 queda a la altura del cuello.
+	local subeR15 = if Rigs.esR15(character) then -0.35 else 0
 	local gordura = math.clamp(Cargo.pesoTotal(estado.cajas) / 12, 0, 1)
 
 	local mochila = Instance.new("Part")
@@ -251,7 +260,7 @@ function CargoService.mostrarCarga(player: Player)
 	-- velocidad, que es una regla del juego. Cobrarlo otra vez en la física sería
 	-- un impuesto que nadie decidió.
 	mochila.Massless = true
-	mochila.CFrame = torso.CFrame * CFrame.new(0, 0.15, 0.55 + mochila.Size.Z / 2)
+	mochila.CFrame = torso.CFrame * CFrame.new(0, 0.15 + subeR15, 0.55 + mochila.Size.Z / 2)
 	mochila.Parent = bulto
 
 	local anclaMochila = Instance.new("WeldConstraint")
@@ -259,23 +268,87 @@ function CargoService.mostrarCarga(player: Player)
 	anclaMochila.Part1 = mochila
 	anclaMochila.Parent = mochila
 
-	-- Las dos correas por encima del hombro. Son lo que hace que se lea como
-	-- mochila y no como una caja pegada a la espalda, y salen baratas: dos tiras.
-	for _, lado in { -0.55, 0.55 } do
-		local correa = Instance.new("Part")
-		correa.Name = "Correa"
-		correa.Size = Vector3.new(0.22, 1.9, 0.18)
-		correa.Color = Color3.fromRGB(56, 48, 40)
-		correa.Material = Enum.Material.Fabric
-		correa.CanCollide = false
-		correa.Massless = true
-		correa.CFrame = torso.CFrame * CFrame.new(lado, 0.35, 0.42) * CFrame.Angles(math.rad(-14), 0, 0)
-		correa.Parent = bulto
+	-- EL DETALLE DE LA MOCHILA. *"Podriamos trabajar mas el detalle de la mochila,
+	-- aun se ve muy mal"*, y tenia razon: eran un cubo y dos tiras. Lo que convierte
+	-- un cubo en una mochila no es mas poligonos, son las CUATRO PIEZAS que el ojo
+	-- busca sin saberlo -- correas, hebillas, tapa y bolsillo. Nueve piezas mas, todas
+	-- soldadas al mismo sitio, y ninguna cuesta nada porque no se mueven.
+	local function trozo(nombre: string, tamano: Vector3, sitio: CFrame, tono: Color3, material: Enum.Material)
+		local pieza = Instance.new("Part")
+		pieza.Name = nombre
+		pieza.Size = tamano
+		pieza.Color = tono
+		pieza.Material = material
+		pieza.CanCollide = false
+		pieza.Massless = true
+		pieza.CastShadow = false
+		pieza.CFrame = sitio
+		pieza.Parent = bulto
 		local w = Instance.new("WeldConstraint")
 		w.Part0 = torso
-		w.Part1 = correa
-		w.Parent = correa
+		w.Part1 = pieza
+		w.Parent = pieza
+		return pieza
 	end
+
+	local CUERO = Color3.fromRGB(56, 48, 40)
+	local HERRAJE = Color3.fromRGB(168, 160, 140)
+	local fondoZ = 0.55 + mochila.Size.Z / 2
+
+	-- Las dos correas por encima del hombro, con su HEBILLA. Son lo que hace que se
+	-- lea como mochila y no como una caja pegada a la espalda; la hebilla es lo que
+	-- hace que la correa se lea como correa y no como una raya pintada.
+	for _, lado in { -0.55, 0.55 } do
+		trozo(
+			"Correa",
+			Vector3.new(0.26, 2.0, 0.18),
+			torso.CFrame * CFrame.new(lado, 0.35 + subeR15, 0.42) * CFrame.Angles(math.rad(-14), 0, 0),
+			CUERO,
+			Enum.Material.Fabric
+		)
+		trozo(
+			"Hebilla",
+			Vector3.new(0.34, 0.22, 0.24),
+			torso.CFrame * CFrame.new(lado, -0.35 + subeR15, 0.46),
+			HERRAJE,
+			Enum.Material.Metal
+		)
+	end
+
+	-- LA TAPA, un poco mas ancha que el cuerpo y sobresaliendo por arriba: es la
+	-- silueta que dice "esto se abre". Sin ella la mochila es un ladrillo.
+	trozo(
+		"Tapa",
+		Vector3.new(mochila.Size.X + 0.12, 0.5, mochila.Size.Z + 0.1),
+		torso.CFrame * CFrame.new(0, 0.15 + subeR15 + mochila.Size.Y / 2 - 0.1, fondoZ),
+		CUERO,
+		Enum.Material.Fabric
+	)
+	-- Y su correa de cierre, bajando por el centro con su hebilla.
+	trozo(
+		"Cierre",
+		Vector3.new(0.28, mochila.Size.Y * 0.55, 0.14),
+		torso.CFrame * CFrame.new(0, 0.15 + subeR15 + 0.1, fondoZ + mochila.Size.Z / 2 + 0.06),
+		CUERO,
+		Enum.Material.Fabric
+	)
+	trozo(
+		"Hebilla",
+		Vector3.new(0.36, 0.26, 0.2),
+		torso.CFrame * CFrame.new(0, 0.15 + subeR15 - mochila.Size.Y * 0.2, fondoZ + mochila.Size.Z / 2 + 0.06),
+		HERRAJE,
+		Enum.Material.Metal
+	)
+
+	-- EL BOLSILLO DE ABAJO, mas pequeno y saliendo un poco. Rompe la caja en dos
+	-- volumenes, que es lo unico que hace falta para que deje de parecer una caja.
+	trozo(
+		"Bolsillo",
+		Vector3.new(mochila.Size.X * 0.7, mochila.Size.Y * 0.38, mochila.Size.Z * 0.7),
+		torso.CFrame * CFrame.new(0, 0.15 + subeR15 - mochila.Size.Y * 0.28, fondoZ + mochila.Size.Z * 0.3),
+		Color3.fromRGB(66, 58, 48),
+		Enum.Material.Fabric
+	)
 
 	-- Y LO QUE LLEVAS ASOMA POR LA BOCA DE LA MOCHILA, en vez de flotar detrás.
 	--
