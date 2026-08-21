@@ -1021,9 +1021,22 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 					base,
 					Config.DETECTOR_VISION_ANGULO,
 					Config.DETECTOR_RADIO,
-					Color3.fromRGB(214, 126, 58),
-					-- OPACO: ver la cabecera de Cone.
-					0,
+					-- UN AMBAR APAGADO, no el naranja de antes.
+					--
+					-- *"Esos colores de las camaras son super excesivos"* (JJ), y la
+					-- captura le daba la razon: cuarenta y cinco manchas naranjas
+					-- saturadas de treinta y cinco studs cada una, opacas, repartidas por
+					-- las calles. El cono es una ADVERTENCIA, no el suelo -- y una
+					-- advertencia que ocupa media calzada deja de advertir porque pasa a
+					-- ser el decorado.
+					Color3.fromRGB(150, 104, 58),
+					-- Y TRANSLUCIDO. Iba opaco porque las tajadas se solapan un 1 % y dos
+					-- piezas translucidas superpuestas suman brillo (la raya en cada
+					-- junta). Se arregla en el origen: el solape baja a la decima parte,
+					-- lo justo para que no quede rendija, y a esta transparencia la junta
+					-- ya no se distingue. Medido con el ojo en la captura de JJ: lo que se
+					-- veia era una mancha, no cuatro palos.
+					0.62,
 					-- ANCLADO: una camara de vigilancia no se mueve, y sin anclar las
 					-- cunas se caerian por su propio peso.
 					true
@@ -1031,7 +1044,7 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 			do
 				pieza.Name = "ConoDetector"
 				pieza:SetAttribute("zonaFichada", true)
-				pieza:SetAttribute("opacidad", 0)
+				pieza:SetAttribute("opacidad", 0.62)
 				-- DE QUE CAMARA ES. Todos los conos cuelgan de la misma carpeta, asi
 				-- que sin esto el cliente no puede saber cual encender cuando el
 				-- servidor le dice que la camara X le esta viendo -- y encenderlos
@@ -1331,35 +1344,19 @@ local function pegarIcono(pieza: BasePart, nombre: string, tamano: Vector3, offs
 	return primero :: BasePart
 end
 
--- LA MARCA DEL SUELO. Un disco fino del color del recogible, del tamano exacto
--- desde el que se coge.
+-- AQUI HUBO UN HALO BAJO CADA RECOGIBLE: un disco del color del icono, del tamano
+-- desde el que se coge. Duro una tarde. La idea era buena --se ve desde lejos y dice
+-- donde pisar-- y en pantalla sumaba: *"los iconos con la base iluminada no me
+-- gusta, demasiada confusion de colores"* (JJ).
 --
--- Hace dos cosas que el icono no puede: se ve desde el otro extremo de la calle --a
--- esa distancia la silueta son cuatro pixeles-- y dice DONDE HAY QUE PISAR, que
--- hasta ahora habia que adivinar. Y ancla la pieza al suelo: un icono flotando sin
--- nada debajo se lee como un adorno colgado, no como algo que se recoge.
+-- Y tiene razon por una cuenta sencilla: la fila del rastro YA dice donde esta el
+-- camino, asi que el halo no anadia informacion, anadia color. Treinta discos de
+-- tres tonos distintos encendidos a la vez compiten con lo unico que de verdad hay
+-- que leer en el suelo -- el cono de las camaras, que es el que te cuesta la carga.
 --
--- No es una columna de luz. Las columnas se quitaron el 19/08 --*"quitales el
--- rectangulo ese hacia arriba, que los hace demasiado evidentes"*-- y esto es lo
--- contrario: pegado al suelo, no tapa nada y no se ve desde el otro barrio.
-local function pegarHalo(pieza: BasePart, suelo: number, color: Color3, radio: number)
-	local halo = Instance.new("Part")
-	halo.Name = "Halo"
-	halo.Shape = Enum.PartType.Cylinder
-	halo.Size = Vector3.new(0.2, radio * 1.7, radio * 1.7)
-	halo.CFrame = CFrame.new(Vector3.new(pieza.Position.X, suelo + 0.12, pieza.Position.Z))
-		* CFrame.Angles(0, 0, math.rad(90))
-	halo.Color = color
-	halo.Material = Enum.Material.Neon
-	halo.Transparency = 0.62
-	halo.Anchored = true
-	halo.CanCollide = false
-	halo.CanQuery = false
-	halo.CanTouch = false
-	halo.CastShadow = false
-	halo.Parent = pieza
-	return halo
-end
+-- La leccion es la de siempre en este mapa: cuando algo no anade informacion, no se
+-- atenua, se quita. Lo mismo paso con las columnas de luz y con los rotulos de
+-- BOOST/JUMP encima de cada pieza.
 
 -- EL RAYO: dos brazos en zigzag colgando del travesano, que es la pieza ancla.
 local function iconoBoost(pieza: BasePart, color: Color3, escala: number)
@@ -1676,11 +1673,6 @@ local function sembrarContactos(
 			pieza.CFrame = deFrente * CFrame.Angles(0, 0, math.rad(-34))
 			iconoBoost(pieza, color, escala)
 		end
-
-		-- Y SU MARCA EN EL SUELO, del tamano desde el que se coge de verdad: el radio
-		-- sale de Config y no de un numero a ojo, para que el circulo no pueda mentir
-		-- sobre donde hay que ponerse.
-		pegarHalo(pieza, y :: number, color, Config.CONTACTO_RADIO)
 
 		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo
 		-- que hay plantado. Si algún día el reparto cambia, no hay dos versiones.
@@ -2535,11 +2527,33 @@ function CityBuilder.build(): Mundo
 	-- sitios a los que ir. Esto es una puerta, y una puerta se cruza.
 	local ANCHO_ARCO, ALTO_ARCO, GROSOR_PILAR = 46, 20, 5
 	local cotaArco = Config.ALMACEN_POS.Y
+
+	-- EL ARCO VA POR DENTRO DE LA BOCA, Y ESO NO ES UN AJUSTE FINO.
+	--
+	-- La boca del recinto (`POLIGONO_SALIDA`) esta en su borde norte, y ese borde
+	-- coincide con el EJE de la calle que pasa por delante. Plantar el arco ahi le
+	-- ponia los dos pilares --cinco por cinco, veinte de alto, hormigon gris-- EN
+	-- MITAD DEL CARRIL, con el dintel cruzando la calzada por arriba.
+	--
+	-- Lo dijo JJ con una captura: *"hay cosas encima de la carretera como esas
+	-- columnas, esto esta mal"*, y antes *"proyecta sobre la carretera una zona gris
+	-- rectangular que tapa la carretera"*. Las dos frases son este arco.
+	--
+	-- Se corre hacia dentro hasta donde acaba el asfalto DE VERDAD, mas medio pilar
+	-- (para que la cara tampoco lo toque) y dos studs de aire.
+	--
+	-- La cuenta parte del EJE de la calle y no de la boca del recinto, y eso importa:
+	-- ahora que el recinto esta bien colocado los dos coinciden, pero si alguien
+	-- vuelve a moverlo --o ensancha las calles-- el arco se aparta solo. Es la
+	-- leccion de `RASTRO_PASO`: un numero absoluto no sobrevive a que cambie aquello
+	-- que mide.
+	local bordeAsfalto = Grid.zDeCalle(Grid.FILAS) + Grid.ANCHO_CALLE / 2
+	local zArco = math.max(salidaPos.Z, bordeAsfalto) + GROSOR_PILAR / 2 + 2
 	for _, lado in { -1, 1 } do
 		local pilar = part(
 			"ArcoPilar" .. (if lado < 0 then "O" else "E"),
 			Vector3.new(GROSOR_PILAR, ALTO_ARCO, GROSOR_PILAR),
-			Vector3.new(salidaPos.X + lado * ANCHO_ARCO / 2, cotaArco + ALTO_ARCO / 2, salidaPos.Z),
+			Vector3.new(salidaPos.X + lado * ANCHO_ARCO / 2, cotaArco + ALTO_ARCO / 2, zArco),
 			Palette.SALIDA,
 			mundo
 		)
@@ -2548,14 +2562,29 @@ function CityBuilder.build(): Mundo
 	local dintel = part(
 		"ArcoDintel",
 		Vector3.new(ANCHO_ARCO + GROSOR_PILAR, 4, GROSOR_PILAR),
-		Vector3.new(salidaPos.X, cotaArco + ALTO_ARCO + 2, salidaPos.Z),
+		Vector3.new(salidaPos.X, cotaArco + ALTO_ARCO + 2, zArco),
 		Palette.SALIDA,
 		mundo
 	)
 	dintel.Material = Enum.Material.Concrete
 	dintel.CanCollide = false
 
-	-- La losa se queda, pero de umbral y no de botón: marca el suelo bajo el arco.
+	-- LA LOSA SE QUEDA, PERO INVISIBLE. Es una marca para el codigo, no un dibujo.
+	--
+	-- *"El cuadrado ese que hay en el suelo que conecta con la ciudad parpadea, no
+	-- podemos quitarlo?"* (JJ). Parpadeaba porque su cara superior queda a cinco
+	-- CENTESIMAS de stud del suelo del recinto, y a esa distancia Roblox no sabe cual
+	-- de las dos pintar: cambia de una a otra en cada fotograma. Es el mismo defecto
+	-- que ya se pago con los railes de las rutas.
+	--
+	-- Y se quita entera en vez de separarla dos decimas porque ya no dibuja nada: la
+	-- ruta se elige al coger la carga --no al pisar la losa-- y el umbral lo marca el
+	-- arco, que se ve mucho mejor. Lo unico que sigue haciendo es responder a "estoy
+	-- en la salida", que es lo que devuelve el selector cuando se cierra a mano
+	-- (`quiereSalir` en Main.client). Esa pregunta no necesita color.
+	--
+	-- Sigue siendo solida a proposito: es el suelo por el que se sale, y quitarle la
+	-- colision dejaria un escalon invisible en la boca del recinto.
 	local salida = losa(
 		ciudad,
 		"Salida",
@@ -2564,6 +2593,8 @@ function CityBuilder.build(): Mundo
 		Palette.SALIDA,
 		mundo
 	)
+	salida.Transparency = 1
+	salida.CastShadow = false
 
 	local balizaSalida = salida
 	balizaSalida.CanCollide = true
@@ -2956,7 +2987,29 @@ function CityBuilder.build(): Mundo
 		local puntoDeCobro: BasePart? = nil
 		do
 			-- Las medidas van juntas con la funcion que las usa: 46x34 es la vivienda.
-			local centroCasa, haciaDentro = Grid.portalDeCruce(ruta.destino, 34, 46)
+			-- LOS DOS EJES, no solo el fondo. La casa cae en la ESQUINA de una manzana,
+			-- asi que tiene dos calles: la de la fachada y la del costado. Retranquearla
+			-- solo hacia dentro dejaba el muro lateral asomando a la segunda -- medido,
+			-- 24 studs cuadrados de cada una de las tres sobre el carril.
+			--
+			-- Se consigue pidiendole a `portalDeCruce` una casa mas grande de la que se
+			-- va a construir: el centro sale de la esquina mas medio fondo y medio
+			-- ancho, asi que sumar dos aceras a cada medida corre el centro una acera en
+			-- cada direccion. La casa sigue midiendo 46x34.
+			local ACERA = 9
+			local centroCasa, haciaDentro = Grid.portalDeCruce(ruta.destino, 34 + 2 * ACERA, 46 + 2 * ACERA)
+			-- POR QUE HAY QUE RETRANQUEARLA. `portalDeCruce` deja la fachada en el borde
+			-- de la MANZANA, que es donde empieza el asfalto -- y los edificios de la
+			-- reticula van ocho studs mas adentro, porque entre la calzada y la fachada
+			-- hay acera. Sin esto, la casa de entrega es el unico edificio de la ciudad
+			-- con los pies en la carretera: medido con la sonda del mundo, 48 studs
+			-- cuadrados de su muro lateral y 120 del mostrador, encima del carril.
+			--
+			-- Es la mitad de lo que JJ vio en su captura ("hay cosas encima de la
+			-- carretera"); la otra mitad era el arco del recinto.
+			--
+			-- Nueve y no ocho: el octavo lo ocupa el bordillo, y una fachada que arranca
+			-- justo en el canto se lee como si se saliera.
 			centroVivienda = centroCasa
 			-- Y SU HUELLA SE DESPEJA. `despejar(ruta.destino, 50, 45)` limpia alrededor
 			-- del cruce, pero la casa cae a 46 studs de el -- justo en el filo-- y la de
@@ -2968,7 +3021,17 @@ function CityBuilder.build(): Mundo
 			-- dentro de la vivienda roja. Y el alto sube a 90 porque los edificios de la
 			-- reticula llegan a 77: una caja de 60 no toca la parte de arriba y deja el
 			-- edificio en pie por no llegarle.
-			despejar(ciudad, centroCasa, 84, 90)
+			-- ARRASANDO, que es lo que cambia al retranquearla. Pegada al borde de la
+			-- manzana no habia nada que derribar; nueve studs adentro, la parcela es la
+			-- de un edificio de la reticula -- y `despejar` no toca lo que planto el
+			-- mapa salvo que se le diga. Medido con la sonda: `Edificio_0_1_4` (34x43x36)
+			-- se quedo DENTRO de la casa ambar.
+			--
+			-- Es la misma excepcion que ya tienen el taller, los refugios y las
+			-- guaridas: cuando lo que se planta es una pieza del juego, el juego manda
+			-- sobre la estetica. Y la casa de entrega es la pieza del juego -- es el
+			-- destino de la ruta.
+			despejar(ciudad, centroCasa, 84, 90, true)
 			local yCasa = sueloDeLaCiudad(ciudad, centroCasa.X, centroCasa.Z) or Grid.Y
 			local casa = vivienda(
 				"Vivienda_" .. ruta.id,

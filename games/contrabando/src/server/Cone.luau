@@ -91,7 +91,16 @@ function Cone.piezas(
 	local salida: { BasePart } = {}
 	local delta = mitad / TAJADAS
 	local prof = largo * math.cos(math.rad(delta))
-	local semi = largo * math.sin(math.rad(delta)) * 1.01
+	-- EL SOLAPE BAJA DE 1,01 A 1,001. Estaba al 1 % para que no quedara una rendija
+	-- de grosor cero entre tajadas, y eso obligaba a pintar el sector OPACO: dos
+	-- piezas translucidas superpuestas suman brillo, o sea una raya luminosa en cada
+	-- junta. Pero opaco es justo lo que hacia que cuarenta y cinco conos se comieran
+	-- las calles ("esos colores son super excesivos").
+	--
+	-- Una milesima cierra la rendija igual --lo que la abria era el redondeo, no la
+	-- falta de sitio-- y a esta escala la franja solapada mide centesimas de stud:
+	-- invisible incluso translucida.
+	local semi = largo * math.sin(math.rad(delta)) * 1.001
 
 	for t = 0, TAJADAS - 1 do
 		local centro = -mitad + delta * (2 * t + 1)

@@ -53,6 +53,10 @@ local MEMORIA = 0.9
 -- Hasta donde se animan los conos. Mas alla no se distingue el barrido y recorrer
 -- cuarenta y cinco camaras por fotograma no es gratis.
 local CERCA = 170
+-- Hasta donde se ve el cono a plena opacidad. Mas alla se va desvaneciendo hasta
+-- desaparecer en CERCA: sesenta studs son unos cuatro segundos a pie, o sea el tramo
+-- que de verdad estas a punto de pisar.
+local CLARO = 60
 local BARRIDO_PERIODO = 2.6
 
 local ROJO = Color3.fromRGB(255, 62, 52)
@@ -292,7 +296,8 @@ local function pintarBarrido(ahora: number)
 		return
 	end
 	for id, camara in camaras do
-		if (camara.poste.Position - raiz.Position).Magnitude > CERCA then
+		local distancia = (camara.poste.Position - raiz.Position).Magnitude
+		if distancia > CERCA then
 			continue
 		end
 		if id == quien and os.clock() < vivaHasta then
@@ -305,6 +310,18 @@ local function pintarBarrido(ahora: number)
 		if primera == nil or primera.Transparency >= 1 then
 			continue
 		end
+
+		-- Y SE DESVANECE CON LA DISTANCIA, que es la otra mitad del arreglo.
+		--
+		-- Aunque cada cono sea discreto, VEINTE conos a la vez vuelven a ser una
+		-- alfombra de manchas: desde un cruce alto se ve media ciudad. Lo que importa
+		-- de una camara es el tramo que estas a punto de pisar, asi que el cono se ve
+		-- entero de cerca y se apaga del todo a lo lejos. El jugador no pierde nada --
+		-- lo que hay a doscientos studs no se esquiva, se olvida-- y la calle vuelve a
+		-- verse.
+		local lejania = math.clamp((distancia - CLARO) / (CERCA - CLARO), 0, 1)
+		local opacidadBase = tonumber(primera:GetAttribute("opacidad")) or 0.62
+		local suya = opacidadBase + (1 - opacidadBase) * lejania
 		-- La fase sale de la POSICION de la camara y no de un contador propio: asi
 		-- cada una barre por su cuenta --cuarenta y cinco camaras sincronizadas
 		-- pareceria una sola cosa parpadeando-- y ademas no hay estado que guardar.
@@ -317,8 +334,12 @@ local function pintarBarrido(ahora: number)
 		local activa = math.floor(recorrido * tajadas)
 		for i, cuna in camara.cunas do
 			local base = camara.tonos[i]
-			local suya = tonumber(cuna:GetAttribute("tajada")) or -1
-			cuna.Color = if suya == activa then base:Lerp(Color3.new(1, 1, 1), 0.35) else base
+			local cual = tonumber(cuna:GetAttribute("tajada")) or -1
+			-- El barrido aclara MENOS que antes (0,18 en vez de 0,35): sobre un cono ya
+			-- translucido, un destello fuerte volvia a convertir la mancha en el objeto
+			-- mas llamativo de la calle.
+			cuna.Color = if cual == activa then base:Lerp(Color3.new(1, 1, 1), 0.18) else base
+			cuna.Transparency = suya
 		end
 		if camara.piloto then
 			-- El piloto late al mismo ritmo que barre su cono: son el mismo aparato.
@@ -363,6 +384,11 @@ local function tick()
 		if camara ~= nil then
 			for _, cuna in camara.cunas do
 				cuna.Color = ROJO
+				-- Y SE VE ENTERO, este donde este. El desvanecido por distancia apaga los
+				-- conos lejanos para que la calle se vea, pero el de la camara que te
+				-- ESTA FICHANDO es justo el que hay que ver -- aunque te haya cazado
+				-- desde el otro extremo de la calle.
+				cuna.Transparency = 0.42
 			end
 		end
 	else

@@ -376,11 +376,25 @@ Config.RAREZAS = if Config.PROTOTIPO then Config.RAREZAS_PROTOTIPO else Config.R
 -- 210 x 120 deja doce studs de margen alrededor de lo que hay. La superficie baja de
 -- 45.000 a 25.200 studs cuadrados: casi la mitad.
 --
--- EL CENTRO EN Z SE MUEVE A 815 y no es cosmetico: la salida se DERIVA del borde
--- norte (centro.Z - largo/2), y ese borde tiene que quedarse en 755 porque ahi es
--- donde engancha con la calle 1 de la reticula. Encoger dejando el centro en 830
--- habria metido la boca 20 studs dentro de la ciudad.
-Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 815)
+-- EL CENTRO EN Z: 828, Y ESE NUMERO ES EL BORDE DEL ASFALTO.
+--
+-- La salida se DERIVA del borde norte (centro.Z - largo/2), asi que ese borde es lo
+-- que hay que colocar bien. Estuvo en 755 --el EJE de la calle que pasa por delante--
+-- y ahi estaba el fallo: el eje no es el borde. Con la calzada de 26 studs de ancho,
+-- el recinto se comia sus trece studs del sur, y encima de ese medio carril iban el
+-- suelo gris del recinto y los dos pilares del arco de entrada, de cinco por cinco y
+-- veinte de alto.
+--
+-- Lo vio JJ jugando, y en dos frases que son el mismo sitio: *"la zona que sale de
+-- nuestra base sigue proyectando sobre la carretera una zona gris rectangular que
+-- tapa la carretera"* y *"hay cosas encima de la carretera como esas columnas, esto
+-- esta mal"*. Y dio con la solucion antes que yo: *"es que toca tirar nuestra zona
+-- de almacen mas afuera, que encaje mejor, no?"*.
+--
+-- 828 = 768 + 120/2, con 768 = eje de la calle (755) + medio ancho de calzada (13).
+-- La boca queda EXACTAMENTE donde acaba el asfalto: el recinto ya no pisa la calle y
+-- sigue enganchado a ella, que es lo que tenia que hacer desde el principio.
+Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 828)
 Config.POLIGONO_TAMANO = Vector2.new(210, 120)
 -- Por dónde se sale a la ciudad: el extremo norte del polígono, y desde ahí una
 -- carretera hasta la calle más cercana.

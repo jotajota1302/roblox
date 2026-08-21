@@ -1552,6 +1552,85 @@ local function contactos()
 	-- manzanas, y las migas se plantan por la calle a propósito, que es por donde
 	-- puede seguirlas alguien que sólo mira. La sonda tiene que medir contra lo que ve
 	-- el jugador, no contra lo que sabe el motor.
+	-- NADA SE LEVANTA SOBRE EL CARRIL.
+	--
+	-- POR QUE HACE FALTA. El borde norte del recinto estuvo clavado en el EJE de la
+	-- calle que pasa por delante en vez de en el borde del asfalto: trece studs de
+	-- calzada tapados por su suelo gris, y los dos pilares del arco de entrada
+	-- --cinco por cinco, veinte de alto-- plantados en mitad del carril. Y las tres
+	-- casas de entrega tenian los pies en la carretera, mostrador incluido. Se veia
+	-- desde dentro y no lo medía nadie: JJ mando dos capturas antes de que se cazara.
+	--
+	-- SE MIDE CONTRA LA BANDA DE LA RETICULA, no contra las piezas de calzada. Se
+	-- probo lo segundo --parecia mas fiel a "lo que se construyo"-- y es peor: el
+	-- asfalto se planta en parches de 160x160 que cubren el cruce ENTERO, aceras y
+	-- esquinas de manzana incluidas, asi que media ciudad salia "sobre la calzada".
+	-- La banda (`ANCHO_CALLE`) es el carril de verdad.
+	--
+	-- Y SE SALTA EL RECINTO: alli la reticula dice que hay calle, pero no se planta
+	-- asfalto -- es nuestra parcela. Medir alli marcaba medio taller como intruso.
+	do
+		local medio = Grid.ANCHO_CALLE / 2
+		local px0 = Config.POLIGONO_CENTRO.X - Config.POLIGONO_TAMANO.X / 2
+		local px1 = Config.POLIGONO_CENTRO.X + Config.POLIGONO_TAMANO.X / 2
+		local pz0 = Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
+		local pz1 = Config.POLIGONO_CENTRO.Z + Config.POLIGONO_TAMANO.Y / 2
+
+		-- Cuanto de un rectangulo cae dentro del carril mas cercano.
+		local function sobreElCarril(d: BasePart): number
+			local ax0, ax1 = d.Position.X - d.Size.X / 2, d.Position.X + d.Size.X / 2
+			local az0, az1 = d.Position.Z - d.Size.Z / 2, d.Position.Z + d.Size.Z / 2
+			local peor = 0
+			for i = 0, Grid.COLUMNAS do
+				local eje = Grid.xDeCalle(i)
+				local sx = math.min(ax1, eje + medio) - math.max(ax0, eje - medio)
+				if sx > 0 then
+					peor = math.max(peor, sx * (az1 - az0))
+				end
+			end
+			for j = 0, Grid.FILAS do
+				local eje = Grid.zDeCalle(j)
+				local sz = math.min(az1, eje + medio) - math.max(az0, eje - medio)
+				if sz > 0 then
+					peor = math.max(peor, sz * (ax1 - ax0))
+				end
+			end
+			return peor
+		end
+
+		local intrusos: { string } = {}
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.CanCollide and d.Size.Y > 4 and d.Size.X < 60 and d.Size.Z < 60 then
+				local x, z = d.Position.X, d.Position.Z
+				local enRecinto = x > px0 and x < px1 and z > pz0 and z < pz1
+				-- Ocho studs cuadrados de margen: una farola que roza el bordillo no
+				-- molesta a nadie; un pilar de cinco por cinco son veinticinco, y ese si.
+				if not enRecinto and sobreElCarril(d) > 8 then
+					table.insert(intrusos, string.format("%s (%.0f studs2)", d.Name, sobreElCarril(d)))
+				end
+			end
+		end
+		comprobar(
+			"no hay nada del juego plantado en el carril",
+			#intrusos == 0,
+			string.format("%d: %s", #intrusos, table.concat(intrusos, ", ", 1, math.min(#intrusos, 5)))
+		)
+
+		-- Y el suelo del recinto tampoco: es lo mas gordo que puede tapar una calle.
+		local poli = m:FindFirstChild("Poligono")
+		if poli and poli:IsA("BasePart") then
+			comprobar(
+				"el recinto no invade la calle que pasa por delante",
+				poli.Position.Z - poli.Size.Z / 2 >= Grid.zDeCalle(Grid.FILAS) + medio - 0.5,
+				string.format(
+					"su borde esta en z=%.0f y el carril acaba en z=%.0f",
+					poli.Position.Z - poli.Size.Z / 2,
+					Grid.zDeCalle(Grid.FILAS) + medio
+				)
+			)
+		end
+	end
+
 	-- LOS ALIJOS EXISTEN Y ESTAN DONDE TIENEN QUE ESTAR.
 	--
 	-- Lo que se comprueba no es que haya doce cajas: es que ninguna haya acabado
