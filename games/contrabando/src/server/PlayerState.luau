@@ -67,6 +67,14 @@ export type Estado = {
 	-- alguien falle el impulso se queda encendido para siempre. Una fecha caduca
 	-- sola aunque nadie la mire. Tampoco se persiste, por lo mismo que la racha.
 	saltoHasta: number?,
+	-- HASTA CUANDO TE PROTEGE EL ESCUDO ANTIRROBO, en `os.clock` del servidor. Lo
+	-- pone el recogible del escudo y lo miran los DOS sitios donde se pierde carga:
+	-- el ladron que te alcanza y el jugador que te intercepta.
+	--
+	-- Instante final y no segundos restantes, por lo mismo que el salto: una fecha
+	-- caduca sola aunque nadie la mire, y un contador que hay que descontar deja el
+	-- efecto encendido para siempre el dia que falle quien lo descuenta.
+	escudoHasta: number?,
 	-- Entregas hechas en toda la partida. Es lo que mueve los hitos de abajo, y se
 	-- cuenta aquí y no se deduce del dinero: dos jugadores con la misma cartera
 	-- pueden llevar uno diez entregas y otro una con suerte.
@@ -120,6 +128,7 @@ function PlayerState.get(player: Player): Estado
 			habilidades = Skills.normalizar(nil),
 			recogidos = 0,
 			saltoHasta = nil,
+			escudoHasta = nil,
 			entregas = 0,
 			hitos = {},
 			retorno = {},

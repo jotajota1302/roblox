@@ -140,6 +140,17 @@ function InterceptService.tick(ahora: number)
 			local estadoVictima = PlayerState.get(victima)
 			local estadoAtacante = PlayerState.get(atacante)
 
+			-- EL ESCUDO ANTIRROBO VALE TAMBIEN CONTRA PERSONAS, y tiene que valer o no
+			-- vale para nada: el robo entre jugadores es el que de verdad escuece, y un
+			-- escudo que solo para a los ladrones de mentira protege justo donde no
+			-- hace falta. Se avisa a los dos -- el que roba tiene que entender por que
+			-- no se ha llevado nada, o lo lee como que el juego esta roto.
+			if (estadoVictima.escudoHasta or 0) > os.clock() then
+				avisar(victima, "SHIELD_HELD", nil, Palette.AVISO_BUENO)
+				avisar(atacante, "SHIELD_BLOCKED", nil, ROJO)
+				continue
+			end
+
 			-- Solo se roba lo que quepa en el ladrón: lo que no cabe se queda con
 			-- la víctima. Robar transfiere carga, nunca la destruye.
 			-- Y AQUÍ TAMBIÉN CUENTA EN QUÉ VA LA VÍCTIMA. Sin esto, el eje de

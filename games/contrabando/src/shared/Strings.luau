@@ -94,6 +94,20 @@ local TEXTOS: { [string]: string } = {
 	-- la puerta, se lee de paso y compite con las ventanas encendidas.
 	DELIVERY_DOOR = "DROP-OFF",
 
+	-- LO QUE HACE CADA RECOGIBLE, escrito encima de el.
+	--
+	-- La silueta sola no basta: a la distancia a la que hay que DECIDIR si te
+	-- desvias, un rayo y una flecha son cuatro pixeles cada uno. Una palabra corta se
+	-- lee antes que una forma pequena, y son tres palabras que se aprenden una vez.
+	PICKUP_BOOST = "BOOST",
+	PICKUP_JUMP = "JUMP",
+	PICKUP_SHIELD = "SHIELD",
+
+	-- Los dos lados del escudo. Al que roba tambien se le dice, o lee "no me he
+	-- llevado nada" como que el juego esta roto.
+	SHIELD_HELD = "Your shield held. They got nothing.",
+	SHIELD_BLOCKED = "Shielded. Nothing to take.",
+
 	-- ---- Brújula ---------------------------------------------------------
 	COMPASS_HERE = "here",
 	COMPASS_METERS = "{metros} m",
@@ -249,6 +263,11 @@ local TEXTOS: { [string]: string } = {
 	PROMPT_BUY = "Buy",
 	PROMPT_BUY_VEHICLE = "Buy vehicle",
 	PROMPT_DROP_CARGO = "Drop cargo here",
+	-- El locker de entrega. "Deliver" y no "Drop off" porque el boton del aviso es
+	-- estrecho y en aleman o en frances lo largo se corta -- y lo que no se puede
+	-- leer no es una accion, es un adorno.
+	PROMPT_DELIVER = "Deliver",
+	PROMPT_LOCKER = "Parcel locker",
 	PROMPT_UPGRADE = "Upgrade warehouse",
 	PROMPT_DEALERSHIP = "Dealership",
 	-- El escaparate: nombre, precio y nivel del vehículo. Se monta en el SERVIDOR

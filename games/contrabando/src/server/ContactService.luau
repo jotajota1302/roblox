@@ -268,7 +268,13 @@ function ContactService.tick(ahora: number)
 			-- QUE HACE ESTA PIEZA. El tipo viaja con ella desde que la planto
 			-- CityBuilder, asi que aqui no se repite ningun reparto: se lee.
 			local tipo = pieza:GetAttribute("tipo")
-			if tipo == Config.RECOGIBLE_SALTO then
+			if tipo == Config.RECOGIBLE_ESCUDO then
+				-- EL ESCUDO TAMPOCO SE ACUMULA: se refresca. Encadenar escudos daria
+				-- una ruta entera intocable, y entonces la ruta roja --que paga diez
+				-- veces mas porque te pueden quitar la carga-- pasaria a pagar diez
+				-- veces mas por nada.
+				estado.escudoHasta = ahora + Config.ESCUDO_SEGUNDOS
+			elseif tipo == Config.RECOGIBLE_SALTO then
 				-- EL SALTO SE REFRESCA, NO SE ACUMULA. Encadenar seis flechas dejaria
 				-- un minuto entero volando y entonces la ciudad --las calles, las
 				-- manzanas, los rodeos-- deja de existir, que es todo el mapa.

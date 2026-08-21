@@ -673,25 +673,40 @@ local function recogiblesLimpios()
 		string.format("%d de %d vigilados:%s", pillados, #piezas, detalle)
 	)
 
-	-- Y QUE SIGAN SIENDO DE LOS DOS TIPOS. Apartar piezas de los conos puede
-	-- comerse justo las de una clase y dejar una ruta con solo rayos o solo flechas
-	-- -- que es la clase de sesgo que nadie ve porque el juego sigue funcionando.
+	-- Y QUE SIGAN SALIENDO LAS TRES CLASES. Apartar piezas de los conos puede
+	-- comerse justo las de una --boost, salto o escudo-- y dejar una ruta sin ella:
+	-- es la clase de sesgo que nadie ve porque el juego sigue funcionando, y que
+	-- convierte "tres herramientas" en "una y media" sin que nadie lo decida.
 	for _, ruta in Routes.todas() do
-		local v, sa = 0, 0
+		local hay: { [string]: number } = {}
+		local sinRotulo = 0
 		for _, pieza in piezas do
 			if pieza:GetAttribute("ruta") ~= ruta.id then
 				continue
 			end
-			if pieza:GetAttribute("tipo") == Config.RECOGIBLE_SALTO then
-				sa += 1
-			elseif pieza:GetAttribute("tipo") == Config.RECOGIBLE_VELOCIDAD then
-				v += 1
+			local t = tostring(pieza:GetAttribute("tipo"))
+			hay[t] = (hay[t] or 0) + 1
+			if pieza:FindFirstChild("Etiqueta") == nil then
+				sinRotulo += 1
+			end
+		end
+		local faltan = {}
+		for _, clase in Config.RECOGIBLES do
+			if (hay[clase] or 0) == 0 then
+				table.insert(faltan, clase)
 			end
 		end
 		comprobar(
-			string.format("la %s tiene recogibles de las dos clases", ruta.id),
-			v >= 1 and sa >= 1,
-			string.format("%d de velocidad y %d de salto", v, sa)
+			string.format("la %s reparte las tres clases de recogible", ruta.id),
+			#faltan == 0,
+			"falta: " .. table.concat(faltan, ", ")
+		)
+		-- Y CADA UNO CON SU PALABRA ENCIMA. La silueta sola no se lee a la distancia
+		-- a la que hay que decidir si te desvias: son cuatro pixeles.
+		comprobar(
+			string.format("y todos los de la %s llevan rotulo", ruta.id),
+			sinRotulo == 0,
+			string.format("%d sin etiqueta", sinRotulo)
 		)
 	end
 end

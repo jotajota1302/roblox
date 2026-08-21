@@ -555,6 +555,22 @@ end
 -- vuelve.
 local function alcanzar(player: Player)
 	local estado = PlayerState.get(player)
+
+	-- EL ESCUDO ANTIRROBO. Si esta activo no te quitan nada -- y esa es toda la
+	-- mecanica: cuando ya te han visto y no vas a ganar la carrera, la jugada deja de
+	-- ser "acelera" y pasa a ser "aguanta".
+	--
+	-- El ladron SI te alcanza y SI te cuesta el calor y la racha: lo que el escudo
+	-- para es la perdida de carga, que es lo unico que de verdad duele. Un escudo que
+	-- ademas te hiciera intocable convertiria el encuentro en nada, y un encuentro
+	-- que no significa nada no es tension.
+	if (estado.escudoHasta or 0) > os.clock() then
+		Remotes.event(Remotes.AVISO):FireClient(player, "SHIELD_HELD", nil, Palette.AVISO_BUENO)
+		Telemetry.evento(player, "escudo_aguanta", {})
+		CargoService.reiniciarRacha(player)
+		HeatService.capturado(player)
+		return
+	end
 	-- Lo que te quitan depende de EN QUÉ VAS: a pie lo sueltas todo, en furgoneta
 	-- pierdes bastante menos. Es el otro lado de que la furgoneta se vea venir de
 	-- más lejos (Vehicles.bulto).

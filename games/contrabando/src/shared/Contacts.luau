@@ -190,14 +190,14 @@ function Contacts.rastro(camino: { Vector3 }): { Contacto }
 		table.insert(salida, {
 			pos = puntoA(camino, largos, desde + k * paso),
 			valor = Config.CONTACTO_VALOR_RASTRO,
-			-- SE ALTERNAN velocidad y salto. Empieza por velocidad porque es la que
-			-- ya conoce quien viene de antes, y porque el salto sin haber cogido
-			-- carrerilla no lleva a ninguna parte.
+			-- SE TURNAN LOS TRES: boost, salto, escudo, boost... Empieza por el boost
+			-- porque es el que ya conoce quien viene de antes, y porque el salto sin
+			-- haber cogido carrerilla no lleva a ninguna parte.
 			--
-			-- Alternar por INDICE y no por sorteo es la regla de este mapa: el reparto
+			-- Turnarse por INDICE y no por sorteo es la regla de este mapa: el reparto
 			-- sale del trazado, asi que la segunda vez que haces una ruta sabes cual
 			-- viene -- y poder planear es lo que separa una decision de una loteria.
-			tipo = if k % 2 == 0 then Config.RECOGIBLE_VELOCIDAD else Config.RECOGIBLE_SALTO,
+			tipo = Config.RECOGIBLES[(k % #Config.RECOGIBLES) + 1],
 		})
 	end
 
@@ -209,7 +209,12 @@ end
 -- dia que entre una tercera clase habra media docena de comparaciones que actualizar
 -- y una que se quedara atras.
 function Contacts.esDelRastro(tipo: string): boolean
-	return tipo == Config.RECOGIBLE_VELOCIDAD or tipo == Config.RECOGIBLE_SALTO
+	for _, clase in Config.RECOGIBLES do
+		if tipo == clase then
+			return true
+		end
+	end
+	return false
 end
 
 -- CUÁLES DEL RASTRO SON DORADAS, o sea cuáles además pagan un contacto.

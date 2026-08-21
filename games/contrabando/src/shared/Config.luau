@@ -1094,6 +1094,11 @@ Config.RASTRO_MINIMO = 4
 -- demas de este mapa: la segunda vez que haces una ruta sabes cual viene.
 Config.RECOGIBLE_VELOCIDAD = "velocidad"
 Config.RECOGIBLE_SALTO = "salto"
+Config.RECOGIBLE_ESCUDO = "escudo"
+
+-- Los tres, EN ORDEN DE REPARTO. Se turnan por indice, asi que la fila alterna
+-- boost, salto, escudo, boost... y el jugador que repite una ruta sabe cual viene.
+Config.RECOGIBLES = { Config.RECOGIBLE_VELOCIDAD, Config.RECOGIBLE_SALTO, Config.RECOGIBLE_ESCUDO }
 
 -- CUANTO SALTA con el impulso puesto, como multiplo de Config.SALTO_ALTURA.
 --
@@ -1108,6 +1113,19 @@ Config.SALTO_IMPULSO_FACTOR = 2.2
 -- refresca al coger otro, no se acumula -- acumular convertiria un rastro de seis
 -- saltos en un minuto entero volando, y entonces la ciudad deja de existir.
 Config.SALTO_IMPULSO_SEGUNDOS = 8
+
+-- EL ESCUDO ANTIRROBO. Lo pidio JJ como tercera clase de recogible, y es la que le
+-- faltaba al juego: hasta ahora TODO lo que se recoge sirve para ir mas deprisa, y
+-- eso deja una sola respuesta a cualquier problema -- correr mas.
+--
+-- El escudo contesta otra pregunta. Cuando ya te han visto y no vas a ganar la
+-- carrera, la jugada deja de ser "acelera" y pasa a ser "aguanta". Y encaja con lo
+-- unico que de verdad duele en este juego: que te quiten la carga.
+--
+-- DOCE SEGUNDOS. Mas que el salto porque no acorta el viaje ni un stud: solo evita
+-- una perdida, y una perdida que puede no llegar a pasar. Un escudo corto seria un
+-- premio que casi siempre caduca sin haber servido para nada.
+Config.ESCUDO_SEGUNDOS = 12
 
 -- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
 -- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs

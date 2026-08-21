@@ -1226,72 +1226,108 @@ local function caminoDeRuta(ruta: Routes.Ruta): { Vector3 }
 	return puntos
 end
 
--- LOS BRAZOS DEL RAYO, colgados de la pieza que ya existe.
+-- LOS TRES ICONOS DEL CAMINO: boost, salto y escudo.
 --
--- POR QUE UN RAYO Y NO UN CUADRADO, dicho por JJ el 20/08: *"que sean unas
--- zapatillas o un rayo y te den un empujoncito de velocidad temporal"*. Y la forma
--- no es adorno: la miga cambio de trabajo. Antes marcaba el camino --de ahi que un
--- punto valiera-- y ahora lo unico que hace es acelerarte. Un simbolo que
--- significa velocidad se lee sin tener que aprenderlo, y en un juego donde eliges
--- si te desvias a por el, entenderlo de un vistazo ES la mecanica.
+-- POR QUE TIENEN FORMA, y no son tres cubos de colores distintos: *"trabaja mas los
+-- iconos que salen por el camino, que se vea claro que es boost, jump, escudo"*. La
+-- silueta es lo unico que se lee ANTES de llegar, y llegar es justo cuando ya no hay
+-- nada que decidir. Un simbolo que significa lo que hace no hay que aprenderlo.
 --
--- HECHO DE PARTS Y NO DE UN MESH, y no por gusto: este proyecto ya pago que los
--- meshes no existen hasta publicar el place. Tres cajas neon inclinadas dan la
--- silueta y se ven siempre.
+-- HECHOS DE PARTS Y NO DE MESHES, por lo de siempre en este proyecto: un mesh no
+-- existe hasta publicar el place. Cada icono son de dos a cuatro piezas neon
+-- montadas sobre la pieza ancla, que es la que lleva los atributos.
 --
--- Los brazos cuelgan DE la pieza, asi que van con ella a todas partes: al cliente
--- que pinta el rastro (`Senales`) le basta con recorrer descendientes, y a las
--- sondas que buscan `^Contacto_` no les aparecen como piezas sueltas.
-local function rayo(pieza: BasePart, color: Color3, escala: number)
-	-- Medidas en el marco de la pieza, que ya viene girada de canto al camino y con
-	-- el travesano inclinado. Cada brazo deshace esa inclinacion y pone la suya.
-	local brazos = {
-		{ largo = 2.0, ancho = 0.75, giro = 20, dx = 0.62, dy = 1.15 },
-		{ largo = 2.0, ancho = 0.75, giro = 20, dx = -0.62, dy = -1.15 },
-	}
-	for _, b in brazos do
-		local brazo = Instance.new("Part")
-		brazo.Name = "Rayo"
-		brazo.Size = Vector3.new(b.ancho * escala, b.largo * escala, 0.55)
-		brazo.Color = color
-		brazo.Material = Enum.Material.Neon
-		brazo.Anchored = true
-		brazo.CanCollide = false
-		brazo.CastShadow = false
-		brazo.CFrame = pieza.CFrame
-			* CFrame.Angles(0, 0, math.rad(34))
-			* CFrame.new(b.dx * escala, b.dy * escala, 0)
-			* CFrame.Angles(0, 0, math.rad(b.giro))
-		brazo.Parent = pieza
+-- Y CADA UNO CON SU PALABRA ENCIMA. La forma sola no basta -- a la distancia a la
+-- que hay que decidir si te desvias, un rayo y una flecha son cuatro pixeles cada
+-- uno. Tres palabras cortas se aprenden una vez y se leen siempre.
+local function pegarIcono(pieza: BasePart, nombre: string, tamano: Vector3, offset: CFrame, color: Color3)
+	local trozo = Instance.new("Part")
+	trozo.Name = nombre
+	trozo.Size = tamano
+	trozo.Color = color
+	trozo.Material = Enum.Material.Neon
+	trozo.Anchored = true
+	trozo.CanCollide = false
+	trozo.CastShadow = false
+	trozo.CFrame = pieza.CFrame * offset
+	trozo.Parent = pieza
+	return trozo
+end
+
+-- EL RAYO: dos brazos en zigzag colgando del travesano, que es la pieza ancla.
+local function iconoBoost(pieza: BasePart, color: Color3, escala: number)
+	for _, b in { { dx = 0.62, dy = 1.15, giro = 20 }, { dx = -0.62, dy = -1.15, giro = 20 } } do
+		pegarIcono(
+			pieza,
+			"Rayo",
+			Vector3.new(0.75 * escala, 2.0 * escala, 0.55),
+			CFrame.Angles(0, 0, math.rad(34))
+				* CFrame.new(b.dx * escala, b.dy * escala, 0)
+				* CFrame.Angles(0, 0, math.rad(b.giro)),
+			color
+		)
 	end
 end
 
--- LOS BRAZOS DE LA FLECHA, para el recogible de SALTO.
---
--- Dos clases de recogible necesitan dos siluetas, y la unica forma de que un
--- simbolo se lea sin leyenda es que signifique lo que hace. El rayo es velocidad;
--- una flecha hacia arriba es salto. No hay nada que aprender.
---
--- Y SE DISTINGUEN TAMBIEN POR EL COLOR, no solo por la forma: a la distancia a la
--- que hace falta decidir --la siguiente pieza, no la que pisas-- la silueta es
--- cuatro pixeles y el color es un color. El cian no aparece en ningun otro sitio
--- del juego, que es exactamente lo que se le pide a un codigo de color.
-local function flecha(pieza: BasePart, color: Color3, escala: number)
-	-- La pieza es el ASTA; aqui se le ponen las dos alas de la punta.
+-- LA FLECHA: el asta es la pieza ancla y aqui se le ponen las dos alas de la punta.
+local function iconoSalto(pieza: BasePart, color: Color3, escala: number)
 	for _, signo in { 1, -1 } do
-		local ala = Instance.new("Part")
-		ala.Name = "Ala"
-		ala.Size = Vector3.new(0.75 * escala, 1.9 * escala, 0.55)
-		ala.Color = color
-		ala.Material = Enum.Material.Neon
-		ala.Anchored = true
-		ala.CanCollide = false
-		ala.CastShadow = false
-		ala.CFrame = pieza.CFrame
-			* CFrame.new(0.62 * escala * signo, 0.85 * escala, 0)
-			* CFrame.Angles(0, 0, math.rad(40) * signo)
-		ala.Parent = pieza
+		pegarIcono(
+			pieza,
+			"Ala",
+			Vector3.new(0.75 * escala, 1.9 * escala, 0.55),
+			CFrame.new(0.62 * escala * signo, 0.85 * escala, 0) * CFrame.Angles(0, 0, math.rad(40) * signo),
+			color
+		)
 	end
+	-- Y una barra abajo, como el suelo del que se despega: sin ella la flecha se lee
+	-- como "por ahi" (una direccion) en vez de "hacia arriba" (un salto).
+	pegarIcono(pieza, "Ala", Vector3.new(2.6 * escala, 0.5 * escala, 0.55), CFrame.new(0, -1.5 * escala, 0), color)
+end
+
+-- EL ESCUDO: un cuerpo ancho arriba que se estrecha abajo en punta. Se monta con
+-- tres franjas de anchura decreciente -- no es un contorno perfecto, pero a treinta
+-- studs la silueta de un escudo es inconfundible y eso es lo unico que se le pide.
+local function iconoEscudo(pieza: BasePart, color: Color3, escala: number)
+	local franjas = {
+		{ ancho = 2.4, alto = 0.9, dy = 0.95 },
+		{ ancho = 1.7, alto = 0.9, dy = 0.05 },
+		{ ancho = 0.9, alto = 0.9, dy = -0.85 },
+	}
+	for _, f in franjas do
+		pegarIcono(
+			pieza,
+			"Chapa",
+			Vector3.new(f.ancho * escala, f.alto * escala, 0.55),
+			CFrame.new(0, f.dy * escala, 0),
+			color
+		)
+	end
+end
+
+-- Y SU PALABRA, en el aire justo encima. `MaxDistance` corto: cerca dice QUE es, y
+-- de lejos lo dice la silueta y el color. Un rotulo que se lee desde el otro lado
+-- del mapa seria una lista de la compra flotando sobre la ciudad -- eso ya paso con
+-- los carteles de las rutas y hubo que apagarlos.
+local function rotularIcono(pieza: BasePart, texto: string, color: Color3)
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "Etiqueta"
+	cartel.Size = UDim2.fromScale(7, 2)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
+	cartel.AlwaysOnTop = false
+	cartel.MaxDistance = 95
+	cartel.Adornee = pieza
+	cartel.Parent = pieza
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = color
+	label.TextStrokeTransparency = 0.2
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.Text = texto
+	label.Parent = cartel
 end
 
 -- LOS CONTACTOS de una ruta, plantados sobre su corredor.
@@ -1482,41 +1518,61 @@ local function sembrarContactos(
 		end
 
 		local centro = Vector3.new(x, (y :: number) + 4, z)
+
 		-- EL COLOR DICE QUE HACE, y ya no de que ruta es.
 		--
-		-- Hasta hoy iban del color de su ruta, y tenia sentido cuando la fila
-		-- SENALIZABA: el color decia cual era la tuya. Ese trabajo se lo llevo el
-		-- minimapa, y desde que hay dos clases de recogible el color tiene algo mucho
-		-- mas util que decir -- para que sirve el que estas mirando. Ambar es
-		-- velocidad, cian es salto, y de que ruta son ya lo sabe el cliente, que solo
+		-- Iban del color de su ruta, y tenia sentido cuando la fila SENALIZABA: el
+		-- color decia cual era la tuya. Ese trabajo se lo llevo el minimapa, y con tres
+		-- clases de recogible el color tiene algo mucho mas util que decir -- para que
+		-- sirve el que estas mirando. De que ruta es ya lo sabe el cliente, que solo
 		-- enciende las tuyas.
+		--
+		-- Ambar, cian y verde: tres tonos que no se parecen NI EN ESCALA DE GRISES,
+		-- que es la unica forma de que sigan distinguiendose para quien no ve bien el
+		-- color -- una de cada doce personas.
+		local COLORES = {
+			[Config.RECOGIBLE_VELOCIDAD] = Color3.fromRGB(255, 186, 70),
+			[Config.RECOGIBLE_SALTO] = Color3.fromRGB(96, 226, 236),
+			[Config.RECOGIBLE_ESCUDO] = Color3.fromRGB(150, 240, 150),
+		}
+		local ROTULOS = {
+			[Config.RECOGIBLE_VELOCIDAD] = "PICKUP_BOOST",
+			[Config.RECOGIBLE_SALTO] = "PICKUP_JUMP",
+			[Config.RECOGIBLE_ESCUDO] = "PICKUP_SHIELD",
+		}
 		local color = if esRacimo
 			then Color3.fromRGB(255, 196, 84)
-			elseif esSalto then Color3.fromRGB(96, 226, 236)
-			else Color3.fromRGB(255, 186, 70)
+			else COLORES[contacto.tipo] or Color3.fromRGB(255, 186, 70)
 		local escala = if esRacimo then 1.25 else 1
-		local pieza = part(
-			string.format("Contacto_%s_%d", ruta.id, i),
-			if esSalto
-				then Vector3.new(0.8 * escala, 2.6 * escala, 0.55)
-				else Vector3.new(2.1 * escala, 0.8 * escala, 0.55),
-			centro,
-			color,
-			padre
-		)
+
+		-- CADA ICONO TIENE SU PIEZA ANCLA con la forma que le toca: el travesano del
+		-- rayo, el asta de la flecha, la franja de arriba del escudo.
+		local medida = if contacto.tipo == Config.RECOGIBLE_SALTO
+			then Vector3.new(0.8 * escala, 2.6 * escala, 0.55)
+			elseif contacto.tipo == Config.RECOGIBLE_ESCUDO then Vector3.new(2.9 * escala, 0.9 * escala, 0.55)
+			else Vector3.new(2.1 * escala, 0.8 * escala, 0.55)
+		local pieza = part(string.format("Contacto_%s_%d", ruta.id, i), medida, centro, color, padre)
 		pieza.Material = Enum.Material.Neon
 		pieza.CanCollide = false
-		if esSalto then
-			-- La flecha va DERECHA, no de canto: apunta arriba, y arriba es arriba se
-			-- mire desde donde se mire. Solo se gira sobre su eje para dar la cara al
-			-- camino.
-			pieza.CFrame = CFrame.lookAt(centro, centro + rumbo.Unit)
-			flecha(pieza, color, escala)
+
+		-- DE CARA AL CAMINO todos, para que quien llega los vea de frente y no de
+		-- perfil. Solo el rayo va inclinado dentro de ese plano, porque un rayo
+		-- derecho no es un rayo.
+		local deFrente = CFrame.lookAt(centro, centro + rumbo.Unit)
+		if contacto.tipo == Config.RECOGIBLE_SALTO then
+			pieza.CFrame = deFrente
+			iconoSalto(pieza, color, escala)
+		elseif contacto.tipo == Config.RECOGIBLE_ESCUDO then
+			pieza.CFrame = deFrente * CFrame.new(0, 0.95 * escala, 0)
+			iconoEscudo(pieza, color, escala)
 		else
-			-- De canto al camino, y el travesano del rayo inclinado dentro de ese plano.
-			pieza.CFrame = CFrame.lookAt(centro, centro + rumbo.Unit) * CFrame.Angles(0, 0, math.rad(-34))
-			rayo(pieza, color, escala)
+			pieza.CFrame = deFrente * CFrame.Angles(0, 0, math.rad(-34))
+			iconoBoost(pieza, color, escala)
 		end
+		if not esRacimo and ROTULOS[contacto.tipo] then
+			rotularIcono(pieza, Strings.get(ROTULOS[contacto.tipo]), color)
+		end
+
 		-- Los datos viajan CON la pieza: ContactService no repite el reparto, lee lo
 		-- que hay plantado. Si algún día el reparto cambia, no hay dos versiones.
 		pieza:SetAttribute("ruta", ruta.id)
@@ -2639,19 +2695,80 @@ function CityBuilder.build(): Mundo
 		luz.Brightness = 2.2
 		luz.Parent = dintelLuz
 
-		-- Y EL MOSTRADOR, al fondo de la habitacion: es LO QUE DECIDE si has entregado
-		-- (se registra como destino en vez de la losa de la acera). Ponerlo aqui y no en
-		-- la calle es toda la mecanica -- con el punto de cobro fuera, "entrar al
-		-- edificio" seria decorado.
+		-- Y EL LOCKER, al fondo de la habitacion: es LO QUE DECIDE si has entregado.
+		--
+		-- Era un mostrador de madera y no decia nada. JJ: *"estaria bien que entregar
+		-- el paquete sea darselo a alguien o algo para saber que acabas, y darle a
+		-- alguna tecla o boton del mando; quiza un locker de Amazon o algo asi, para
+		-- no meter personas"*. Y da en el clavo por dos sitios:
+		--
+		--   · un LOCKER se entiende sin explicacion y no necesita animar a nadie -- un
+		--     NPC pediria idle, mirada, voz y todo lo que este proyecto no va a hacer
+		--     antes de tener D1;
+		--   · y sobre todo, el aviso de proximidad convierte entregar en un ACTO. Antes
+		--     era una tecla global que funcionaba si estabas en el radio, o sea algo
+		--     que pasaba; ahora hay un boton en el mundo que aparece al llegar --y que
+		--     en mando y en movil sale solo, sin que tengamos que inventar nada.
 		local mostrador = Instance.new("Part")
 		mostrador.Name = "Mostrador"
-		mostrador.Size = Vector3.new(ANCHO - 14, 5, 5)
-		mostrador.CFrame = base * CFrame.new(0, 3.5, FONDO / 2 - 5)
+		mostrador.Size = Vector3.new(ANCHO - 16, 13, 4)
+		mostrador.CFrame = base * CFrame.new(0, 7, FONDO / 2 - 3.5)
 		mostrador.Anchored = true
 		mostrador.CanCollide = true
-		mostrador.Color = Color3.fromRGB(112, 84, 58)
-		mostrador.Material = Enum.Material.WoodPlanks
+		mostrador.Color = Color3.fromRGB(78, 82, 92)
+		mostrador.Material = Enum.Material.Metal
 		mostrador.Parent = casa
+
+		-- LAS PUERTECITAS. Tres por dos, con junta a la vista: es lo que hace que una
+		-- caja metalica se lea como un locker y no como una nevera.
+		local ancho = (ANCHO - 16) / 3
+		for fila = 0, 1 do
+			for col = 0, 2 do
+				local casillero = Instance.new("Part")
+				casillero.Name = "Casillero"
+				casillero.Size = Vector3.new(ancho - 1.2, 5.4, 0.5)
+				casillero.CFrame = base
+					* CFrame.new(
+						-(ANCHO - 16) / 2 + ancho * (col + 0.5),
+						7 + (if fila == 0 then 3.1 else -3.1),
+						FONDO / 2 - 5.7
+					)
+				casillero.Anchored = true
+				casillero.CanCollide = false
+				casillero.CastShadow = false
+				casillero.Color = Color3.fromRGB(52, 56, 66)
+				casillero.Material = Enum.Material.Metal
+				casillero.Parent = mostrador
+			end
+		end
+
+		-- LA PANTALLA, del color de la ruta y encendida: es lo que se ve al entrar por
+		-- la puerta y lo que dice "es aqui" dentro de una habitacion en penumbra.
+		local pantalla = Instance.new("Part")
+		pantalla.Name = "Pantalla"
+		pantalla.Size = Vector3.new(ANCHO - 18, 1.6, 0.5)
+		pantalla.CFrame = base * CFrame.new(0, 14.2, FONDO / 2 - 5.7)
+		pantalla.Anchored = true
+		pantalla.CanCollide = false
+		pantalla.CastShadow = false
+		pantalla.Color = color
+		pantalla.Material = Enum.Material.Neon
+		pantalla.Parent = mostrador
+
+		-- EL BOTON. `PromptEntregar` es el nombre que ya escucha el cliente, asi que
+		-- esto no anade ninguna regla nueva: solo pone en el mundo la accion que hasta
+		-- hoy solo existia como tecla.
+		--
+		-- Alcance corto (12) porque el radio de cobro son 14: el boton tiene que
+		-- aparecer justo cuando se puede usar, o promete algo que no hace.
+		local aviso = Instance.new("ProximityPrompt")
+		aviso.Name = "PromptEntregar"
+		aviso.ActionText = Strings.get("PROMPT_DELIVER")
+		aviso.ObjectText = Strings.get("PROMPT_LOCKER")
+		aviso.MaxActivationDistance = 12
+		aviso.HoldDuration = 0
+		aviso.RequiresLineOfSight = false
+		aviso.Parent = mostrador
 
 		local farol = Instance.new("PointLight")
 		farol.Color = color
