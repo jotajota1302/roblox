@@ -37,6 +37,7 @@ local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Caches = require(game.ReplicatedStorage.Shared.Caches)
 local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Goods = require(game.ReplicatedStorage.Shared.Goods)
 local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
@@ -54,6 +55,35 @@ local SelfCheck = {}
 type Resultado = { nombre: string, ok: boolean, detalle: string }
 
 local resultados: { Resultado } = {}
+
+-- A DONDE VA CADA RUTA, LEIDO DEL MUNDO Y NO DE `Config`.
+--
+-- Es la correccion mas importante de esta bateria, y viene de una tarde entera de
+-- rojos sobre un mundo que estaba perfecto.
+--
+-- Desde que los destinos se sortean al arrancar (`Destinations.luau`), `ruta.destino`
+-- es un dato de EJECUCION: lo escribe el servidor en su copia de `Config`. Y esta
+-- bateria se lanza por el MCP con `execute_luau`, que corre en un SANDBOX con su
+-- propia cache de `require` -- o sea que aqui `Config` es un modulo recien ejecutado
+-- y sus destinos son los de DISENO, no los de la partida.
+--
+-- El resultado era un catalogo de fallos fantasma: "solo 4 de 7 migas al alcance",
+-- "un alijo cae sobre una ruta"... midiendo un mundo correcto contra caminos que no
+-- existen. La firma es reconocible -- las cosas del mundo estaban de acuerdo entre
+-- si (las migas con su casa de entrega) y el unico que discrepaba era el dato.
+--
+-- La losa `Destino_<ruta>` la planta `CityBuilder` en el sitio de verdad, asi que
+-- leerla es medir lo que se construyo, que es la unica regla que tiene una sonda.
+local function destinoDeRuta(mundo: Instance?, rutaId: string, respaldo: Vector3): Vector3
+	if mundo == nil then
+		return respaldo
+	end
+	local losa = mundo:FindFirstChild("Destino_" .. rutaId)
+	if losa and losa:IsA("BasePart") then
+		return losa.Position
+	end
+	return respaldo
+end
 
 local function comprobar(nombre: string, ok: boolean, detalle: string?)
 	table.insert(resultados, { nombre = nombre, ok = ok, detalle = detalle or "" })
@@ -1522,6 +1552,63 @@ local function contactos()
 	-- manzanas, y las migas se plantan por la calle a propósito, que es por donde
 	-- puede seguirlas alguien que sólo mira. La sonda tiene que medir contra lo que ve
 	-- el jugador, no contra lo que sabe el motor.
+	-- LOS ALIJOS EXISTEN Y ESTAN DONDE TIENEN QUE ESTAR.
+	--
+	-- Lo que se comprueba no es que haya doce cajas: es que ninguna haya acabado
+	-- pegada a un camino ni dentro de casa. Un alijo sobre la ruta no da error --
+	-- se recoge igual-- y convierte en una miga mas lo unico del mapa que premia
+	-- salirse, que es el sistema entero.
+	do
+		local cajas: { BasePart } = {}
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d:GetAttribute("alijo") == true then
+				table.insert(cajas, d)
+			end
+		end
+		comprobar(
+			"hay alijos plantados por la ciudad",
+			#cajas >= math.floor(Config.ALIJOS * 0.6),
+			string.format("solo %d de %d", #cajas, Config.ALIJOS)
+		)
+
+		local caminos: { { Vector3 } } = {}
+		for _, ruta in Routes.todas() do
+			local puntos: { Vector3 } = { Config.ALMACEN_POS }
+			for _, punto in Grid.porCalles(Config.POLIGONO_SALIDA, ruta.destino) do
+				table.insert(puntos, punto)
+			end
+			table.insert(caminos, puntos)
+		end
+
+		local pegados, dentro, sinSuelo = 0, 0, 0
+		for _, caja in cajas do
+			for _, camino in caminos do
+				-- Con el margen del sembrado: la caja se corre hasta 14 studs buscando
+				-- calle, asi que exigir los 60 clavados seria pedirle a la sonda una
+				-- precision que el mundo no puede dar.
+				if Contacts.distanciaAlCamino(caja.Position, camino) < Caches.LEJOS - 15 then
+					pegados += 1
+					break
+				end
+			end
+			if Perimeter.dentro(caja.Position, Config.ZONA_SEGURA_RADIO) then
+				dentro += 1
+			end
+			-- Y CON SUELO DEBAJO. Un alijo flotando o enterrado se ve y no se coge, que
+			-- es peor que no ponerlo.
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = { caja }
+			local golpe = workspace:Raycast(caja.Position + Vector3.new(0, 6, 0), Vector3.new(0, -30, 0), params)
+			if golpe == nil then
+				sinSuelo += 1
+			end
+		end
+		comprobar("ningun alijo cae sobre una ruta", pegados == 0, string.format("%d pegados a un camino", pegados))
+		comprobar("ningun alijo cae dentro de casa", dentro == 0, string.format("%d en la zona segura", dentro))
+		comprobar("todos los alijos tienen suelo debajo", sinSuelo == 0, string.format("%d en el aire", sinSuelo))
+	end
+
 	for _, ruta in Routes.todas() do
 		local camino = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
 		local ok = pcall(function()
@@ -2148,6 +2235,25 @@ end
 
 function SelfCheck.run(): string
 	resultados = {}
+
+	-- LO PRIMERO DE TODO: traerse los destinos DEL MUNDO.
+	--
+	-- Sin esto, la bateria entera mide contra los destinos de diseno mientras el
+	-- mundo esta construido sobre los sorteados, y canta fallos fantasma sobre un
+	-- mapa correcto (ver `destinoDeRuta`). Se parchea aqui, una sola vez, en vez de
+	-- en las quince sondas que leen `ruta.destino`: una regla en un sitio.
+	--
+	-- Y ESCRIBIR AQUI NO TOCA LA PARTIDA. Cuando esto corre por el MCP lo hace en un
+	-- sandbox con su propia copia de los modulos, asi que este `Config` no es el del
+	-- servidor; y si algun dia corriera dentro del servidor de verdad, lo que se
+	-- escribe es EXACTAMENTE lo que ya habia --el destino que se leyo del mundo que
+	-- ese servidor construyo-- asi que tampoco cambia nada.
+	do
+		local m = workspace:FindFirstChild("Mundo")
+		for _, ruta in Config.RUTAS do
+			ruta.destino = destinoDeRuta(m, ruta.id, ruta.destino)
+		end
+	end
 
 	local pasos: { { nombre: string, fn: () -> () } } = {
 		{ nombre = "retícula", fn = reticula },

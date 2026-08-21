@@ -345,6 +345,12 @@ local TEXTOS: { [string]: string } = {
 	ITEM_ALREADY_ON = "{objeto} is already running",
 	-- Lo que se dibuja bajo cada casilla cuando no llevas ninguno.
 	SLOT_EMPTY = "empty",
+
+	-- LOS ALIJOS. Dicen la cifra porque es lo unico que se llevan casi siempre, y
+	-- un premio que no se ve no ensena a buscar el siguiente.
+	STASH_FOUND = "Stash cracked  ·  +{xp} XP",
+	STASH_ITEM = "Stash cracked  ·  +{xp} XP and a {objeto}",
+	STASH_FULL = "Stash cracked  ·  +{xp} XP  (no room for the {objeto})",
 	HEAT_INHERITED = "You take their cargo and their heat  ·  {nivel}/{maximo}",
 	CHASE_BEHIND_YOU = "They are coming for you",
 	CHASE_LOST_THEM = "You lost them",

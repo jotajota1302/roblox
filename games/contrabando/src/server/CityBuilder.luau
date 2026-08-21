@@ -26,6 +26,7 @@ local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Detectors = require(game.ReplicatedStorage.Shared.Detectors)
 local PathfindingService = game:GetService("PathfindingService")
 
+local Caches = require(game.ReplicatedStorage.Shared.Caches)
 local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Lairs = require(game.ReplicatedStorage.Shared.Lairs)
 -- Ride, para poner el vehículo de verdad en el escaparate en vez de una caja.
@@ -3259,6 +3260,62 @@ function CityBuilder.build(): Mundo
 		)
 	end
 
+	-- LOS ALIJOS: un bulto con su lona y su halo, apartado de todos los caminos.
+	--
+	-- HECHO DE PIEZAS y no de un mesh, por lo de siempre: un mesh no existe hasta
+	-- publicar el place. Y con HALO A RAS DE SUELO en vez de columna de luz -- las
+	-- columnas se quitaron el 19/08 ("quitales el rectangulo ese hacia arriba, que los
+	-- hace demasiado evidentes") y tenian razon: lo que se ve desde el otro lado de la
+	-- ciudad no se busca, se ignora. Un alijo tiene que encontrarse.
+	local function plantarAlijo(donde: Vector3, indice: number, padre: Instance): BasePart
+		local caja = Instance.new("Part")
+		caja.Name = "Alijo_" .. indice
+		caja.Size = Vector3.new(3.4, 2.6, 2.6)
+		caja.CFrame = CFrame.new(donde + Vector3.new(0, 1.3, 0)) * CFrame.Angles(0, indice * 0.7, 0)
+		caja.Anchored = true
+		caja.CanCollide = false
+		-- SIN COLISION Y SIN CONSULTA: sin lo primero, un alijo en mitad de la acera es
+		-- un tropiezo; sin lo segundo, los rayos que buscan suelo lo tomarian por suelo.
+		caja.CanQuery = false
+		caja.CanTouch = false
+		caja.Color = Color3.fromRGB(92, 68, 44)
+		caja.Material = Enum.Material.WoodPlanks
+		caja:SetAttribute("alijo", true)
+		caja:SetAttribute("indice", indice)
+		caja.Parent = padre
+
+		local lona = Instance.new("Part")
+		lona.Name = "Lona"
+		lona.Size = Vector3.new(3.8, 0.5, 3)
+		lona.CFrame = caja.CFrame * CFrame.new(0, 1.4, 0)
+		lona.Anchored = true
+		lona.CanCollide = false
+		lona.CanQuery = false
+		lona.CanTouch = false
+		lona.Color = Color3.fromRGB(58, 74, 62)
+		lona.Material = Enum.Material.Fabric
+		lona.Parent = caja
+
+		-- El halo: un disco fino en el suelo. Es lo que hace que se vea a media calle
+		-- sin gritar desde el otro barrio, y ademas dice DONDE hay que ponerse.
+		local halo = Instance.new("Part")
+		halo.Name = "Halo"
+		halo.Shape = Enum.PartType.Cylinder
+		halo.Size = Vector3.new(0.25, Config.ALIJO_RADIO * 1.6, Config.ALIJO_RADIO * 1.6)
+		halo.CFrame = CFrame.new(donde + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.rad(90))
+		halo.Anchored = true
+		halo.CanCollide = false
+		halo.CanQuery = false
+		halo.CanTouch = false
+		halo.Color = Color3.fromRGB(238, 202, 122)
+		halo.Material = Enum.Material.Neon
+		halo.Transparency = 0.62
+		halo.CastShadow = false
+		halo.Parent = caja
+
+		return caja
+	end
+
 	-- LOS CONTACTOS, EL ÚLTIMO DE TODO, y el orden es la regla entera.
 	--
 	-- Se anclan a las guaridas, sí, pero el motivo de que vayan al final es otro y
@@ -3276,6 +3333,42 @@ function CityBuilder.build(): Mundo
 		local camino = caminoDeRuta(ruta)
 		for _, pieza in sembrarContactos(ciudad, ruta, camino, guaridasDeRuta[ruta.id] or {}, mundo, detectores) do
 			table.insert(contactos, pieza)
+		end
+	end
+
+	-- Y LOS ALIJOS, con los caminos de las tres rutas ya calculados: su regla es
+	-- estar LEJOS DE TODOS, asi que no se pueden plantar hasta saber por donde van.
+	-- Ver `Caches.luau`.
+	local alijos: { BasePart } = {}
+	do
+		local caminos: { { Vector3 } } = {}
+		for _, ruta in Routes.todas() do
+			table.insert(caminos, caminoDeRuta(ruta))
+		end
+		-- La semilla sale del destino de la primera ruta, que ya viene sorteado: asi
+		-- los escondites cambian con la partida sin necesidad de otro sorteo, y dos
+		-- servidores con los mismos destinos tienen los mismos alijos -- que es lo que
+		-- permite volver a mirar una partida rara.
+		local semilla = math.floor(math.abs(Routes.todas()[1].destino.X + Routes.todas()[1].destino.Z))
+		local puestos = 0
+		for _, sitio in Caches.elegidos(caminos, Config.ALIJOS, semilla) do
+			local y, cx, cz = sueloTransitable(ciudad, sitio.X, sitio.Z)
+			if y == nil then
+				continue
+			end
+			-- Y no muy lejos de donde se pidio: si el unico suelo esta a treinta studs,
+			-- el alijo acaba en un sitio que no es el que se eligio -- y lo que se
+			-- eligio era "apartado pero alcanzable".
+			if math.sqrt((cx - sitio.X) ^ 2 + (cz - sitio.Z) ^ 2) > 14 then
+				continue
+			end
+			puestos += 1
+			table.insert(alijos, plantarAlijo(Vector3.new(cx, y :: number, cz), puestos, mundo))
+		end
+		if puestos < Config.ALIJOS then
+			-- No es un fallo --el mapa manda-- pero se dice: un reparto que se queda a
+			-- la mitad en silencio es como se acaba con un sistema que "no funciona".
+			warn(string.format("[Contrabando] se pidieron %d alijos y solo cupieron %d", Config.ALIJOS, puestos))
 		end
 	end
 
@@ -3307,6 +3400,7 @@ function CityBuilder.build(): Mundo
 		refugios = refugios,
 		guaridas = guaridas,
 		contactos = contactos,
+		alijos = alijos,
 	}
 end
 

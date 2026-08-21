@@ -55,7 +55,18 @@ function Destinations.candidatos(rutaId: string, nominal: Vector3): { Vector3 }
 	if fila == nil then
 		return { nominal }
 	end
-	local base = (nominal - Config.ALMACEN_POS).Magnitude
+	-- LA DISTANCIA ES LA QUE SE ANDA, no la de la regla sobre el plano.
+	--
+	-- Se filtraba con `Magnitude` --la recta del almacen al cruce-- y en una ciudad
+	-- de calles en angulo recto eso miente: dos destinos a la misma distancia en
+	-- linea recta pueden estar a 150 y a 250 studs de caminata segun cuantos giros
+	-- haya que dar. Medido con la sonda del mundo: el sorteo mando el PRIMER VIAJE
+	-- --la ruta de aprender, que tiene su propia horquilla de 90 a 220 studs-- a 246
+	-- andando, todavia dentro del 1,3 en recta.
+	--
+	-- `Grid.camino` da los studs reales por las calles, que es lo que tarda el
+	-- jugador y por tanto lo que define la ruta.
+	local base = Grid.camino(Config.POLIGONO_SALIDA, nominal)
 	local lista: { Vector3 } = {}
 	for i = 0, Grid.COLUMNAS do
 		local cruce = Grid.cruce(i, fila)
@@ -64,7 +75,7 @@ function Destinations.candidatos(rutaId: string, nominal: Vector3): { Vector3 }
 		if Perimeter.dentro(cruce, Config.ZONA_SEGURA_RADIO) then
 			continue
 		end
-		local d = (cruce - Config.ALMACEN_POS).Magnitude
+		local d = Grid.camino(Config.POLIGONO_SALIDA, cruce)
 		if d >= base * CERCA and d <= base * LEJOS then
 			table.insert(lista, cruce)
 		end

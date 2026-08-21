@@ -211,6 +211,24 @@ Avisos verificados:
   durante una partida no hay ojos: todo lo visual hay que deducirlo midiendo cotas,
   tamaños y colores de las piezas. Fue así como se cazó que la diana del destino estaba
   enterrada dentro de su losa — comparando topes, no mirando.
+- **Y ese sandbox no ve los datos que el servidor decide AL ARRANCAR.** Es la otra
+  cara de lo mismo y se paga aparte: desde que los destinos de las rutas se sortean
+  al empezar la partida (`Destinations.luau`), `ruta.destino` es un dato de
+  ejecución que vive en la copia de `Config` **del servidor**. Un `require` desde
+  `execute_luau` devuelve un módulo recién ejecutado, así que ahí los destinos son
+  los de diseño. Lanzar `SelfCheck` por el MCP medía el mundo contra caminos que no
+  existían: *"sólo 4 de 7 migas al alcance"*, *"un alijo cae sobre una ruta"*, y
+  rotaban de ruta en cada partida. Media sesión persiguiendo fantasmas.
+  La firma que lo delata: **las cosas del mundo están de acuerdo entre sí y el único
+  que discrepa es el dato** -- las migas y su casa de entrega, las dos al oeste, y
+  `ruta.destino` diciendo el este. Se confirma leyendo el `print` de arranque con
+  `LogService:GetLogHistory()` y comparándolo con lo que devuelve el módulo: si el
+  log dice una cosa y el `require` otra, estás en el sandbox.
+  La cura no es parchear la sonda caso por caso: es que **la sonda lea el mundo**.
+  `CityBuilder` planta una losa `Destino_<ruta>` en el sitio de verdad, y `SelfCheck`
+  se trae de ahí los tres destinos antes de empezar. Una sonda mide lo que se
+  construyó.
+
 - **El `require` del sandbox de `execute_luau` CACHEA entre llamadas.** No es sólo que no
   comparta estado con el servidor: es que una vez cargado un módulo, volver a pedirlo
   devuelve la copia vieja aunque Rojo ya haya sincronizado el fichero nuevo. El síntoma es

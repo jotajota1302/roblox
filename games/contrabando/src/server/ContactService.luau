@@ -25,6 +25,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Caches = require(game.ReplicatedStorage.Shared.Caches)
 local Contacts = require(game.ReplicatedStorage.Shared.Contacts)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
@@ -67,6 +68,29 @@ end
 
 function ContactService.registrar(nuevas: { BasePart })
 	piezas = nuevas
+end
+
+-- LOS ALIJOS. Van por su cuenta y no mezclados con las migas porque su regla es la
+-- CONTRARIA: una miga solo cuenta con mision activa --si no, dar vueltas por la
+-- ciudad seria una forma de progresar sin jugar-- y un alijo cuenta SIEMPRE, porque
+-- lo que premia es justamente salirse. Ver la cabecera de `Caches.luau`.
+local alijos: { BasePart } = {}
+local alijoHasta: { [BasePart]: number } = {}
+
+function ContactService.registrarAlijos(nuevos: { BasePart })
+	alijos = nuevos
+end
+
+-- Abrir uno se ve: la caja se hunde y el halo se cierra. Se apaga en vez de
+-- destruirse, igual que las migas, porque el sitio es parte de lo que se aprende --
+-- un mapa que se queda pelado deja de tener escondites que recordar.
+local function encenderAlijo(caja: BasePart, encendido: boolean)
+	caja.Transparency = if encendido then 0 else 1
+	for _, hijo in caja:GetChildren() do
+		if hijo:IsA("BasePart") then
+			hijo.Transparency = if encendido then (if hijo.Name == "Halo" then 0.62 else 0) else 1
+		end
+	end
 end
 
 -- APAGAR Y ENCENDER SE MARCA, NO SE PINTA.
@@ -306,14 +330,53 @@ function ContactService.tick(ahora: number)
 	PlayerState.forEach(function(player, estado)
 		vigilarRuta(player, estado)
 
-		-- CON MISIÓN, o no cuenta. Sin ruta no hay viaje, y sin carga no hay nada
-		-- que arriesgar: recoger sería un premio sin apuesta.
-		if not estado.ruta or #estado.cajas == 0 then
+		local root = raiz(player)
+		if not root then
 			return
 		end
 
-		local root = raiz(player)
-		if not root then
+		-- LOS ALIJOS SE MIRAN ANTES DEL FILTRO DE MISION, y ahi esta todo el diseno:
+		-- las migas piden llevar carga porque son el premio del VIAJE, y un alijo es
+		-- el premio de EXPLORAR -- exigirle carga lo dejaria donde ya esta todo lo
+		-- demas, sobre la linea de casa al destino.
+		for _, caja in alijos do
+			if (alijoHasta[caja] or 0) > ahora then
+				continue
+			end
+			local dx = caja.Position.X - root.Position.X
+			local dz = caja.Position.Z - root.Position.Z
+			if dx * dx + dz * dz > Config.ALIJO_RADIO * Config.ALIJO_RADIO then
+				continue
+			end
+			alijoHasta[caja] = ahora + Config.ALIJO_RECARGA
+			encenderAlijo(caja, false)
+
+			local xp, objeto = Caches.premio(math.random())
+			estado.xp = (estado.xp or 0) + xp
+			if objeto ~= nil then
+				local cupo = Contacts.guardar(estado, objeto)
+				if cupo then
+					avisar(player, "STASH_ITEM", { xp = xp, objeto = Strings.ref("SLOT_" .. objeto) }, true)
+				else
+					-- Con la casilla llena se dice, y se paga solo la experiencia: es la
+					-- misma regla que las migas, y callarlo seria hacerle creer al jugador
+					-- que lleva algo que no lleva.
+					avisar(player, "STASH_FULL", { xp = xp, objeto = Strings.ref("SLOT_" .. objeto) }, true)
+				end
+			else
+				avisar(player, "STASH_FOUND", { xp = xp }, true)
+			end
+			PlayerState.sync(player)
+			Remotes.event(Remotes.SONIDO):FireClient(player, "cobro")
+			local ok, err = pcall(chispas, root)
+			if not ok then
+				quejarse("el efecto del alijo", err)
+			end
+		end
+
+		-- CON MISIÓN, o las migas no cuentan. Sin ruta no hay viaje, y sin carga no
+		-- hay nada que arriesgar: recogerlas sería un premio sin apuesta.
+		if not estado.ruta or #estado.cajas == 0 then
 			return
 		end
 
@@ -409,6 +472,12 @@ function ContactService.tick(ahora: number)
 		if hasta <= ahora then
 			recargaHasta[pieza] = nil
 			encender(pieza, true)
+		end
+	end
+	for caja, hasta in alijoHasta do
+		if hasta <= ahora then
+			alijoHasta[caja] = nil
+			encenderAlijo(caja, true)
 		end
 	end
 end

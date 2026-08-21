@@ -1186,6 +1186,49 @@ Config.OBJETOS_TOPE = 2
 -- Meterla en una casilla la convertiria en otra cosa.
 Config.OBJETOS_GUARDABLES = { Config.RECOGIBLE_SALTO, Config.RECOGIBLE_ESCUDO }
 
+-- LOS ALIJOS: lo unico que se gana FUERA del camino.
+--
+-- "Deberiamos poner por ahi puntos de experiencia sueltos tambien, no solo en el
+-- camino, asi premiamos la exploracion" (JJ). Hasta ahora todo lo que da algo esta
+-- sobre la linea de casa al destino, asi que la ciudad que hay a los lados no da
+-- ninguna razon para mirarla -- y un mapa que no se mira igual podria ser un
+-- pasillo. Donde se esconden lo decide `Caches.luau`.
+--
+-- DOCE. Con la reticula en 4x3 hay unos cuarenta sitios posibles y la mitad caen
+-- cerca de algun camino: doce deja la ciudad salpicada sin que tropieces con uno
+-- cada esquina. Si fueran tres, no se encontrarian nunca; si fueran treinta,
+-- explorar dejaria de ser una decision y pasaria a ser la rutina.
+Config.ALIJOS = 12
+
+-- LO QUE PAGAN: experiencia, y NUNCA dinero ni contactos.
+--
+-- Es deliberado y es lo que impide que esto rompa la economia. El dinero compra
+-- vehiculos y los contactos compran habilidades: las dos cosas estan medidas contra
+-- cuantos viajes cuestan, y una fuente nueva las descuadraria sin tocarles el
+-- numero. La experiencia solo sube de nivel, o sea que lo que compra explorar es
+-- ACCESO --las rutas que piden nivel-- y no potencia.
+--
+-- Veinticinco es como media entrega verde: se nota, y no sustituye al viaje.
+Config.ALIJO_XP = 25
+
+-- Y a veces, un artefacto para la casilla. Uno de cada tres.
+--
+-- SIEMPRE HAY XP; lo que varia es si ademas cae algo. Un escondite que a veces sale
+-- vacio ensena en dos intentos que no vale la pena desviarse, y a partir de ahi el
+-- mapa vuelve a ser un pasillo.
+Config.ALIJO_PROBABILIDAD_OBJETO = 0.34
+
+-- Cuanto tarda en reponerse. Cinco minutos es mas que un viaje completo de la ruta
+-- larga: no se puede hacer una ronda de alijos en bucle, que convertiria explorar
+-- en una granja y el reparto en un trabajo.
+Config.ALIJO_RECARGA = 300
+
+-- Desde donde se recoge. Mas generoso que una miga (14) porque un alijo esta
+-- APARTADO y no en el eje de la calle: si hubiera que pisarlo exacto, la mitad de
+-- las veces se veria y no se cogeria -- que es la queja que se llevo por delante
+-- los racimos.
+Config.ALIJO_RADIO = 18
+
 -- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
 -- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs
 -- después -- y llega casi hasta el destino, al revés que los sueltos, que se

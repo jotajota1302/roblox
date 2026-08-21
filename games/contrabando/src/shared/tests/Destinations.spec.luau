@@ -28,7 +28,9 @@ return function(kit)
 		kit.truthy(string.format("la ruta %s tiene al menos un destino", id), #opciones >= 1)
 
 		local fila = Grid.filaDeZona(id)
-		local base = (nominal - Config.ALMACEN_POS).Magnitude
+		-- LO QUE SE ANDA, no la recta: en una ciudad de angulos rectos, dos destinos
+		-- a la misma distancia en linea pueden estar a 150 y a 250 studs de caminata.
+		local base = Grid.camino(Config.POLIGONO_SALIDA, nominal)
 		for i, sitio in opciones do
 			-- EN SU BANDA. Cada zona es una fila de la retícula, y un destino de la
 			-- verde plantado en la banda roja rompería la única cosa que diferencia a
@@ -46,7 +48,7 @@ return function(kit)
 			-- Y A UNA DISTANCIA PARECIDA. La distancia ES la ruta: lo que separa la
 			-- verde de la roja es cuánto se anda y cuánto se cobra, así que un
 			-- candidato al otro extremo del mapa convertiría una en la otra sin avisar.
-			local d = (sitio - Config.ALMACEN_POS).Magnitude
+			local d = Grid.camino(Config.POLIGONO_SALIDA, sitio)
 			kit.truthy(
 				string.format("el candidato %d de %s esta a distancia de %s (%.0f contra %.0f)", i, id, id, d, base),
 				d >= base * 0.7 and d <= base * 1.35

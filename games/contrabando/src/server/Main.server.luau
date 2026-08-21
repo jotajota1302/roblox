@@ -209,6 +209,7 @@ if mundo then
 		-- dejarlo en un tejado) y las reglas de quién recoge son de ContactService.
 		if ContactService then
 			ContactService.registrar(mundo.contactos or {})
+			ContactService.registrarAlijos(mundo.alijos or {})
 		end
 	end
 end
