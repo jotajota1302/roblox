@@ -39,6 +39,10 @@ local Telemetry = require(script.Parent.Telemetry)
 local HZ = 5
 
 local HeatService = {}
+
+-- El gancho que rellena PatrolService al arrancar: "a este jugador lo acaba de
+-- fichar una cámara, y estaba aquí". Ver dónde se llama, más abajo.
+HeatService.alDelatar = nil :: ((Player, Vector3) -> ())?
 local calor: { [Player]: Heat.Estado } = {}
 local detectores: { BasePart } = {}
 local refugios: { Vector3 } = {}
@@ -192,6 +196,26 @@ local function muestra(player: Player, ahora: number): boolean
 		if subio then
 			avisar(player, "HEAT_SPOTTED", { nivel = estado.nivel, maximo = Config.CALOR_MAXIMO }, Palette.AVISO_MALO)
 			Telemetry.evento(player, "calor_sube", { nivel = estado.nivel, detector = id })
+		end
+
+		-- Y LA CAMARA DA EL AVISO. Esto va FUERA del `if subio` a proposito: el calor
+		-- sube una vez por camara y por recarga, pero el chivatazo tiene que darse
+		-- cada vez que te ve -- si no, la segunda pasada por la misma esquina seria
+		-- gratis, que es justo la ruta que un jugador acaba aprendiendo.
+		--
+		-- Una camara no te roba: te delata. Ver `PatrolService.delatar`.
+		--
+		-- SE LLAMA POR UN GANCHO Y NO CON UN `require`, y no es manía: PatrolService
+		-- ya requiere a HeatService (le pregunta el nivel y le avisa de las capturas),
+		-- así que pedirle algo de vuelta monta un ciclo de require -- y un ciclo aquí
+		-- no da un error legible, mata los dos módulos y con ellos el calor y las
+		-- patrullas enteras. Es la misma razón por la que ContactService vigila el
+		-- cambio de ruta en vez de preguntárselo a RouteService.
+		--
+		-- Quien puede requerir sin ciclo es PatrolService, así que es él quien se
+		-- engancha aquí al arrancar.
+		if HeatService.alDelatar then
+			HeatService.alDelatar(player, root.Position)
 		end
 	end
 

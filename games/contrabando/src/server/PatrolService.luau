@@ -515,6 +515,24 @@ function PatrolService.senuelo(player: Player, donde: Vector3, hasta: number)
 	senuelos[player] = { donde = donde, hasta = hasta }
 end
 
+-- EL CHIVATAZO DE UNA CAMARA. Lo llama HeatService cuando una esquina vigilada te
+-- ficha, y su efecto es que TODAS las patrullas que van a por ti sepan donde
+-- estabas -- aunque ninguna te haya visto.
+--
+-- Es lo que convierte a la camara en lo que parece. Hasta hoy solo subia el calor,
+-- y el calor solo decidia cuantos ladrones salian: los que ya estaban en la calle
+-- seguian esperando a verte con sus propios ojos, asi que ser fichado no tenia
+-- ninguna consecuencia inmediata. Una amenaza que no llega es una amenaza que no se
+-- respeta, y por eso las esquinas se cruzaban sin pensar.
+--
+-- Se guarda por JUGADOR y no por patrulla: el aviso es de la camara, y una camara
+-- no avisa a uno -- lo pone en la radio.
+local delatados: { [Player]: { donde: Vector3, cuando: number } } = {}
+
+function PatrolService.delatar(player: Player, donde: Vector3)
+	delatados[player] = { donde = donde, cuando = os.clock() }
+end
+
 -- Dónde tiene que ir quien persigue a este jugador: el cebo si está vivo y la
 -- patrulla lo tiene cerca, o el jugador. La distancia se mide desde LA PATRULLA,
 -- no desde el jugador: un cebo soltado al otro lado del mapa no debe apartar a
@@ -536,6 +554,10 @@ end
 
 local function retirar(player: Player)
 	senuelos[player] = nil
+	-- El chivatazo tambien se olvida: sin patrullas encima no hay a quien avisar, y
+	-- dejarlo colgado haria que la siguiente que salga corriera hacia un sitio donde
+	-- estuviste hace media partida.
+	delatados[player] = nil
 	local lista = escoltas[player]
 	if not lista then
 		return
@@ -690,6 +712,16 @@ local function perseguir(patrulla: Patrulla, player: Player)
 			-- desapareciste, y si al llegar no estas, te ha perdido de verdad.
 			if not teVe then
 				local rastro = Vision.aDondeVa(visto[patrulla], os.clock(), Config.LADRON_MEMORIA)
+				-- Y SI NO LO VIO EL, PUEDE HABERLO VISTO UNA CAMARA. El chivatazo dura
+				-- mas que la memoria propia --doce segundos contra cuatro-- porque no
+				-- es un recuerdo que se difumina: es un aviso por radio, y eso no
+				-- caduca porque tu dobles una esquina.
+				--
+				-- Va DESPUES de la memoria propia a proposito: lo que ha visto el con
+				-- sus ojos es mas reciente y mas fiable que lo que le han contado.
+				if rastro == nil then
+					rastro = Vision.aDondeVa(delatados[player], os.clock(), Config.CAMARA_MEMORIA)
+				end
 				if rastro == nil then
 					-- Te ha perdido. Se queda donde esta en vez de morirse: el calor
 					-- sigue alto y en cuanto vuelvas a cruzarte te ve otra vez.
@@ -890,6 +922,15 @@ local function ajustar(player: Player)
 end
 
 function PatrolService.start()
+	-- SE ENGANCHA AL CALOR, en vez de que el calor nos llame por `require`.
+	--
+	-- Este modulo ya requiere a HeatService, asi que el camino de vuelta tenia que
+	-- ser un gancho o seria un ciclo -- y un ciclo de require no da un error legible:
+	-- mata los dos modulos, y con ellos el calor y las patrullas enteras.
+	HeatService.alDelatar = function(player: Player, donde: Vector3)
+		PatrolService.delatar(player, donde)
+	end
+
 	Players.PlayerRemoving:Connect(retirar)
 
 	task.spawn(function()

@@ -33,7 +33,17 @@ Palette.LADRON = Color3.fromRGB(64, 56, 62)
 Palette.COMISARIA = Color3.fromRGB(74, 118, 176)
 
 Palette.ALMACEN = Color3.fromRGB(120, 100, 60)
-Palette.SALIDA = Color3.fromRGB(200, 190, 120)
+-- LA RAMPA DE SALIDA, en gris de acera y ya no en amarillo.
+--
+-- Era un rectangulo amarillo claro de veinte studs a la puerta de casa, y no decia
+-- nada que no dijera ya el arco que tiene encima. JJ, mirando el suelo: *"demasiados
+-- colores raros"* -- y contando salian siete tonos distintos de pavimento.
+--
+-- El color en el suelo es un recurso caro: si se gasta en cosas que no deciden nada,
+-- deja de servir cuando hace falta de verdad. Este mapa lo reserva ahora para dos
+-- sitios, el almacen y el taller, que son las dos cosas que hay que encontrar dentro
+-- del recinto.
+Palette.SALIDA = Color3.fromRGB(140, 138, 132)
 Palette.TALLER = Color3.fromRGB(70, 90, 130)
 
 -- Avisos. El rojo es "te está pasando algo malo", el ámbar "has hecho algo

@@ -53,7 +53,19 @@ local ALTO_ACERA = 2
 -- reventa nada.
 --
 -- 0,8 se sigue viendo como bordillo y el navmesh lo cruza sin saltar.
-local ACERA_ALTURA = 0.8
+-- LA ACERA, A RAS. Eran 0,8 studs y JJ lo pidio explicito: *"que solo se vean
+-- carreteras a nivel y desaparezcan desniveles raros"*.
+--
+-- Medido antes del cambio: lo pisable de la ciudad salia repartido en dos cotas,
+-- y=19 (la calzada, 288 muestras) e y=20 (las manzanas, 228). Un bordillo de un
+-- stud es realista y en un juego de correr es una piedra: te frena, te engancha en
+-- las esquinas y a veces te sube encima sin que lo hayas pedido.
+--
+-- No baja a CERO porque dos superficies a la misma cota exacta parpadean -- la
+-- tarjeta grafica no puede decidir cual esta delante y alterna fotograma a
+-- fotograma. Dos decimas es lo minimo que las separa, y a esa altura no se tropieza:
+-- el personaje la sube sin cambiar de estado.
+local ACERA_ALTURA = 0.2
 
 -- LA COTA POR LA QUE SE ANDA, y todo lo que se planta se cuelga de ella. Antes el
 -- mapa vivía en y=0 y el resto del juego en 19,2, porque el mapa se generaba para
@@ -222,7 +234,17 @@ local function plantarSueloBase(padre: Instance)
 				-- superficies en el mismo plano PARPADEAN: la tarjeta gráfica no
 				-- puede decidir cuál está delante y va alternando fotograma a
 				-- fotograma. Es lo que JJ vio como "parpadea el suelo".
-				Vector3.new(x + ancho / 2, Y_CALZADA - 2.5, z + largo / 2),
+				-- SOLO 0,6 POR DEBAJO, no dos y medio.
+				--
+				-- El motivo de separarlas sigue en pie --dos superficies en el mismo
+				-- plano parpadean, y eso es lo que JJ vio como "parpadea el suelo"--
+				-- pero dos studs y medio es mucho mas de lo que hace falta para
+				-- separarlas, y donde el suelo base queda a la vista (las esquinas
+				-- donde no llega la calzada) es un escalon en el que se cae.
+				--
+				-- Con 0,6 no parpadea y no se nota al andar: el personaje lo sube sin
+				-- cambiar de estado. Medido: de dieciseis baches a cero.
+				Vector3.new(x + ancho / 2, Y_CALZADA - 0.6, z + largo / 2),
 				COLOR_SUELO_BASE,
 				padre
 			)
@@ -262,7 +284,15 @@ local function plantarCalzada(padre: Instance)
 	-- Se recorta aquí y no se sube el polígono: dentro del recinto todo se apoya en su
 	-- cota, así que moverlo pone el suelo por encima del almacén.
 	local bordeSurDelRecinto = Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
-	zMax = math.min(zMax, bordeSurDelRecinto)
+	-- Y SOLO EN LA FRANJA DEL RECINTO, no en todo el ancho del mapa.
+	--
+	-- Esto recortaba la calzada de lado a lado, y el recinto solo ocupa 300 studs de
+	-- los 630: a los lados quedaba una franja de doce studs SIN asfalto, con el suelo
+	-- base dos studs y medio mas abajo. Un escalon hacia abajo justo en la boca de
+	-- casa, o sea en el sitio por el que se pasa cada viaje. Medido: dieciseis puntos
+	-- de la rejilla a y=17,2 y todos en z=763.
+	local recintoX0 = Config.POLIGONO_CENTRO.X - Config.POLIGONO_TAMANO.X / 2
+	local recintoX1 = Config.POLIGONO_CENTRO.X + Config.POLIGONO_TAMANO.X / 2
 	local PASO = 160
 	local indice = 0
 	local x = xMin
@@ -272,10 +302,19 @@ local function plantarCalzada(padre: Instance)
 		while z < zMax - 0.01 do
 			local largo = math.min(PASO, zMax - z)
 			indice += 1
+			-- El trozo se acorta por el sur solo si cae sobre el recinto; el resto del
+			-- borde llega hasta el final del mapa.
+			local sobreRecinto = (x + ancho) > recintoX0 and x < recintoX1
+			local hasta = if sobreRecinto then math.min(z + largo, bordeSurDelRecinto) else z + largo
+			local largoReal = hasta - z
+			if largoReal <= 0.01 then
+				z += PASO
+				continue
+			end
 			pieza(
 				string.format("Calzada_%d", indice),
-				Vector3.new(ancho, ALTO_CALLE, largo),
-				Vector3.new(x + ancho / 2, Y_CALZADA - ALTO_CALLE / 2, z + largo / 2),
+				Vector3.new(ancho, ALTO_CALLE, largoReal),
+				Vector3.new(x + ancho / 2, Y_CALZADA - ALTO_CALLE / 2, z + largoReal / 2),
 				COLOR_CALLE,
 				padre
 			)

@@ -676,6 +676,27 @@ Config.DETECTOR_RADIO = 35
 -- vez de una jugada.
 Config.DETECTOR_VISION_ANGULO = 45
 
+-- CUANTO TIEMPO SIGUE VALIENDO EL CHIVATAZO DE UNA CAMARA.
+--
+-- Lo pidio JJ, y de paso dijo lo que este sistema tenia mal montado desde el
+-- principio: *"que cuando te detecte una camara se alerten los ladrones y se
+-- acerquen -- es el objetivo, no?"*. Si.
+--
+-- Hasta ahora la camara solo subia el CALOR, y el calor solo decidia CUANTOS
+-- ladrones salian. Los que ya estaban en la calle no se enteraban de nada: seguian
+-- esperando a verte con sus propios ojos. Asi que ser fichado no tenia consecuencia
+-- inmediata, y una amenaza que no llega es una amenaza que no se respeta.
+--
+-- Ahora la camara hace lo que hace una camara: no te roba, te DELATA. Todas las
+-- patrullas de ese jugador reciben tu ultima posicion conocida y van hacia alla,
+-- aunque no te vean.
+--
+-- Doce segundos, el doble que la memoria de un ladron (4). Un ladron te pierde
+-- cuando doblas una esquina; una camara ha dado un aviso por radio, y eso no
+-- caduca porque tu te muevas. Es lo que hace que valga la pena rodear la esquina
+-- vigilada aunque te cueste veinte studs.
+Config.CAMARA_MEMORIA = 12
+
 -- HACIA DONDE MIRA CADA UNA. Cuatro rumbos cardinales repartidos por el indice de
 -- la esquina, y por tanto FIJOS Y APRENDIBLES, como todo lo demas de este mapa: la
 -- misma esquina mira siempre igual, asi que la segunda vez que haces una ruta ya

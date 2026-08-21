@@ -1884,10 +1884,18 @@ local function reticula()
 		string.format("%d pares coplanares, p.ej. %s", parpadeos, ejemplo)
 	)
 
-	-- Y LAS MANZANAS SE LEVANTAN SOBRE EL ASFALTO. Si quedan al ras, la ciudad es una
-	-- explanada pintada y el jugador no distingue por dónde se anda; si quedan por
-	-- debajo, cada manzana es un hoyo -- que es lo que había hasta hoy, con el interior
-	-- metro y medio bajo la calle.
+	-- Y LAS MANZANAS SE LEVANTAN SOBRE EL ASFALTO, aunque sea por poco.
+	--
+	-- La pregunta ha cambiado el 21/08. Antes se exigia medio stud, para que la ciudad
+	-- no fuera una explanada pintada; ahora el bordillo es de 0,2 a proposito --*"que
+	-- solo se vean carreteras a nivel y desaparezcan desniveles raros"*-- porque un
+	-- escalon de un stud es realista y, en un juego de correr, una piedra: te frena y
+	-- te engancha en las esquinas.
+	--
+	-- Lo que sigue sin poder pasar es que queden AL RAS EXACTO o por debajo: al ras
+	-- dos superficies coplanares parpadean, y por debajo cada manzana es un hoyo. Asi
+	-- que el umbral baja pero no desaparece -- lo que se comprueba ya no es "hay
+	-- bordillo" sino "no hay parpadeo ni hoyo", que es lo que de verdad importaba.
 	local manzanas = ciudad:FindFirstChild("Manzanas")
 	local esperadas = Grid.COLUMNAS * Grid.FILAS
 	comprobar(
@@ -1898,7 +1906,7 @@ local function reticula()
 	if manzanas then
 		local bajas = 0
 		for _, m in manzanas:GetChildren() do
-			if m:IsA("BasePart") and m.Position.Y + m.Size.Y / 2 <= Grid.Y + 0.5 then
+			if m:IsA("BasePart") and m.Position.Y + m.Size.Y / 2 <= Grid.Y + 0.05 then
 				bajas += 1
 			end
 		end

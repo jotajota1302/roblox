@@ -2378,7 +2378,10 @@ function CityBuilder.build(): Mundo
 	-- que el centro tampoco vale. Aquí se aparece fuera, con el almacén de frente:
 	-- lo primero que se ve es a dónde hay que entrar.
 	spawn.Position = almacen.Position + Vector3.new(0, ALTO_LOSA / 2 + 0.5, almacen.Size.Z / 2 - 12)
-	spawn.Color = Color3.fromRGB(150, 130, 80)
+	-- Del gris del patio: es donde apareces, no un sitio al que ir. Ver el comentario
+	-- de `Palette.SALIDA` -- el color en el suelo se reserva para el almacen y el
+	-- taller, que son las dos cosas que hay que encontrar aqui dentro.
+	spawn.Color = Color3.fromRGB(140, 138, 132)
 	spawn.Anchored = true
 	spawn.CanCollide = true
 	spawn.Neutral = true
@@ -2809,12 +2812,20 @@ function CityBuilder.build(): Mundo
 		-- con la diana encima, el cruce entero era una mancha. Ahora que el sitio de
 		-- entregar es un portal, esto no tiene que decir "aqui": tiene que decir "por
 		-- aqui se va" -- una acera, no un objetivo.
+		-- LA LOSA, DEL COLOR DE LA ACERA. Fue una mancha del color de la ruta cuando
+		-- ERA el sitio de entregar; desde que se entrega dentro de la casa es la acera
+		-- de su portal, y una acera es gris.
+		--
+		-- Lo pidio JJ mirando el suelo: *"demasiados colores raros"*. Y medido le daba
+		-- la razon -- siete tonos distintos de pavimento, tres de ellos en losas que ya
+		-- no marcaban nada. Un color en el suelo tiene que significar algo, y cuando
+		-- deja de significarlo hay que quitarlo, no atenuarlo.
 		local destino = losa(
 			ciudad,
 			"Destino_" .. ruta.id,
 			Vector3.new(26, ALTO_LOSA, 26),
 			ruta.destino,
-			Palette.ruta(ruta.id):Lerp(Color3.fromRGB(96, 96, 100), 0.55),
+			Color3.fromRGB(140, 138, 132),
 			mundo
 		)
 		destino:SetAttribute("ruta", ruta.id)
