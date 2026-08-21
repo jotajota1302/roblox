@@ -2419,17 +2419,36 @@ function CityBuilder.build(): Mundo
 	-- separarse: mover el mapa mueve la red y el guardián a la vez, y ninguno de los
 	-- dos hay que acordarse de tocar.
 	--
-	-- Una sola pieza: la caja mide unos 1.810 x 1.802 studs y el límite de Roblox
-	-- son 2.048 por eje, así que cabe entera y sobra el bucle.
+	-- POR BALDOSAS, Y NO DE UNA PIEZA. Durante meses fue una sola --la caja medía
+	-- 1.810 x 1.802 y el límite de Roblox son 2.048 por eje, así que cabía-- y el 22/08
+	-- la ciudad creció a 902 de ancho: la caja pasó a 2.102 y Roblox RECORTÓ la pieza a
+	-- 2.048 en silencio, dejando 27 studs de vacío en cada borde este y oeste.
+	--
+	-- No dio ningún error. Lo cazó la sonda que compara la red con la caja, y es
+	-- exactamente la misma historia que `RASTRO_PASO` y que `Config.ALIJOS`: un número
+	-- --aquí, "cabe en una pieza"-- que era cierto cuando se escribió y dejó de serlo
+	-- cuando cambió lo que medía. Con las baldosas, la red sigue a la caja crezca lo
+	-- que crezca y no hay que acordarse de nada.
+	--
+	-- 2.000 y no 2.048: el límite exacto invita a que un redondeo se lo coma.
 	local rx0, rx1, rz0, rz1 = Bounds.caja()
-	local red = part(
-		"Red",
-		Vector3.new(rx1 - rx0, 2, rz1 - rz0),
-		Vector3.new((rx0 + rx1) / 2, Bounds.RED_Y, (rz0 + rz1) / 2),
-		Color3.fromRGB(40, 40, 45),
-		mundo
-	)
-	red.Transparency = 1
+	local BALDOSA = 2000
+	local porX = math.ceil((rx1 - rx0) / BALDOSA)
+	local porZ = math.ceil((rz1 - rz0) / BALDOSA)
+	local anchoX = (rx1 - rx0) / porX
+	local anchoZ = (rz1 - rz0) / porZ
+	for i = 0, porX - 1 do
+		for j = 0, porZ - 1 do
+			local red = part(
+				"Red",
+				Vector3.new(anchoX, 2, anchoZ),
+				Vector3.new(rx0 + (i + 0.5) * anchoX, Bounds.RED_Y, rz0 + (j + 0.5) * anchoZ),
+				Color3.fromRGB(40, 40, 45),
+				mundo
+			)
+			red.Transparency = 1
+		end
+	end
 
 	-- EL POLÍGONO PRIMERO: el almacén, el taller y la salida van encima de él, no
 	-- dentro de la ciudad. Ya no hace falta despejar nada aquí -- es terreno

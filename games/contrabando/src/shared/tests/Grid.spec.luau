@@ -112,13 +112,13 @@ return function(kit)
 		end
 	end
 
-	-- El mapa entero: 756 x 610 desde la ampliacion del 21/08 (era 610 x 464 con la
-	-- reticula en 4x3). Sigue siendo un mapa PEQUENO a proposito -- el problema medido
-	-- era que no se entiende donde se esta, no que falte sitio-- y crecio por donde se
-	-- dijo que se podia crecer: anadiendo una columna y una fila, que es barato.
-	-- Encoger un mapa al que ya se le ha colgado contenido, no.
+	-- El mapa entero: 902 x 610 desde la segunda ampliacion (22/08). Fue 610 x 464 con
+	-- la reticula en 4x3 y 756 x 610 con la de 5x4. Las dos veces crecio por indices
+	-- NEGATIVOS --al oeste y al norte-- que es lo que permite ampliar sin mover una
+	-- sola coordenada de las que ya estaban escritas. Encoger un mapa al que ya se le
+	-- ha colgado contenido no es igual de barato, y por eso se crece despacio.
 	local xMin, xMax, zMin, zMax = Grid.limites()
-	kit.eq("el mapa mide 756 de ancho", xMax - xMin, 756)
+	kit.eq("el mapa mide 902 de ancho", xMax - xMin, 902)
 	kit.eq("y 610 de largo", zMax - zMin, 610)
 	kit.eq(
 		"el ancho sale de las columnas",

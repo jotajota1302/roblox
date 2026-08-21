@@ -72,7 +72,13 @@ Grid.PASO = Grid.LADO_MANZANA + Grid.ANCHO_CALLE
 -- como "el indice de la ultima calle" en veinte sitios; dejarlas valiendo "cuantas
 -- manzanas hay" habria compilado igual y recorrido media ciudad. Quitarlas hace que
 -- el analisis estatico liste uno por uno todos los sitios que hay que mirar.
-Grid.COL_MIN = -1
+-- 22/08: la ciudad crece OTRA VEZ por el oeste (`COL_MIN` de -1 a -2), y por el mismo
+-- motivo que la vez anterior -- con un matiz que decidio entre crecer al oeste o al
+-- norte. Anadir una FILA anade una banda entera sin ruta ni entregas: seis manzanas
+-- que solo se pisan por gusto. Anadir una COLUMNA alarga las cuatro bandas que ya
+-- existen, asi que la verde, la ambar, la roja y las afueras ganan una manzana cada
+-- una y ninguna de las cuatro cambia de significado. Mas ciudad util, cero descampado.
+Grid.COL_MIN = -2
 Grid.COL_MAX = 4
 Grid.FILA_MIN = -1
 Grid.FILA_MAX = 3

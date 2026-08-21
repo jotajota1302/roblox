@@ -1936,11 +1936,26 @@ local function limites()
 	-- la red estaba centrada en el origen del mundo y el mapa no: medido entonces,
 	-- 31 de 961 puntos del mapa no tenían red debajo -- el borde sur del recinto,
 	-- que es donde empieza cada partida. Caerse ahí sí mataba.
-	local red = m:FindFirstChild("Red")
-	if red and red:IsA("BasePart") then
+	--
+	-- SE MIDE LA UNION DE TODAS LAS BALDOSAS, no la primera que aparezca. La red se
+	-- planto en una sola pieza durante meses y esta sonda cogia esa; desde que la caja
+	-- paso de los 2.048 studs que Roblox admite por eje, son varias -- y con
+	-- `FindFirstChild` la sonda medía media red y daba rojo teniendo el mundo tapado.
+	-- Una sonda que mide algo PARECIDO a lo que se construyo es peor que no tener
+	-- sonda, y esta ya lo fue durante una tarde.
+	local red = nil
+	local rx0, rx1, rz0, rz1 = math.huge, -math.huge, math.huge, -math.huge
+	for _, pieza in m:GetChildren() do
+		if pieza:IsA("BasePart") and pieza.Name == "Red" then
+			red = pieza
+			rx0 = math.min(rx0, pieza.Position.X - pieza.Size.X / 2)
+			rx1 = math.max(rx1, pieza.Position.X + pieza.Size.X / 2)
+			rz0 = math.min(rz0, pieza.Position.Z - pieza.Size.Z / 2)
+			rz1 = math.max(rz1, pieza.Position.Z + pieza.Size.Z / 2)
+		end
+	end
+	if red then
 		local x0, x1, z0, z1 = Bounds.caja()
-		local rx0, rx1 = red.Position.X - red.Size.X / 2, red.Position.X + red.Size.X / 2
-		local rz0, rz1 = red.Position.Z - red.Size.Z / 2, red.Position.Z + red.Size.Z / 2
 		comprobar(
 			"la red de seguridad tapa la caja entera",
 			rx0 <= x0 and rx1 >= x1 and rz0 <= z0 and rz1 >= z1,
@@ -2329,6 +2344,42 @@ local function reticula()
 				estado
 			)
 		end
+	end
+
+	-- NINGUNA MOLDURA SIN EDIFICIO DEBAJO.
+	--
+	-- Un edificio se DERRIBA en dos sitios --`validarPuntosFijos` retira el que pisa un
+	-- destino y `CityBuilder` el que estorba a una guarida o a un refugio-- y las dos
+	-- veces con un `Destroy()` sobre la pieza del bloque. El dia que los adornos del
+	-- edificio (zocalo, portal, marquesina, cornisa, azotea, bandas) se plantaron como
+	-- HERMANOS suyos, derribar dejo 79 piezas colgadas del aire en una partida normal:
+	-- puertas a metro y medio del suelo con su tejadillo, y laminas de cristal apiladas
+	-- donde no habia edificio. Nada dio error; simplemente se veia mal.
+	--
+	-- La cura fue colgarlos DEL edificio, y esto es lo que comprueba que sigue siendo
+	-- asi: una moldura cuyo padre no es una pieza es una moldura que sobrevivira al
+	-- derribo de su bloque. Se mide aqui y no en la bateria del mundo porque el derribo
+	-- solo ocurre con el juego montado -- `MapBuilder` a solas nunca retira nada.
+	do
+		local sueltas = 0
+		local primera = ""
+		for _, d in ciudad:GetDescendants() do
+			if not d:IsA("BasePart") then
+				continue
+			end
+			local raiz = string.match(d.Name, "^.-_([ZPCMAV]%d*)$")
+			if raiz ~= nil and not d.Parent:IsA("BasePart") then
+				sueltas += 1
+				if primera == "" then
+					primera = d.Name
+				end
+			end
+		end
+		comprobar(
+			"ninguna moldura de edificio se queda flotando",
+			sueltas == 0,
+			string.format("%d sueltas, la primera %s", sueltas, primera)
+		)
 	end
 
 	-- Y LAS MANZANAS SE LEVANTAN SOBRE EL ASFALTO, aunque sea por poco.

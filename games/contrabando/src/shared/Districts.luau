@@ -46,6 +46,13 @@ Districts.PLAZA = "plaza" -- cesped, arboles y fuente: el punto de referencia
 Districts.PARQUE = "parque" -- arbolado sin fuente, mas suelto que la plaza
 Districts.SOLAR = "solar" -- obra parada: vallas, montones y un andamio
 Districts.APARCAMIENTO = "aparcamiento" -- explanada pintada con coches quietos
+-- Los tres del 22/08. *"Quiero un mapa muy trabajado... que los edificios tengan
+-- identidad, haya plazas, jardines etc"* (JJ). Los tres primeros usos que se anadieron
+-- (mercado, solar, aparcamiento) eran explanadas; estos tres son SITIOS, cosas que
+-- solo hay una o dos en una ciudad y por eso sirven para decir donde estas.
+Districts.ESCUELA = "escuela" -- edificio en U con patio de recreo y pista; se rodea
+Districts.CANCHA = "cancha" -- pista deportiva vallada con gradas: se cruza por las bandas
+Districts.GASOLINERA = "gasolinera" -- marquesina, surtidores y tienda: la explanada mas abierta
 
 -- POR DONDE SE PUEDE CORTAR. No es una propiedad estetica: decide si la manzana es
 -- un atajo (y entonces la patrulla, atada a las calles, tiene que rodearla) o un
@@ -57,6 +64,10 @@ local ATRAVESABLE: { [string]: boolean } = {
 	[Districts.SOLAR] = true,
 	[Districts.APARCAMIENTO] = true,
 	[Districts.MERCADO] = true,
+	[Districts.CANCHA] = true,
+	[Districts.GASOLINERA] = true,
+	-- La ESCUELA no: su patio esta vallado, que es lo que le da sentido tenerla al
+	-- lado de la plaza -- un sitio grande y reconocible que hay que RODEAR.
 }
 
 function Districts.atravesable(uso: string): boolean
@@ -70,13 +81,15 @@ end
 local PLANO: { [string]: string } = {
 	-- FILA 2 · VERDE. El barrio de casa. Sales del recinto por la calle 1, asi que
 	-- las manzanas 0 y 1 son lo primero que ves de la ciudad en cada partida.
-	["-1,2"] = Districts.PARQUE, -- el borde oeste, arbolado: se ve desde la salida
+	["-2,2"] = Districts.ESCUELA, -- la esquina noroeste del barrio: un sitio, no una manzana mas
+	["-1,2"] = Districts.PARQUE, -- el borde arbolado: se ve desde la salida
 	["0,2"] = Districts.TALLERES, -- el poligono chico pegado a tu nave: lo que habria al lado
 	["1,2"] = Districts.PLAZA, -- LA plaza, enfrente de la boca. El punto de referencia del mapa
 	["2,2"] = Districts.RESIDENCIAL,
-	["3,2"] = Districts.RESIDENCIAL,
+	["3,2"] = Districts.CANCHA, -- el extremo este del barrio, y la primera cosa distinta yendo al este
 
 	-- FILA 1 · AMBAR. La banda comercial: es la que se cruza para casi todo.
+	["-2,1"] = Districts.GASOLINERA, -- en la salida oeste de la ciudad, que es donde estaria
 	["-1,1"] = Districts.RESIDENCIAL,
 	["0,1"] = Districts.RESIDENCIAL,
 	["1,1"] = Districts.MERCADO, -- el mercado, en la zona de comercio y en el eje de salida
@@ -84,6 +97,7 @@ local PLANO: { [string]: string } = {
 	["3,1"] = Districts.TORRES, -- el primer bloque alto: marca desde lejos donde empieza lo caro
 
 	-- FILA 0 · ROJA. El centro denso, el unico sitio donde el caserio tapa el cielo.
+	["-2,0"] = Districts.TALLERES,
 	["-1,0"] = Districts.RESIDENCIAL,
 	["0,0"] = Districts.TORRES,
 	["1,0"] = Districts.SOLAR, -- el escape de la roja hacia el oeste (tambien del 19/08)
@@ -93,11 +107,12 @@ local PLANO: { [string]: string } = {
 	-- FILA -1 · AFUERAS. Sin ruta y sin entregas: lo unico que se gana aqui son
 	-- alijos. Por eso es la banda mas desahogada del mapa -- se viene a mirar, no a
 	-- cruzar, y una zona por la que hay que pasar obligado no premia explorar.
+	["-2,-1"] = Districts.PARQUE,
 	["-1,-1"] = Districts.SOLAR,
 	["0,-1"] = Districts.TALLERES,
 	["1,-1"] = Districts.APARCAMIENTO,
 	["2,-1"] = Districts.TALLERES,
-	["3,-1"] = Districts.PARQUE,
+	["3,-1"] = Districts.RESIDENCIAL,
 }
 
 -- El uso de una manzana. `residencial` de respaldo y no un error: si un dia la

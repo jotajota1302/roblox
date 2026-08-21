@@ -269,6 +269,23 @@ Avisos verificados:
   `Instance` nuevo es una entrada de caché nueva, y clonar la carpeta **entera** —y no el
   módulo suelto— es lo que conserva las rutas relativas (`script.Parent.Parent`) de las que
   cuelga todo.
+- **Y clonar `Server` para esquivar esa cache ARRANCA EL JUEGO OTRA VEZ.** El truco
+  documentado arriba --clonar la carpeta entera y requerir de dentro-- vale para
+  `Shared`, que son modulos puros, y es una trampa en `ServerScriptService.Server`:
+  ahi vive `Main`, que es un **`Script`**, no un `ModuleScript`. Parentar el clon lo
+  ejecuta, y entonces hay dos servidores construyendo el mismo mundo.
+  El sintoma no se parece a la causa: `SelfCheck` empezo a cantar *"nadie tiene medio
+  taller dentro de casa -- invadidas: verde(12)"*, y los doce invasores eran **las
+  propias piezas de la casa**, duplicadas una a una en la misma coordenada. Media hora
+  buscando por que un `OverlapParams` no filtraba lo que se le decia; el filtro estaba
+  perfecto, lo que habia eran DOS casas superpuestas. Y una casa de entrega duplicada
+  son ocho pares de caras coplanares en el sitio que mas se visita.
+  Lo que lo delata: la partida anterior, medida sin clonar, daba verde en la misma
+  sonda. **Si un fallo aparece justo despues de cambiar COMO mides, sospecha de la
+  medida antes que del mundo.**
+  Al clonar `Server`, borrar los `Script` del clon antes de parentarlo -- o mejor,
+  reiniciar el Play, que ademas es lo unico que garantiza que el mundo sea el de verdad.
+
 - **`start_stop_play` se atasca a partir del segundo arranque de la sesión.** El primero
   va; el siguiente se queda colgado más de 120 s, pasa a segundo plano y ya no completa
   nunca -- y a partir de ahí `execute_luau` sólo responde en `Edit`, aunque Studio siga
@@ -473,12 +490,49 @@ Avisos verificados:
   cajas, asi que la ciudad no daba referencias: todas las esquinas eran la misma esquina --
   que es literalmente la queja que hundio el mapa del Creator Store (*"no se hacia donde
   tirar"*, *"el sitio es feo y confuso"*). Lo que hacia falta no era mas detalle sino que
-  **cada manzana fuera una cosa**: el plano vive ahora en `shared/Districts.luau` con ocho
-  usos de silueta propia, escrito **a mano** manzana por manzana. Sacarlo de una formula
+  **cada manzana fuera una cosa**: el plano vive ahora en `shared/Districts.luau` con **once**
+  usos de silueta propia, escrito **a mano** manzana por manzana. Los tres ultimos
+  --escuela, cancha y gasolinera-- son SITIOS y no tejido, que es otra cosa: de un
+  barrio residencial no te acuerdas, de la gasolinera si. Sacarlo de una formula
   sobre (col, fila) seria una linea y seria copy paste con otro nombre: reparte por
   aritmetica, no por sentido. Y lo que fija la prueba no es que manzana es cada cosa --eso
   se cambia cuando toque-- sino que **no haya tres iguales en linea** en ninguna fila ni
   columna, que es como el ojo ve un patron.
+
+- **Una caja de color no es un edificio, y la diferencia son cuatro piezas.** Las
+  manzanas ya tenian identidad --once usos distintos en `Districts.luau`-- y aun asi
+  *"los edificios"* seguian siendo cajas con franjas de cristal: sin arriba ni abajo,
+  sin delante ni detras, y sin forma de decir "el de la puerta verde" porque ninguno
+  tenia puerta. Lo que lo arregla no es detalle sino ORIENTACION y ESCALA: un **zocalo**
+  (donde acaba la calle), un **portal en la cara que da a la calle** (que ademas dice
+  hacia donde esta la calle desde dentro de una manzana), una **cornisa** que recorta
+  la silueta contra el cielo y una **caseta de azotea** en los altos. Cuatro piezas por
+  edificio, ~370 en toda la ciudad.
+  Y todo eso **cuelga del propio edificio**, no de la carpeta: un edificio se DERRIBA
+  --`validarPuntosFijos` retira el que pisa un destino, `CityBuilder` el que estorba a
+  una guarida-- y con las molduras plantadas como hermanas quedaron **79 piezas
+  flotando** en una partida normal. Lo mide `SelfCheck` desde entonces.
+
+- **Una moldura que remata "a ras" es 57 pares coplanares.** La cornisa se puso con su
+  cara superior en la cota exacta del bloque y la sonda del mundo lo canto antes de
+  abrir Studio. Corona medio stud por encima, y **vuela medio stud por lado y no nueve
+  decimas**: con 0,9 dos alas contiguas se rozan 1,8 studs, que supera el solape minimo
+  que la sonda considera parpadeo, y basta con que sus alturas de generador caigan a
+  menos de 0,15 para que peleen. Con 0,5 el roce es de uno exacto -- justo por debajo.
+
+- **"Cabe en una pieza" es una afirmacion con fecha de caducidad.** La red de seguridad
+  bajo el mapa era una sola `Part` porque la caja medía 1.810 studs y el limite de
+  Roblox son 2.048 por eje. El 22/08 la ciudad crecio a 902 de ancho, la caja paso a
+  2.102, y **Roblox recorto la pieza sin decir nada**: 27 studs sin red en cada borde.
+  Ahora se planta por baldosas de 2.000. Es la tercera vez que se paga lo mismo
+  --`RASTRO_PASO`, `Config.ALIJOS`, esto-- asi que la regla merece nombre propio: **un
+  numero que describe el mundo tiene que salir de una cuenta sobre el mundo, no
+  escrito.** `Config.ALIJOS` ya es `#Districts.manzanas() * 0.8` por este motivo.
+
+- **Y una sonda escrita para una pieza miente cuando hay dos.** La que comprueba la red
+  la buscaba con `FindFirstChild("Red")`: al partirla en baldosas medía media red y daba
+  rojo teniendo el mundo tapado. Mide la union de todas. Es la misma familia que *"una
+  sonda que mide algo PARECIDO a lo que se construyo es peor que no tener sonda"*.
 
 ## Trabajo en paralelo: quién es dueño de qué
 

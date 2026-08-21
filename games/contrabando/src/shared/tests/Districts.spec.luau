@@ -101,6 +101,9 @@ return function(kit)
 			Districts.PARQUE,
 			Districts.SOLAR,
 			Districts.APARCAMIENTO,
+			Districts.ESCUELA,
+			Districts.CANCHA,
+			Districts.GASOLINERA,
 		}
 	do
 		kit.truthy("el uso " .. uso .. " esta en el plano", usados[uso] == true)

@@ -20,6 +20,7 @@
 -- llano en un mapa ajeno --uno debajo de un árbol, otro sobre un zócalo-- en vez de
 -- donde el juego los quería.
 local Grid = require(script.Parent.Grid)
+local Districts = require(script.Parent.Districts)
 
 local Config = {}
 
@@ -1223,15 +1224,23 @@ Config.OBJETOS_GUARDABLES = { Config.RECOGIBLE_SALTO, Config.RECOGIBLE_ESCUDO }
 -- ninguna razon para mirarla -- y un mapa que no se mira igual podria ser un
 -- pasillo. Donde se esconden lo decide `Caches.luau`.
 --
--- DIECISEIS, y el numero sigue a la ciudad. Eran doce con la reticula en 4x3; al
--- ampliarla a 5x4 el mapa crecio un 66 % y dejarlos en doce habria bajado la densidad
--- de alijos por manzana sin que nadie tocara este numero -- que es exactamente como
--- `RASTRO_PASO` se quedo con UNA miga en la ruta verde.
+-- CUATRO POR CADA CINCO MANZANAS, y sale de una cuenta y no de un numero escrito.
 --
--- La cuenta es la de siempre: la ciudad salpicada sin tropezarte con uno cada
--- esquina. Si fueran cuatro no se encontrarian nunca; si fueran cuarenta, explorar
--- dejaria de ser una decision y pasaria a ser la rutina.
-Config.ALIJOS = 16
+-- Eran doce con la reticula en 4x3 y dieciseis con la de 5x4 -- las dos veces hubo
+-- que acordarse de subirlo a mano al ampliar el mapa, y la segunda casi no se hace.
+-- Es exactamente la trampa que ya se pago con `RASTRO_PASO`: un numero absoluto no
+-- sobrevive a que cambie aquello que mide, y cuando la ciudad crecio de 558 a 147
+-- studs el paso del rastro se quedo donde estaba y la primera ruta del juego se quedo
+-- con UNA miga. Nadie ve eso hasta que juega.
+--
+-- Con la densidad escrita como densidad, ampliar la ciudad ya no exige acordarse de
+-- nada. El 0,8 no es arbitrario: es justo la proporcion que daba el dieciseis sobre
+-- veinte manzanas, o sea que la ciudad de ayer sale identica y la de hoy escala sola.
+--
+-- La cuenta de fondo es la de siempre: la ciudad salpicada sin tropezarte con uno
+-- cada esquina. Si fueran cuatro no se encontrarian nunca; si fueran cuarenta,
+-- explorar dejaria de ser una decision y pasaria a ser la rutina.
+Config.ALIJOS = math.floor(#Districts.manzanas() * 0.8)
 
 -- LO QUE PAGAN: experiencia, y NUNCA dinero ni contactos.
 --
