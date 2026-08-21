@@ -24,6 +24,7 @@ local Garage = require(script.Parent:WaitForChild("Garage"))
 local Gate = require(script.Parent:WaitForChild("Gate"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Menu = require(script.Parent:WaitForChild("Menu"))
+local Pad = require(script.Parent:WaitForChild("Pad"))
 local Popups = require(script.Parent:WaitForChild("Popups"))
 local Minimap = require(script.Parent:WaitForChild("Minimap"))
 local Senales = require(script.Parent:WaitForChild("Senales"))
@@ -346,13 +347,9 @@ end
 -- aviso de proximidad (subirse al vehículo, entregar) sólo existían en el teclado.
 local UserInputService = game:GetService("UserInputService")
 
-local function conMando(): boolean
-	local ultimo = UserInputService:GetLastInputType()
-	return ultimo == Enum.UserInputType.Gamepad1
-		or ultimo == Enum.UserInputType.Gamepad2
-		or ultimo == Enum.UserInputType.Gamepad3
-		or ultimo == Enum.UserInputType.Gamepad4
-end
+-- Vive en `Pad` desde que hay navegacion por mando: eran dos copias de la misma
+-- pregunta y la que decide el foco tiene que ser la misma que decide la etiqueta.
+local conMando = Pad.conMando
 
 -- La etiqueta de cada acción según el aparato. En táctil se deja la del teclado a
 -- propósito: ContextActionService dibuja su botón con ese mismo texto, así que la
@@ -809,6 +806,28 @@ ContextActionService:BindAction("Entregar", function(_, inputState)
 	-- proximidad --se puede hacer desde cualquier punto de la losa-- así que sin
 	-- esto era la única acción del bucle que un jugador de mando no podía hacer.
 end, false, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
+
+-- LA PUERTA DEL MENU PARA QUIEN JUEGA CON MANDO. Sin esto, los tres botones de la
+-- columna --habilidades, nave, taller-- no se pueden ni senalar: con un mando no
+-- hay puntero, y ahi dentro esta todo lo que no es conducir.
+--
+-- ButtonSelect (el boton de "vista") y no Start, que es del menu de Roblox y no se
+-- puede pisar. En teclado, la M: no estorba y hace lo mismo.
+--
+-- El mismo boton abre y cierra, y el estado se le pregunta a `Pad` en vez de
+-- guardarlo aqui: dos sitios recordando si el menu esta abierto acaban
+-- discrepando, y el dia que discrepen el boton dejara de responder.
+ContextActionService:BindAction("MenuMando", function(_, inputState)
+	if inputState ~= Enum.UserInputState.Begin then
+		return Enum.ContextActionResult.Pass
+	end
+	if Menu.barraEnfocada() then
+		Menu.soltarBarra()
+	else
+		Menu.enfocarBarra()
+	end
+	return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.ButtonSelect, Enum.KeyCode.M)
 
 -- Se pide el estado DESPUÉS de construir la interfaz: al revés llegaría a un
 -- cliente que todavía no sabe dibujarlo.

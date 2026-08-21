@@ -14,6 +14,7 @@ local Palette = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("P
 local Routes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Routes"))
 local UiKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiKit"))
 local Strings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Strings"))
+local Pad = require(script.Parent.Pad)
 
 -- Cuántas guaridas hay PLANTADAS de verdad en esa ruta. Se cuentan del mundo y no
 -- se da por bueno el número del diseño: una guarida se omite si no encuentra suelo
@@ -36,6 +37,19 @@ end
 local RoutePicker = {}
 local gui: ScreenGui? = nil
 local tarjetas: { [string]: TextButton } = {}
+-- EL ORDEN DE LAS TARJETAS Y CUALES SE PUEDEN PULSAR. Los dos son para el mando:
+-- al abrir esta pantalla hay que dejar la seleccion EN ALGO, y dejarla sobre una
+-- ruta con candado --que es la primera del orden mientras no se ha jugado nada--
+-- seria darle al jugador de mando lo unico que no puede usar.
+-- OJO CON EL NOMBRE: el bucle que crea las tarjetas ya usa `orden` para el indice
+-- (`for orden, ruta in Routes.todas()`), asi que llamar igual a esta lista la
+-- sombreaba y `table.insert` recibia un numero. No es un error de sintaxis: revento
+-- en tiempo de ejecucion, dentro del pcall que envuelve la construccion de la
+-- interfaz, y lo unico que se veia era que el selector de ruta ya no aparecia nunca.
+local enOrden: { TextButton } = {}
+local disponibles: { [string]: boolean } = {}
+-- Lo que hace el boton de cerrar, guardado para que la B del mando haga lo mismo.
+local salir: (() -> ())? = nil
 
 function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	local pantalla = Instance.new("ScreenGui")
@@ -218,6 +232,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 			alElegir(ruta.id)
 			RoutePicker.ocultar()
 		end)
+		table.insert(enOrden, boton)
 	end
 
 	-- Se puede cerrar sin elegir. Parece un detalle y no lo es: hasta ahora esta
@@ -247,10 +262,12 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 	cerrarSize.MaxSize = Vector2.new(200, 56)
 	cerrarSize.Parent = cerrar
 
-	cerrar.Activated:Connect(function()
+	local function irse()
 		RoutePicker.ocultar()
 		alCerrar()
-	end)
+	end
+	cerrar.Activated:Connect(irse)
+	salir = irse
 
 	gui = pantalla
 end
@@ -274,6 +291,9 @@ function RoutePicker.actualizar(estado: any)
 		-- selector tiene que decirlo. Pinta, no decide -- el servidor vuelve a
 		-- comprobarlo cuando se pulsa.
 		local puede = Routes.disponible(id, nivel, estado.vehiculo, estado.hitos)
+		-- Se anota para el mando: es aqui donde ya se sabe, y volver a preguntarlo
+		-- al abrir seria la segunda copia de la misma regla.
+		disponibles[id] = puede
 		local color = Palette.ruta(id)
 		boton.BackgroundColor3 = if puede then color else UiKit.oscurecer(color, 0.62)
 		local detalle = boton:FindFirstChild("Detalle") :: TextLabel?
@@ -312,12 +332,25 @@ function RoutePicker.mostrar()
 	if gui then
 		gui.Enabled = true
 	end
+	-- Y EL MANDO ATERRIZA EN LA PRIMERA RUTA QUE SE PUEDE ELEGIR. Sin esto, con un
+	-- mando en la mano esta pantalla no se podia usar: no hay puntero, asi que las
+	-- tarjetas no se pueden senalar y la unica decision del juego quedaba fuera de
+	-- alcance. Ver Pad.luau.
+	local primera = enOrden[1]
+	for _, boton in enOrden do
+		if disponibles[boton.Name] then
+			primera = boton
+			break
+		end
+	end
+	Pad.abrir("rutas", primera, salir)
 end
 
 function RoutePicker.ocultar()
 	if gui then
 		gui.Enabled = false
 	end
+	Pad.cerrar("rutas")
 end
 
 return RoutePicker

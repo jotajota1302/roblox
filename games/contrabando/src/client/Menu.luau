@@ -33,6 +33,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Skills = require(game.ReplicatedStorage.Shared.Skills)
 local UiKit = require(game.ReplicatedStorage.Shared.UiKit)
 local Strings = require(game.ReplicatedStorage.Shared.Strings)
+local Pad = require(script.Parent.Pad)
 
 local Menu = {}
 
@@ -41,6 +42,8 @@ local modal: Frame? = nil
 local cuerpo: ScrollingFrame? = nil
 local titulo: TextLabel? = nil
 local botonSenuelo: TextButton? = nil
+local barra: Frame? = nil
+local botonCerrar: TextButton? = nil
 local abierto: string? = nil
 local ultimoEstado: any = nil
 local senueloListoEn = 0
@@ -264,6 +267,11 @@ local TITULO: { [string]: string } = {
 	workshop = "MENU_WORKSHOP",
 }
 
+-- Declarado antes de tiempo porque `abrir` se lo pasa al mando --es lo que hace la
+-- B-- y se define mas abajo. El analizador estatico caza esto en un segundo; sin
+-- el paso, seria un `nil` en la mano del jugador de mando.
+local cerrar: () -> ()
+
 local function abrir(cual: string)
 	if not modal or not titulo then
 		return
@@ -280,13 +288,31 @@ local function abrir(cual: string)
 	else
 		pintarTaller()
 	end
+
+	-- Y EL MANDO ENTRA EN EL PANEL. La primera COSA PULSABLE, que casi nunca es la
+	-- primera que se creo: las fichas son un marco con su texto y su boton dentro,
+	-- y aterrizar sobre el marco dejaria al jugador pulsando la A sin efecto.
+	local primero: GuiObject? = nil
+	if cuerpo then
+		for _, hijo in cuerpo:GetDescendants() do
+			if hijo:IsA("GuiButton") and hijo.Visible and hijo.Active then
+				primero = hijo
+				break
+			end
+		end
+	end
+	-- Si no hay nada que comprar --todo aprendido, la nave al tope-- el foco va al
+	-- boton de cerrar, que es lo unico que queda por hacer ahi dentro.
+	Pad.abrir("menu-panel", primero or botonCerrar, cerrar)
 end
 
-local function cerrar()
+function cerrar()
 	abierto = nil
 	if modal then
 		modal.Visible = false
 	end
+	-- El foco vuelve solo a la columna: la capa de debajo sigue en la pila.
+	Pad.cerrar("menu-panel")
 end
 
 function Menu.build()
@@ -307,6 +333,7 @@ function Menu.build()
 	columna.Size = UDim2.fromScale(0.15, 0.3)
 	columna.BackgroundTransparency = 1
 	columna.Parent = pantalla
+	barra = columna
 
 	local tamano = Instance.new("UISizeConstraint")
 	tamano.MinSize = Vector2.new(104, 4 * TOUCH_MIN + 3 * 6)
@@ -397,6 +424,7 @@ function Menu.build()
 	UiKit.redondear(cerrarBoton, 6)
 	UiKit.margen(cerrarBoton, 6)
 	cerrarBoton.Activated:Connect(cerrar)
+	botonCerrar = cerrarBoton
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Position = UDim2.fromOffset(0, TOUCH_MIN + 6)
@@ -451,6 +479,47 @@ function Menu.cerrar()
 	cerrar()
 end
 
+-- EL MANDO ENTRA Y SALE DE LA COLUMNA. Es la puerta de todo lo demas: con un mando
+-- no hay puntero, asi que sin esto los tres botones del menu --habilidades, nave,
+-- taller-- no se pueden ni senalar, y con ellos se queda fuera la mitad del juego
+-- que no es conducir.
+--
+-- Devuelve si ha quedado abierta, para que quien lo llame pueda alternar.
+function Menu.enfocarBarra(): boolean
+	if barra == nil or not barra.Visible then
+		return false
+	end
+	local primero: GuiObject? = nil
+	local mejor = math.huge
+	for _, hijo in barra:GetChildren() do
+		-- POR ORDEN DE LISTA, no por orden de creacion: el senuelo se crea el ultimo
+		-- y se pinta el primero (LayoutOrder 1), y es el unico que se pulsa con un
+		-- ladron detras -- aterrizar en otro sitio seria perderlo justo cuando corre
+		-- prisa.
+		if hijo:IsA("GuiButton") and hijo.Visible and hijo.LayoutOrder < mejor then
+			primero, mejor = hijo, hijo.LayoutOrder
+		end
+	end
+	if primero == nil then
+		return false
+	end
+	Pad.abrir("menu-barra", primero, function()
+		Menu.soltarBarra()
+	end)
+	return true
+end
+
+function Menu.soltarBarra()
+	-- El panel primero: cerrar la columna dejandolo abierto seria dejar el foco
+	-- dentro de un panel al que ya no se puede volver.
+	cerrar()
+	Pad.cerrar("menu-barra")
+end
+
+function Menu.barraEnfocada(): boolean
+	return Pad.enCapa("menu-barra")
+end
+
 -- Con el selector de ruta abierto, el menú se aparta entero. Su velo ocupa la
 -- pantalla completa, así que sin esto la columna quedaría encima de un modal y se
 -- podría pulsar a través de él -- que es la clase de cosa que no se ve en una
@@ -465,6 +534,9 @@ function Menu.setModal(activo: boolean)
 	end
 	if activo then
 		cerrar()
+		-- Y el mando suelta la columna: se acaba de ocultar, y un foco sobre algo
+		-- invisible es un mando que no responde.
+		Pad.cerrar("menu-barra")
 	end
 end
 

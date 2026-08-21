@@ -196,8 +196,16 @@ Activado en scope user. `list_roblox_studios` para el `studio_id`, luego `execut
 
 Avisos verificados:
 
-- **`get_console_output` se cuelga y da timeout.** No usarlo; diagnosticar con
-  `execute_luau` inspeccionando el estado.
+- **`get_console_output` se cuelga y da timeout.** No usarlo -- pero la consola NO
+  está perdida: `game:GetService("LogService"):GetLogHistory()` desde `execute_luau`
+  devuelve los mensajes de ese datamodel, y filtrando por `messageType ~=
+  MessageOutput` salen los `warn` y los errores. Es lo que le faltaba al `intentar()`
+  del cliente: sus avisos se escribían y no los leía nadie. El 21/08 esa llamada
+  contestó en un segundo *"no se pudo construir RoutePicker: invalid argument #1 to
+  'insert' (table expected, got number)"* -- una variable de módulo con el mismo
+  nombre que el índice de un bucle, que llevaba media hora manifestándose como "el
+  selector de ruta ya no aparece" sin una sola pista. Cuando eso no baste,
+  diagnosticar con `execute_luau` inspeccionando el estado.
 - **`screen_capture` también se cuelga, pero sólo en Play.** En `Edit` responde; con una
   sesión de Play viva se queda colgado los 120 s y acaba en *Request timeout*. Así que
   durante una partida no hay ojos: todo lo visual hay que deducirlo midiendo cotas,
