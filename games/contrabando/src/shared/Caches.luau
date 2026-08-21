@@ -51,15 +51,15 @@ Caches.LEJOS = 60
 -- dos: el segundo es un escondite y el primero es un cartel.
 local function candidatos(): { Vector3 }
 	local lista: { Vector3 } = {}
-	for i = 0, Grid.COLUMNAS do
-		for j = 0, Grid.FILAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
+		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			local cruce = Grid.cruce(i, j)
 			table.insert(lista, cruce)
-			if i < Grid.COLUMNAS then
+			if i < Grid.COL_MAX then
 				local siguiente = Grid.cruce(i + 1, j)
 				table.insert(lista, cruce:Lerp(siguiente, 0.5))
 			end
-			if j < Grid.FILAS then
+			if j < Grid.FILA_MAX then
 				local siguiente = Grid.cruce(i, j + 1)
 				table.insert(lista, cruce:Lerp(siguiente, 0.5))
 			end

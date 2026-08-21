@@ -10,8 +10,8 @@ return function(kit)
 	kit.falsy("el almacen esta dentro", Bounds.fuera(Config.ALMACEN_POS))
 	kit.falsy("el centro del recinto esta dentro", Bounds.fuera(Config.POLIGONO_CENTRO))
 
-	for i = 0, Grid.COLUMNAS do
-		for j = 0, Grid.FILAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
+		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			local cruce = Grid.cruce(i, j)
 			kit.falsy(string.format("el cruce %d,%d esta dentro", i, j), Bounds.fuera(cruce))
 		end

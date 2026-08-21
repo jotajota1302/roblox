@@ -160,8 +160,8 @@ local function pintarPlano(_ciudad: Instance?, capa: Frame): Vector2
 	-- comian el hueco. Asfalto casi blanco y manzanas casi negras.
 	rect("Asfalto", gx0, gx1, gz0, gz1, Color3.fromRGB(224, 226, 232), 1)
 
-	for col = 0, Grid.COLUMNAS - 1 do
-		for fila = 0, Grid.FILAS - 1 do
+	for col = Grid.COL_MIN, Grid.COL_MAX - 1 do
+		for fila = Grid.FILA_MIN, Grid.FILA_MAX - 1 do
 			local x0, x1, z0, z1 = Grid.manzana(col, fila)
 			rect(string.format("Manzana_%d_%d", col, fila), x0, x1, z0, z1, Color3.fromRGB(34, 36, 44), 2)
 		end

@@ -68,7 +68,7 @@ function Destinations.candidatos(rutaId: string, nominal: Vector3): { Vector3 }
 	-- jugador y por tanto lo que define la ruta.
 	local base = Grid.camino(Config.POLIGONO_SALIDA, nominal)
 	local lista: { Vector3 } = {}
-	for i = 0, Grid.COLUMNAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local cruce = Grid.cruce(i, fila)
 		-- Fuera de casa: un destino dentro de la zona segura se entregaría solo, sin
 		-- viaje y sin riesgo.

@@ -1581,14 +1581,14 @@ local function contactos()
 			local ax0, ax1 = d.Position.X - d.Size.X / 2, d.Position.X + d.Size.X / 2
 			local az0, az1 = d.Position.Z - d.Size.Z / 2, d.Position.Z + d.Size.Z / 2
 			local peor = 0
-			for i = 0, Grid.COLUMNAS do
+			for i = Grid.COL_MIN, Grid.COL_MAX do
 				local eje = Grid.xDeCalle(i)
 				local sx = math.min(ax1, eje + medio) - math.max(ax0, eje - medio)
 				if sx > 0 then
 					peor = math.max(peor, sx * (az1 - az0))
 				end
 			end
-			for j = 0, Grid.FILAS do
+			for j = Grid.FILA_MIN, Grid.FILA_MAX do
 				local eje = Grid.zDeCalle(j)
 				local sz = math.min(az1, eje + medio) - math.max(az0, eje - medio)
 				if sz > 0 then
@@ -1621,11 +1621,11 @@ local function contactos()
 		if poli and poli:IsA("BasePart") then
 			comprobar(
 				"el recinto no invade la calle que pasa por delante",
-				poli.Position.Z - poli.Size.Z / 2 >= Grid.zDeCalle(Grid.FILAS) + medio - 0.5,
+				poli.Position.Z - poli.Size.Z / 2 >= Grid.zDeCalle(Grid.FILA_MAX) + medio - 0.5,
 				string.format(
 					"su borde esta en z=%.0f y el carril acaba en z=%.0f",
 					poli.Position.Z - poli.Size.Z / 2,
-					Grid.zDeCalle(Grid.FILAS) + medio
+					Grid.zDeCalle(Grid.FILA_MAX) + medio
 				)
 			)
 		end
@@ -2162,8 +2162,8 @@ local function reticula()
 	-- tiras a una alfombra segmentada. Contar piezas mide la implementación; esto mide
 	-- lo que pisa el jugador, que es lo que la sonda tiene que mirar.
 	local sinAsfalto = {}
-	for i = 0, Grid.COLUMNAS do
-		for j = 0, Grid.FILAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
+		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			local cruce = Grid.cruce(i, j)
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Include
@@ -2254,7 +2254,7 @@ local function reticula()
 	-- que el umbral baja pero no desaparece -- lo que se comprueba ya no es "hay
 	-- bordillo" sino "no hay parpadeo ni hoyo", que es lo que de verdad importaba.
 	local manzanas = ciudad:FindFirstChild("Manzanas")
-	local esperadas = Grid.COLUMNAS * Grid.FILAS
+	local esperadas = (Grid.COL_MAX - Grid.COL_MIN) * (Grid.FILA_MAX - Grid.FILA_MIN)
 	comprobar(
 		"hay una losa por manzana",
 		manzanas ~= nil and #manzanas:GetChildren() == esperadas,

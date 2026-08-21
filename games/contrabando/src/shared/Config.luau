@@ -419,7 +419,7 @@ Config.POLIGONO_SALIDA = Vector3.new(
 -- Con retícula propia el enganche es el cruce que hay justo debajo de la boca: la
 -- calle 1 pasa por ella. Ya no hay nada que unir, y el punto se DERIVA en vez de
 -- medirse.
-Config.POLIGONO_ENGANCHE = Grid.cruce(1, Grid.FILAS)
+Config.POLIGONO_ENGANCHE = Grid.cruce(1, Grid.FILA_MAX)
 
 -- EL ALMACÉN Y EL TALLER, PEGADOS A LA BOCA DEL RECINTO (19/08).
 --
@@ -1208,11 +1208,15 @@ Config.OBJETOS_GUARDABLES = { Config.RECOGIBLE_SALTO, Config.RECOGIBLE_ESCUDO }
 -- ninguna razon para mirarla -- y un mapa que no se mira igual podria ser un
 -- pasillo. Donde se esconden lo decide `Caches.luau`.
 --
--- DOCE. Con la reticula en 4x3 hay unos cuarenta sitios posibles y la mitad caen
--- cerca de algun camino: doce deja la ciudad salpicada sin que tropieces con uno
--- cada esquina. Si fueran tres, no se encontrarian nunca; si fueran treinta,
--- explorar dejaria de ser una decision y pasaria a ser la rutina.
-Config.ALIJOS = 12
+-- DIECISEIS, y el numero sigue a la ciudad. Eran doce con la reticula en 4x3; al
+-- ampliarla a 5x4 el mapa crecio un 66 % y dejarlos en doce habria bajado la densidad
+-- de alijos por manzana sin que nadie tocara este numero -- que es exactamente como
+-- `RASTRO_PASO` se quedo con UNA miga en la ruta verde.
+--
+-- La cuenta es la de siempre: la ciudad salpicada sin tropezarte con uno cada
+-- esquina. Si fueran cuatro no se encontrarian nunca; si fueran cuarenta, explorar
+-- dejaria de ser una decision y pasaria a ser la rutina.
+Config.ALIJOS = 16
 
 -- LO QUE PAGAN: experiencia, y NUNCA dinero ni contactos.
 --
@@ -1242,6 +1246,20 @@ Config.ALIJO_RECARGA = 300
 -- las veces se veria y no se cogeria -- que es la queja que se llevo por delante
 -- los racimos.
 Config.ALIJO_RADIO = 18
+
+-- LO QUE MIDE SU MARCA EN EL SUELO, y no tiene nada que ver con el radio de recogida.
+--
+-- Salia de `ALIJO_RADIO * 1.6`: veintiocho studs y pico de disco amarillo sobre una
+-- calzada de veintiseis, o sea la marca pintando la calle ENTERA. *"Los circulos
+-- amarillos de esas trampas son demasiado grandes"* (JJ) -- y lo de "trampas" es la
+-- mitad del diagnostico: un disco que ocupa todo el ancho de la calle no se lee como
+-- un bulto que recoger, se lee como una zona a la que no entrar.
+--
+-- El numero sale ahora del BULTO que marca --la caja mide 3,4 de lado-- y no del
+-- alcance. Atar la marca al alcance fue el error de origen: son dos cosas distintas
+-- y la primera se ve, asi que subir la segunda repintaba la ciudad sin que nadie
+-- estuviera hablando de dibujo. Lo lejos que se recoge NO se dibuja.
+Config.ALIJO_HALO = 9
 
 -- Dónde empieza y acaba la fila. Empieza justo al salir de la zona segura -- el
 -- rastro tiene que estar esperándote cuando pisas la calle, no doscientos studs

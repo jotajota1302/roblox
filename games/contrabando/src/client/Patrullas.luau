@@ -92,6 +92,13 @@ local marionetas: { [Model]: Marioneta } = {}
 -- Lo que si alterna es brazo contra pierna: el brazo derecho acompana a la pierna
 -- IZQUIERDA, que es como anda todo el mundo, y por eso los hombros llevan el signo
 -- contrario al de las caderas.
+-- NOTA (21/08): esta misma cuenta vive resuelta y probada en `shared/Pose.luau`, que
+-- traduce una rotacion pedida en el marco del TORSO al marco de cada junta -- y ahi
+-- el espejo del lado izquierdo se cancela solo, asi que los signos vuelven a
+-- significar lo que parece. `Riders` lo usa. Esto NO se ha migrado a proposito: lo de
+-- abajo esta medido en el mundo y funciona, y reescribir un sistema que va bien para
+-- que se parezca a otro es como se rompen las cosas que ya funcionaban. Si algun dia
+-- hay que tocar estos signos, se migra entonces y se mide de nuevo.
 local ARTICULACIONES: { { nombre: string, signo: number, amplitud: number } } = {
 	{ nombre = "Right Hip", signo = 1, amplitud = 1 },
 	{ nombre = "Left Hip", signo = 1, amplitud = 1 },

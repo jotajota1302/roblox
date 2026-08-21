@@ -818,14 +818,14 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 	-- Con el medio de cada tramo, la vigilancia pasa a estar cada 73 studs y ningún
 	-- trayecto de la ciudad se libra, que es exactamente lo que se pedía.
 	local sitios: { Vector3 } = {}
-	for i = 0, Grid.COLUMNAS do
-		for j = 0, Grid.FILAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
+		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			table.insert(sitios, Grid.cruce(i, j))
 			-- El medio del tramo hacia el siguiente cruce, en los dos ejes.
-			if j < Grid.FILAS then
+			if j < Grid.FILA_MAX then
 				table.insert(sitios, Grid.cruce(i, j):Lerp(Grid.cruce(i, j + 1), 0.5))
 			end
-			if i < Grid.COLUMNAS then
+			if i < Grid.COL_MAX then
 				table.insert(sitios, Grid.cruce(i, j):Lerp(Grid.cruce(i + 1, j), 0.5))
 			end
 		end
@@ -2547,7 +2547,7 @@ function CityBuilder.build(): Mundo
 	-- vuelve a moverlo --o ensancha las calles-- el arco se aparta solo. Es la
 	-- leccion de `RASTRO_PASO`: un numero absoluto no sobrevive a que cambie aquello
 	-- que mide.
-	local bordeAsfalto = Grid.zDeCalle(Grid.FILAS) + Grid.ANCHO_CALLE / 2
+	local bordeAsfalto = Grid.zDeCalle(Grid.FILA_MAX) + Grid.ANCHO_CALLE / 2
 	local zArco = math.max(salidaPos.Z, bordeAsfalto) + GROSOR_PILAR / 2 + 2
 	for _, lado in { -1, 1 } do
 		local pilar = part(
@@ -3417,10 +3417,15 @@ function CityBuilder.build(): Mundo
 
 		-- El halo: un disco fino en el suelo. Es lo que hace que se vea a media calle
 		-- sin gritar desde el otro barrio, y ademas dice DONDE hay que ponerse.
+		--
+		-- Y MIDE LO QUE MIDE EL BULTO, no lo que mide el alcance (`Config.ALIJO_HALO`).
+		-- Salia del radio de recogida y se comia la calzada entera: la marca pasaba de
+		-- senalar un bulto a pintar una zona, y una zona amarilla en mitad de la calle
+		-- se lee como un aviso, no como un premio.
 		local halo = Instance.new("Part")
 		halo.Name = "Halo"
 		halo.Shape = Enum.PartType.Cylinder
-		halo.Size = Vector3.new(0.25, Config.ALIJO_RADIO * 1.6, Config.ALIJO_RADIO * 1.6)
+		halo.Size = Vector3.new(0.25, Config.ALIJO_HALO, Config.ALIJO_HALO)
 		halo.CFrame = CFrame.new(donde + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.rad(90))
 		halo.Anchored = true
 		halo.CanCollide = false

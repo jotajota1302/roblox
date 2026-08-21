@@ -352,10 +352,25 @@ function Ride.montar(character: Model?, vehiculoId: string?)
 		-- A pie: se devuelve la postura normal antes de salir. Si no, quien se baja
 		-- de la moto sigue con las piernas al frente el resto de la partida.
 		postura(character, false, false)
+		character:SetAttribute("vehiculoDePie", nil)
 		return
 	end
 
-	postura(character, true, SENTADO[vehiculoId :: string] == true)
+	local sentado = SENTADO[vehiculoId :: string] == true
+	postura(character, true, sentado)
+
+	-- LA BANDERA QUE LEE EL CLIENTE (`Riders.luau`): "este va DE PIE encima de algo".
+	--
+	-- Aqui abajo solo se apaga el `Animate` y se posa a los que van sentados, asi que
+	-- los de pie salian rigidos -- *"va encima de el sin moverse como una estatua"*
+	-- (JJ). Animarlos desde aqui serian cinco articulaciones por sesenta fotogramas
+	-- de trafico de red que no cambia nada del juego, asi que lo unico que cruza es
+	-- este booleano y el dibujo lo hace cada maquina.
+	--
+	-- Un atributo y no una carpeta con nombre: se replica solo, se lee sin esperar a
+	-- que exista, y borrarlo es una linea. La carpeta `VehiculoVisible` sigue siendo
+	-- lo que ES el vehiculo; esto es lo que se HACE con el.
+	character:SetAttribute("vehiculoDePie", not sentado)
 
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "VehiculoVisible"

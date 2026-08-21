@@ -15,14 +15,19 @@
 
 	EL PLANO (spec en docs/specs/2026-08-19-mapa-propio-design.md):
 
-	                 X=-766   -620    -474    -328   -182
-	        Z=754  ────┼───────┼───────┼───────┼───────┼──   ← boca del recinto
-	                   │ (0,2) │ (1,2) │ (2,2) │ (3,2) │        VERDE
-	           608  ────┼───────┼───────┼───────┼───────┼──
-	                   │ (0,1) │ (1,1) │ (2,1) │ (3,1) │        ÁMBAR
-	           462  ────┼───────┼───────┼───────┼───────┼──
-	                   │ (0,0) │ (1,0) │ (2,0) │ (3,0) │        ROJA
-	           316  ────┼───────┼───────┼───────┼───────┼──
+	            X=-912   -766    -620    -474    -328   -182
+	   Z=754  ────┼───────┼───────┼───────┼───────┼───────┼──   ← boca del recinto
+	              │(-1,2) │ (0,2) │ (1,2) │ (2,2) │ (3,2) │        VERDE
+	      608  ────┼───────┼───────┼───────┼───────┼───────┼──
+	              │(-1,1) │ (0,1) │ (1,1) │ (2,1) │ (3,1) │        ÁMBAR
+	      462  ────┼───────┼───────┼───────┼───────┼───────┼──
+	              │(-1,0) │ (0,0) │ (1,0) │ (2,0) │ (3,0) │        ROJA
+	      316  ────┼───────┼───────┼───────┼───────┼───────┼──
+	              │(-1,-1)│(0,-1) │(1,-1) │(2,-1) │(3,-1) │        AFUERAS
+	      170  ────┼───────┼───────┼───────┼───────┼───────┼──
+
+	La columna -1 y la fila -1 son la ampliacion del 21/08. Van con indice negativo
+	para que (1,2) siga siendo el mismo sitio que era: ver el comentario de COL_MIN.
 
 	Las bandas van por FILAS y no en diagonal a propósito: así la zona de una ruta es
 	la que hay que atravesar para llegar a su destino. Con las zonas en diagonal --que
@@ -44,8 +49,33 @@ Grid.LADO_MANZANA = 120
 Grid.ANCHO_CALLE = 26
 Grid.PASO = Grid.LADO_MANZANA + Grid.ANCHO_CALLE
 
-Grid.COLUMNAS = 4
-Grid.FILAS = 3
+-- HASTA DONDE LLEGA LA RETICULA, en indices de calle. No es "cuantas manzanas hay":
+-- son las calles que existen, y las manzanas viven entre dos consecutivas.
+--
+-- POR QUE LOS MINIMOS SON NEGATIVOS, que es lo raro de esto. *"La ciudad no esta
+-- acabada... estaria bien que se ampliara un poco mas, pero creciendo desde el
+-- sentido y la logica, no copy paste"* (JJ). Ampliar era facil por el lado
+-- equivocado: subir COLUMNAS a 5 y FILAS a 4 mueve el numero de cada calle, y con el
+-- el significado de TODO lo que se escribio antes -- el destino de la verde estaba
+-- puesto como `Grid.cruce(1, 2)`, el enganche del recinto como `cruce(1, FILAS)`, y
+-- las pruebas fijan que la calle 1 pasa por la boca del almacen. Nada de eso habria
+-- dado error: habria movido los tres destinos y la salida de casa a otra parte de la
+-- ciudad, en silencio.
+--
+-- Creciendo por indices negativos, en cambio, `cruce(1, 2)` sigue siendo exactamente
+-- el mismo sitio del mundo que ayer. La ciudad nueva se anade por el NORTE y por el
+-- OESTE, o sea LEJOS de casa, que ademas es donde tiene sentido que crezca: el
+-- barrio de partida no se toca, las rutas siguen midiendo lo que median, y lo que
+-- aparece es sitio nuevo que solo se pisa si se decide explorar.
+--
+-- `COLUMNAS`/`FILAS` se eliminaron a proposito en vez de reinterpretarse. Se usaban
+-- como "el indice de la ultima calle" en veinte sitios; dejarlas valiendo "cuantas
+-- manzanas hay" habria compilado igual y recorrido media ciudad. Quitarlas hace que
+-- el analisis estatico liste uno por uno todos los sitios que hay que mirar.
+Grid.COL_MIN = -1
+Grid.COL_MAX = 4
+Grid.FILA_MIN = -1
+Grid.FILA_MAX = 3
 
 -- La cota por la que se anda. Es la del almacén, y no un número redondo, porque el
 -- recinto ya estaba plantado ahí cuando se rehízo el mapa y moverlo habría obligado
@@ -58,9 +88,9 @@ Grid.Y = 19.2
 local X_PRIMERA = -766
 local Z_PRIMERA = 316
 
--- Coordenada de la línea CENTRAL de una calle. `i` va de 0 a COLUMNAS (5 calles
--- para 4 columnas de manzanas): las de los extremos existen, y son lo que permite
--- rodear el mapa por fuera en vez de encontrarse el borde.
+-- Coordenada de la línea CENTRAL de una calle. `i` va de COL_MIN a COL_MAX (seis
+-- calles para cinco columnas de manzanas): las de los extremos existen, y son lo que
+-- permite rodear el mapa por fuera en vez de encontrarse el borde.
 function Grid.xDeCalle(i: number): number
 	return X_PRIMERA + i * Grid.PASO
 end
@@ -79,10 +109,10 @@ end
 -- base y las comprobaciones que barren el mundo.
 function Grid.limites(): (number, number, number, number)
 	local medio = Grid.ANCHO_CALLE / 2
-	return Grid.xDeCalle(0) - medio,
-		Grid.xDeCalle(Grid.COLUMNAS) + medio,
-		Grid.zDeCalle(0) - medio,
-		Grid.zDeCalle(Grid.FILAS) + medio
+	return Grid.xDeCalle(Grid.COL_MIN) - medio,
+		Grid.xDeCalle(Grid.COL_MAX) + medio,
+		Grid.zDeCalle(Grid.FILA_MIN) - medio,
+		Grid.zDeCalle(Grid.FILA_MAX) + medio
 end
 
 -- LA ACERA MAS CERCANA A UN PUNTO, y hacia donde mira quien se planta en ella.
@@ -112,14 +142,14 @@ function Grid.aceraDe(punto: Vector3): (Vector3, number)
 	local RETRANQUEO = 3
 
 	local mejorX, distX = 0, math.huge
-	for i = 0, Grid.COLUMNAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local d = math.abs(punto.X - Grid.xDeCalle(i))
 		if d < distX then
 			distX, mejorX = d, Grid.xDeCalle(i)
 		end
 	end
 	local mejorZ, distZ = 0, math.huge
-	for j = 0, Grid.FILAS do
+	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		local d = math.abs(punto.Z - Grid.zDeCalle(j))
 		if d < distZ then
 			distZ, mejorZ = d, Grid.zDeCalle(j)
@@ -236,8 +266,9 @@ end
 -- medidas de la casa: hacen falta las dos para meterla ENTERA en la manzana -- con
 -- solo el fondo, la mitad del ancho quedaba sobre la calle perpendicular.
 function Grid.portalDeCruce(cruce: Vector3, fondo: number, ancho: number): (Vector3, Vector3)
-	local col = math.clamp(math.floor((cruce.X - Grid.xDeCalle(0)) / Grid.PASO + 0.5), 0, Grid.COLUMNAS - 1)
-	local fila = math.clamp(math.floor((cruce.Z - Grid.zDeCalle(0)) / Grid.PASO + 0.5), 0, Grid.FILAS - 1)
+	local col = math.clamp(math.floor((cruce.X - Grid.xDeCalle(0)) / Grid.PASO + 0.5), Grid.COL_MIN, Grid.COL_MAX - 1)
+	local fila =
+		math.clamp(math.floor((cruce.Z - Grid.zDeCalle(0)) / Grid.PASO + 0.5), Grid.FILA_MIN, Grid.FILA_MAX - 1)
 	local x0, x1, z0, z1 = Grid.manzana(col, fila)
 
 	-- La esquina de la manzana mas cercana al cruce, en cada eje por separado.
@@ -261,9 +292,15 @@ function Grid.portalDeCruce(cruce: Vector3, fondo: number, ancho: number): (Vect
 	return centro, haciaDentro
 end
 
--- LAS BANDAS. Fila 0 la más lejana de casa, fila FILAS-1 la más cercana. El orden
--- importa: es lo que hace que alejarse de casa sea entrar en zona peor.
-local ZONA_POR_FILA = { [0] = "roja", [1] = "ambar", [2] = "verde" }
+-- LAS BANDAS. La fila 2 es la de casa y cada fila hacia abajo se aleja de ella. El
+-- orden importa: es lo que hace que alejarse de casa sea entrar en zona peor.
+--
+-- Y LA FILA -1 NO TIENE RUTA. Es la que se anadio al ampliar la ciudad, la mas
+-- lejana de todas, y a proposito no lleva destino: ninguna entrega manda ahi. Es el
+-- poligono industrial de las afueras, y lo unico que se gana en el son alijos --o
+-- sea, es sitio que solo se pisa si se decide explorar, que era justamente lo que
+-- faltaba. Una zona que hay que cruzar por obligacion no premia explorar: se cruza.
+local ZONA_POR_FILA = { [-1] = "afueras", [0] = "roja", [1] = "ambar", [2] = "verde" }
 
 function Grid.zonaDeFila(fila: number): string
 	return ZONA_POR_FILA[fila] or "ambar"
@@ -283,12 +320,12 @@ end
 -- con una ya es estar en ella.
 function Grid.enCalle(x: number, z: number): boolean
 	local medio = Grid.ANCHO_CALLE / 2
-	for i = 0, Grid.COLUMNAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
 		if math.abs(x - Grid.xDeCalle(i)) <= medio then
 			return true
 		end
 	end
-	for j = 0, Grid.FILAS do
+	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		if math.abs(z - Grid.zDeCalle(j)) <= medio then
 			return true
 		end
@@ -365,14 +402,14 @@ function Grid.rutaGps(desde: Vector3, hasta: Vector3): { Vector3 }
 
 	-- La calle mas cercana de cada eje, y cuanto hay que apartarse para pisarla.
 	local mejorX, distX = aqui.X, math.huge
-	for i = 0, Grid.COLUMNAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local x = Grid.xDeCalle(i)
 		if math.abs(x - aqui.X) < distX then
 			mejorX, distX = x, math.abs(x - aqui.X)
 		end
 	end
 	local mejorZ, distZ = aqui.Z, math.huge
-	for j = 0, Grid.FILAS do
+	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		local z = Grid.zDeCalle(j)
 		if math.abs(z - aqui.Z) < distZ then
 			mejorZ, distZ = z, math.abs(z - aqui.Z)

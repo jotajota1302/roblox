@@ -29,6 +29,7 @@
 local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
 local StreetProps = require(script.Parent.StreetProps)
 local Config = require(game.ReplicatedStorage.Shared.Config)
+local Districts = require(game.ReplicatedStorage.Shared.Districts)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 
@@ -69,6 +70,19 @@ local ALTO_ACERA = 2
 -- el personaje la sube sin cambiar de estado.
 local ACERA_ALTURA = 0.2
 
+-- LO QUE LA ACERA SE LLEVA POR CADA LADO antes de que empiece a construirse nada.
+--
+-- Estaba escrito dentro de `plantarManzanaCerrada`, que era su unico usuario. Desde
+-- que cada manzana se construye a su manera lo necesitan los ocho usos, y dos ochos
+-- en dos sitios es como una fachada acaba dos studs por delante de la de al lado.
+--
+-- Los ocho salen de un reparto: bordillo en los dos primeros studs, mobiliario a los
+-- cuatro, fachada a los ocho. Retranquear abrio la franja que le faltaba a la ciudad
+-- -- antes los edificios arrancaban en el borde exacto de la manzana, o sea con la
+-- fachada pegada al bordillo, y las farolas y los arboles de la acera acababan
+-- DENTRO de los edificios (97 pares de piezas solapadas, los canto la sonda).
+local ACERA_ANCHO = 8
+
 -- LA COTA POR LA QUE SE ANDA, y todo lo que se planta se cuelga de ella. Antes el
 -- mapa vivía en y=0 y el resto del juego en 19,2, porque el mapa se generaba para
 -- probarse solo y el recinto estaba puesto sobre un terreno ajeno. Tener dos alturas
@@ -76,44 +90,12 @@ local ACERA_ALTURA = 0.2
 -- que corta el navmesh sin que nada dé error.
 local Y_CALZADA = Grid.Y
 
--- Zonas en índices de manzana (col, fila), 0-based, con el origen abajo-izquierda.
--- La "L" verde→ámbar→roja preserva la asimetría del spec original: el almacén
--- queda en el SO, los destinos se alejan hacia el NE, y la roja además obliga
--- a cruzar una zona más densa — cuello de botella natural sin ponerlo a mano.
-local ZONAS: { [string]: { colMin: number, colMax: number, filaMin: number, filaMax: number } } = {
-	verde = { colMin = 0, colMax = Grid.COLUMNAS - 1, filaMin = 2, filaMax = 2 },
-	ambar = { colMin = 0, colMax = Grid.COLUMNAS - 1, filaMin = 1, filaMax = 1 },
-	roja = { colMin = 0, colMax = Grid.COLUMNAS - 1, filaMin = 0, filaMax = 0 },
-}
-
--- Plaza en la zona verde: una manzana vacía como atajo. Se eligió la (col=1,
--- fila=4) — diagonal NE desde el almacén, entre éste y el destino verde — para
--- que la salida natural del jugador pase **por o cerca de** la plaza, y el
--- atajo sea un gesto que el jugador descubre andando, no una decisión que
--- tiene que leer en pantalla.
-local PLAZA = { col = 1, fila = 2 }
-
--- **Solares**: manzanas vacías en ámbar y roja. Son la versión "callejón a lo
--- grande" del diseño: el jugador las cruza en diagonal cuando una patrulla le
--- pisa los talones, y la patrulla (atada a las calles) tiene que bordearlas
--- por fuera. La plaza de la verde cumple el mismo papel, pero en ámbar y roja
--- son **vías de escape** concretas, no un atajo de aprendizaje.
+-- QUE ES CADA MANZANA: en `shared/Districts.luau`, no aqui.
 --
--- Posiciones elegidas a mano, no aleatorias: el jugador debe poder **aprender**
--- dónde está el solar. (2,2) cae en la diagonal entre el destino ámbar y la
--- roja, así el jugador que huye de la ámbar la ve venir antes de entrar; (4,1)
--- está en la frontera roja-ámbar, pegado a la zona más densa, y es la salida
--- natural si una patrulla te cierra las calles.
---
--- Si en una partida jugada resulta que alguna de estas posiciones no funciona
--- (la patrulla entra al solar, o el jugador la descubre demasiado tarde), se
--- cambia la coordenada y se vuelve a jugar. Es el mismo flujo que con la
--- plaza: un cambio de 2 líneas, sin tocar el resto del mapa.
-local LOTES_VACANTES: { { col: number, fila: number } } = {
-	{ col = 2, fila = 1 }, -- ámbar: pegado al destino ámbar, la salida si te pisan
-	{ col = 1, fila = 0 }, -- roja: escape de la banda densa hacia el oeste
-}
-
+-- Aqui vivian tres tablas --las zonas, la plaza y los solares-- y las tres decian lo
+-- mismo desde tres sitios: cual de las doce manzanas era especial. Con el mapa de
+-- usos hay UNA sola respuesta por manzana y se puede probar sin abrir Studio, que es
+-- la regla de esta casa: el plano es un dato puro y esto solo lo planta.
 -- Características por zona. La DENSIDAD desapareció con los edificios sueltos: desde
 -- que la manzana se construye por el perímetro, lo que distingue una zona de otra es
 -- lo ALTO que es el caserío y lo hondo que son sus alas, no cuántos cubos caben.
@@ -125,6 +107,10 @@ local ZONA_CONFIG: { [string]: { alturaMin: number, alturaMax: number } } = {
 	verde = { alturaMin = 12, alturaMax = 24 },
 	ambar = { alturaMin = 24, alturaMax = 44 },
 	roja = { alturaMin = 44, alturaMax = 80 },
+	-- LAS AFUERAS, MAS BAJAS QUE LA VERDE. Es lo que hace que se lean como afueras
+	-- desde dentro de la ciudad: el caserio BAJA al alejarse en vez de subir, y esa
+	-- silueta descendente dice "aqui se acaba" sin ningun cartel.
+	afueras = { alturaMin = 9, alturaMax = 18 },
 }
 
 -- Hueco entre edificios cuando se plantan en fila. Lo bastante estrecho para
@@ -166,6 +152,14 @@ local COLOR_EDIFICIO: { [string]: { Color3 } } = {
 		Color3.fromRGB(86, 88, 102),
 		Color3.fromRGB(76, 78, 92),
 		Color3.fromRGB(98, 96, 110),
+	},
+	-- Las afueras, en tonos de ladrillo y chapa: es lo que separa un poligono
+	-- industrial de un barrio a doscientos studs de distancia, mucho antes de que se
+	-- distinga una nave de una casa.
+	afueras = {
+		Color3.fromRGB(122, 100, 84),
+		Color3.fromRGB(104, 96, 88),
+		Color3.fromRGB(112, 86, 72),
 	},
 }
 
@@ -380,7 +374,7 @@ local function plantarMarcasViales(padre: Instance)
 	-- ¿Cae este punto dentro de un cruce? Se pregunta por el eje contrario: para una
 	-- calle vertical, si su Z está dentro del ancho de alguna calle horizontal.
 	local function enCruceZ(z: number): boolean
-		for j = 0, Grid.FILAS do
+		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			if math.abs(z - Grid.zDeCalle(j)) < medio + 2 then
 				return true
 			end
@@ -388,7 +382,7 @@ local function plantarMarcasViales(padre: Instance)
 		return false
 	end
 	local function enCruceX(x: number): boolean
-		for i = 0, Grid.COLUMNAS do
+		for i = Grid.COL_MIN, Grid.COL_MAX do
 			if math.abs(x - Grid.xDeCalle(i)) < medio + 2 then
 				return true
 			end
@@ -397,7 +391,7 @@ local function plantarMarcasViales(padre: Instance)
 	end
 
 	-- CALLES VERTICALES (corren en Z)
-	for i = 0, Grid.COLUMNAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local x = Grid.xDeCalle(i)
 		local z = zMin
 		while z < zMax do
@@ -416,7 +410,7 @@ local function plantarMarcasViales(padre: Instance)
 		for _, lado in { -1, 1 } do
 			local bx = x + lado * (medio - 1.6)
 			local desde = zMin
-			for j = 0, Grid.FILAS do
+			for j = Grid.FILA_MIN, Grid.FILA_MAX do
 				local corte = Grid.zDeCalle(j)
 				local hasta = corte - medio
 				if hasta - desde > 1 then
@@ -431,7 +425,7 @@ local function plantarMarcasViales(padre: Instance)
 	end
 
 	-- CALLES HORIZONTALES (corren en X)
-	for j = 0, Grid.FILAS do
+	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		local z = Grid.zDeCalle(j)
 		local x = xMin
 		while x < xMax do
@@ -443,7 +437,7 @@ local function plantarMarcasViales(padre: Instance)
 		for _, lado in { -1, 1 } do
 			local bz = z + lado * (medio - 1.6)
 			local desde = xMin
-			for i = 0, Grid.COLUMNAS do
+			for i = Grid.COL_MIN, Grid.COL_MAX do
 				local corte = Grid.xDeCalle(i)
 				local hasta = corte - medio
 				if hasta - desde > 1 then
@@ -524,6 +518,78 @@ local function plantarLosaManzana(col: number, fila: number, padre: Instance, pi
 	end
 end
 
+-- UN EDIFICIO: la caja y sus bandas de ventanas. Es la unidad de construccion de
+-- toda la ciudad -- un ala de manzana, una torre, una nave del poligono.
+--
+-- Vive fuera de `plantarManzanaCerrada` desde que cada manzana se construye a su
+-- manera: con la funcion metida dentro, cada uso nuevo se traia una copia de las
+-- bandas, y la tercera copia es donde una deja de estar de acuerdo con las otras.
+local function edificio(
+	nombre: string,
+	ax0: number,
+	ax1: number,
+	az0: number,
+	az1: number,
+	alto: number,
+	color: Color3,
+	padre: Instance
+): Part
+	local levantado = pieza(
+		nombre,
+		Vector3.new(ax1 - ax0, alto, az1 - az0),
+		Vector3.new((ax0 + ax1) / 2, Y_CALZADA + ACERA_ALTURA + alto / 2, (az0 + az1) / 2),
+		color,
+		padre
+	)
+	-- DERRIBABLE: un edificio puede quitarse para hacerle sitio a una pieza del
+	-- juego (una guarida, un refugio, un taller). El suelo y las calles NO -- se
+	-- marcan igual con `delMapa` pero sin esto, y la primera versión del derribo
+	-- se llevó por delante dos losas de manzana y el asfalto de dos cruces.
+	levantado:SetAttribute("derribable", true)
+
+	-- LAS BANDAS DE VENTANAS, que es lo que convierte una caja de color en un
+	-- edificio. *"Me gustaria un mapa mas trabajado, con edificios..."* (JJ).
+	--
+	-- UNA banda que rodea el edificio entero por cada planta, y no ventanas sueltas.
+	-- Ventanas de verdad serian cuatro caras por doce huecos por cien edificios
+	-- --miles de piezas-- para un detalle que a la distancia a la que se juega no se
+	-- distingue. Una franja oscura horizontal cada ocho studs se lee como "esto tiene
+	-- pisos" desde la otra punta de la calle, que es toda la informacion que hace
+	-- falta, y cuesta tres piezas por edificio.
+	--
+	-- CADA BLOQUE CON SU PROPIA ALTURA DE PLANTA, y no es un adorno: las cuatro alas
+	-- de una manzana se tocan en las esquinas, asi que con la misma altura de planta
+	-- para todas sus bandas caian a la cota EXACTA y se solapaban -- 96 pares
+	-- coplanares, los canto la sonda. El desfase sale del generador y no de una
+	-- formula sobre el indice: con `(indice % 4) * 0.7` bajaron de 96 a 11, pero
+	-- quedaron once -- cualquier formula corta acaba teniendo coincidencias asi.
+	local ALTO_PLANTA = 7.4 + rng:NextNumber(0, 2.4)
+	local plantas = math.floor(alto / ALTO_PLANTA)
+	if plantas > 1 then
+		local tono = color:Lerp(Color3.fromRGB(24, 26, 34), 0.62)
+		for planta = 1, plantas - 1 do
+			local yBanda = Y_CALZADA + ACERA_ALTURA + planta * ALTO_PLANTA
+			local banda = pieza(
+				nombre .. "_V" .. planta,
+				Vector3.new(ax1 - ax0 + 0.6, 1.6, az1 - az0 + 0.6),
+				Vector3.new((ax0 + ax1) / 2, yBanda, (az0 + az1) / 2),
+				tono,
+				padre
+			)
+			banda.Material = Enum.Material.Glass
+			-- Como el resto del decorado: invisible para los rayos y sin cuerpo. Un
+			-- raycast que se pare en la cornisa de un edificio devuelve una cota
+			-- absurda, y de eso ya se han descartado sitios enteros por imposibles.
+			banda.CanCollide = false
+			banda.CanQuery = false
+			banda.CanTouch = false
+			banda.CastShadow = false
+		end
+	end
+
+	return levantado
+end
+
 -- LA MANZANA CERRADA: cuatro bloques por el perímetro, patio dentro, y un callejón.
 --
 -- Antes se plantaban entre uno y cinco edificios sueltos en medio de la manzana, con
@@ -553,7 +619,6 @@ local function plantarManzanaCerrada(col: number, fila: number, zona: string, pa
 	-- a lo que va en ella: bordillo en los dos primeros studs, mobiliario a los
 	-- cuatro, fachada a los ocho. Los edificios pierden dieciseis studs por eje --de
 	-- 120 a 104-- que es un precio bajo por dejar de ser una pared continua.
-	local ACERA_ANCHO = 8
 	x0, x1 = x0 + ACERA_ANCHO, x1 - ACERA_ANCHO
 	z0, z1 = z0 + ACERA_ANCHO, z1 - ACERA_ANCHO
 
@@ -583,68 +648,10 @@ local function plantarManzanaCerrada(col: number, fila: number, zona: string, pa
 		indice += 1
 		local alto = rng:NextNumber(cfg.alturaMin, cfg.alturaMax)
 		local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
-		local levantado = pieza(
-			string.format("Edificio_%d_%d_%d", col, fila, indice),
-			Vector3.new(ax1 - ax0, alto, az1 - az0),
-			Vector3.new((ax0 + ax1) / 2, Y_CALZADA + ACERA_ALTURA + alto / 2, (az0 + az1) / 2),
-			color,
-			padre
+		table.insert(
+			piezas,
+			edificio(string.format("Edificio_%d_%d_%d", col, fila, indice), ax0, ax1, az0, az1, alto, color, padre)
 		)
-		-- DERRIBABLE: un edificio puede quitarse para hacerle sitio a una pieza del
-		-- juego (una guarida, un refugio, un taller). El suelo y las calles NO -- se
-		-- marcan igual con `delMapa` pero sin esto, y la primera versión del derribo
-		-- se llevó por delante dos losas de manzana y el asfalto de dos cruces.
-		levantado:SetAttribute("derribable", true)
-		table.insert(piezas, levantado)
-
-		-- LAS BANDAS DE VENTANAS, que es lo que convierte una caja de color en un
-		-- edificio. *"Me gustaria un mapa mas trabajado, con edificios..."* (JJ).
-		--
-		-- UNA banda que rodea el edificio entero por cada planta, y no ventanas
-		-- sueltas. Ventanas de verdad serian cuatro caras por doce huecos por cien
-		-- edificios --miles de piezas-- para un detalle que a la distancia a la que
-		-- se juega no se distingue. Una franja oscura horizontal cada ocho studs se
-		-- lee como "esto tiene pisos" desde la otra punta de la calle, que es toda la
-		-- informacion que hace falta, y cuesta tres piezas por edificio.
-		--
-		-- Sobresale 0,3 studs por los cuatro lados: metida a ras quedaria coplanar
-		-- con la fachada y parpadearia, que es el defecto que este mapa lleva todo el
-		-- dia pagando.
-		-- CADA BLOQUE CON SU PROPIA ALTURA DE PLANTA, y no es un adorno: las cuatro
-		-- alas de una manzana se tocan en las esquinas, asi que con la misma altura de
-		-- planta para todas sus bandas caian a la cota EXACTA y se solapaban -- 96
-		-- pares coplanares, los canto la sonda. Variandola por indice cada bloque
-		-- tiene su ritmo, que ademas es lo que pasa en una manzana de verdad: edificios
-		-- distintos, forjados a distinta altura.
-		-- El desfase sale del generador y no de una formula sobre el indice. Con
-		-- `(indice % 4) * 0.7` bajaron de 96 a 11, pero quedaron once: las alas 2 y 5
-		-- daban 8,80 y 8,10 de planta y, sumado su desfase, la primera banda de cada
-		-- una caia en 9,26 y 9,25. Cualquier formula corta acaba teniendo coincidencias
-		-- asi; un numero del `rng` --que va con semilla fija, o sea igual de
-		-- determinista-- no las tiene.
-		local ALTO_PLANTA = 7.4 + rng:NextNumber(0, 2.4)
-		local plantas = math.floor(alto / ALTO_PLANTA)
-		if plantas > 1 then
-			local tono = color:Lerp(Color3.fromRGB(24, 26, 34), 0.62)
-			for planta = 1, plantas - 1 do
-				local yBanda = Y_CALZADA + ACERA_ALTURA + planta * ALTO_PLANTA
-				local banda = pieza(
-					string.format("Ventanas_%d_%d_%d_%d", col, fila, indice, planta),
-					Vector3.new(ax1 - ax0 + 0.6, 1.6, az1 - az0 + 0.6),
-					Vector3.new((ax0 + ax1) / 2, yBanda, (az0 + az1) / 2),
-					tono,
-					padre
-				)
-				banda.Material = Enum.Material.Glass
-				-- Como el resto del decorado: invisible para los rayos y sin cuerpo. Un
-				-- raycast que se pare en la cornisa de un edificio devuelve una cota
-				-- absurda, y de eso ya se han descartado sitios enteros por imposibles.
-				banda.CanCollide = false
-				banda.CanQuery = false
-				banda.CanTouch = false
-				banda.CastShadow = false
-			end
-		end
 		local _ = nombre
 	end
 
@@ -679,6 +686,468 @@ local function plantarManzanaCerrada(col: number, fila: number, zona: string, pa
 	return piezas
 end
 
+-- ────────────────────────────────────────────────────────────────────────────────
+-- LAS MANZANAS QUE NO SON MANZANAS
+--
+-- Todo lo que sigue existe por una frase: *"la ciudad no esta acabada... ir zona por
+-- zona dejando cada manzana trabajada... creciendo desde el sentido y la logica, no
+-- copy paste"* (JJ). Cual le toca a cada una se decide en `shared/Districts.luau`;
+-- aqui solo se planta.
+--
+-- LA REGLA COMUN A TODAS: la silueta manda. Lo que distingue un mercado de unas
+-- naves a cien studs no es el detalle, es el PERFIL -- alto y separado, bajo y
+-- continuo, plano y pintado. Si dos usos se ven igual desde la calle, sobra uno.
+-- ────────────────────────────────────────────────────────────────────────────────
+
+-- Lo que la acera se lleva por cada lado antes de que empiece a construirse nada. Es
+-- el mismo numero que usa la manzana cerrada y sale de ahi: bordillo en los dos
+-- primeros studs, mobiliario a los cuatro, fachada a los ocho.
+local COLOR_ASFALTO_PATIO = Color3.fromRGB(58, 58, 64)
+local COLOR_HORMIGON = Color3.fromRGB(146, 144, 138)
+local COLOR_VALLA = Color3.fromRGB(178, 150, 62)
+local COLOR_ESCOMBRO = Color3.fromRGB(122, 112, 100)
+local COLOR_ANDAMIO = Color3.fromRGB(168, 122, 54)
+-- Los toldos del mercado. Es el unico sitio del mapa con color saturado a proposito:
+-- un mercado sin color no es un mercado, y ademas le da a la banda ambar un punto
+-- del que acordarse.
+local COLOR_TOLDO: { Color3 } = {
+	Color3.fromRGB(186, 84, 64),
+	Color3.fromRGB(72, 124, 148),
+	Color3.fromRGB(196, 158, 70),
+	Color3.fromRGB(104, 138, 88),
+}
+local COLOR_CONTENEDOR: { Color3 } = {
+	Color3.fromRGB(128, 78, 60),
+	Color3.fromRGB(74, 96, 112),
+	Color3.fromRGB(96, 106, 78),
+}
+local COLOR_COCHE: { Color3 } = {
+	Color3.fromRGB(158, 88, 72),
+	Color3.fromRGB(84, 104, 128),
+	Color3.fromRGB(132, 132, 138),
+	Color3.fromRGB(96, 112, 90),
+}
+
+-- La huella util de una manzana: sus cuatro bordes ya descontada la acera.
+local function huella(col: number, fila: number): (number, number, number, number)
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	return x0 + ACERA_ANCHO, x1 - ACERA_ANCHO, z0 + ACERA_ANCHO, z1 - ACERA_ANCHO
+end
+
+-- Decorado: sin cuerpo y sin consultas. Es la primera regla de `StreetProps` y vale
+-- igual aqui -- un rayo que se para en un toldo devuelve "el suelo esta a nueve
+-- studs" y descarta el sitio para todo lo que se siembre despues.
+local function adorno(p: Part): Part
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	return p
+end
+
+-- La solera de una manzana que no es un edificio: el suelo propio del uso, por
+-- encima de la losa de la acera. Sube 0,14 por la razon de siempre -- dos caras a la
+-- misma cota parpadean.
+local function solera(
+	nombre: string,
+	col: number,
+	fila: number,
+	color: Color3,
+	material: Enum.Material,
+	padre: Instance
+): Part
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	local p = pieza(
+		nombre,
+		Vector3.new(x1 - x0 - 4, 0.2, z1 - z0 - 4),
+		Vector3.new((x0 + x1) / 2, Y_CALZADA + ACERA_ALTURA + 0.14, (z0 + z1) / 2),
+		color,
+		padre
+	)
+	p.Material = material
+	-- SIN `CanQuery`, y esto SI importa: quien siembra el mundo busca suelo con un
+	-- rayo hacia abajo, y esta losa esta 0,24 studs por encima del suelo real. Con
+	-- consultas activas, cada alijo y cada refugio de esta manzana quedaria flotando
+	-- esa cuarta de stud -- poco, pero es exactamente el hueco por el que se cuelan
+	-- las cosas que "se ven y no se pueden coger".
+	p.CanQuery = false
+	p.CanTouch = false
+	return p
+end
+
+-- TORRES. Dos o tres bloques altos y SEPARADOS sobre un zocalo bajo.
+--
+-- Es el unico uso que se ve desde el otro extremo del mapa, y por eso esta en la
+-- roja: la silueta alta al fondo de la calle dice "por ahi esta el centro" sin
+-- ningun cartel -- que era la funcion de los hitos de zona que se quitaron el 19/08
+-- por taparlo todo. Estas no tapan porque estan DENTRO de la manzana y no plantadas
+-- en mitad de la calle.
+--
+-- Separadas y no pegadas: entre dos torres se ve el cielo, y ese hueco vertical es
+-- lo que las distingue de un bloque macizo a doscientos studs.
+local function plantarTorres(col: number, fila: number, zona: string, padre: Instance, mobiliario: Instance): { Part }
+	local cfg = ZONA_CONFIG[zona]
+	local paleta = COLOR_EDIFICIO[zona]
+	local x0, x1, z0, z1 = huella(col, fila)
+	local piezas: { Part } = {}
+
+	-- El zocalo: la plataforma comercial de los bajos. Ademas de leerse bien, es lo
+	-- que hace que las torres no parezcan clavadas en el cesped.
+	adorno(solera("ZocaloTorres_" .. col .. "_" .. fila, col, fila, COLOR_HORMIGON, Enum.Material.Concrete, mobiliario))
+
+	-- Dos torres en diagonal y una tercera baja de remate. La diagonal es lo que deja
+	-- pasar la vista: en linea recta las tres tapan lo mismo que una pared.
+	local sitios = {
+		{ x0 + 4, x0 + 42, z0 + 4, z0 + 42, 1.0 },
+		{ x1 - 44, x1 - 4, z1 - 44, z1 - 4, 0.82 },
+		{ x1 - 34, x1 - 6, z0 + 8, z0 + 34, 0.45 },
+	}
+	for i, t in sitios do
+		local alto = rng:NextNumber(cfg.alturaMin, cfg.alturaMax) * t[5]
+		local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
+		table.insert(
+			piezas,
+			edificio(string.format("Torre_%d_%d_%d", col, fila, i), t[1], t[2], t[3], t[4], alto, color, padre)
+		)
+	end
+	return piezas
+end
+
+-- MERCADO. Dos naves de soportales enfrentadas y los puestos en medio.
+--
+-- Se ATRAVIESA, y es la unica manzana construida que se puede cruzar: se entra por
+-- un extremo del pasillo central y se sale por el otro. Eso la hace util --un atajo
+-- que ademas es un sitio-- y explica por que esta en la ambar, la banda que se cruza
+-- para casi todo.
+local function plantarMercado(col: number, fila: number, zona: string, padre: Instance, mobiliario: Instance): { Part }
+	local paleta = COLOR_EDIFICIO[zona]
+	local x0, x1, z0, z1 = huella(col, fila)
+	local piezas: { Part } = {}
+
+	adorno(solera("SueloMercado_" .. col .. "_" .. fila, col, fila, COLOR_HORMIGON, Enum.Material.Concrete, mobiliario))
+
+	-- Las dos naves, bajas y largas. Bajas a proposito: un mercado alto seria un
+	-- centro comercial, y ademas taparia la manzana de detras.
+	for i, lado in { z0, z1 - 26 } do
+		local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
+		table.insert(
+			piezas,
+			edificio(
+				string.format("Mercado_%d_%d_%d", col, fila, i),
+				x0,
+				x1,
+				lado,
+				lado + 26,
+				rng:NextNumber(11, 14),
+				color,
+				padre
+			)
+		)
+	end
+
+	-- LOS PUESTOS, en dos hileras a lo largo del pasillo. Mesa, dos postes y toldo.
+	local cz = (z0 + z1) / 2
+	local puesto = 0
+	for hilera = -1, 1, 2 do
+		local pz = cz + hilera * 13
+		local px = x0 + 10
+		while px < x1 - 10 do
+			puesto += 1
+			local color = COLOR_TOLDO[(puesto % #COLOR_TOLDO) + 1] :: Color3
+			local base = Y_CALZADA + ACERA_ALTURA + 0.24
+			adorno(
+				pieza(
+					string.format("PuestoMesa_%d_%d_%d", col, fila, puesto),
+					Vector3.new(9, 1.2, 5),
+					Vector3.new(px, base + 1.5, pz),
+					COLOR_HORMIGON,
+					mobiliario
+				)
+			).Material =
+				Enum.Material.WoodPlanks
+			for _, dx in { -4, 4 } do
+				adorno(
+					pieza(
+						string.format("PuestoPoste_%d_%d_%d", col, fila, puesto),
+						Vector3.new(0.4, 5.2, 0.4),
+						Vector3.new(px + dx, base + 2.6, pz),
+						COLOR_HORMIGON,
+						mobiliario
+					)
+				)
+			end
+			-- El toldo, INCLINADO. Plano se lee como una tapa; con siete grados de
+			-- caida se lee como tela, y no cuesta una pieza mas.
+			local toldo = adorno(
+				pieza(
+					string.format("PuestoToldo_%d_%d_%d", col, fila, puesto),
+					Vector3.new(10, 0.3, 6.4),
+					Vector3.new(px, base + 5.3, pz),
+					color,
+					mobiliario
+				)
+			)
+			toldo.Material = Enum.Material.Fabric
+			toldo.CFrame = CFrame.new(toldo.Position) * CFrame.Angles(math.rad(hilera * 7), 0, 0)
+			px += 16
+		end
+	end
+	return piezas
+end
+
+-- TALLERES. Naves anchas y bajas con el patio delante, y contenedores en el patio.
+--
+-- Van pegadas al almacen del jugador (manzana 0,2) y en las afueras, y las dos cosas
+-- son la misma decision: es lo que habria alrededor de una nave de reparto. Un
+-- poligono industrial junto a tu propia nave explica el sitio donde vives sin una
+-- sola linea de texto.
+local function plantarTalleres(col: number, fila: number, zona: string, padre: Instance, mobiliario: Instance): { Part }
+	local paleta = COLOR_EDIFICIO[zona]
+	local x0, x1, z0, z1 = huella(col, fila)
+	local piezas: { Part } = {}
+
+	adorno(
+		solera(
+			"PatioTalleres_" .. col .. "_" .. fila,
+			col,
+			fila,
+			COLOR_ASFALTO_PATIO,
+			Enum.Material.Asphalt,
+			mobiliario
+		)
+	)
+
+	-- Tres naves en L: dos largas al norte y una corta al oeste. La L deja el patio
+	-- abierto a dos calles, que es lo que hace que se vea que hay algo dentro.
+	local naves = {
+		{ x0, x0 + 52, z1 - 34, z1 },
+		{ x0 + 58, x1, z1 - 34, z1 },
+		{ x0, x0 + 30, z0 + 6, z1 - 40 },
+	}
+	for i, n in naves do
+		local color = paleta[rng:NextInteger(1, #paleta)] :: Color3
+		table.insert(
+			piezas,
+			edificio(
+				string.format("Nave_%d_%d_%d", col, fila, i),
+				n[1],
+				n[2],
+				n[3],
+				n[4],
+				rng:NextNumber(12, 17),
+				color,
+				padre
+			)
+		)
+	end
+
+	-- Los contenedores del patio, apilados de dos en dos en un par de sitios. Es lo
+	-- que da escala: sin nada suelto en el suelo, un patio de asfalto no dice si mide
+	-- veinte studs o cien.
+	for k = 0, 5 do
+		local cx = x0 + 42 + (k % 3) * 18
+		local cz = z0 + 10 + math.floor(k / 3) * 16
+		local pisos = if k % 4 == 0 then 2 else 1
+		for piso = 1, pisos do
+			local c = adorno(
+				pieza(
+					string.format("Contenedor_%d_%d_%d_%d", col, fila, k, piso),
+					Vector3.new(14, 7, 8),
+					Vector3.new(cx, Y_CALZADA + ACERA_ALTURA + 0.3 + 3.5 + (piso - 1) * 7.1, cz),
+					COLOR_CONTENEDOR[((k + piso) % #COLOR_CONTENEDOR) + 1] :: Color3,
+					mobiliario
+				)
+			)
+			c.Material = Enum.Material.CorrodedMetal
+			c.CFrame = CFrame.new(c.Position) * CFrame.Angles(0, math.rad((k % 2) * 90), 0)
+		end
+	end
+	return piezas
+end
+
+-- SOLAR. La obra parada: vallada, con montones y un andamio sin edificio detras.
+--
+-- Sustituye a los "lotes vacantes", que eran losas peladas. La funcion de juego es la
+-- misma --se corta por dentro y la patrulla, atada a las calles, tiene que rodear--
+-- pero ahora se ve POR QUE esta vacio, y una valla con una abertura ensena por donde
+-- se entra sin tener que probar las cuatro esquinas.
+local function plantarSolar(col: number, fila: number, mobiliario: Instance): { Part }
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	adorno(solera("SueloSolar_" .. col .. "_" .. fila, col, fila, COLOR_ESCOMBRO, Enum.Material.Ground, mobiliario))
+
+	-- LA VALLA, con un hueco en el lado sur. Los postes van sin cuerpo como todo el
+	-- decorado: una valla con colision atasca el pathfinding de las patrullas, y eso
+	-- ya se pago con las del mapa prestado.
+	local base = Y_CALZADA + ACERA_ALTURA + 0.3
+	local HUECO = 22
+	local n = 0
+	local function tramo(ax: number, az: number, largoX: number, largoZ: number)
+		n += 1
+		local v = adorno(
+			pieza(
+				string.format("Valla_%d_%d_%d", col, fila, n),
+				Vector3.new(largoX, 5, largoZ),
+				Vector3.new(ax, base + 2.5, az),
+				COLOR_VALLA,
+				mobiliario
+			)
+		)
+		v.Material = Enum.Material.Metal
+		v.Transparency = 0.25
+	end
+	local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+	local ancho, largo = x1 - x0 - 6, z1 - z0 - 6
+	tramo(cx, z1 - 3, ancho, 0.6)
+	tramo(x0 + 3, cz, 0.6, largo)
+	tramo(x1 - 3, cz, 0.6, largo)
+	-- El lado sur, partido: por ahi se entra.
+	local mitad = (ancho - HUECO) / 2
+	tramo(cx - (HUECO / 2 + mitad / 2), z0 + 3, mitad, 0.6)
+	tramo(cx + (HUECO / 2 + mitad / 2), z0 + 3, mitad, 0.6)
+
+	-- Tres montones de tierra y un andamio: lo justo para que se lea como obra y no
+	-- como descampado.
+	for i = 1, 3 do
+		local m = adorno(
+			pieza(
+				string.format("Monton_%d_%d_%d", col, fila, i),
+				Vector3.new(16 - i * 2, 6, 16 - i * 2),
+				Vector3.new(cx + (i - 2) * 26, base + 3, cz - 14 + i * 9),
+				COLOR_ESCOMBRO,
+				mobiliario
+			)
+		)
+		m.Material = Enum.Material.Ground
+		m.CFrame = CFrame.new(m.Position) * CFrame.Angles(0, math.rad(i * 30), 0)
+	end
+
+	-- El andamio: cuatro pies y dos plataformas. Es lo unico vertical del solar, y es
+	-- lo que hace que la manzana no sea un agujero en la silueta de la calle.
+	local ax, az = cx + 22, cz + 20
+	local pie = 0
+	for _, dx in { -7, 7 } do
+		for _, dz in { -5, 5 } do
+			pie += 1
+			adorno(
+				pieza(
+					string.format("AndamioPie_%d_%d_%d", col, fila, pie),
+					Vector3.new(0.7, 18, 0.7),
+					Vector3.new(ax + dx, base + 9, az + dz),
+					COLOR_ANDAMIO,
+					mobiliario
+				)
+			).Material =
+				Enum.Material.Metal
+		end
+	end
+	for piso = 1, 2 do
+		adorno(
+			pieza(
+				string.format("AndamioPiso_%d_%d_%d", col, fila, piso),
+				Vector3.new(15.4, 0.5, 11.4),
+				Vector3.new(ax, base + piso * 8, az),
+				COLOR_ANDAMIO,
+				mobiliario
+			)
+		).Material =
+			Enum.Material.WoodPlanks
+	end
+
+	-- Sin edificios: el solar no aporta ninguno a la lista que se valida despues.
+	return {}
+end
+
+-- APARCAMIENTO. La explanada pintada, con coches quietos y una caseta.
+--
+-- Es la manzana mas plana del mapa y eso es justo lo que aporta: desde una calle se
+-- VE la de enfrente por encima de ella. Un mapa donde todo tapa es un laberinto; uno
+-- con un par de huecos por los que se ve lejos se puede leer desde dentro.
+local function plantarAparcamiento(
+	col: number,
+	fila: number,
+	zona: string,
+	padre: Instance,
+	mobiliario: Instance
+): { Part }
+	local paleta = COLOR_EDIFICIO[zona]
+	local x0, x1, z0, z1 = huella(col, fila)
+	local piezas: { Part } = {}
+
+	adorno(
+		solera("SueloParking_" .. col .. "_" .. fila, col, fila, COLOR_ASFALTO_PATIO, Enum.Material.Asphalt, mobiliario)
+	)
+
+	local base = Y_CALZADA + ACERA_ALTURA + 0.3
+	-- Las lineas de las plazas, en dos bandas con un pasillo en medio.
+	local marca = 0
+	for _, banda in { z0 + 12, z1 - 26 } do
+		local px = x0 + 6
+		while px < x1 - 6 do
+			marca += 1
+			adorno(
+				pieza(
+					string.format("Plaza_%d_%d_%d", col, fila, marca),
+					Vector3.new(0.5, 0.12, 14),
+					Vector3.new(px, base, banda + 7),
+					COLOR_LINEA,
+					mobiliario
+				)
+			)
+			px += 9
+		end
+	end
+
+	-- Los coches. Caja y cabina: dos piezas por coche y se lee perfectamente desde la
+	-- altura de la camara. Uno de cada tres se deja fuera para que no parezca una
+	-- exposicion, y eso ademas deja hueco por donde cruzar.
+	local coche = 0
+	for k = 0, 13 do
+		if k % 3 == 2 then
+			continue
+		end
+		coche += 1
+		local px = x0 + 10 + (k % 7) * 13
+		local pz = if k < 7 then z0 + 19 else z1 - 19
+		local color = COLOR_COCHE[(coche % #COLOR_COCHE) + 1] :: Color3
+		adorno(
+			pieza(
+				string.format("CocheQuieto_%d_%d_%d", col, fila, coche),
+				Vector3.new(4.4, 2.2, 9),
+				Vector3.new(px, base + 1.4, pz),
+				color,
+				mobiliario
+			)
+		)
+		adorno(
+			pieza(
+				string.format("CocheTecho_%d_%d_%d", col, fila, coche),
+				Vector3.new(4, 1.8, 4.6),
+				Vector3.new(px, base + 3.3, pz - 0.6),
+				color:Lerp(Color3.fromRGB(20, 22, 28), 0.45),
+				mobiliario
+			)
+		).Material =
+			Enum.Material.Glass
+	end
+
+	-- Y la caseta del vigilante, que es lo unico construido: sin ella la manzana no
+	-- tendria ni una sombra y se leeria como un solar mas.
+	table.insert(
+		piezas,
+		edificio(
+			string.format("Caseta_%d_%d", col, fila),
+			x1 - 20,
+			x1 - 4,
+			z0 + 4,
+			z0 + 18,
+			9,
+			paleta[1] :: Color3,
+			padre
+		)
+	)
+	return piezas
+end
+
 -- ¿Esta posición (x, z) cae dentro de un edificio? Para no plantar el
 -- almacén o un destino encima de un muro. Compara en 2D — la altura del
 -- edificio no importa para esto.
@@ -695,26 +1164,14 @@ end
 -- no es válida en Luau para tuplas nullables — y envolverlo en `{ col, fila }`
 -- además deja la API más explícita en el llamador.
 local function manzanaEn(x: number, z: number): { col: number, fila: number }?
-	for col = 0, Grid.COLUMNAS - 1 do
-		for fila = 0, Grid.FILAS - 1 do
+	for col = Grid.COL_MIN, Grid.COL_MAX - 1 do
+		for fila = Grid.FILA_MIN, Grid.FILA_MAX - 1 do
 			if enManzana(x, z, col, fila) then
 				return { col = col, fila = fila }
 			end
 		end
 	end
 	return nil
-end
-
--- Una zona: una serie de manzanas. Devuelve la lista de (col, fila).
-local function manzanasDe(zona: string): { { col: number, fila: number } }
-	local z = ZONAS[zona]
-	local lista: { { col: number, fila: number } } = {}
-	for col = z.colMin, z.colMax do
-		for fila = z.filaMin, z.filaMax do
-			table.insert(lista, { col = col, fila = fila })
-		end
-	end
-	return lista
 end
 
 -- QUE NADA DEL MAPA SE PLANTE ENCIMA DE UN SITIO DEL JUEGO.
@@ -778,7 +1235,15 @@ local function verificarConectividad(almacen: Vector3): { string }
 		return { "(PathfindingService no disponible, saltando verificación)" }
 	end
 
-	for _, solar in LOTES_VACANTES do
+	-- DESDE CADA MANZANA POR LA QUE SE PUEDE CORTAR, y ya no solo desde los dos
+	-- solares: con ocho usos distintos, "atravesable" dejo de ser una lista escrita a
+	-- mano y paso a ser una propiedad del plano. Si un dia un mercado queda encerrado
+	-- entre naves, esto lo dice al arrancar en vez de en mitad de una huida.
+	for _, mz in Districts.manzanas() do
+		if not Districts.atravesable(mz.uso) then
+			continue
+		end
+		local solar = mz
 		local x = xDeColumna(solar.col) + TAMANO_MANZANA / 2
 		local z = zDeFila(solar.fila) + TAMANO_MANZANA / 2
 		local origen = Vector3.new(x, Y_CALZADA + 2, z)
@@ -872,48 +1337,42 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	-- 3. Para cada zona, plantar sus manzanas con sus edificios
 	local edificiosGenerados: { Part } = {}
 
-	-- Helper: ¿es un solar? (plaza de la verde o un solar de ámbar/roja)
-	local function esSolar(col: number, fila: number): boolean
-		if col == PLAZA.col and fila == PLAZA.fila then
-			return true
-		end
-		for _, solar in LOTES_VACANTES do
-			if solar.col == col and solar.fila == fila then
-				return true
-			end
-		end
-		return false
-	end
+	-- 3. CADA MANZANA, SEGUN LO QUE ES. El plano vive en `Districts`; esto es el
+	-- despacho, y a proposito es una cadena de `if` legible y no una tabla de
+	-- funciones: quien venga a anadir un uso tiene que tocar dos sitios --el plano y
+	-- esta lista-- y la prueba de `Districts` le avisa si se deja uno.
+	local cotaAcera = Y_CALZADA + ACERA_ALTURA
+	for _, mz in Districts.manzanas() do
+		plantarLosaManzana(mz.col, mz.fila, carpetaManzanas, carpetaPintura)
 
-	for _, zonaNombre in { "verde", "ambar", "roja" } do
-		for _, mz in manzanasDe(zonaNombre) do
-			-- Solares y plaza: manzana vacía, sólo suelo y aceras. La
-			-- diferencia entre un solar y la plaza es **la razón por la que
-			-- está vacía**, no la geometría: la plaza es un atajo de
-			-- aprendizaje (verde), los solares son vías de escape (ámbar y
-			-- roja). La función mecánica es la misma.
-			local cotaAcera = Y_CALZADA + ACERA_ALTURA
-			if esSolar(mz.col, mz.fila) then
-				plantarLosaManzana(mz.col, mz.fila, carpetaManzanas, carpetaPintura)
-				-- LA PLAZA DE LA VERDE PASA A SER UN JARDIN. Es la unica manzana vacia
-				-- que esta en el camino de todos --la primera ruta pasa por su lado--
-				-- asi que es el mejor sitio del mapa para lo unico que un jugador
-				-- necesita y no tiene: un punto de referencia del que acordarse. Los
-				-- solares de ambar y roja se quedan pelados a proposito: son vias de
-				-- escape, y una via de escape con arboles deja de ser una via.
-				if mz.col == PLAZA.col and mz.fila == PLAZA.fila then
-					StreetProps.jardin(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
-				end
-				StreetProps.acerasDe(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
-				continue
-			end
-
-			plantarLosaManzana(mz.col, mz.fila, carpetaManzanas, carpetaPintura)
-			for _, p in plantarManzanaCerrada(mz.col, mz.fila, zonaNombre, carpetaEdificios) do
-				table.insert(edificiosGenerados, p)
-			end
-			StreetProps.acerasDe(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
+		local nuevos: { Part } = {}
+		if mz.uso == Districts.PLAZA then
+			StreetProps.jardin(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
+		elseif mz.uso == Districts.PARQUE then
+			StreetProps.parque(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
+		elseif mz.uso == Districts.SOLAR then
+			nuevos = plantarSolar(mz.col, mz.fila, carpetaMobiliario)
+		elseif mz.uso == Districts.TORRES then
+			nuevos = plantarTorres(mz.col, mz.fila, mz.zona, carpetaEdificios, carpetaMobiliario)
+		elseif mz.uso == Districts.MERCADO then
+			nuevos = plantarMercado(mz.col, mz.fila, mz.zona, carpetaEdificios, carpetaMobiliario)
+		elseif mz.uso == Districts.TALLERES then
+			nuevos = plantarTalleres(mz.col, mz.fila, mz.zona, carpetaEdificios, carpetaMobiliario)
+		elseif mz.uso == Districts.APARCAMIENTO then
+			nuevos = plantarAparcamiento(mz.col, mz.fila, mz.zona, carpetaEdificios, carpetaMobiliario)
+		else
+			nuevos = plantarManzanaCerrada(mz.col, mz.fila, mz.zona, carpetaEdificios)
 		end
+		for _, pz in nuevos do
+			table.insert(edificiosGenerados, pz)
+		end
+
+		-- Y LAS ACERAS SIEMPRE, sea la manzana lo que sea. Las farolas y los arboles
+		-- van FUERA de la huella construida --en la franja de ocho studs que se le
+		-- descuenta a todo uso-- asi que valen igual para un parque que para una
+		-- torre, y son lo que hace que la calle siga siendo una calle al pasar de un
+		-- barrio a otro.
+		StreetProps.acerasDe(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
 	end
 
 	-- 4. Validar que los puntos fijos del juego no quedan encerrados
@@ -933,28 +1392,20 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	-- y verifica de un vistazo que la semilla y las densidades están dando
 	-- lo que esperaba. Coste: despreciable (un par de cuentas).
 	local totalEdificios = #edificiosGenerados
-	local edificiosPorZona: { [string]: number } = { verde = 0, ambar = 0, roja = 0 }
-	for _, e in edificiosGenerados do
-		local partes = string.split(e.Name, "_")
-		if #partes >= 3 then
-			local col = tonumber(partes[2])
-			local fila = tonumber(partes[3])
-			if col and fila then
-				for _, nombreZona in { "verde", "ambar", "roja" } do
-					local z = ZONAS[nombreZona]
-					if col >= z.colMin and col <= z.colMax and fila >= z.filaMin and fila <= z.filaMax then
-						edificiosPorZona[nombreZona] = (edificiosPorZona[nombreZona] or 0) + 1
-					end
-				end
-			end
-		end
+	local porUso: { [string]: number } = {}
+	for _, mz in Districts.manzanas() do
+		porUso[mz.uso] = (porUso[mz.uso] or 0) + 1
 	end
 
-	print(string.format("[MapBuilder] %d edificios plantados:", totalEdificios))
-	print(string.format("  · verde: %d", edificiosPorZona.verde or 0))
-	print(string.format("  · ámbar: %d", edificiosPorZona.ambar or 0))
-	print(string.format("  · roja:  %d", edificiosPorZona.roja or 0))
-	print(string.format("  · solares: %d (1 plaza verde + %d ámbar/roja)", 1 + #LOTES_VACANTES, #LOTES_VACANTES))
+	print(string.format("[MapBuilder] %d edificios en %d manzanas:", totalEdificios, #Districts.manzanas()))
+	local usos: { string } = {}
+	for uso in porUso do
+		table.insert(usos, uso)
+	end
+	table.sort(usos)
+	for _, uso in usos do
+		print(string.format("  · %-13s %d", uso, porUso[uso]))
+	end
 
 	-- 7. Verificación de conectividad: solar → almacén. Cara, dentro de pcall.
 	local issues = verificarConectividad(Config.ALMACEN_POS)

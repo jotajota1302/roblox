@@ -20,17 +20,17 @@ return function(kit)
 	-- Las cuatro esquinas del plano.
 	kit.eq("la calle 0 esta en el borde oeste", Grid.xDeCalle(0), -766)
 	kit.eq("la calle 1 pasa por la boca del recinto", Grid.xDeCalle(1), -620)
-	kit.eq("la ultima calle vertical cierra el este", Grid.xDeCalle(Grid.COLUMNAS), -182)
-	kit.eq("la ultima calle horizontal es la del recinto", Grid.zDeCalle(Grid.FILAS), 754)
+	kit.eq("la ultima calle vertical cierra el este", Grid.xDeCalle(Grid.COL_MAX), -182)
+	kit.eq("la ultima calle horizontal es la del recinto", Grid.zDeCalle(Grid.FILA_MAX), 754)
 	kit.eq("la primera cierra el sur", Grid.zDeCalle(0), 316)
 
 	-- El paso, constante. Es lo que hace que esto sea una retícula y no un plano
 	-- dibujado a mano: en cuanto una calle se mueve "un poco", el jugador deja de
 	-- poder predecir dónde está la siguiente.
-	for i = 1, Grid.COLUMNAS do
+	for i = Grid.COL_MIN + 1, Grid.COL_MAX do
 		kit.eq("paso constante entre calles verticales " .. i, Grid.xDeCalle(i) - Grid.xDeCalle(i - 1), Grid.PASO)
 	end
-	for j = 1, Grid.FILAS do
+	for j = Grid.FILA_MIN + 1, Grid.FILA_MAX do
 		kit.eq("paso constante entre calles horizontales " .. j, Grid.zDeCalle(j) - Grid.zDeCalle(j - 1), Grid.PASO)
 	end
 	kit.eq("y el paso es manzana mas calle", Grid.PASO, Grid.LADO_MANZANA + Grid.ANCHO_CALLE)
@@ -45,7 +45,7 @@ return function(kit)
 
 	-- LA COMPROBACIÓN QUE JUSTIFICA EL REDISEÑO. Tres partidas seguidas con "no sé
 	-- a dónde tengo que ir"; esto es esa queja convertida en algo que falla solo.
-	local boca = Vector3.new(Grid.xDeCalle(1), Grid.Y, Grid.zDeCalle(Grid.FILAS))
+	local boca = Vector3.new(Grid.xDeCalle(1), Grid.Y, Grid.zDeCalle(Grid.FILA_MAX))
 	kit.eq("a la verde se va recto, sin girar", Grid.giros(boca, Grid.cruce(1, 2)), 0)
 	kit.eq("a la ambar, un giro", Grid.giros(boca, Grid.cruce(2, 1)), 1)
 	kit.eq("a la roja, un giro", Grid.giros(boca, Grid.cruce(3, 0)), 1)
@@ -104,27 +104,32 @@ return function(kit)
 
 	-- Cada manzana mide lo que dice medir. Si esto falla, las calles se solapan con
 	-- los edificios y el pathfinding empieza a dar rodeos que nadie entiende.
-	for col = 0, Grid.COLUMNAS - 1 do
-		for fila = 0, Grid.FILAS - 1 do
+	for col = Grid.COL_MIN, Grid.COL_MAX - 1 do
+		for fila = Grid.FILA_MIN, Grid.FILA_MAX - 1 do
 			local x0, x1, z0, z1 = Grid.manzana(col, fila)
 			kit.eq(string.format("ancho de la manzana %d,%d", col, fila), x1 - x0, Grid.LADO_MANZANA)
 			kit.eq(string.format("largo de la manzana %d,%d", col, fila), z1 - z0, Grid.LADO_MANZANA)
 		end
 	end
 
-	-- El mapa entero cabe donde dice el spec: 610 x 464. Es un mapa PEQUEÑO a
-	-- propósito -- el problema medido es que no se entiende dónde se está, no que
-	-- falte sitio-- y crecer luego es añadir una columna, que es barato; encoger un
-	-- mapa al que ya se le ha colgado contenido, no.
+	-- El mapa entero: 756 x 610 desde la ampliacion del 21/08 (era 610 x 464 con la
+	-- reticula en 4x3). Sigue siendo un mapa PEQUENO a proposito -- el problema medido
+	-- era que no se entiende donde se esta, no que falte sitio-- y crecio por donde se
+	-- dijo que se podia crecer: anadiendo una columna y una fila, que es barato.
+	-- Encoger un mapa al que ya se le ha colgado contenido, no.
 	local xMin, xMax, zMin, zMax = Grid.limites()
-	kit.eq("el mapa mide 610 de ancho", xMax - xMin, 610)
-	kit.eq("y 464 de largo", zMax - zMin, 464)
+	kit.eq("el mapa mide 756 de ancho", xMax - xMin, 756)
+	kit.eq("y 610 de largo", zMax - zMin, 610)
 	kit.eq(
 		"el ancho sale de las columnas",
 		xMax - xMin,
-		Grid.COLUMNAS * Grid.LADO_MANZANA + (Grid.COLUMNAS + 1) * Grid.ANCHO_CALLE
+		(Grid.COL_MAX - Grid.COL_MIN) * Grid.LADO_MANZANA + (Grid.COL_MAX - Grid.COL_MIN + 1) * Grid.ANCHO_CALLE
 	)
-	kit.eq("y el largo de las filas", zMax - zMin, Grid.FILAS * Grid.LADO_MANZANA + (Grid.FILAS + 1) * Grid.ANCHO_CALLE)
+	kit.eq(
+		"y el largo de las filas",
+		zMax - zMin,
+		(Grid.FILA_MAX - Grid.FILA_MIN) * Grid.LADO_MANZANA + (Grid.FILA_MAX - Grid.FILA_MIN + 1) * Grid.ANCHO_CALLE
+	)
 
 	-- LA RUTA DEL GPS. Lo que la hace un GPS y no un dibujo es que EMPIEZA DONDE
 	-- ESTAS: si el primer punto no eres tu, la linea del plano se queda quieta
@@ -183,7 +188,7 @@ return function(kit)
 	-- la calzada (si no, un vehiculo lo atraviesa) y que el rumbo mira HACIA el eje
 	-- de la calle (si no, la camara vigila una pared).
 	local medio = Grid.ANCHO_CALLE / 2
-	for i = 0, Grid.COLUMNAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
 		for _, lado in { 1, -1 } do
 			local dentro =
 				Vector3.new(Grid.xDeCalle(i) + lado * (medio + 20), Grid.Y, Grid.zDeCalle(0) + Grid.LADO_MANZANA / 2)
@@ -202,8 +207,8 @@ return function(kit)
 	-- Y DESDE UN CRUCE, que es donde fallaba: apartarse de una calle dejaba el poste
 	-- dentro de la otra. Medido en el mundo antes de arreglarlo: 14 camaras de 43
 	-- plantadas en plena calzada, todas en esquinas.
-	for i = 0, Grid.COLUMNAS do
-		for j = 0, Grid.FILAS do
+	for i = Grid.COL_MIN, Grid.COL_MAX do
+		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			local cruce = Grid.cruce(i, j)
 			local sitio = Grid.aceraDe(cruce + Vector3.new(4, 0, 4))
 			kit.falsy(string.format("la acera del cruce %d,%d no cae en calzada", i, j), Grid.enCalle(sitio.X, sitio.Z))

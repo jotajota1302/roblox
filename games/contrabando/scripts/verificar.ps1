@@ -26,12 +26,12 @@ Set-Location $raiz
 
 $fallos = 0
 
-Write-Host "`n[1/4] formato y sintaxis (stylua)" -ForegroundColor Cyan
+Write-Host "`n[1/5] formato y sintaxis (stylua)" -ForegroundColor Cyan
 & (Join-Path $tools "stylua.exe") --check src
 if ($LASTEXITCODE -ne 0) { Write-Host "  X formato" -ForegroundColor Red; $fallos++ }
 else { Write-Host "  OK" -ForegroundColor Green }
 
-Write-Host "`n[2/4] analisis estatico (luau-lsp)" -ForegroundColor Cyan
+Write-Host "`n[2/5] analisis estatico (luau-lsp)" -ForegroundColor Cyan
 $lsp = Join-Path $tools "luau-lsp.exe"
 $defs = Join-Path $tools "globalTypes.d.luau"
 if (-not (Test-Path $lsp) -or -not (Test-Path $defs)) {
@@ -66,7 +66,7 @@ if (-not (Test-Path $lsp) -or -not (Test-Path $defs)) {
     }
 }
 
-Write-Host "`n[3/4] compila (rojo build)" -ForegroundColor Cyan
+Write-Host "`n[3/5] compila (rojo build)" -ForegroundColor Cyan
 # AL FICHERO DEL PROYECTO, nunca a un temporal: es el que JJ abre con doble clic, y
 # compilar a otro sitio produce el peor resultado posible -- yo verifico una version
 # y el juega otra. Ya paso.
@@ -74,8 +74,37 @@ Write-Host "`n[3/4] compila (rojo build)" -ForegroundColor Cyan
 if ($LASTEXITCODE -ne 0) { Write-Host "  X no compila" -ForegroundColor Red; $fallos++ }
 else { Write-Host "  OK  -> contrabando.rbxl" -ForegroundColor Green }
 
-Write-Host "`n[4/4] lo que NO se puede comprobar aqui" -ForegroundColor Cyan
-Write-Host "  - las 854 pruebas puras y las 77 sondas del mundo: en Studio" -ForegroundColor DarkGray
+# EL PASO 4 ES NUEVO (21/08) Y ES EL QUE MAS FALTABA. Hasta hoy las pruebas puras
+# solo corrian DENTRO de Studio, asi que este script daba "TODO OK" habiendo
+# comprobado formato, simbolos y compilacion -- y ninguna de las mil doscientas
+# reglas del juego. El propio paso 4 lo confesaba: "lo que NO se puede comprobar
+# aqui".
+#
+# Si se puede: `shared/` es puro por diseno y `tools/luau.exe` ejecuta Luau de
+# verdad. Lo unico que hacia falta era darle cuatro tipos de Roblox y un arbol de
+# modulos. Ver `scripts/banco.js`.
+Write-Host "`n[4/5] pruebas puras (luau.exe)" -ForegroundColor Cyan
+$nodo = Get-Command node -ErrorAction SilentlyContinue
+if (-not $nodo) {
+    Write-Host "  ! falta node: las pruebas puras se quedan sin correr" -ForegroundColor Yellow
+} else {
+    # A `cmd` otra vez, y por lo mismo que el paso 2: PowerShell 5.1 envuelve el
+    # stderr de un exe nativo en ErrorRecord y con $ErrorActionPreference en "Stop"
+    # mata el script en la primera linea de un fallo -- que es justo lo que hay que
+    # leer.
+    $salidaBanco = cmd /c "node scripts\banco.js 2>&1"
+    $resumen = $salidaBanco | Where-Object { $_ -match "^(OK|FALLOS) \(" }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  X la bateria pura falla:" -ForegroundColor Red
+        $salidaBanco | Where-Object { $_ -match "^\[X\]" } | ForEach-Object { Write-Host "      $_" -ForegroundColor Red }
+        $fallos++
+    } else {
+        Write-Host "  OK  $resumen" -ForegroundColor Green
+    }
+}
+
+Write-Host "`n[5/5] lo que NO se puede comprobar aqui" -ForegroundColor Cyan
+Write-Host "  - las sondas del MUNDO (SelfCheck): hace falta una partida en Studio" -ForegroundColor DarkGray
 Write-Host "  - que se vea bien: jugando. Que compile no significa que funcione" -ForegroundColor DarkGray
 
 if ($fallos -gt 0) {

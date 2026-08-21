@@ -238,6 +238,91 @@ function StreetProps.jardin(col: number, fila: number, cotaSuperior: number, pad
 	end
 end
 
+-- EL PARQUE, que es la plaza SIN ser la plaza.
+--
+-- Dos manzanas verdes en el mismo mapa tienen que distinguirse o son la misma
+-- manzana repetida, que es exactamente la queja que abrio todo esto. Asi que se
+-- separan por lo unico que el ojo lee de lejos: la PLAZA es simetrica --cruz de
+-- caminos y fuente en el centro-- y el PARQUE es suelto: un sendero en diagonal, el
+-- arbolado disperso y un estanque descentrado. Uno parece hecho por un arquitecto y
+-- el otro parece que estaba ahi antes que la ciudad.
+--
+-- Y el sendero en diagonal no es un capricho: es el atajo. Quien entra por una
+-- esquina sale por la contraria sin dar el rodeo de la manzana.
+function StreetProps.parque(col: number, fila: number, cotaSuperior: number, padre: Instance)
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+	local ancho, largo = x1 - x0, z1 - z0
+	-- Determinista por manzana, como todo lo que se planta: el mapa es aprendible.
+	local rng = Random.new(col * 5701 + fila * 331 + 7)
+
+	local cesped = pieza(
+		"ParqueCesped",
+		Vector3.new(ancho - 4, 0.2, largo - 4),
+		Vector3.new(cx, cotaSuperior + 0.14, cz),
+		COLOR_CESPED,
+		padre
+	)
+	cesped.Material = Enum.Material.Grass
+
+	-- El sendero, de esquina a esquina. Girado 45 grados y en UNA pieza: dos tramos
+	-- cruzandose volverian a dejar dos caras a la misma cota.
+	local diagonal = math.sqrt(ancho * ancho + largo * largo) - 10
+	local sendero = pieza(
+		"ParqueSendero",
+		Vector3.new(7, 0.2, diagonal),
+		Vector3.new(cx, cotaSuperior + 0.32, cz),
+		COLOR_CAMINO,
+		padre
+	)
+	sendero.Material = Enum.Material.Concrete
+	sendero.CFrame = CFrame.new(sendero.Position) * CFrame.Angles(0, math.rad(45), 0)
+
+	-- El estanque, descentrado. Es lo que hace que el parque tenga un "dentro": un
+	-- rectangulo de cesped liso no se recuerda, uno con un charco y tres arboles si.
+	local ex, ez = cx - ancho * 0.22, cz + largo * 0.18
+	local orilla =
+		pieza("ParqueOrilla", Vector3.new(0.9, 26, 26), Vector3.new(ex, cotaSuperior + 0.4, ez), COLOR_CAMINO, padre)
+	orilla.Material = Enum.Material.Slate
+	orilla.Shape = Enum.PartType.Cylinder
+	orilla.CFrame = CFrame.new(orilla.Position) * CFrame.Angles(0, 0, math.rad(90))
+	local agua =
+		pieza("ParqueAgua", Vector3.new(0.4, 22, 22), Vector3.new(ex, cotaSuperior + 0.75, ez), COLOR_AGUA, padre)
+	agua.Material = Enum.Material.Glass
+	agua.Shape = Enum.PartType.Cylinder
+	agua.CFrame = CFrame.new(agua.Position) * CFrame.Angles(0, 0, math.rad(90))
+
+	-- ARBOLADO DISPERSO, y con dos reglas: fuera del estanque --un arbol en mitad del
+	-- agua se ve desde la otra punta de la calle-- y fuera del sendero, que si no deja
+	-- de ser un paso.
+	local plantados = 0
+	for intento = 1, 40 do
+		if plantados >= 11 then
+			break
+		end
+		local px = rng:NextNumber(x0 + 12, x1 - 12)
+		local pz = rng:NextNumber(z0 + 12, z1 - 12)
+		local dEstanque = math.sqrt((px - ex) ^ 2 + (pz - ez) ^ 2)
+		-- Distancia al sendero: como va a 45 grados por el centro, la cuenta es la
+		-- diferencia entre los dos desplazamientos respecto al centro.
+		local dSendero = math.abs((px - cx) - (pz - cz)) / math.sqrt(2)
+		if dEstanque > 18 and dSendero > 7 then
+			arbol(Vector3.new(px, cotaSuperior, pz), col * 977 + fila * 131 + intento * 19, padre)
+			plantados += 1
+		end
+	end
+
+	-- Tres bancos mirando al estanque, en la orilla de fuera.
+	for i = 1, 3 do
+		local angulo = math.rad(200 + i * 50)
+		local bx, bz = ex + math.cos(angulo) * 17, ez + math.sin(angulo) * 17
+		local banco =
+			pieza("Banco", Vector3.new(5.5, 1.1, 1.2), Vector3.new(bx, cotaSuperior + 0.75, bz), COLOR_BANCO, padre)
+		banco.Material = Enum.Material.Wood
+		banco.CFrame = CFrame.new(banco.Position) * CFrame.Angles(0, -angulo, 0)
+	end
+end
+
 -- Reparte farolas y árboles por las aceras de una manzana, alternando: farola,
 -- árbol, farola... Alternar es lo que hace que la calle tenga ritmo en vez de ser una
 -- hilera de lo mismo, y de paso reparte el coste -- un árbol son cuatro piezas y una

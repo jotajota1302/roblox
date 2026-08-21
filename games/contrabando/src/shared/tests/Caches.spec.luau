@@ -131,4 +131,16 @@ return function(kit)
 	-- Y LA RECARGA, MAS LARGA QUE UN VIAJE: si no, dar una ronda de alijos en bucle
 	-- seria mejor negocio que repartir, y el juego dejaria de ser un juego de rutas.
 	kit.truthy("no se pueden farmear en bucle", Config.ALIJO_RECARGA > 120)
+
+	-- Y LA MARCA DEL SUELO CABE EN LA CALLE. Es la unica cota que impide que vuelva a
+	-- pasar lo del 21/08: el halo salia de `ALIJO_RADIO * 1.6` --28,8 studs sobre una
+	-- calzada de 26-- asi que el disco amarillo pintaba la calle entera y el alijo
+	-- dejaba de leerse como un premio. Nada dio error; se vio jugando.
+	--
+	-- Atado al ancho de calle y no a un numero suelto, porque un absoluto no sobrevive
+	-- a que cambie aquello que mide: el dia que la calzada se estreche, esta prueba se
+	-- entera y `RASTRO_PASO` no se entero.
+	kit.truthy("la marca del alijo no pinta la calzada entera", Config.ALIJO_HALO < Grid.ANCHO_CALLE)
+	-- Y sigue siendo mayor que el bulto: una marca mas pequena que la caja no marca.
+	kit.truthy("la marca es mayor que el bulto que senala", Config.ALIJO_HALO > 3.4)
 end
