@@ -27,6 +27,7 @@
 ]]
 
 local Bounds = require(game.ReplicatedStorage.Shared.Bounds)
+local StreetProps = require(script.Parent.StreetProps)
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
@@ -542,6 +543,20 @@ local function plantarManzanaCerrada(col: number, fila: number, zona: string, pa
 	local cfg = ZONA_CONFIG[zona]
 	local paleta = COLOR_EDIFICIO[zona]
 	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+
+	-- LA ACERA, y esta vez de verdad. Hasta aqui los edificios arrancaban en el borde
+	-- exacto de la manzana, o sea con la fachada pegada al bordillo: no habia por
+	-- donde andar, y las farolas y los arboles que se plantaron en la acera acabaron
+	-- DENTRO de los edificios -- 97 pares de piezas solapadas, los canto la sonda.
+	--
+	-- Retranquear ocho studs abre la franja que le faltaba a la ciudad y le da sitio
+	-- a lo que va en ella: bordillo en los dos primeros studs, mobiliario a los
+	-- cuatro, fachada a los ocho. Los edificios pierden dieciseis studs por eje --de
+	-- 120 a 104-- que es un precio bajo por dejar de ser una pared continua.
+	local ACERA_ANCHO = 8
+	x0, x1 = x0 + ACERA_ANCHO, x1 - ACERA_ANCHO
+	z0, z1 = z0 + ACERA_ANCHO, z1 - ACERA_ANCHO
+
 	local piezas: { Part } = {}
 	local indice = 0
 
@@ -581,6 +596,55 @@ local function plantarManzanaCerrada(col: number, fila: number, zona: string, pa
 		-- se llevó por delante dos losas de manzana y el asfalto de dos cruces.
 		levantado:SetAttribute("derribable", true)
 		table.insert(piezas, levantado)
+
+		-- LAS BANDAS DE VENTANAS, que es lo que convierte una caja de color en un
+		-- edificio. *"Me gustaria un mapa mas trabajado, con edificios..."* (JJ).
+		--
+		-- UNA banda que rodea el edificio entero por cada planta, y no ventanas
+		-- sueltas. Ventanas de verdad serian cuatro caras por doce huecos por cien
+		-- edificios --miles de piezas-- para un detalle que a la distancia a la que
+		-- se juega no se distingue. Una franja oscura horizontal cada ocho studs se
+		-- lee como "esto tiene pisos" desde la otra punta de la calle, que es toda la
+		-- informacion que hace falta, y cuesta tres piezas por edificio.
+		--
+		-- Sobresale 0,3 studs por los cuatro lados: metida a ras quedaria coplanar
+		-- con la fachada y parpadearia, que es el defecto que este mapa lleva todo el
+		-- dia pagando.
+		-- CADA BLOQUE CON SU PROPIA ALTURA DE PLANTA, y no es un adorno: las cuatro
+		-- alas de una manzana se tocan en las esquinas, asi que con la misma altura de
+		-- planta para todas sus bandas caian a la cota EXACTA y se solapaban -- 96
+		-- pares coplanares, los canto la sonda. Variandola por indice cada bloque
+		-- tiene su ritmo, que ademas es lo que pasa en una manzana de verdad: edificios
+		-- distintos, forjados a distinta altura.
+		-- El desfase sale del generador y no de una formula sobre el indice. Con
+		-- `(indice % 4) * 0.7` bajaron de 96 a 11, pero quedaron once: las alas 2 y 5
+		-- daban 8,80 y 8,10 de planta y, sumado su desfase, la primera banda de cada
+		-- una caia en 9,26 y 9,25. Cualquier formula corta acaba teniendo coincidencias
+		-- asi; un numero del `rng` --que va con semilla fija, o sea igual de
+		-- determinista-- no las tiene.
+		local ALTO_PLANTA = 7.4 + rng:NextNumber(0, 2.4)
+		local plantas = math.floor(alto / ALTO_PLANTA)
+		if plantas > 1 then
+			local tono = color:Lerp(Color3.fromRGB(24, 26, 34), 0.62)
+			for planta = 1, plantas - 1 do
+				local yBanda = Y_CALZADA + ACERA_ALTURA + planta * ALTO_PLANTA
+				local banda = pieza(
+					string.format("Ventanas_%d_%d_%d_%d", col, fila, indice, planta),
+					Vector3.new(ax1 - ax0 + 0.6, 1.6, az1 - az0 + 0.6),
+					Vector3.new((ax0 + ax1) / 2, yBanda, (az0 + az1) / 2),
+					tono,
+					padre
+				)
+				banda.Material = Enum.Material.Glass
+				-- Como el resto del decorado: invisible para los rayos y sin cuerpo. Un
+				-- raycast que se pare en la cornisa de un edificio devuelve una cota
+				-- absurda, y de eso ya se han descartado sitios enteros por imposibles.
+				banda.CanCollide = false
+				banda.CanQuery = false
+				banda.CanTouch = false
+				banda.CastShadow = false
+			end
+		end
 		local _ = nombre
 	end
 
@@ -776,6 +840,12 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	local carpetaPintura = Instance.new("Folder")
 	carpetaPintura.Name = "Pintura"
 	carpetaPintura.Parent = ciudad
+
+	-- Y el mobiliario urbano en la suya, por el mismo motivo que la pintura: las
+	-- sondas miden por carpeta, y un arbol dentro de `Edificios` cuenta como edificio.
+	local carpetaMobiliario = Instance.new("Folder")
+	carpetaMobiliario.Name = "Mobiliario"
+	carpetaMobiliario.Parent = ciudad
 	carpetaCalles.Parent = ciudad
 
 	local carpetaManzanas = Instance.new("Folder")
@@ -822,8 +892,19 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 			-- está vacía**, no la geometría: la plaza es un atajo de
 			-- aprendizaje (verde), los solares son vías de escape (ámbar y
 			-- roja). La función mecánica es la misma.
+			local cotaAcera = Y_CALZADA + ACERA_ALTURA
 			if esSolar(mz.col, mz.fila) then
 				plantarLosaManzana(mz.col, mz.fila, carpetaManzanas, carpetaPintura)
+				-- LA PLAZA DE LA VERDE PASA A SER UN JARDIN. Es la unica manzana vacia
+				-- que esta en el camino de todos --la primera ruta pasa por su lado--
+				-- asi que es el mejor sitio del mapa para lo unico que un jugador
+				-- necesita y no tiene: un punto de referencia del que acordarse. Los
+				-- solares de ambar y roja se quedan pelados a proposito: son vias de
+				-- escape, y una via de escape con arboles deja de ser una via.
+				if mz.col == PLAZA.col and mz.fila == PLAZA.fila then
+					StreetProps.jardin(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
+				end
+				StreetProps.acerasDe(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
 				continue
 			end
 
@@ -831,6 +912,7 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 			for _, p in plantarManzanaCerrada(mz.col, mz.fila, zonaNombre, carpetaEdificios) do
 				table.insert(edificiosGenerados, p)
 			end
+			StreetProps.acerasDe(mz.col, mz.fila, cotaAcera, carpetaMobiliario)
 		end
 	end
 

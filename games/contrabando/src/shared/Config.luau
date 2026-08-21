@@ -362,8 +362,26 @@ Config.RAREZAS = if Config.PROTOTIPO then Config.RAREZAS_PROTOTIPO else Config.R
 -- reticula pasa por la boca del recinto (ver la cabecera de Grid), asi que al salir
 -- ya estas EN una calle. Mover el centro para "centrar el contenido" alinearia la
 -- puerta con una manzana. Lo que se mueve es el fondo, que es donde sobra.
-Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 830)
-Config.POLIGONO_TAMANO = Vector2.new(300, 150)
+--
+-- Y SE ENCOGE OTRA VEZ (21/08): *"la zona de la guarida o el almacen, taller etc
+-- deberia ser mas pequena no? Veo que sobra mapa ahi y quita protagonismo"* (JJ).
+--
+-- Tenia razon y la cuenta lo dice sin discusion: el recinto media 300 x 150 y lo que
+-- hay dentro --el almacen (90x90) y el taller (96x60)-- ocupa 181 x 90. Sobraban 119
+-- studs a lo ancho y 60 a lo largo, o sea casi la mitad de la superficie, en patio
+-- vacio. Y el patio vacio no es neutro: es lo primero que se ve al empezar la
+-- partida, esta pegado a la unica pantalla donde el jugador decide algo, y cuanto
+-- mas grande es mas parece que el juego pasa AHI en vez de en la ciudad.
+--
+-- 210 x 120 deja doce studs de margen alrededor de lo que hay. La superficie baja de
+-- 45.000 a 25.200 studs cuadrados: casi la mitad.
+--
+-- EL CENTRO EN Z SE MUEVE A 815 y no es cosmetico: la salida se DERIVA del borde
+-- norte (centro.Z - largo/2), y ese borde tiene que quedarse en 755 porque ahi es
+-- donde engancha con la calle 1 de la reticula. Encoger dejando el centro en 830
+-- habria metido la boca 20 studs dentro de la ciudad.
+Config.POLIGONO_CENTRO = Vector3.new(-620, 19.2, 815)
+Config.POLIGONO_TAMANO = Vector2.new(210, 120)
 -- Por dónde se sale a la ciudad: el extremo norte del polígono, y desde ahí una
 -- carretera hasta la calle más cercana.
 -- EN LA BOCA EXACTA (centro.Z - alto/2 = 880 - 115), no unos studs más adentro:
