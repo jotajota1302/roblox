@@ -177,4 +177,43 @@ return function(kit)
 	-- apuntando a un vertice que ya has pisado.
 	local casi = ruta[#ruta] - Vector3.new(0, 0, 3)
 	kit.eq("al lado del destino, el paso es el destino", Grid.siguientePaso(ruta, casi, 12), ruta[#ruta])
+
+	-- LA ACERA, que es donde van las camaras desde que JJ pidio que apuntaran a la
+	-- calle. Dos cosas que comprobar y las dos importan: que el punto sale FUERA de
+	-- la calzada (si no, un vehiculo lo atraviesa) y que el rumbo mira HACIA el eje
+	-- de la calle (si no, la camara vigila una pared).
+	local medio = Grid.ANCHO_CALLE / 2
+	for i = 0, Grid.COLUMNAS do
+		for _, lado in { 1, -1 } do
+			local dentro =
+				Vector3.new(Grid.xDeCalle(i) + lado * (medio + 20), Grid.Y, Grid.zDeCalle(0) + Grid.LADO_MANZANA / 2)
+			local sitio, rumbo = Grid.aceraDe(dentro)
+			kit.falsy(
+				string.format("la acera de la calle %d lado %d no esta en calzada", i, lado),
+				Grid.enCalle(sitio.X, sitio.Z)
+			)
+			-- El rumbo apunta al eje: el vector de mirada tiene que acercarte a el.
+			local mira = (CFrame.Angles(0, math.rad(rumbo), 0) * CFrame.new(0, 0, -1)).Position
+			local haciaElEje = Grid.xDeCalle(i) - sitio.X
+			kit.truthy(string.format("y mira hacia la calle %d lado %d", i, lado), mira.X * haciaElEje > 0)
+		end
+	end
+
+	-- Y DESDE UN CRUCE, que es donde fallaba: apartarse de una calle dejaba el poste
+	-- dentro de la otra. Medido en el mundo antes de arreglarlo: 14 camaras de 43
+	-- plantadas en plena calzada, todas en esquinas.
+	for i = 0, Grid.COLUMNAS do
+		for j = 0, Grid.FILAS do
+			local cruce = Grid.cruce(i, j)
+			local sitio = Grid.aceraDe(cruce + Vector3.new(4, 0, 4))
+			kit.falsy(string.format("la acera del cruce %d,%d no cae en calzada", i, j), Grid.enCalle(sitio.X, sitio.Z))
+		end
+	end
+
+	-- Y da igual desde donde se pregunte: un punto en mitad de la manzana tiene que
+	-- salir en una acera de verdad, no a medio camino.
+	local centro = Grid.centroManzana(1, 1)
+	local sitioC, _ = Grid.aceraDe(centro)
+	kit.falsy("la acera del centro de una manzana tampoco cae en calzada", Grid.enCalle(sitioC.X, sitioC.Z))
+	kit.near("y conserva la altura que se le pasa", sitioC.Y, centro.Y)
 end

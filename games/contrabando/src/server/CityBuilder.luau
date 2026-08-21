@@ -893,7 +893,24 @@ local function sembrarVigilancia(ciudad: Instance?, padre: Instance): { BasePart
 			-- suelo: es la que mide HeatService y la que comprueba la sonda del mundo,
 			-- y subirla al cabezal cambiaría las distancias de todo el sistema de calor
 			-- por un motivo decorativo.
-			local rumbo = Config.DETECTOR_RUMBOS[(n * 3) % #Config.DETECTOR_RUMBOS + 1]
+			-- EN LA ACERA Y MIRANDO A LA CALLE, que es donde va una camara.
+			--
+			-- *"Las camaras o farolas deberian estar en la acera y apuntar a la calle"*
+			-- (JJ), y hasta aqui no hacian ninguna de las dos cosas: la posicion era el
+			-- punto que devolvia el rayo --que podia caer en mitad de la calzada, donde
+			-- la atraviesa cualquier vehiculo-- y el RUMBO salia de una lista fija de
+			-- cuatro valores rotando por indice, o sea mirando a donde tocara.
+			--
+			-- Que mire a donde tocara no es solo feo. Una camara apuntando a una pared
+			-- no ficha a nadie, asi que la mitad de la vigilancia del mapa era decorado
+			-- -- y encima decorado que promete peligro. Ensenarle al jugador que las
+			-- senales de amenaza no significan nada es la forma mas rapida de que deje
+			-- de mirarlas todas, incluidas las que si.
+			--
+			-- Las dos cosas salen de la misma cuenta (`Grid.aceraDe`) porque son la
+			-- misma decision: en que acera te plantas determina a que calle miras.
+			local enAcera, rumbo = Grid.aceraDe(Vector3.new(cx, y :: number, cz))
+			cx, cz = enAcera.X, enAcera.Z
 			local mirando = CFrame.new(Vector3.new(cx, (y :: number) + 0.4, cz)) * CFrame.Angles(0, math.rad(rumbo), 0)
 
 			local foco = part(

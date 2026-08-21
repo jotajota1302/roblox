@@ -140,6 +140,15 @@ local CALLEJON = 14
 local COLOR_CALLE = Color3.fromRGB(46, 48, 54)
 local COLOR_ACERA = Color3.fromRGB(140, 138, 132)
 local COLOR_SUELO_BASE = Color3.fromRGB(40, 40, 45)
+-- La pintura de la calzada. Blanco sucio y no blanco puro: el blanco puro sobre
+-- asfalto oscuro es el contraste más alto que hay en pantalla y se lleva la mirada
+-- que tiene que ir a los recogibles y a los ladrones. Una marca vial dice "esto es
+-- una carretera" con el rabillo del ojo; no hace falta que grite.
+local COLOR_LINEA = Color3.fromRGB(198, 194, 182)
+-- El bordillo, un tono más claro que la acera para que el canto se lea desde lejos.
+-- La acera sólo sube 0,2 studs --a propósito, para que no se tropiece-- así que la
+-- separación entre calzada y acera la tiene que hacer el COLOR, no la altura.
+local COLOR_BORDILLO = Color3.fromRGB(176, 174, 168)
 
 local COLOR_EDIFICIO: { [string]: { Color3 } } = {
 	verde = {
@@ -209,58 +218,39 @@ end
 -- el suelo de la ciudad desaparece, esto es lo que pisa el jugador. En
 -- segmentos por el límite de 2048 studs por eje, ya pagado.
 local function plantarSueloBase(padre: Instance)
-	-- DE `Bounds.mundo()` Y NO DE `Grid.limites()`, y la diferencia es un agujero:
-	-- la retícula de calles acaba en z=767 pero el RECINTO del almacén cuelga por el
-	-- sur hasta 905, y con el margen de 60 el suelo base se paraba en 827. Quedaban
-	-- 78 studs de vacío rodeando el sitio donde empieza cada partida -- medido con
-	-- una rejilla de 4 studs, 1.444 puntos sin suelo, y cero en la ciudad.
-	--
-	-- Caerse por ahí no da ningún error: te deja tumbado en la red invisible de
-	-- -90, andando por debajo del mapa. Ver la cabecera de `Bounds.luau`.
+	-- DE `Bounds.mundo()` Y NO DE `Grid.limites()`, y la diferencia es un agujero: la
+	-- retícula de calles acaba en z=767 pero el RECINTO del almacén cuelga hasta 905.
+	-- Medido cuando salía de la retícula: 1.444 puntos del mapa sin suelo debajo,
+	-- todos rodeando el sitio donde empieza cada partida.
 	local xMin, xMax, zMin, zMax = Bounds.mundo()
-	-- Un margen por fuera del último bordillo: sin él, quien rodea el mapa por la
-	-- calle exterior se cae por el borde del mundo.
 	local MARGEN = 60
 	xMin, xMax, zMin, zMax = xMin - MARGEN, xMax + MARGEN, zMin - MARGEN, zMax + MARGEN
 
-	-- Piezas modestas y no una losa gigante: el raycast del suelo se hace en cada
-	-- siembra de CityBuilder, y cuanto menor es la pieza que devuelve, más barato
-	-- sale. El límite de 2048 studs por eje ya no es un riesgo con 610 de mapa.
-	local PASO = 200
-	local indice = 0
-	local x = xMin
-	while x < xMax do
-		local ancho = math.min(PASO, xMax - x)
-		local z = zMin
-		while z < zMax do
-			local largo = math.min(PASO, zMax - z)
-			indice += 1
-			pieza(
-				string.format("Suelo_%d", indice),
-				Vector3.new(ancho, 1, largo),
-				-- DOS STUDS POR DEBAJO de la calzada y no pegado a ella. Pegado, su cara
-				-- de arriba y la de abajo del asfalto quedan en el mismo plano, y dos
-				-- superficies en el mismo plano PARPADEAN: la tarjeta gráfica no
-				-- puede decidir cuál está delante y va alternando fotograma a
-				-- fotograma. Es lo que JJ vio como "parpadea el suelo".
-				-- SOLO 0,6 POR DEBAJO, no dos y medio.
-				--
-				-- El motivo de separarlas sigue en pie --dos superficies en el mismo
-				-- plano parpadean, y eso es lo que JJ vio como "parpadea el suelo"--
-				-- pero dos studs y medio es mucho mas de lo que hace falta para
-				-- separarlas, y donde el suelo base queda a la vista (las esquinas
-				-- donde no llega la calzada) es un escalon en el que se cae.
-				--
-				-- Con 0,6 no parpadea y no se nota al andar: el personaje lo sube sin
-				-- cambiar de estado. Medido: de dieciseis baches a cero.
-				Vector3.new(x + ancho / 2, Y_CALZADA - 0.6, z + largo / 2),
-				COLOR_SUELO_BASE,
-				padre
-			)
-			z += PASO
-		end
-		x += PASO
-	end
+	-- UNA SOLA PIEZA, Y BIEN ABAJO. Las dos cosas por el mismo motivo: *"sigo viendo
+	-- el suelo extraño con cuadrados solapados"* (JJ), y era una regresión mía.
+	--
+	-- Esto eran piezas de 200 con la cara a 0,1 studs por debajo de la calzada, que
+	-- va en piezas de 160. Dos superficies grandes separadas 0,1 studs PELEAN POR EL
+	-- Z-BUFFER: a la distancia a la que se juega, la tarjeta no puede decidir cuál
+	-- está delante y va enseñando trozos de una y de otra. Como las dos rejillas
+	-- tienen pasos distintos, sus juntas no coinciden y el resultado es exactamente
+	-- lo que describió: cuadrados solapados.
+	--
+	-- El 0,1 lo puse yo el 20/08 para matar unos baches, sin caer en que la
+	-- separación era justo lo que evitaba el parpadeo. Los baches ya no dependen de
+	-- esta cota --se arreglaron recortando la calzada sólo en la banda del recinto--
+	-- así que se puede bajar de nuevo, y con 2,4 studs no hay pelea posible.
+	--
+	-- Y en UNA pieza porque una pieza no tiene juntas: 1.930 x 1.922 studs caben de
+	-- sobra en el límite de 2.048 por eje. La rejilla de antes era una herencia de
+	-- cuando el mapa era mucho mayor.
+	pieza(
+		"SueloBase",
+		Vector3.new(xMax - xMin, 1, zMax - zMin),
+		Vector3.new((xMin + xMax) / 2, Y_CALZADA - 3, (zMin + zMax) / 2),
+		COLOR_SUELO_BASE,
+		padre
+	)
 end
 
 -- Una calle entre dos hileras de manzanas. Se planta como una pieza larga en
@@ -282,7 +272,16 @@ end
 -- Segmentada y no una losa única porque el raycast del suelo se hace en cada siembra
 -- de CityBuilder, y cuanto más pequeña es la pieza que devuelve, más barato sale.
 local function plantarCalzada(padre: Instance)
-	local xMin, xMax, zMin, zMax = Grid.limites()
+	-- HASTA DONDE LLEGA EL SUELO BASE, no hasta el último bordillo.
+	--
+	-- Antes cubría sólo `Grid.limites()`, así que en los 60 studs de margen de las
+	-- afueras lo que se pisaba era el suelo base -- tres studs más abajo y de otro
+	-- color. Un escalón y un cambio de material justo donde uno se asoma al borde del
+	-- mapa. Cubriendo lo mismo que él, el suelo base deja de verse por completo:
+	-- vuelve a ser lo que dice su comentario, una red por si algo falla.
+	local xMin, xMax, zMin, zMax = Bounds.mundo()
+	local MARGEN = 60
+	xMin, xMax, zMin, zMax = xMin - MARGEN, xMax + MARGEN, zMin - MARGEN, zMax + MARGEN
 
 	-- SIN METERSE BAJO EL RECINTO. El polígono ocupa de Z 755 en adelante y el mapa
 	-- llega a 767, así que doce studs de asfalto quedaban DEBAJO de la explanada de
@@ -333,6 +332,131 @@ local function plantarCalzada(padre: Instance)
 	end
 end
 
+-- LAS MARCAS VIALES: lo que convierte una explanada de asfalto en una calle.
+--
+-- *"Las calles ya deberían ser carreteras... podríamos trabajar el mapa para que sean
+-- carriles reales"* (JJ). Y el diagnóstico es correcto: el asfalto de este mapa es
+-- una alfombra continua con manzanas encima, así que técnicamente son calles, pero no
+-- se LEEN como calles -- no hay nada que diga por dónde va el tráfico ni dónde acaba
+-- la calzada. Un suelo gris uniforme es un suelo, no una ciudad.
+--
+-- Dos marcas y sobra: el EJE discontinuo por el centro y las dos líneas de BORDE
+-- continuas. Es la gramática mínima de una carretera y la reconoce cualquiera sin
+-- mirarla. Pasos de cebra, flechas y carriles de giro vendrían después, si el mapa
+-- llega a merecerlos.
+--
+-- El eje NO SE PINTA EN LOS CRUCES. Una raya cruzando otra en perpendicular no existe
+-- en ninguna calle de verdad y en pantalla se lee como suciedad, no como señal. Y de
+-- paso deja los cruces despejados, que es donde el jugador tiene que decidir.
+local function plantarMarcasViales(padre: Instance)
+	local medio = ANCHO_CALLE / 2
+	local xMin, xMax, zMin, zMax = Grid.limites()
+	-- Trazo y hueco de una discontinua normal. Con el trazo más corto que el hueco se
+	-- lee como "puedes cruzar", que es lo que toca en una ciudad.
+	local TRAZO, HUECO = 6, 10
+	-- Por encima del asfalto lo justo para que no peleen por el z-buffer. Es la misma
+	-- lección que el suelo base acaba de pagar: dos superficies casi coplanares
+	-- parpadean, y 0,08 studs ya es suficiente separación para una pieza tan fina.
+	local SUBE = 0.08
+	local ALTO = 0.12
+	local ANCHO_RAYA = 0.9
+	local indice = 0
+
+	local function raya(tamano: Vector3, centro: Vector3)
+		indice += 1
+		local m = pieza(string.format("Marca_%d", indice), tamano, centro, COLOR_LINEA, padre)
+		-- Ni colisión ni consultas: es pintura. Que un raycast del juego se pare en
+		-- una raya de la carretera daría cotas 0,2 studs más altas en unos sitios que
+		-- en otros, y de ahí salen las sondas que fallan sin motivo aparente.
+		m.CanCollide = false
+		m.CanQuery = false
+		m.CanTouch = false
+		m.CastShadow = false
+	end
+
+	local y = Y_CALZADA + SUBE + ALTO / 2
+
+	-- ¿Cae este punto dentro de un cruce? Se pregunta por el eje contrario: para una
+	-- calle vertical, si su Z está dentro del ancho de alguna calle horizontal.
+	local function enCruceZ(z: number): boolean
+		for j = 0, Grid.FILAS do
+			if math.abs(z - Grid.zDeCalle(j)) < medio + 2 then
+				return true
+			end
+		end
+		return false
+	end
+	local function enCruceX(x: number): boolean
+		for i = 0, Grid.COLUMNAS do
+			if math.abs(x - Grid.xDeCalle(i)) < medio + 2 then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- CALLES VERTICALES (corren en Z)
+	for i = 0, Grid.COLUMNAS do
+		local x = Grid.xDeCalle(i)
+		local z = zMin
+		while z < zMax do
+			if not enCruceZ(z + TRAZO / 2) then
+				raya(Vector3.new(ANCHO_RAYA, ALTO, TRAZO), Vector3.new(x, y, z + TRAZO / 2))
+			end
+			z += TRAZO + HUECO
+		end
+		-- Y los dos bordes: las lineas que dicen donde acaba el asfalto.
+		--
+		-- POR TRAMOS ENTRE CRUCES, no de una pieza. De una pieza cruzaban por encima
+		-- de las lineas de las calles perpendiculares, a la MISMA cota, y eso son
+		-- superficies coplanares -- 176 pares, canto la sonda del mundo. Ademas de
+		-- parpadear estaba mal dibujado: en una calle de verdad la linea de borde se
+		-- interrumpe en el cruce, porque por ahi se cruza.
+		for _, lado in { -1, 1 } do
+			local bx = x + lado * (medio - 1.6)
+			local desde = zMin
+			for j = 0, Grid.FILAS do
+				local corte = Grid.zDeCalle(j)
+				local hasta = corte - medio
+				if hasta - desde > 1 then
+					raya(Vector3.new(ANCHO_RAYA, ALTO, hasta - desde), Vector3.new(bx, y, (desde + hasta) / 2))
+				end
+				desde = corte + medio
+			end
+			if zMax - desde > 1 then
+				raya(Vector3.new(ANCHO_RAYA, ALTO, zMax - desde), Vector3.new(bx, y, (desde + zMax) / 2))
+			end
+		end
+	end
+
+	-- CALLES HORIZONTALES (corren en X)
+	for j = 0, Grid.FILAS do
+		local z = Grid.zDeCalle(j)
+		local x = xMin
+		while x < xMax do
+			if not enCruceX(x + TRAZO / 2) then
+				raya(Vector3.new(TRAZO, ALTO, ANCHO_RAYA), Vector3.new(x + TRAZO / 2, y, z))
+			end
+			x += TRAZO + HUECO
+		end
+		for _, lado in { -1, 1 } do
+			local bz = z + lado * (medio - 1.6)
+			local desde = xMin
+			for i = 0, Grid.COLUMNAS do
+				local corte = Grid.xDeCalle(i)
+				local hasta = corte - medio
+				if hasta - desde > 1 then
+					raya(Vector3.new(hasta - desde, ALTO, ANCHO_RAYA), Vector3.new((desde + hasta) / 2, y, bz))
+				end
+				desde = corte + medio
+			end
+			if xMax - desde > 1 then
+				raya(Vector3.new(xMax - desde, ALTO, ANCHO_RAYA), Vector3.new((desde + xMax) / 2, y, bz))
+			end
+		end
+	end
+end
+
 -- LA MANZANA, una plataforma que se levanta sobre el asfalto.
 --
 -- Antes eran cuatro aceras sueltas bordeando un interior que se quedaba al nivel del
@@ -344,7 +468,7 @@ end
 -- Baja hasta por debajo de la cara del asfalto a propósito. Si las dos caras se
 -- tocaran exactamente quedarían coplanares y volvería el parpadeo, esta vez por el
 -- canto.
-local function plantarLosaManzana(col: number, fila: number, padre: Instance)
+local function plantarLosaManzana(col: number, fila: number, padre: Instance, pintura: Instance)
 	local x0, x1, z0, z1 = Grid.manzana(col, fila)
 	local alto = ACERA_ALTURA + 0.3
 	pieza(
@@ -354,6 +478,49 @@ local function plantarLosaManzana(col: number, fila: number, padre: Instance)
 		COLOR_ACERA,
 		padre
 	)
+
+	-- EL BORDILLO, y es pintura, no un escalón.
+	--
+	-- La losa sólo sube 0,2 studs sobre el asfalto -- lo pidió JJ explícito el 20/08
+	-- (*"que sólo se vean carreteras a nivel"*) y no se toca: un bordillo de verdad
+	-- te frena en cada esquina, y este juego consiste en desplazarse. Pero a 0,2
+	-- studs el canto no se ve desde la altura de la cámara, así que la frontera entre
+	-- calzada y acera no existía para el ojo: se andaba por una superficie gris que
+	-- cambiaba de tono sin motivo aparente.
+	--
+	-- Lo resuelve el COLOR. Una banda de dos studs, un tono más claro, por los cuatro
+	-- lados: desde arriba se lee como bordillo aunque no lo sea, y sigue sin frenar a
+	-- nadie. Es el mismo truco que el paso de la acera -- la información la da el
+	-- material, no la geometría.
+	local GRUESO = 2
+	-- APOYADO SOBRE la cara de la acera, no hundido en ella. Con el centro 0,05 por
+	-- DEBAJO su cara quedaba a 0,01 de la losa, y la sonda de parpadeo salta a 0,02
+	-- -- con razon: a esa distancia dos superficies pelean por el z-buffer y se ve
+	-- exactamente el defecto que este bordillo venia a evitar. Apoyado, la cara sube
+	-- a 0,06 sobre la acera: separacion de sobra para la tarjeta grafica, y un
+	-- escalon que ni se nota al andar (el personaje sube 0,2 sin cambiar de estado).
+	local y = Y_CALZADA + ACERA_ALTURA
+	-- LOS DE LOS LADOS, ACORTADOS EN LAS ESQUINAS. Las cuatro bandas a la misma cota
+	-- se cruzaban en las cuatro esquinas de cada manzana: 48 pares coplanares, que es
+	-- otra vez el parpadeo. Las de arriba y abajo cubren todo el ancho y las de los
+	-- lados se meten entre ellas, como una moldura.
+	local largoLateral = (z1 - z0) - 2 * GRUESO
+	local bordes = {
+		{ Vector3.new(x1 - x0, 0.12, GRUESO), Vector3.new((x0 + x1) / 2, y, z0 + GRUESO / 2) },
+		{ Vector3.new(x1 - x0, 0.12, GRUESO), Vector3.new((x0 + x1) / 2, y, z1 - GRUESO / 2) },
+		{ Vector3.new(GRUESO, 0.12, largoLateral), Vector3.new(x0 + GRUESO / 2, y, (z0 + z1) / 2) },
+		{ Vector3.new(GRUESO, 0.12, largoLateral), Vector3.new(x1 - GRUESO / 2, y, (z0 + z1) / 2) },
+	}
+	for k, borde in bordes do
+		local b = pieza(string.format("Bordillo_%d_%d_%d", col, fila, k), borde[1], borde[2], COLOR_BORDILLO, pintura)
+		-- Como las marcas viales: es pintura. Sin colisión y sin consultas, para que
+		-- ningún raycast del juego se pare aquí y devuelva una cota distinta según en
+		-- qué stud caiga.
+		b.CanCollide = false
+		b.CanQuery = false
+		b.CanTouch = false
+		b.CastShadow = false
+	end
 end
 
 -- LA MANZANA CERRADA: cuatro bloques por el perímetro, patio dentro, y un callejón.
@@ -599,6 +766,16 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 
 	local carpetaCalles = Instance.new("Folder")
 	carpetaCalles.Name = "Calles"
+
+	-- LA PINTURA VA APARTE, y no es manía de orden: las sondas del mundo miden POR
+	-- CARPETA. Con las marcas viales dentro de `Calles`, la sonda de cotas las contó
+	-- como calzada y dio rojo ("las calles de 19,20 a 19,40") por unas rayas de 0,12
+	-- studs; y los bordillos dentro de `Manzanas` hicieron que "hay una losa por
+	-- manzana" contara 60 en vez de 12. Las dos sondas estaban en lo cierto sobre lo
+	-- que medían: lo que estaba mal era meter pintura donde se cuenta geometría.
+	local carpetaPintura = Instance.new("Folder")
+	carpetaPintura.Name = "Pintura"
+	carpetaPintura.Parent = ciudad
 	carpetaCalles.Parent = ciudad
 
 	local carpetaManzanas = Instance.new("Folder")
@@ -616,6 +793,11 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	-- incluidas las de los extremos: son las que permiten rodear la ciudad por fuera
 	-- en vez de encontrarse el final del mundo.
 	plantarCalzada(carpetaCalles)
+
+	-- 2b. Y la pintura encima del asfalto, antes de que las manzanas lo tapen: las
+	-- rayas que caen bajo una manzana quedan enterradas y no se ven, que es
+	-- exactamente lo que tiene que pasar.
+	plantarMarcasViales(carpetaPintura)
 
 	-- 3. Para cada zona, plantar sus manzanas con sus edificios
 	local edificiosGenerados: { Part } = {}
@@ -641,11 +823,11 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 			-- aprendizaje (verde), los solares son vías de escape (ámbar y
 			-- roja). La función mecánica es la misma.
 			if esSolar(mz.col, mz.fila) then
-				plantarLosaManzana(mz.col, mz.fila, carpetaManzanas)
+				plantarLosaManzana(mz.col, mz.fila, carpetaManzanas, carpetaPintura)
 				continue
 			end
 
-			plantarLosaManzana(mz.col, mz.fila, carpetaManzanas)
+			plantarLosaManzana(mz.col, mz.fila, carpetaManzanas, carpetaPintura)
 			for _, p in plantarManzanaCerrada(mz.col, mz.fila, zonaNombre, carpetaEdificios) do
 				table.insert(edificiosGenerados, p)
 			end

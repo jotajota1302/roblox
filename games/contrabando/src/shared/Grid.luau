@@ -85,6 +85,114 @@ function Grid.limites(): (number, number, number, number)
 		Grid.zDeCalle(Grid.FILAS) + medio
 end
 
+-- LA ACERA MAS CERCANA A UN PUNTO, y hacia donde mira quien se planta en ella.
+--
+-- Existe porque *"las camaras o farolas deberian estar en la acera y apuntar a la
+-- calle"* (JJ), y hasta ahora no hacian ni una cosa ni la otra: la posicion salia de
+-- interpolar sobre la linea origen-destino --asi que un poste podia acabar en mitad
+-- de un patio-- y el rumbo de una lista fija de cuatro valores rotando por indice, o
+-- sea mirando a donde tocara. Una camara que vigila una pared no vigila nada, y
+-- ademas rompe la unica promesa que el sistema le hace al jugador: que se puede ver
+-- venir el peligro.
+--
+-- Devuelve el punto YA en la acera (justo dentro de la manzana, fuera de la calzada)
+-- y el rumbo en grados de la convencion del proyecto: 0 mira a -Z, 90 a -X, 180 a +Z
+-- y 270 a +X, que es lo que da `CFrame.Angles(0, rad(rumbo), 0)` sobre el frente de
+-- Roblox.
+--
+-- Se elige el eje por el que el punto esta MAS CERCA de una calle. Un punto en mitad
+-- de una manzana tiene dos calles a tiro y las dos valen; el desempate por cercania
+-- es el que mantiene al poste donde lo puso quien lo sembro, en vez de mandarlo al
+-- otro extremo de la manzana.
+function Grid.aceraDe(punto: Vector3): (Vector3, number)
+	local medio = Grid.ANCHO_CALLE / 2
+	-- A que distancia queda el poste del bordillo, ya dentro de la manzana. Tres
+	-- studs: fuera de la calzada --si no, un coche lo atraviesa y encima tapa la
+	-- linea de borde-- y lo bastante cerca para que su cono barra la calle entera.
+	local RETRANQUEO = 3
+
+	local mejorX, distX = 0, math.huge
+	for i = 0, Grid.COLUMNAS do
+		local d = math.abs(punto.X - Grid.xDeCalle(i))
+		if d < distX then
+			distX, mejorX = d, Grid.xDeCalle(i)
+		end
+	end
+	local mejorZ, distZ = 0, math.huge
+	for j = 0, Grid.FILAS do
+		local d = math.abs(punto.Z - Grid.zDeCalle(j))
+		if d < distZ then
+			distZ, mejorZ = d, Grid.zDeCalle(j)
+		end
+	end
+
+	-- APARTARSE DE UNA CALLE NO BASTA: HAY QUE APARTARSE DE LAS DOS.
+	--
+	-- Medido en el mundo con la primera version: 14 de 43 camaras seguian plantadas
+	-- en calzada. Eran las de los CRUCES -- salir de la calle vertical las dejaba
+	-- dentro del ancho de la horizontal, que es la esquina de la manzana. Y una
+	-- camara en mitad de un cruce es justo la que se lleva por delante el primer
+	-- coche que pase, ademas de tapar las dos lineas de borde a la vez.
+	--
+	-- Asi que se ajusta el eje que mande --el mas cercano, que es el que decide a que
+	-- calle mira-- y despues se comprueba el otro y se aparta tambien si hace falta.
+	-- El rumbo NO cambia con el segundo ajuste: se sigue vigilando la calle elegida,
+	-- solo que desde la esquina en vez de desde el borde.
+	local x, z = punto.X, punto.Z
+	local rumbo
+
+	if distX <= distZ then
+		-- Calle VERTICAL: la acera esta a un lado u otro en X, y se mira hacia el eje.
+		local lado = if punto.X >= mejorX then 1 else -1
+		x = mejorX + lado * (medio + RETRANQUEO)
+		-- Al este de la calle se mira hacia -X (rumbo 90); al oeste, hacia +X (270).
+		rumbo = if lado > 0 then 90 else 270
+		-- Y fuera del cruce, si lo hubiera.
+		if math.abs(z - mejorZ) < medio + RETRANQUEO then
+			local haciaZ = if z >= mejorZ then 1 else -1
+			z = mejorZ + haciaZ * (medio + RETRANQUEO)
+		end
+	else
+		-- Calle HORIZONTAL: lo mismo por el otro eje.
+		local lado = if punto.Z >= mejorZ then 1 else -1
+		z = mejorZ + lado * (medio + RETRANQUEO)
+		-- Al sur de la calle se mira hacia -Z (rumbo 0); al norte, hacia +Z (180).
+		rumbo = if lado > 0 then 0 else 180
+		if math.abs(x - mejorX) < medio + RETRANQUEO then
+			local haciaX = if x >= mejorX then 1 else -1
+			x = mejorX + haciaX * (medio + RETRANQUEO)
+		end
+	end
+
+	-- Y NUNCA FUERA DEL MAPA. En las calles del borde, apartarse "hacia afuera" te
+	-- saca del rectangulo entero: medido, diez camaras acabaron en las afueras, donde
+	-- no pasa nadie y por tanto no fichan a nadie. Si el sitio elegido se sale, se
+	-- coge la acera de enfrente -- y el rumbo se da la vuelta con ella, porque desde
+	-- el otro lado se mira la misma calle en sentido contrario.
+	--
+	-- EL RUMBO SOLO SE DA LA VUELTA SI SE MUEVE EL EJE QUE VIGILA. Cuando la camara
+	-- mira una calle vertical (rumbo 90 o 270) su rumbo depende de X y nada mas: si
+	-- lo que hay que corregir es la Z --el ajuste del cruce-- se cambia de esquina
+	-- pero se sigue mirando la misma calle en el mismo sentido. Invertirlo tambien
+	-- ahi la dejaba mirando a la manzana.
+	local vigilaX = rumbo == 90 or rumbo == 270
+	local lx0, lx1, lz0, lz1 = Grid.limites()
+	if x < lx0 or x > lx1 then
+		x = mejorX - (x - mejorX)
+		if vigilaX then
+			rumbo = (rumbo + 180) % 360
+		end
+	end
+	if z < lz0 or z > lz1 then
+		z = mejorZ - (z - mejorZ)
+		if not vigilaX then
+			rumbo = (rumbo + 180) % 360
+		end
+	end
+
+	return Vector3.new(x, punto.Y, z), rumbo
+end
+
 -- Los cuatro bordes de una manzana: x0, x1, z0, z1. La manzana (col, fila) vive
 -- ENTRE las calles col y col+1, y entre las filas fila y fila+1.
 function Grid.manzana(col: number, fila: number): (number, number, number, number)
