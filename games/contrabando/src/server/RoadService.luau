@@ -506,12 +506,28 @@ local function burbuja(root: BasePart, quedan: number)
 		nueva.CanTouch = false
 		nueva.Massless = true
 		nueva.CastShadow = false
+		-- COLOCARLA PRIMERO Y SOLDARLA DESPUES, Y EL ORDEN NO ES ESTILO: ES EL FALLO
+		-- QUE TE MANDABA A LA OTRA PUNTA DEL MUNDO.
+		--
+		-- Un `WeldConstraint` congela la distancia RELATIVA entre las dos piezas en el
+		-- instante en que se activa. Una `Part` recien creada esta en el origen, asi
+		-- que soldarla antes de moverla hacia que el weld memorizara como "hueco		-- normal" toda la distancia del origen al jugador. Y la linea siguiente movia
+		-- la bola hasta el jugador... arrastrandolo A EL con ella, porque estaban
+		-- soldados: el resultado era su posicion SUMADA A SI MISMA.
+		--
+		-- Medido jugando: (-620, 22, 645) -> (-1241, 44, 1288) -> (-2588, 76, 2461).
+		-- El doble, y el doble otra vez. Con velocidades normales (23 studs/s), que es
+		-- lo que descarta la fisica y senala un CFrame mal compuesto. Coger el escudo
+		-- --uno de cada tres recogibles-- te sacaba del mapa.
+		--
+		-- `Massless` y `CanCollide = false` no protegen de esto: un weld une los
+		-- ensamblajes, y mover una pieza soldada mueve la otra pase lo que pase.
+		nueva.CFrame = root.CFrame
 		nueva.Parent = root.Parent
 		local pegada = Instance.new("WeldConstraint")
 		pegada.Part0 = root
 		pegada.Part1 = nueva
 		pegada.Parent = nueva
-		nueva.CFrame = root.CFrame
 		bola = nueva
 	end
 
