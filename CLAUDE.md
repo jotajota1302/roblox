@@ -135,19 +135,50 @@ cd games\<juego>
 **Verificación obligatoria antes de dar algo por hecho:**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scriptserificar.ps1   # formato + analisis + build
+powershell -ExecutionPolicy Bypass -File scripts\verificar.ps1   # formato + analisis + build + 1.259 pruebas
 ```
 
-Los tres pasos de golpe, y el del medio es el que faltaba: **`luau-lsp` caza los simbolos
-que no existen**. El 20/08 el sistema de senales del cliente llevaba dias muerto porque un
+Cuatro pasos de golpe, y el segundo es el que faltaba primero: **`luau-lsp` caza los
+simbolos que no existen**. El 20/08 el sistema de senales del cliente llevaba dias muerto porque un
 bucle escribia en una tabla borrada al quitar los faroles; `stylua` no lo veia (es formato)
 y `rojo build` tampoco (compilaba de sobra). Lo caza el analizador en un segundo, y bloquea
 solo con la familia `Unknown global` / `Unknown symbol`, que en un proyecto sano sale a
 cero: cualquiera que aparezca es un bug real. Los ~600 avisos de tipos se cuentan y no
 bloquean, porque convertirlos en bloqueantes hoy significaria desactivar el paso manana.
 
-Y **probarlo dentro de Studio** con el MCP. Que compile no significa que funcione: el peor
-fallo de este proyecto compilaba perfectamente.
+**Y el paso 4 (21/08) corre las pruebas SIN Studio.** Hasta entonces las 1.259 pruebas
+puras solo se podian lanzar dentro de Studio por MCP, asi que en la practica
+`verificar.ps1` daba «TODO OK» habiendo comprobado formato, simbolos y compilacion --
+y ninguna regla del juego. Se puede: `shared/` es puro por diseno y `tools/luau.exe`
+ejecuta Luau de verdad; lo unico que hacia falta era darle cuatro tipos de Roblox
+(Vector3, Color3, CFrame, Random) y un arbol de modulos que responda a `script.Parent`.
+Vive en `scripts/banco.js` (+ `scripts/banco/`), y el CLI de Luau no tiene `io`, asi
+que las fuentes se **embeben** en el fichero que se ejecuta.
+
+Y su hermano, **para el mapa**:
+
+```powershell
+node scripts\mundo.js     # construye la ciudad en memoria y le pasa las sondas
+```
+
+Ejecuta `MapBuilder.buildCiudad` contra un `Instance` de mentira y mide lo que sale:
+cuantas piezas, si algo del mapa pisa el carril, si alguna manzana se queda vacia y si
+hay **caras coplanares** -- el parpadeo, que es el defecto que este mapa lleva pagando
+desde que existe. Dos segundos, y por eso se puede mirar en cada cambio. No entra en
+`verificar.ps1` a proposito: depende de un `Instance` simulado y es mas fragil.
+
+**Ninguna de las dos sustituye a `SelfCheck`**, que mide el mundo de verdad --con
+raycasts, suelo, pathfinding y todo lo que `CityBuilder` planta encima-- y sigue
+necesitando una partida. Aqui se comprueba lo que el codigo DICE; alli, lo que sale.
+
+Y las dos se probaron reintroduciendo un fallo a proposito, que es lo unico que
+demuestra que una sonda sirve: se metio un uso repetido en el plano (la bateria lo
+canto) y una nave desbordando la manzana (la sonda del mundo saco las tres piezas
+sobre el carril, con sus coordenadas).
+
+Despues de todo eso, **probarlo dentro de Studio** con el MCP. Que compile y pase las
+pruebas no significa que funcione: el peor fallo de este proyecto compilaba
+perfectamente.
 
 ### El place se compila SIEMPRE en la carpeta del juego, nunca en un temporal
 
@@ -420,6 +451,34 @@ Avisos verificados:
   alcance), y una rutina que bajaba al suelo lo que flotaba no servía de nada porque el rayo
   encontraba debajo algo que más tarde desaparecía -- el mismo código, movido al final,
   funcionó a la primera.
+
+- **Ampliar una reticula moviendo sus indices lo mueve TODO, y en silencio.** La ciudad
+  crecio de 4x3 a 5x4 el 21/08 (*"estaria bien que se ampliara un poco mas, pero creciendo
+  desde el sentido y la logica, no copy paste"*), y la forma obvia --subir `COLUMNAS` a 5 y
+  `FILAS` a 4-- habria sido la mala: el numero de cada calle cambia de significado, y con el
+  todo lo que se escribio contra el. El destino de la verde estaba puesto como
+  `Grid.cruce(1, 2)`, el enganche del recinto como `cruce(1, FILAS)` y las pruebas fijan que
+  la calle 1 pasa por la boca del almacen. Nada de eso da error: mueve los tres destinos y
+  la salida de casa a otra parte del mapa sin decir nada.
+  Se crece por **indices negativos** (`COL_MIN = -1`, `FILA_MIN = -1`), y entonces
+  `cruce(1, 2)` sigue siendo el mismo sitio que ayer. La ciudad nueva aparece al norte y al
+  oeste -- lejos de casa, sin ruta, o sea sitio que solo se pisa si se decide explorar.
+  Corolario: `Grid.COLUMNAS` y `Grid.FILAS` se **borraron** en vez de reinterpretarse. Se
+  usaban como "el indice de la ultima calle" en veinte sitios; dejarlas valiendo "cuantas
+  manzanas hay" habria compilado igual y recorrido media ciudad. Borrarlas hace que el
+  analisis estatico liste uno a uno todos los sitios que hay que mirar.
+
+- **Doce manzanas hechas con la misma funcion son una manzana repetida doce veces.** Todas
+  salian de `plantarManzanaCerrada` y lo unico que las distinguia era lo altas que eran las
+  cajas, asi que la ciudad no daba referencias: todas las esquinas eran la misma esquina --
+  que es literalmente la queja que hundio el mapa del Creator Store (*"no se hacia donde
+  tirar"*, *"el sitio es feo y confuso"*). Lo que hacia falta no era mas detalle sino que
+  **cada manzana fuera una cosa**: el plano vive ahora en `shared/Districts.luau` con ocho
+  usos de silueta propia, escrito **a mano** manzana por manzana. Sacarlo de una formula
+  sobre (col, fila) seria una linea y seria copy paste con otro nombre: reparte por
+  aritmetica, no por sentido. Y lo que fija la prueba no es que manzana es cada cosa --eso
+  se cambia cuando toque-- sino que **no haya tres iguales en linea** en ninguna fila ni
+  columna, que es como el ojo ve un patron.
 
 ## Trabajo en paralelo: quién es dueño de qué
 

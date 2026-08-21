@@ -215,6 +215,18 @@ function CFrame:Inverse()
 	local r = { self.r[1], self.r[4], self.r[7], self.r[2], self.r[5], self.r[8], self.r[3], self.r[6], self.r[9] }
 	return cf(r, -aplicar(r, self.p))
 end
+-- `lookAt` sin el caso degenerado (mirada vertical): los modulos que la usan miran
+-- siempre en horizontal, y resolver el caso general aqui seria mantener una libreria
+-- de matrices para nada.
+function CFrame.lookAt(desde, hacia)
+	local f = (hacia - desde).Unit
+	local d = Vector3.new(0, 1, 0):Cross(f)
+	local r = if d.Magnitude < 0.001 then Vector3.new(1, 0, 0) else d.Unit
+	local u = f:Cross(r)
+	-- Columnas: derecha, arriba, -frente (el frente de un CFrame es -Z).
+	return cf({ r.X, u.X, -f.X, r.Y, u.Y, -f.Y, r.Z, u.Z, -f.Z }, desde)
+end
+
 function CFrame:Lerp(o, t)
 	return cf(self.r, self.p:Lerp(o.p, t))
 end
@@ -227,3 +239,8 @@ local function require(m: any): any
 end
 -- Igual con `game`: local aqui, relleno en el epilogo cuando el arbol existe.
 local game: any
+-- Y `warn`, que el CLI de Luau no trae: sin el, un modulo que avise de algo revienta
+-- con "attempt to call a nil value" en vez de avisar.
+local function warn(...)
+	print("[warn]", ...)
+end
