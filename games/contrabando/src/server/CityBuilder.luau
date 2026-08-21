@@ -2487,38 +2487,23 @@ function CityBuilder.build(): Mundo
 	-- El taller, al otro lado: pasar por delante de la tienda al salir convertiría
 	-- la mejora en un anuncio, pero está DENTRO de la zona segura, así que nadie
 	-- puede emboscar a quien compra.
-	-- EL CAMINO PINTADO del muelle a la salida. Un cartel dice DÓNDE está; una
-	-- línea en el suelo dice POR DÓNDE se va, y es lo que de verdad resuelve el
-	-- "le doy a 'ahora no' y no sé dónde tengo que ir". Se sigue sin pensar y sin
-	-- levantar la vista, que es como se anda cargado.
-	do
-		local desde = almacen.Position + Vector3.new(0, almacen.Size.Y / 2, 0)
-		local hasta = salida.Position + Vector3.new(0, salida.Size.Y / 2, 0)
-		local tramos = 14
-		for i = 1, tramos do
-			local t = (i - 0.5) / tramos
-			local punto = desde:Lerp(hasta, t)
-			local y = sueloDeLaCiudad(ciudad, punto.X, punto.Z) or punto.Y
-			local raya = part(
-				"Sendero" .. i,
-				Vector3.new(2.6, 0.25, 5),
-				Vector3.new(punto.X, y + 0.2, punto.Z),
-				Palette.SALIDA,
-				mundo
-			)
-			-- OPACA, como el resto de lo pintado en el suelo. Catorce rayas Neon
-			-- translúcidas dentro del recinto eran catorce fuentes más de centelleo, y
-			-- justo en el sitio donde el jugador empieza y termina cada viaje.
-			raya.CanCollide = false
-			raya.Material = Enum.Material.SmoothPlastic
-			raya.Transparency = 0
-			raya.CastShadow = false
-			raya:SetAttribute("rodable", true)
-			-- Orientada a lo largo del camino: una raya atravesada parecería un paso de
-			-- cebra y diría justo lo contrario de lo que quiere decir.
-			raya.CFrame = CFrame.lookAt(raya.Position, Vector3.new(hasta.X, y + 0.2, hasta.Z))
-		end
-	end
+	-- AQUI HABIA UN SENDERO PINTADO del muelle a la salida: catorce losetas claras
+	-- marcando por donde se sale del recinto. Se quito el 21/08 a peticion de JJ
+	-- --*"por que vuelve a salir la guia del suelo???"*-- y el motivo es que ya
+	-- sobraba, no que estuviera mal hecho.
+	--
+	-- Se puso cuando la unica forma de saber a donde ir era mirar un cartel, y
+	-- resolvia de verdad el *"le doy a 'ahora no' y no se donde tengo que ir"*. Desde
+	-- entonces entraron el MINIMAPA con la ruta dibujada y la BRUJULA, que contestan
+	-- la misma pregunta y ademas siguen contestandola fuera del recinto. Tres
+	-- respuestas a una pregunta no informan el triple: compiten, y la que se lleva la
+	-- atencion es la que esta pintada en el suelo, que es justo la peor de las tres
+	-- --sirve para quince studs y luego te deja.
+	--
+	-- Y ademas se habia vuelto llamativo sin que nadie lo tocara: sobresalia 0,23
+	-- studs, y al bajar la acera de 0,8 a 0,2 el 20/08 paso de disimulado a ser lo
+	-- primero que se ve al salir de casa. Un elemento calibrado contra una cota que
+	-- luego cambia deja de estar calibrado, y nadie se entera.
 
 	local talleres: { BasePart } = {}
 
