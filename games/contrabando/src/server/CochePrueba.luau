@@ -126,6 +126,38 @@ local GIRO = 30
 --     numero que hace que la esquina del final de la manzana sea tomable.
 --   · RETENCION: soltar el gas frena, pero en unos cien studs. Tiene que notarse y
 --     tiene que dejar clarisimo que el freno hace otra cosa.
+-- EL RADIO DE GIRO QUE SE QUIERE, en studs, y este numero es el arreglo de un fallo
+-- gordo que solo se vio midiendolo.
+--
+-- LO QUE PASABA. La direccion se hacia rotando el eje del enganche de las ruedas de
+-- delante -- un truco que funciona y que se documento como tal. Lo que no se midio
+-- entonces es como se comporta A DISTINTAS VELOCIDADES, y la respuesta es: al reves
+-- que un coche. Medido en pista limpia:
+--
+--     12 studs/s -> radio 500     30 studs/s -> radio  87
+--     20 studs/s -> radio 228     40 studs/s -> radio  57
+--
+-- **Cuanto mas despacio, PEOR giraba.** Con las ruedas de delante libres y solo
+-- reorientadas, lo que hace girar al coche es la fuerza lateral que generan al rodar,
+-- y esa fuerza cae con la velocidad: a paso de maniobra el coche sigue recto. Eso
+-- hace imposible lo unico que se hace despacio -- aparcar, entrar en un sitio
+-- estrecho, corregir la trayectoria-- y ademas explicaba por que ninguna prueba de
+-- "tomar la calle" salia: se frenaba a 20 para la esquina, y a 20 no giraba.
+--
+-- LA CURA es pedir la velocidad de giro que corresponde a un radio, en vez de esperar
+-- a que la fisica la produzca: `w = v / R`. Al ser proporcional a la velocidad, el
+-- coche NO pivota parado --que era el defecto original del que se venia huyendo, y por
+-- el que se tiro el vehiculo soldado al personaje-- y a cualquier velocidad traza el
+-- mismo radio, que es como se conduce en un juego.
+--
+-- 14 studs sale de la calle mas estrecha: 26 de ancho. Con radio 14 el giro de noventa
+-- grados cabe dentro de la calzada en vez de barrer la acera de enfrente.
+local RADIO_GIRO = 14
+
+-- El par con el que se pide ese giro. Ni infinito ni simbolico: tiene que poder
+-- girar el coche pero dejar que un choque contra un edificio mande sobre el.
+local PAR_GIRO = 900000
+
 local ACELERACION = 55
 local FRENADO = 26
 local RETENCION = 8
@@ -413,6 +445,28 @@ function CochePrueba.plantar(padre: Instance): Model?
 	ruido.RollOffMode = Enum.RollOffMode.InverseTapered
 	ruido.Parent = chasis
 
+	-- LA DIRECCION ASISTIDA. Un `AngularVelocity` sobre el chasis que pide girar a
+	-- `v / RADIO_GIRO` radianes por segundo.
+	--
+	-- No sustituye a las ruedas torcidas, se suma a ellas: las ruedas siguen
+	-- reorientandose --que es lo que se VE, y sin eso el coche derraparia de lado con
+	-- las ruedas rectas-- y esto es lo que garantiza que el radio sea el mismo a
+	-- cualquier velocidad.
+	--
+	-- Solo el eje Y (`RelativeTo = World` con la Y del mundo): un coche gira sobre su
+	-- vertical. Dejarle los tres ejes seria darle permiso para enderezarse solo en el
+	-- aire, que es de las cosas que convierten un coche en un juguete flotante.
+	local ejeGiro = Instance.new("Attachment")
+	ejeGiro.Name = "EjeGuinada"
+	ejeGiro.Parent = chasis
+	local guinada = Instance.new("AngularVelocity")
+	guinada.Name = "Direccion"
+	guinada.Attachment0 = ejeGiro
+	guinada.RelativeTo = Enum.ActuatorRelativeTo.World
+	guinada.MaxTorque = 0
+	guinada.AngularVelocity = Vector3.zero
+	guinada.Parent = chasis
+
 	local motores: { HingeConstraint } = {}
 	local ejesDireccion: { Attachment } = {}
 	for _, lado in { -1, 1 } do
@@ -520,10 +574,27 @@ function CochePrueba.plantar(padre: Instance): Model?
 
 			-- Dirigir es reorientar el eje de las ruedas de delante en el plano del
 			-- suelo. `Axis` es local al chasis, así que basta con girar el (1,0,0).
+			-- Esto es lo que se VE.
 			local a = math.rad(volante * GIRO)
 			local eje = Vector3.new(math.cos(a), 0, math.sin(a))
 			for _, at in ejesDireccion do
 				at.Axis = eje
+			end
+
+			-- Y esto es lo que hace que el radio sea el mismo a 12 que a 40. La
+			-- velocidad de giro sale del radio que se quiere: w = v / R. Con el signo
+			-- del avance, para que dar marcha atras girando vaya hacia donde debe.
+			local avance = chasis.CFrame.LookVector:Dot(chasis.AssemblyLinearVelocity)
+			local w = (avance / RADIO_GIRO) * -volante
+			if volante == 0 or math.abs(avance) < 1 then
+				-- SIN VOLANTE, SIN PAR. Dejarlo pidiendo cero giro con par lo
+				-- convertiria en un estabilizador que impide que el coche trompee, y
+				-- tambien que lo empujen -- que es la mitad del juego que viene.
+				guinada.MaxTorque = 0
+				guinada.AngularVelocity = Vector3.zero
+			else
+				guinada.MaxTorque = PAR_GIRO
+				guinada.AngularVelocity = Vector3.new(0, w, 0)
 			end
 			task.wait(0.05)
 		end

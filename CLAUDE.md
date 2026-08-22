@@ -705,6 +705,39 @@ Avisos verificados:
   **números** (punta, frenada, cuánto del tiempo se pisa asfalto); lo que no se puede
   es el tacto. Eso lo juzga quien conduce, y decirlo es parte del informe.
 
+- **Un truco que funciona a una velocidad puede no funcionar a las demás, y eso sólo
+  se ve barriendo el rango.** La dirección del coche se hacía rotando el eje del
+  enganche de las ruedas de delante -- documentado como "lo que SÍ funciona" después
+  de que el servo con manguetas fallara. Y funcionaba... a tope de gas, que es la
+  única velocidad a la que se había medido. Barriendo el rango en pista limpia:
+
+        12 studs/s -> radio 500      30 studs/s -> radio 87
+        20 studs/s -> radio 228      40 studs/s -> radio 57
+
+  **Cuanto más despacio, peor giraba**, que es al revés que cualquier coche. Con las
+  ruedas de delante libres y sólo reorientadas, lo que hace girar al coche es la fuerza
+  lateral que generan al rodar, y esa cae con la velocidad: a paso de maniobra seguía
+  recto. Eso hace imposible lo único que se hace despacio --aparcar, entrar en un sitio
+  estrecho, corregir-- y además **explicaba por qué ninguna prueba de "tomar la calle"
+  salía**: se frenaba a 20 para la esquina y a 20 no giraba. Media tarde culpando al
+  ancho de las calles de un fallo de la dirección.
+  La cura es pedir la velocidad de giro que corresponde a un radio (`w = v / R`, con un
+  `AngularVelocity` sobre el chasis) en vez de esperar a que la física la produzca. Al
+  ser proporcional a la velocidad **no pivota parado**, que era el defecto original por
+  el que se tiró el vehículo soldado al personaje. Medido después: radio 15-20 a las
+  cuatro velocidades, 0 grados de giro parado, y de pisar manzana el 57-100 % del
+  tiempo en un giro a **cero**.
+
+- **Un piloto automático que persigue puntos se sale del mapa, y el coche paga la
+  culpa.** El recorrido de prueba acabó en (-1629, -86) --fuera de la ciudad y sobre la
+  red de seguridad-- con una "punta" de 192 studs/s en un coche cuyo tope son 40. Lo
+  que se midió fue una caída. Se descarta aislando: sin piloto, ni en recta ni girando
+  hay un solo pico por encima del tope y la verticalidad no baja de 0,94. **Antes de
+  creerte un fallo del coche, quítale el piloto.**
+  Y de paso deja ver algo real: **nada impide que un coche se salga de la ciudad por el
+  borde**. A pie hay un guardián que devuelve al jugador; un vehículo no es un jugador
+  y se queda ahí abajo.
+
 ## Trabajo en paralelo: quién es dueño de qué
 
 **A veces hay más de una sesión trabajando en `contrabando/` a la vez.** El 17/08 hubo dos
