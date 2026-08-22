@@ -652,6 +652,36 @@ Avisos verificados:
   El rayo se paraba en la isleta medio stud por encima de la calzada. Se mide a un lado,
   en el anillo por el que se rueda, que es donde de verdad tiene que haber asfalto.
 
+- **La distancia de frenada mide lo mismo que una manzana, y eso decide el juego
+  entero.** Medido el 22/08 conduciendo el prototipo por la ciudad nueva: de 56 studs/s
+  a parado son **115 studs**, y una manzana mide 120. O sea que un coche a tope de gas
+  **no llega a tiempo de frenar para la esquina del final de la manzana** -- y el 67 %
+  del tiempo de esa curva lo pasaba fuera del asfalto, subido a la acera. Frenando 60
+  studs antes, entra a 19 studs/s y toma la esquina con **0 % fuera del asfalto**,
+  tanto en una calle de 26 como en una avenida de 50.
+  Lo que esto significa no es que el coche esté mal afinado: es que **la ciudad ya le
+  impone una jerarquía**. La avenida es el único sitio donde el tope tiene sentido
+  (tramo largo, recto, con una rotonda al final); las calles estrechas se toman a 20.
+  Y lo que falta no es física, es **decírselo al jugador**: hoy no hay freno explícito
+  ni nada que indique la velocidad. (En un `VehicleSeat`, gas hacia atrás frena contra
+  la inercia y funciona -- pero nadie lo sabe.)
+
+- **Y la hipótesis obvia era falsa, que es la mitad del valor de haberlo medido.** Todo
+  apuntaba a la ACELERACIÓN: 0 a 29 studs/s en 0,30 s parecía mucho para una ciudad.
+  Se bajó en vivo de 90 a 25 y a 12 sobre el coche ya plantado --sin tocar el repo, para
+  no tener nada que revertir si salía que no-- y la esquina **no mejoró**: seguía
+  llegando a la boca a 55-58 studs/s, porque en 110 studs de recta hay tiempo de sobra
+  para alcanzar el tope. Lo que decide no es cuánto tarda en correr, es que no hay forma
+  de ir más despacio. La aceleración se quedó en 90.
+
+- **`VehicleSeat.Throttle` sólo vale -1, 0 o 1.** Pedirle 0,3 o 0,7 desde una prueba lo
+  trunca a cero y el coche no se mueve: salieron cuatro filas de resultados con
+  "velocidad media 0 studs/s", que es el número imposible que delata la medición mala.
+  La velocidad intermedia se consigue como la consigue un conductor -- acelerando y
+  soltando. Y **asignar `AssemblyLinearVelocity` tampoco vale**: las ruedas no giran, la
+  fricción (100, a propósito, para que agarren) las frena en el acto y el coche recorre
+  cinco studs de los cien que debería.
+
 ## Trabajo en paralelo: quién es dueño de qué
 
 **A veces hay más de una sesión trabajando en `contrabando/` a la vez.** El 17/08 hubo dos
