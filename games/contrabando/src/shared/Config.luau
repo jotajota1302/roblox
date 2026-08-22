@@ -1178,9 +1178,22 @@ Config.SONIDOS_VEHICULO = {
 	remolque = { sonido = Config.SONIDO_RUEDAS, tono = 0.62, volumen = 0.34, motor = false },
 } :: { [string]: { sonido: string, tono: number, volumen: number, motor: boolean } }
 
+-- EL SONIDO DEL ROBO DEJA DE SER UN PUNETAZO (22/08), y el motivo es doble.
+--
+-- El primero es de clasificacion por edad. Roblox usa IARC desde septiembre de 2025 y en
+-- Europa eso sale como PEGI, que sube a 16 con violencia. Auditado el juego entero, no hay
+-- NADA que lo justifique: no existe `TakeDamage` ni `Health` en todo el codigo --nadie
+-- recibe dano nunca-- no hay armas, ni sangre, ni miedo, ni sustancias, y las quince
+-- mercancias son muebles, libros y macetas. Robar es que unas cajas cambien de dueno por
+-- proximidad. El unico elemento de todo el juego que sonaba a violencia era este efecto, y
+-- una etiqueta de 16+ corta el alcance de raiz en una plataforma cuya masa es joven.
+--
+-- El segundo es que estaba MAL CONTADO, que es la razon que se sostiene sola: a nadie le
+-- pegan. Te arrancan la carga y se va rodando. Un golpe hueco de algo que cae y rebota
+-- dice exactamente lo que ha pasado; un punetazo dice otra cosa que no ocurre.
 Config.SONIDOS = {
 	cobro = "rbxassetid://1319346243", -- "Money,Coins,Drop In Cash Register" (codes4breakfast)
-	robo = "rbxassetid://98330897555423", -- "punch2" (GRISAlLLE)
+	robo = "rbxassetid://9117555269", -- "Plastic Impact Hard Dropping Hollow Hits 3" (ProSoundEffects)
 	alerta = "rbxassetid://9119159511", -- "Siren Blat 2 (SFX)" (ProSoundEffects)
 } :: { [string]: string }
 
