@@ -8,6 +8,65 @@
 
 ---
 
+## DECIDIDO (22/08) — lo que hay que subir al portal
+
+> Cerrado tras `REVISION.md`. Lo de abajo es el material con el que se decidió y se queda
+> como registro; esto es lo que va.
+
+**Pitch:** eres un **contrabandista**, no un repartidor. La diferencia no es de tono: el
+nicho de reparto está lleno y promete llevar cajas, mientras que lo que este juego tiene es
+que te persiguen.
+
+**Título:**
+
+```
+🚚 Smuggler Run | Don't Get Caught
+```
+
+Por qué así: `Smuggler` es el tema y casi no se usa; `Don't Get Caught` es la tensión dicha
+en tres palabras y es lo que se busca; el emoji da color en la cuadrícula. **No lleva
+"Delivery"** a propósito -- esa palabra nos mete de cabeza en el nicho lleno.
+
+Los corchetes de estado (`[NEW]`, `[UPDATE]`) se añaden **a partir de la primera
+actualización**, no en el lanzamiento: en un juego que nadie conoce todavía no señalan nada.
+
+**Descripción** (el primer párrafo es lo único que se lee):
+
+```
+🚚 You're a smuggler. Load your van, pick your route, and cross the city before they catch you.
+
+👀 Marked corners spot you. The more they see you, the more thieves come after you
+📦 Three routes, three payouts: the safe one pays x1, the dangerous one x10
+🏃 Every pickup on the road makes you FASTER, and you lose it all if they reach you
+🚐 Skateboard, bike, motorbike: each one carries more and hides less
+🏆 Upgrade your warehouse so it keeps producing while you are away
+
+Play with friends: on the red route anyone can rob anyone.
+```
+
+**Icono y miniatura:** generados y en `assets/portada/` (`node scripts/portada.js`).
+
+- La **miniatura** cuenta el juego de un vistazo: la furgoneta cargada con la caja dorada y
+  dos ladrones en moto encima de ella.
+- El **icono** costó tres intentos, y la lección vale para el siguiente que se genere: las
+  dos primeras versiones salieron con **barra de luces azul y roja en el techo** -- una
+  ambulancia con cajas, o sea lo contrario de lo que el juego dice. Prohibirla explícitamente
+  ("no light bar, not a police vehicle") **no funcionó**: en estos modelos nombrar algo lo
+  invoca aunque sea para negarlo. Lo que funcionó fue **darle al techo otra cosa** (una lona
+  atada). Se describe lo que se quiere ver, no lo que no.
+
+**Lo que le toca a JJ** (son casillas del portal, no código):
+
+1. Subir icono y miniatura en *Creator Dashboard → Experience → Customize*.
+2. Pegar título y descripción.
+3. Género: **Adventure** (o *Action*). No "Simulator": promete progresión idle que este
+   juego no da.
+4. Poner la experiencia en **público**.
+5. Comprobar que *Analytics* está activo -- de ahí salen el CTR y la D1, que son los dos
+   números que deciden lo siguiente.
+
+---
+
 ## 0. La decisión que hay que tomar antes que ninguna otra: el idioma
 
 **El juego está entero en español.** Los avisos ("Entrega tu primer paquete", "Te vienen

@@ -372,23 +372,30 @@ Config.VEHICULOS = {
 
 Config.VEHICULO_INICIAL = "a_pie"
 
--- ── PROTOTIPO: UN COCHE CON FISICA DE VERDAD ────────────────────────────────────
+-- EL COCHE DE PRUEBAS, APAGADO -- Y LA PREGUNTA, CONTESTADA.
 --
--- *"Mi hijo esta jugando a un juego de Roblox de conduccion que va perfecto, ?por que
--- nosotros no podiamos usar coches?"* (JJ, 22/08). La respuesta es que si se puede, y
--- que lo medido --106 grados de giro en una decima, o sea pivotar como una peonza-- no
--- era "Roblox no sabe" sino que el coche del juego NO ES UN COCHE: es `WalkSpeed` mas
--- veinte piezas soldadas al personaje.
+-- QUE SE PREGUNTABA. *"Mi hijo esta jugando a un juego de Roblox de conduccion que va
+-- perfecto, por que nosotros no podiamos usar coches?"* (JJ, 22/08). Se monto un coche
+-- de verdad --asiento, ruedas, constraints, movido por la fisica-- aparcado en la calle
+-- de casa y sin tocar nada del juego, para contestarla jugandola.
 --
--- Esto planta uno de verdad --asiento, ruedas y constraints, movido por la fisica-- en
--- la calle de casa, SIN TOCAR NADA del juego: ni garaje, ni carga, ni policia. Es una
--- pregunta puesta en el mapa para contestarla jugandola.
+-- LA RESPUESTA ES QUE SI SE PUEDE, y esta medida: punta 40 studs/s, frena desde el tope
+-- en 20 studs (media manzana son 60), radio de giro 15 a cualquier velocidad, no vuelca
+-- y no pivota parado. Por el camino se cazaron cinco fallos que no daban error --las
+-- ruedas tumbadas, la direccion que giraba PEOR cuanto mas despacio, el freno que no
+-- frenaba por el par sino por el agarre-- y todos estan documentados en `CLAUDE.md`.
 --
--- SE QUITA PONIENDO ESTO EN `false`, y entonces sobra `server/CochePrueba.luau` entero.
--- Cuando se decida --lo conteste como lo conteste-- esta constante se va: un flag de
--- prototipo que sobrevive a su decision es como se acumula el codigo que nadie sabe si
--- esta vivo.
-Config.PROTOTIPO_COCHE = true
+-- Y AUN ASI SE APAGA, que es la decision del 22/08. El coche no esta integrado en el
+-- juego: no se compra, no lleva carga, la policia no lo persigue y no se replica entre
+-- jugadores. Publicar con un coche de pruebas aparcado en mitad de la calle es
+-- exactamente lo que confunde a quien entra por primera vez -- un vehiculo que se puede
+-- conducir y no sirve para nada.
+--
+-- Integrarlo de verdad no es un flag: es persecucion, aparcar, replicacion y economia.
+-- Eso es trabajo de semanas, y la regla del proyecto dice que no se invierte en un
+-- sistema asi hasta que la D1 lo justifique. La respuesta esta guardada para entonces;
+-- `server/CochePrueba.luau` se queda intacto detras de esta constante.
+Config.PROTOTIPO_COCHE = false
 
 -- Rarezas: multiplicador de valor, peso que ocupa y probabilidad.
 -- El peso de la legendaria es exactamente CAPACIDAD_A_PIE: cabe, pero te ocupa todo.

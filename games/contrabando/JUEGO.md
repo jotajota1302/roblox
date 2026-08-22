@@ -13,8 +13,15 @@
 
 ## 1. En una frase
 
-**Eres un repartidor.** Cargas mercancía en tu nave, eliges a qué zona la llevas —verde,
-ámbar o roja; cuanto más lejos y más vigilada, más paga— y cruzas la ciudad con ella encima. Por el camino te
+**Eres un contrabandista.** Cargas mercancía en tu nave, eliges a qué zona la llevas —verde,
+ámbar o roja; cuanto más lejos y más vigilada, más paga— y cruzas la ciudad con ella encima.
+
+> **La palabra importa y se cambió el 22/08.** Esto decía "eres un repartidor", y
+> `REVISION.md` encontró por qué eso era un problema: el nicho de reparto en Roblox está
+> lleno (Delivery Simulator, Trucking Legends, Truck Sim World y tres más, todos vivos en
+> 2026) y además promete lo aburrido — llevar cajas. Lo que este juego tiene y aquéllos no
+> es la TENSIÓN: te ven pasar, sale gente a por ti, y puedes perderlo todo a diez metros
+> del portal. "Contrabandista" promete eso; "repartidor" promete un trabajo. Por el camino te
 ven pasar, y lo que te ve venir detrás son **ladrones**: PNJ mientras juegas solo, otros
 jugadores cuando hay gente.
 
