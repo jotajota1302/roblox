@@ -372,6 +372,24 @@ Config.VEHICULOS = {
 
 Config.VEHICULO_INICIAL = "a_pie"
 
+-- ── PROTOTIPO: UN COCHE CON FISICA DE VERDAD ────────────────────────────────────
+--
+-- *"Mi hijo esta jugando a un juego de Roblox de conduccion que va perfecto, ?por que
+-- nosotros no podiamos usar coches?"* (JJ, 22/08). La respuesta es que si se puede, y
+-- que lo medido --106 grados de giro en una decima, o sea pivotar como una peonza-- no
+-- era "Roblox no sabe" sino que el coche del juego NO ES UN COCHE: es `WalkSpeed` mas
+-- veinte piezas soldadas al personaje.
+--
+-- Esto planta uno de verdad --asiento, ruedas y constraints, movido por la fisica-- en
+-- la calle de casa, SIN TOCAR NADA del juego: ni garaje, ni carga, ni policia. Es una
+-- pregunta puesta en el mapa para contestarla jugandola.
+--
+-- SE QUITA PONIENDO ESTO EN `false`, y entonces sobra `server/CochePrueba.luau` entero.
+-- Cuando se decida --lo conteste como lo conteste-- esta constante se va: un flag de
+-- prototipo que sobrevive a su decision es como se acumula el codigo que nadie sabe si
+-- esta vivo.
+Config.PROTOTIPO_COCHE = true
+
 -- Rarezas: multiplicador de valor, peso que ocupa y probabilidad.
 -- El peso de la legendaria es exactamente CAPACIDAD_A_PIE: cabe, pero te ocupa todo.
 --

@@ -143,6 +143,17 @@ if CityBuilder then
 	end
 end
 
+-- EL PROTOTIPO DE COCHE, si esta encendido. Detras de un flag y de un pcall: es una
+-- pieza de usar y tirar, y una pieza de usar y tirar no puede tumbar el arranque.
+if Config.PROTOTIPO_COCHE then
+	local ok, err = pcall(function()
+		require(script.Parent.CochePrueba).plantar(workspace)
+	end)
+	if not ok then
+		warn("[Prototipo] el coche de prueba no se pudo plantar: " .. tostring(err))
+	end
+end
+
 if not mundo then
 	-- Suelo de emergencia: prefiero un jugador sobre una plancha gris a un jugador
 	-- cayendo al vacío sin entender nada. Va bajo el ALMACÉN, no bajo el (0,0,0):
