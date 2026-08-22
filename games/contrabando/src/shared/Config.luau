@@ -234,6 +234,53 @@ Config.VEHICULOS = {
 		expone = 0.8,
 		bulto = 1.15,
 	},
+	-- EL IMPULSOR: el primer accesorio que no es un vehiculo, y el que estrena el
+	-- piso de arriba de la ciudad.
+	--
+	-- *"Cambiemos los vehiculos por accesorios... al final son mejoras para ir a los
+	-- sitios mas dificiles"* (JJ, 22/08). Los ocho peldanos del garaje dan capacidad y
+	-- velocidad, y ninguno abre un sitio nuevo -- que es justo lo que la regla de oro
+	-- de esta casa lleva pidiendo desde el principio ("capacidad y ACCESO, nunca
+	-- potencia"). Este abre.
+	--
+	-- QUE ABRE, medido en la ciudad del 22/08: hay 48 azoteas grandes y planas, 28 de
+	-- ellas a 16 studs o menos. Con salto 10 no se sube a ninguna. Con 17, a todas
+	-- esas. Y el mapa no se rompe por arriba porque **ningun salto cruza una calle**:
+	-- 17,4 studs de alcance horizontal contra 26 de calzada.
+	--
+	-- ES UNA MOCHILA Y NO UNAS BOTAS, y no es cosmetica: las piezas del vehiculo se
+	-- sueldan al HumanoidRootPart, asi que un calzado se quedaria quieto mientras el
+	-- pie se mueve. Es la misma razon por la que los patines se retiraron el 19/08
+	-- (*"van en los PIES, y eso pelea con la animacion de andar"*). En la espalda no
+	-- hay conflicto -- y ademas es literalmente la palabra que uso JJ: propulsores.
+	--
+	-- LOS NUMEROS, y por que compite con la bici en vez de sustituirla: mismo coste y
+	-- mismo nivel, capacidad de cuatro contra nueve. Comprar esto es renunciar a media
+	-- carga a cambio de llegar a donde nadie llega, que es una decision; si ademas
+	-- cargara, seria una mejora y no habria nada que decidir.
+	{
+		id = "impulsor",
+		capacidad = 4,
+		velocidadBase = Config.VELOCIDAD_BASE,
+		penalizacionPorPeso = 1.2,
+		tamanoMaximo = 1,
+		coste = 2500,
+		nivel = 4,
+		expone = 1.0,
+		-- Menos bulto que ir a pie: una mochila no se ve venir como una bici.
+		bulto = 0.95,
+		-- LO QUE LO HACE DISTINTO A TODO EL CATALOGO. Ver `Vehicles.saltoFactor`.
+		saltoFactor = 1.7,
+		-- Y ESTO LO SACA DE LA ESCALERA. El garaje era una escalera monotona --cada
+		-- peldano lleva mas, admite mas tamano y cuesta mas que el anterior-- y dos
+		-- pruebas puras lo fijaban, con razon: un peldano que diera menos que el
+		-- anterior seria pagar por empeorar. Un ACCESORIO no compite en esa escalera:
+		-- compite por la ranura ofreciendo otra cosa, y por eso lleva menos que la
+		-- bici a proposito. La marca existe para que la bateria siga comprobando la
+		-- escalera de los vehiculos sin dar por bueno cualquier numero en los que no
+		-- lo son -- ver `Goods.spec` y `Vehicles.spec`.
+		accesorio = true,
+	},
 	{
 		id = "bicicleta",
 		capacidad = 9,
@@ -1242,6 +1289,32 @@ Config.OBJETOS_GUARDABLES = { Config.RECOGIBLE_SALTO, Config.RECOGIBLE_ESCUDO }
 -- explorar dejaria de ser una decision y pasaria a ser la rutina.
 Config.ALIJOS = math.floor(#Districts.manzanas() * 0.8)
 
+-- CUANTOS DE ELLOS SE ESCONDEN EN LOS TEJADOS (22/08).
+--
+-- Salen DEL TOTAL, no se suman: la economia no cambia, cambia donde estan. Antes los
+-- diecinueve estaban a ras de suelo -- los diecinueve, medido-- asi que la ciudad
+-- tenia 48 azoteas grandes y planas y ni una sola razon para subirse a ninguna.
+--
+-- UN TERCIO, y no mas. Son los que le dan sentido al impulsor, y a la vez tienen que
+-- seguir siendo la minoria: quien no lo ha comprado todavia --que es todo el mundo
+-- hasta el nivel 4-- no puede quedarse sin dos tercios de los alijos del mapa, o lo
+-- que premia explorar pasa a castigar no haber pagado.
+Config.ALIJOS_ALTOS = math.floor(Config.ALIJOS / 3)
+
+-- HASTA QUE ALTURA se considera un tejado alcanzable.
+--
+-- Sale del salto, no al reves: con el impulsor se sube `SALTO_ALTURA * 1,7` = 17
+-- studs, asi que un alijo a 18 seria exactamente el fallo que este proyecto ya pago
+-- con los racimos -- *"salen paquetes fuera de la ruta y no se pueden coger"*. Lo que
+-- se VE y no se ALCANZA no se lee como una decision: se lee como un fallo.
+--
+-- Se deja un stud de margen por si el tejado tiene cornisa.
+Config.ALIJO_TEJADO_MAX = 16
+-- Y el minimo no es decorativo: por debajo de el, un alijo de tejado se recogeria
+-- desde la calle (ver `ALIJO_ALTURA`). Nueve studs deja mas de dos de margen sobre la
+-- altura de recogida, contando que el jugador mide lo que mide.
+Config.ALIJO_TEJADO_MIN = 9
+
 -- LO QUE PAGAN: experiencia, y NUNCA dinero ni contactos.
 --
 -- Es deliberado y es lo que impide que esto rompa la economia. El dinero compra
@@ -1270,6 +1343,23 @@ Config.ALIJO_RECARGA = 300
 -- las veces se veria y no se cogeria -- que es la queja que se llevo por delante
 -- los racimos.
 Config.ALIJO_RADIO = 18
+
+-- Y A CUANTA ALTURA, que hasta el 22/08 no se miraba EN ABSOLUTO.
+--
+-- La recogida comparaba `dx*dx + dz*dz` contra el radio y se olvidaba de la Y. En un
+-- mapa plano no se nota; el dia que seis alijos se mudaron a los tejados paso a ser el
+-- fallo que se lleva por delante el sistema entero: un alijo a dieciseis studs de
+-- altura entra de sobra en un radio de dieciocho medido en planta, asi que se recogia
+-- ANDANDO POR LA CALLE DE ABAJO. Sin subir, sin accesorio, y sin llegar a enterarse de
+-- que estaba arriba -- o sea, todo el piso de arriba de la ciudad convertido en nada.
+--
+-- CINCO STUDS, que es lo que separa "estoy al lado" de "esta encima de un edificio".
+-- El centro del jugador va a unos 3 studs del suelo y la caja a 1,3, asi que de pie a
+-- su lado la diferencia es de dos studs largos; desde el tejado mas bajo que se siembra
+-- (`ALIJO_TEJADO_MIN`) son mas de siete. La relacion entre los dos numeros la fija una
+-- prueba pura: es lo unico que impide que subir el techo de siembra vuelva a abrir el
+-- agujero sin que nadie se entere.
+Config.ALIJO_ALTURA = 5
 
 -- LO QUE MIDE SU MARCA EN EL SUELO, y no tiene nada que ver con el radio de recogida.
 --

@@ -147,6 +147,7 @@ local TEXTOS: { [string]: string } = {
 	RIDE_monopatin = "Skateboard",
 	RIDE_patinete = "Scooter",
 	RIDE_patinete_electrico = "E-Scooter",
+	RIDE_impulsor = "Jump Pack",
 	RIDE_bicicleta = "Bike",
 	RIDE_moto = "Motorbike",
 	RIDE_coche = "Car",

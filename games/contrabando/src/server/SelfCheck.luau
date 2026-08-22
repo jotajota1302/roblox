@@ -1661,6 +1661,22 @@ local function contactos()
 
 		local pegados, dentro, sinSuelo = 0, 0, 0
 		for _, caja in cajas do
+			-- LOS DE TEJADO NO ENTRAN EN ESTA CUENTA, y no es relajar la sonda: es que
+			-- mide otra cosa de la que cree.
+			--
+			-- La regla dice "lejos del camino", pero lo que de verdad protege es que un
+			-- alijo no se recoja SIN DESVIARSE -- si se cogiera al pasar no premiaria
+			-- explorar, premiaria caminar, que es la frase con la que se escribio
+			-- `Caches.LEJOS`. Para uno de suelo, desviarse es andar; para uno que esta a
+			-- quince studs de altura, desviarse es tener con que subir, y eso no lo hace
+			-- nadie de paso por muy encima de la ruta que este.
+			--
+			-- Y ESTAR SOBRE LA RUTA ES LO QUE SE QUIERE en ese caso: es donde se VE, y
+			-- verlo desde la calle es lo unico que le ensena al jugador que el impulsor
+			-- existe. Un premio inalcanzable que ademas no se ve no vende nada.
+			if caja:GetAttribute("enTejado") then
+				continue
+			end
 			for _, camino in caminos do
 				-- Con el margen del sembrado: la caja se corre hasta 14 studs buscando
 				-- calle, asi que exigir los 60 clavados seria pedirle a la sonda una
@@ -2379,6 +2395,43 @@ local function reticula()
 			"ninguna moldura de edificio se queda flotando",
 			sueltas == 0,
 			string.format("%d sueltas, la primera %s", sueltas, primera)
+		)
+	end
+
+	-- LOS ALIJOS DE TEJADO, DONDE SE LLEGA SALTANDO.
+	--
+	-- La prueba pura fija la RELACIÓN entre el techo de siembra y el salto; esto mide
+	-- los que de verdad se plantaron, que es otra cosa: la siembra lee los edificios
+	-- del mundo, así que un cambio en el generador puede subirlos sin tocar ninguna
+	-- constante. Y un premio que se ve y no se alcanza es el fallo que este proyecto
+	-- ya pagó con los racimos.
+	do
+		local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
+		local mejorSalto = 1
+		for _, v in Config.VEHICULOS do
+			mejorSalto = math.max(mejorSalto, Vehicles.saltoFactor(v.id))
+		end
+		local alcanza = Config.SALTO_ALTURA * math.max(mejorSalto, Config.SALTO_IMPULSO_FACTOR)
+		local enTejado, lejos, masAlto = 0, 0, 0
+		for _, d in mundo():GetDescendants() do
+			if d:IsA("BasePart") and d:GetAttribute("enTejado") then
+				enTejado += 1
+				local alto = d.Position.Y - Grid.Y
+				masAlto = math.max(masAlto, alto)
+				if alto > alcanza then
+					lejos += 1
+				end
+			end
+		end
+		comprobar(
+			"hay alijos en los tejados",
+			enTejado == Config.ALIJOS_ALTOS,
+			string.format("%d de %d", enTejado, Config.ALIJOS_ALTOS)
+		)
+		comprobar(
+			"y se llega saltando a todos",
+			lejos == 0,
+			string.format("%d por encima de %.0f studs, el mas alto a %.0f", lejos, alcanza, masAlto)
 		)
 	end
 

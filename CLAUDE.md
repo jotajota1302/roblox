@@ -529,6 +529,27 @@ Avisos verificados:
   numero que describe el mundo tiene que salir de una cuenta sobre el mundo, no
   escrito.** `Config.ALIJOS` ya es `#Districts.manzanas() * 0.8` por este motivo.
 
+- **Un radio medido en planta deja de valer el dia que el mapa tiene altura.** La
+  recogida de alijos comparaba `dx*dx + dz*dz` contra 18 studs y **no miraba la Y en
+  absoluto**. Daba igual mientras todo estaba en el suelo; el dia que seis alijos se
+  mudaron a los tejados paso a ser el fallo que se lleva por delante la funcion entera
+  -- uno a dieciseis studs de altura entra de sobra en un radio de dieciocho medido en
+  planta, asi que se recogia **andando por la calle de abajo**, sin subir y sin el
+  accesorio que se acababa de inventar para subir. El sistema habria salido "terminado"
+  y no habria servido para nada. No lo caza ninguna prueba de las que habia: se ve
+  poniendose debajo y mirando. Ahora hay `Config.ALIJO_ALTURA`, y lo que fija la prueba
+  pura es la RELACION con `ALIJO_TEJADO_MIN`, no los dos numeros por separado.
+
+- **Y un desplazamiento que corrige la paridad de N se rompe con N+1.** Los expositores
+  del taller se corren media plaza para que ninguno caiga en el centro de la losa --por
+  ahi entra el jugador y por ahi comprueba `SelfCheck` que se pisa-- y estaba escrito
+  como `+ 5` a secas, con su comentario explicando el porque. Correcto para los SIETE
+  vehiculos que habia; el dia que entro el octavo volvio a poner uno justo en el centro,
+  y la sonda lo dijo asi: *"el Taller se pisa por arriba y lo que se pisa ahi es
+  Podio4"* -- que no se parece en nada a "sobra un vehiculo". La cuenta se fue a
+  `Vehicles.podioX` para poder probarla **con catalogos de 1 a 24**, que es lo unico que
+  caza un fallo que solo aparece al cambiar el numero.
+
 - **Y una sonda escrita para una pieza miente cuando hay dos.** La que comprueba la red
   la buscaba con `FindFirstChild("Red")`: al partirla en baldosas medía media red y daba
   rojo teniendo el mundo tapado. Mide la union de todas. Es la misma familia que *"una

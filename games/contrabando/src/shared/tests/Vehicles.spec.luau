@@ -113,12 +113,131 @@ return function(kit)
 	end
 	kit.eq("con todos comprados no queda nada", #Vehicles.mejorasPara(todos), 0)
 
+	-- LO QUE UN ACCESORIO SÍ TIENE QUE CUMPLIR (22/08). Saltárselo en la escalera de
+	-- carga deja un hueco: sin esto, un accesorio podría traer cualquier número y
+	-- nadie se enteraría. Las tres reglas son las de siempre, dichas para ellos:
+	--
+	--   · NO DA VELOCIDAD. La regla de oro no es negociable -- "nadie inalcanzable"--
+	--     y un accesorio que corriera más que el peatón la rompe por la puerta de
+	--     atrás, sin pasar por la escalera que la vigila.
+	--   · NO DA CAPACIDAD DE MÁS. Si además cargara como el vehículo de su precio,
+	--     no habría nada que decidir: sería la compra obvia.
+	--   · SALTA MÁS, o no es un accesorio de acceso sino un vehículo peor.
+	local Vehiculos = require(script.Parent.Parent.Config).VEHICULOS
+	local aPie = Vehicles.get(Vehicles.A_PIE)
+	local cuantos = 0
+	for _, v in Vehiculos do
+		if not (v :: any).accesorio then
+			continue
+		end
+		cuantos += 1
+		kit.truthy(
+			string.format("el accesorio %s no corre mas que ir a pie", v.id),
+			v.velocidadBase <= aPie.velocidadBase
+		)
+		kit.truthy(string.format("y %s salta mas, que es para lo que esta", v.id), Vehicles.saltoFactor(v.id) > 1)
+		for _, otro in Vehiculos do
+			if not (otro :: any).accesorio and otro.coste == v.coste then
+				kit.truthy(
+					string.format("y %s carga menos que %s, que cuesta lo mismo", v.id, otro.id),
+					v.capacidad < otro.capacidad
+				)
+			end
+		end
+	end
+	kit.truthy("hay al menos un accesorio en el catalogo", cuantos >= 1)
+
+	-- EL TECHO DE SALTO NO CRUZA UNA CALLE, y es la comprobación que sostiene el mapa
+	-- entero por arriba. Con `Config.SALTO_ALTURA` y `Config.VELOCIDAD_BASE`, el
+	-- alcance horizontal de un salto es `v * 2 * sqrt(2h/g)`; si llegara a los 26
+	-- studs de calzada, se cruzaría de tejado a tejado y la retícula de calles
+	-- dejaría de estructurar la ciudad -- que es lo único que hace que el piso de
+	-- arriba sea un atajo con precio y no una autopista.
+	--
+	-- Se mide contra el MAYOR salto posible, que es por lo que en `RoadService` el
+	-- factor del accesorio y el de la flecha no se multiplican: 1,7 x 2,2 daría 37
+	-- studs de altura y 24,6 de alcance, a stud y medio de cruzar.
+	local techo = 1
+	for _, v in Vehiculos do
+		techo = math.max(techo, Vehicles.saltoFactor(v.id))
+	end
+	techo = math.max(techo, Config.SALTO_IMPULSO_FACTOR)
+	local alto = Config.SALTO_ALTURA * techo
+	local GRAVEDAD = 196.2
+	local alcance = Config.VELOCIDAD_BASE * 2 * math.sqrt(2 * alto / GRAVEDAD)
+	kit.truthy(
+		string.format("ni con el salto maximo (%.0f studs) se cruza una calle: %.1f de %d", alto, alcance, 26),
+		alcance < 26
+	)
+
+	-- Y LOS ALIJOS DE TEJADO TIENEN QUE ESTAR AL ALCANCE DE LO QUE SE VENDE.
+	--
+	-- Es la lección de la red de seguridad, dicha al derecho: allí el guardián se
+	-- escribió con el fondo a -130 "por prudencia" y no habría atrapado nada, porque
+	-- la red para en -60 -- un número puesto a ojo contra otro número que ya existía.
+	-- Aquí pasa lo mismo entre `ALIJO_TEJADO_MAX` y lo alto que salta el impulsor: si
+	-- el techo de siembra subiera por encima del salto, habría premios visibles e
+	-- imposibles, que es exactamente el fallo que se pagó con los racimos
+	-- (*"salen paquetes fuera de la ruta y no se pueden coger"*).
+	--
+	-- Lo que vale es la RELACIÓN, no los dos números por separado: quien mañana suba
+	-- el techo a 20 se entera aquí y no jugando.
+	local mejorSalto = 1
+	for _, v in Vehiculos do
+		mejorSalto = math.max(mejorSalto, Vehicles.saltoFactor(v.id))
+	end
+	kit.truthy(
+		string.format(
+			"se llega a los alijos de tejado (%d studs) con el mejor accesorio (%.0f)",
+			Config.ALIJO_TEJADO_MAX,
+			Config.SALTO_ALTURA * mejorSalto
+		),
+		Config.ALIJO_TEJADO_MAX < Config.SALTO_ALTURA * mejorSalto
+	)
+	kit.truthy(
+		"y los de tejado salen del total de alijos, no se suman",
+		Config.ALIJOS_ALTOS < Config.ALIJOS and Config.ALIJOS_ALTOS >= 1
+	)
+
+	-- NINGUN EXPOSITOR EN EL CENTRO DEL TALLER, con el catálogo que sea.
+	--
+	-- Se comprueba de 1 a 24 y no sólo con los que hay hoy, porque el fallo aparece al
+	-- CAMBIAR el número: el arreglo original corría los podios media plaza --correcto
+	-- para siete-- y el día que entró el octavo volvió a poner uno justo en el centro.
+	-- La sonda del mundo lo cazó diciendo "el Taller se pisa por arriba y lo que se
+	-- pisa ahí es Podio4", que no se parece en nada a "sobra un vehículo".
+	--
+	-- Y también que no se solapen: dos expositores montados uno encima de otro son dos
+	-- vehículos que no se distinguen en el escaparate.
+	local PASO = 10
+	for cuantos = 1, 24 do
+		local centrado, pegados = 0, 0
+		local anterior = nil
+		for i = 1, cuantos do
+			local x = Vehicles.podioX(i, cuantos, PASO)
+			if math.abs(x) < PASO / 2 then
+				centrado += 1
+			end
+			if anterior and math.abs(x - anterior) < PASO - 0.01 then
+				pegados += 1
+			end
+			anterior = x
+		end
+		kit.eq(string.format("con %d expositores ninguno cae en el centro", cuantos), centrado, 0)
+		kit.eq(string.format("y con %d ninguno se solapa con el de al lado", cuantos), pegados, 0)
+	end
+
 	-- EL NIVEL COMO LICENCIA, también en el taller. La escalera de vehículos tiene
 	-- que subir a la vez que la de niveles: un peldaño caro que se abre antes que
 	-- uno barato deja al barato sin sentido.
 	local Config = require(script.Parent.Parent.Config)
+	-- Los accesorios quedan fuera por lo mismo que en `Goods.spec`: no son peldaños de
+	-- la escalera de carga, así que su coste no tiene por qué ordenarse con ella.
 	local nivelAnterior, costeAnterior = 0, -1
 	for _, v in Config.VEHICULOS do
+		if (v :: any).accesorio then
+			continue
+		end
 		if v.coste > 0 then
 			local nivel = Vehicles.nivelDe(v.id)
 			kit.truthy(

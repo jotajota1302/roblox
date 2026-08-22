@@ -35,6 +35,7 @@ local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Palette = require(game.ReplicatedStorage.Shared.Palette)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Routes = require(game.ReplicatedStorage.Shared.Routes)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local Shelter = require(game.ReplicatedStorage.Shared.Shelter)
 local Warehouse = require(game.ReplicatedStorage.Shared.Warehouse)
 local Strings = require(game.ReplicatedStorage.Shared.Strings)
@@ -2005,10 +2006,12 @@ local function concesionario(base: Part, padre: Instance, frente: number)
 	end
 
 	for i, vehiculo in escaparate do
-		-- Desplazada media plaza: con siete expositores centrados, el cuarto cae
-		-- justo en el centro de la losa del taller, que es por donde la sonda
-		-- comprueba que la losa se pisa -- y también por donde entra el jugador.
-		local x = (i - (#escaparate + 1) / 2) * 10 + 5
+		-- Ningún podio en el centro de la losa: por ahí entra el jugador y por ahí
+		-- comprueba la sonda que el taller se pisa. La cuenta vive en `Vehicles` para
+		-- poder probarla -- se equivocó dos veces, y la segunda porque el arreglo de
+		-- la primera (correr media plaza) sólo valía para un número impar de
+		-- expositores. Ver `Vehicles.podioX`.
+		local x = Vehicles.podioX(i, #escaparate, 10)
 		local podio =
 			pieza("Podio" .. i, Vector3.new(8.4, 1.2, 8.4), Vector3.new(x, 0.6, -4), Color3.fromRGB(88, 86, 92))
 		-- Una silueta tosca de respaldo: si la malla no carga --sin el place
@@ -3432,6 +3435,29 @@ function CityBuilder.build(): Mundo
 	-- columnas se quitaron el 19/08 ("quitales el rectangulo ese hacia arriba, que los
 	-- hace demasiado evidentes") y tenian razon: lo que se ve desde el otro lado de la
 	-- ciudad no se busca, se ignora. Un alijo tiene que encontrarse.
+	-- LA BALIZA DE LOS ALIJOS DE TEJADO. Sin ella el sistema no existe: un premio en
+	-- una azotea no se ve desde la calle, y lo que no se ve no se busca.
+	--
+	-- Es una columna fina y alta en vez de un halo grande, y por el mismo motivo por el
+	-- que el halo del suelo se recorto a 9 studs: una marca tiene que decir "ahi hay un
+	-- bulto", no pintar una zona. Vertical ademas dice lo unico que hace falta saber
+	-- desde abajo -- que la cosa esta ARRIBA.
+	local function baliza(caja: BasePart)
+		local haz = Instance.new("Part")
+		haz.Name = "Baliza"
+		haz.Size = Vector3.new(0.7, 26, 0.7)
+		haz.CFrame = caja.CFrame * CFrame.new(0, 13, 0)
+		haz.Anchored = true
+		haz.CanCollide = false
+		haz.CanQuery = false
+		haz.CanTouch = false
+		haz.CastShadow = false
+		haz.Color = Color3.fromRGB(238, 202, 122)
+		haz.Material = Enum.Material.Neon
+		haz.Transparency = 0.72
+		haz.Parent = caja
+	end
+
 	local function plantarAlijo(donde: Vector3, indice: number, padre: Instance): BasePart
 		local caja = Instance.new("Part")
 		caja.Name = "Alijo_" .. indice
@@ -3520,8 +3546,13 @@ function CityBuilder.build(): Mundo
 		-- servidores con los mismos destinos tienen los mismos alijos -- que es lo que
 		-- permite volver a mirar una partida rara.
 		local semilla = math.floor(math.abs(Routes.todas()[1].destino.X + Routes.todas()[1].destino.Z))
+		-- LOS DE SUELO SON EL TOTAL MENOS LOS QUE SUBEN AL TEJADO. Se reparten, no se
+		-- suman: mover un alijo arriba tiene que cambiar DONDE esta, no cuantos hay --
+		-- sumarlos seria subirle a la partida un tercio de premios de golpe y dejar la
+		-- economia diciendo otra cosa que la que se midio.
+		local deSuelo = Config.ALIJOS - Config.ALIJOS_ALTOS
 		local puestos = 0
-		for _, sitio in Caches.elegidos(caminos, Config.ALIJOS, semilla) do
+		for _, sitio in Caches.elegidos(caminos, deSuelo, semilla) do
 			local y, cx, cz = sueloTransitable(ciudad, sitio.X, sitio.Z)
 			if y == nil then
 				continue
@@ -3535,10 +3566,80 @@ function CityBuilder.build(): Mundo
 			puestos += 1
 			table.insert(alijos, plantarAlijo(Vector3.new(cx, y :: number, cz), puestos, mundo))
 		end
-		if puestos < Config.ALIJOS then
+		if puestos < deSuelo then
 			-- No es un fallo --el mapa manda-- pero se dice: un reparto que se queda a
 			-- la mitad en silencio es como se acaba con un sistema que "no funciona".
-			warn(string.format("[Contrabando] se pidieron %d alijos y solo cupieron %d", Config.ALIJOS, puestos))
+			warn(string.format("[Contrabando] se pidieron %d alijos de suelo y solo cupieron %d", deSuelo, puestos))
+		end
+
+		-- Y LOS DE TEJADO, que son los que estrenan el piso de arriba de la ciudad.
+		--
+		-- LOS SITIOS SE LEEN DEL MUNDO, no se calculan. Es la regla que este proyecto
+		-- ya pago dos veces: una sonda --y una siembra-- tienen que medir lo que se
+		-- construyo, no algo parecido. Aqui se recorren los edificios plantados y se
+		-- coge el que tenga la cara superior a la altura a la que se llega saltando;
+		-- deducirlo del plano daria tejados donde el generador no puso ninguno.
+		--
+		-- Y NO SE LES APLICA LA REGLA DE `Caches.LEJOS`, a diferencia de los del suelo.
+		-- Es deliberado y es lo contrario: un alijo de suelo tiene que estar lejos del
+		-- camino porque su precio es ANDAR, y el de un tejado no es andar sino tener
+		-- con que subir. Que se vea desde la ruta es justamente lo que hace falta --
+		-- es lo que le enseña al jugador que el impulsor existe y para que sirve. Un
+		-- premio inalcanzable que no se ve no vende nada.
+		local edificios = ciudad:FindFirstChild("Edificios")
+		if edificios and Config.ALIJOS_ALTOS > 0 then
+			local tejados: { BasePart } = {}
+			for _, pieza in edificios:GetDescendants() do
+				if not pieza:IsA("BasePart") or not pieza.CanCollide then
+					continue
+				end
+				-- Sitio para ponerse de pie, no una cornisa.
+				if pieza.Size.X < 16 or pieza.Size.Z < 16 then
+					continue
+				end
+				local alto = pieza.Position.Y + pieza.Size.Y / 2 - Grid.Y
+				if alto >= Config.ALIJO_TEJADO_MIN and alto <= Config.ALIJO_TEJADO_MAX then
+					table.insert(tejados, pieza)
+				end
+			end
+			-- Orden estable antes de barajar: `GetDescendants` no promete un orden, y
+			-- sin esto los escondites cambiarian entre dos partidas con la misma
+			-- semilla -- que es justo lo que `Caches` se cuida de que no pase.
+			table.sort(tejados, function(a, b)
+				return a.Name < b.Name
+			end)
+			local rng = Random.new(semilla)
+			for i = #tejados, 2, -1 do
+				local j = rng:NextInteger(1, i)
+				tejados[i], tejados[j] = tejados[j], tejados[i]
+			end
+			local arriba = 0
+			for _, tejado in tejados do
+				if arriba >= Config.ALIJOS_ALTOS then
+					break
+				end
+				arriba += 1
+				puestos += 1
+				local caja = plantarAlijo(
+					Vector3.new(tejado.Position.X, tejado.Position.Y + tejado.Size.Y / 2, tejado.Position.Z),
+					puestos,
+					mundo
+				)
+				caja:SetAttribute("enTejado", true)
+				baliza(caja)
+				table.insert(alijos, caja)
+			end
+			if arriba < Config.ALIJOS_ALTOS then
+				warn(
+					string.format(
+						"[Contrabando] se pidieron %d alijos de tejado y solo habia %d tejados entre %d y %d studs",
+						Config.ALIJOS_ALTOS,
+						#tejados,
+						Config.ALIJO_TEJADO_MIN,
+						Config.ALIJO_TEJADO_MAX
+					)
+				)
+			end
 		end
 	end
 

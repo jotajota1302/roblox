@@ -24,6 +24,8 @@ export type Vehiculo = {
 	nivel: number?,
 	expone: number?,
 	bulto: number?,
+	saltoFactor: number?,
+	accesorio: boolean?,
 }
 
 local Vehicles = {}
@@ -130,6 +132,46 @@ end
 function Vehicles.expone(id: string?): number
 	local def = Vehicles.deEstado(id)
 	return (def :: any).expone or 1
+end
+
+-- DONDE VA EL EXPOSITOR NUMERO `i` DE `cuantos`, medido desde el centro del taller.
+--
+-- Vive aqui --y no en `CityBuilder`, que es donde se planta-- para poder probarla, y
+-- la prueba no es un lujo: esta cuenta ya se equivoco dos veces por lo mismo.
+--
+-- LO QUE NO PUEDE PASAR es que un podio caiga en el CENTRO EXACTO del taller. Por ahi
+-- entra el jugador y por ahi comprueba `SelfCheck` que la losa se pisa; con un podio
+-- encima, la sonda dice "el taller esta enterrado" y el jugador se sube a un pedestal
+-- al entrar en su propio garaje.
+--
+-- Con un numero IMPAR de expositores, el de en medio cae en cero, asi que hay que
+-- correrlos media plaza. Con un numero PAR, ninguno cae en cero y correrlos es
+-- justamente lo que mete uno ahi. El desplazamiento tiene que mirar la PARIDAD.
+--
+-- Estaba escrito como `+ 5` a secas --correcto, y comentado, para los siete vehiculos
+-- que habia-- y el dia que el catalogo paso a ocho volvio a romperse en silencio. Es
+-- la misma familia que `RASTRO_PASO`, que la red de seguridad y que `Config.ALIJOS`:
+-- un numero que era cierto cuando se escribio y que nadie ata a lo que mide.
+function Vehicles.podioX(indice: number, cuantos: number, paso: number): number
+	local desplazado = if cuantos % 2 == 1 then paso / 2 else 0
+	return (indice - (cuantos + 1) / 2) * paso + desplazado
+end
+
+-- ¿ESTO ES UN VEHICULO O UN ACCESORIO? Un vehiculo es un peldano de la escalera de
+-- carga; un accesorio compite por la misma ranura ofreciendo ACCESO en vez de
+-- capacidad, asi que ni lleva mas que el anterior ni tiene por que.
+function Vehicles.esAccesorio(id: string?): boolean
+	return (Vehicles.deEstado(id) :: any).accesorio == true
+end
+
+-- LO ALTO QUE SALTAS CON ESTO PUESTO, como multiplo de `Config.SALTO_ALTURA`.
+--
+-- Uno para todo lo que no lo diga, que es todo el garaje menos el impulsor: subirle
+-- el salto a una furgoneta seria potencia, y la potencia es lo unico que la regla de
+-- oro no admite. Esto es acceso -- abre sitios, no gana carreras.
+function Vehicles.saltoFactor(id: string?): number
+	local def = Vehicles.deEstado(id)
+	return (def :: any).saltoFactor or 1
 end
 
 function Vehicles.bulto(id: string?): number

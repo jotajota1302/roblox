@@ -48,6 +48,18 @@ type Pieza = {
 -- está a unos 3 studs del suelo en un rig R6, así que todo lo que va "en el suelo"
 -- cae sobre -2,6.
 local FORMAS: { [string]: { Pieza } } = {
+	-- EL IMPULSOR, A LA ESPALDA. Es el unico del catalogo que no va debajo ni se monta:
+	-- se lleva puesto. El offset en +Z es la espalda -- el frente de Roblox es -Z.
+	--
+	-- Las dos toberas miran abajo y llevan neon: es lo que hace que desde la calle se
+	-- entienda de un vistazo por que ese jugador esta subido a un tejado.
+	impulsor = {
+		{ tamano = Vector3.new(2.2, 2.6, 1.1), offset = Vector3.new(0, 0.3, 0.95), color = OSCURO },
+		{ tamano = Vector3.new(0.8, 1.6, 0.8), offset = Vector3.new(-0.7, -1.1, 1), color = METAL },
+		{ tamano = Vector3.new(0.8, 1.6, 0.8), offset = Vector3.new(0.7, -1.1, 1), color = METAL },
+		{ tamano = Vector3.new(0.7, 0.25, 0.7), offset = Vector3.new(-0.7, -1.95, 1), color = NEON, neon = true },
+		{ tamano = Vector3.new(0.7, 0.25, 0.7), offset = Vector3.new(0.7, -1.95, 1), color = NEON, neon = true },
+	},
 	monopatin = {
 		{ tamano = Vector3.new(1.8, 0.3, 4.4), offset = Vector3.new(0, -2.8, 0), color = ACENTO },
 		{ tamano = Vector3.new(0.4, 0.8, 0.8), offset = Vector3.new(-0.8, -3.1, -1.5), color = GOMA, rueda = true },

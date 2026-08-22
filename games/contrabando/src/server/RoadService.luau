@@ -26,6 +26,7 @@ local Perimeter = require(game.ReplicatedStorage.Shared.Perimeter)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Roads = require(game.ReplicatedStorage.Shared.Roads)
 local Strings = require(game.ReplicatedStorage.Shared.Strings)
+local Vehicles = require(game.ReplicatedStorage.Shared.Vehicles)
 local PlayerState = require(script.Parent.PlayerState)
 local CargoService = require(script.Parent.CargoService)
 local Ride = require(script.Parent.Ride)
@@ -728,11 +729,22 @@ local function paso(player: Player)
 		-- impulso se apaga aunque este bucle se salte una vuelta. `UseJumpPower` se
 		-- vuelve a poner a false por si el personaje es nuevo: escribir JumpHeight
 		-- con la medida vieja activa no hace nada y no avisa nadie.
+		-- Y DESDE EL 22/08 HAY DOS FUENTES DE SALTO: la flecha que se recoge y el
+		-- ACCESORIO que se compra (el impulsor). Se toma EL MAYOR de los dos y no el
+		-- producto, y eso es una decision de diseno con un numero detras: 1,7 x 2,2
+		-- serian 37 studs, y con 37 el alcance horizontal de un salto sube a 24,6 --
+		-- contra 26 de calzada. Es decir, multiplicandolos se empieza a cruzar de
+		-- tejado a tejado por encima de las calles, y la reticula deja de estructurar
+		-- el mapa por arriba. Con el mayor, el techo se queda en 22 studs y 19,8 de
+		-- alcance: se sube a las azoteas y las calles siguen siendo calles.
+		--
+		-- Y el que ya tenga el impulsor no pierde nada por coger una flecha: le sigue
+		-- dando el salto grande, solo que no se suma al suyo.
 		local conImpulso = (estado.saltoHasta or 0) > os.clock()
+		local delAccesorio = Vehicles.saltoFactor(cuenta)
+		local factor = math.max(delAccesorio, if conImpulso then Config.SALTO_IMPULSO_FACTOR else 1)
 		humanoid.UseJumpPower = false
-		humanoid.JumpHeight = if conImpulso
-			then Config.SALTO_ALTURA * Config.SALTO_IMPULSO_FACTOR
-			else Config.SALTO_ALTURA
+		humanoid.JumpHeight = Config.SALTO_ALTURA * factor
 
 		-- Y EL MOTOR SUBE DE TONO CON LA VELOCIDAD. Es lo que separa un ruido de
 		-- fondo de una respuesta: cargado hasta arriba el motor se oye ahogado, y

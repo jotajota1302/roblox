@@ -28,8 +28,17 @@ return function(kit)
 	-- La escalera de vehículos tiene que subir SIEMPRE en capacidad: si un peldaño
 	-- diera menos que el anterior, comprarlo sería pagar por empeorar, y
 	-- Vehicles.puedeComprar lo bloquearía dejando la tienda muerta a partir de ahí.
+	--
+	-- LOS ACCESORIOS NO ESTÁN EN ESA ESCALERA (22/08). El impulsor lleva cuatro huecos
+	-- contra los nueve de la bici que cuesta lo mismo, y eso es el diseño y no un
+	-- descuido: compra ACCESO --las 48 azoteas de la ciudad-- en vez de capacidad. Se
+	-- saltan aquí en vez de relajar la comprobación, porque la escalera de los que sí
+	-- son vehículos tiene que seguir siendo monótona.
 	local anterior = nil
 	for _, v in Config.VEHICULOS do
+		if (v :: any).accesorio then
+			continue
+		end
 		if anterior then
 			kit.truthy(string.format("%s lleva mas que %s", v.id, anterior.id), v.capacidad > anterior.capacidad)
 			kit.truthy(string.format("%s cuesta mas que %s", v.id, anterior.id), v.coste > anterior.coste)

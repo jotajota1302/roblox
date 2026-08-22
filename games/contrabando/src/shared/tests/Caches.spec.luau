@@ -128,6 +128,36 @@ return function(kit)
 	-- veces se veria y no se cogeria -- que es la queja que se llevo por delante los
 	-- racimos.
 	kit.truthy("se recoge desde mas lejos que una miga", Config.ALIJO_RADIO > Config.CONTACTO_RADIO)
+
+	-- UN ALIJO DE TEJADO NO SE RECOGE DESDE LA CALLE, y esto es lo que sostiene el
+	-- sistema entero. La recogida miraba solo `dx` y `dz`, asi que uno a dieciseis
+	-- studs de altura entraba en un radio de dieciocho: se cogia andando por debajo,
+	-- sin subir y sin accesorio. Lo que hay que fijar no son los numeros sueltos sino
+	-- la RELACION entre ellos -- el techo de recogida en vertical tiene que quedarse
+	-- por debajo del tejado mas bajo que se siembra.
+	--
+	-- ALTURA_JUGADOR y ALTO_CAJA son las dos medidas del mundo que entran en la
+	-- cuenta: el centro del personaje va a unos tres studs del suelo y la caja se
+	-- planta 1,3 por encima del suyo.
+	local ALTURA_JUGADOR, ALTO_CAJA = 3, 1.3
+	local desdeAbajo = (Config.ALIJO_TEJADO_MIN + ALTO_CAJA) - ALTURA_JUGADOR
+	kit.truthy(
+		string.format(
+			"un alijo en el tejado mas bajo (%d) queda a %.1f studs y no se alcanza desde la calle (tope %d)",
+			Config.ALIJO_TEJADO_MIN,
+			desdeAbajo,
+			Config.ALIJO_ALTURA
+		),
+		desdeAbajo > Config.ALIJO_ALTURA
+	)
+
+	-- Y AL REVES: de pie a su lado si se coge. Un tope tan bajo que no alcanzara ni al
+	-- que esta encima seria el mismo fallo por el otro extremo -- un premio que se ve y
+	-- no se puede coger, que es la leccion mas cara que tiene este proyecto.
+	kit.truthy(
+		"y de pie junto a uno del suelo si se alcanza",
+		math.abs(ALTO_CAJA - ALTURA_JUGADOR) < Config.ALIJO_ALTURA
+	)
 	-- Y LA RECARGA, MAS LARGA QUE UN VIAJE: si no, dar una ronda de alijos en bucle
 	-- seria mejor negocio que repartir, y el juego dejaria de ser un juego de rutas.
 	kit.truthy("no se pueden farmear en bucle", Config.ALIJO_RECARGA > 120)

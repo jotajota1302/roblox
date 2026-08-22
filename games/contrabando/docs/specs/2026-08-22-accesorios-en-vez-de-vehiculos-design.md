@@ -1,6 +1,9 @@
 # Accesorios en vez de vehículos: el garaje se convierte en equipo
 
-**Estado: PROPUESTA. Pendiente del visto bueno de JJ antes de tocar código.**
+**Estado: APROBADA por JJ el 22/08, y la fase 3 ya está hecha y medida.** Sus dos
+decisiones: se empieza por las botas y los tejados (la fase que contesta si la idea
+vale), y **coche y furgoneta salen del catálogo mientras la moto se queda** — se corta
+donde el cuerpo aguanta.
 
 > *"Pues cambiemos los vehículos por accesorios entonces, que sí que pueda usar el
 > personaje, tendría más sentido, ¿no? Al final son mejoras para ir a los sitios más
@@ -130,6 +133,23 @@ piso de arriba deja de ser una decisión y pasa a ser la respuesta a todo.
 
 ## 5. Plan por fases, cada una jugable
 
+> **Lo hecho el 22/08 (fase 3).** El accesorio se llama `impulsor` y es una **mochila
+> propulsora**, no unas botas, y el cambio no es cosmético: las piezas del vehículo se
+> sueldan al `HumanoidRootPart`, así que un calzado se quedaría quieto mientras el pie
+> se mueve — es la razón exacta por la que los patines se retiraron el 19/08. En la
+> espalda no hay conflicto, y además es la palabra que usó JJ: propulsores.
+>
+> Medido en partida: el tejado **se pisa** (estado `Running`, suelo `SmoothPlastic` a
+> 17,7 studs de altura), el salto con el impulsor **sube 17,1 studs** contra los 16 del
+> tejado más alto sembrado, los seis alijos altos caen entre 12 y 15, y **desde la calle
+> justo debajo no se recogen y desde el tejado sí**.
+>
+> Y por el camino salieron dos fallos que la sola lectura del código no da: la recogida
+> de alijos **no miraba la altura** (un radio de 18 studs en planta regalaba desde la
+> calle un alijo puesto a 16 de altura, o sea el sistema entero convertido en nada), y
+> el octavo expositor del taller volvió a caer en el centro de la losa porque el
+> desplazamiento de media plaza sólo valía para un número impar de vehículos.
+
 1. **Renombrar y redibujar.** El catálogo pasa a accesorios sin cambiar ni un número:
    mismos costes, capacidades y niveles, pero cada uno se dibuja en el personaje
    (mochila a la espalda, monopatín debajo) en vez de ser una caja de 20 piezas. Aquí el
@@ -142,11 +162,21 @@ piso de arriba deja de ser una decisión y pasa a ser la respuesta a todo.
    abren muros.
 5. **El carro arrastrado**, y retirar coche y furgoneta.
 
-## 6. Lo que no decide este documento
+## 6. Lo que queda por decidir
 
-- **Cuánto se corta.** Si la moto se queda (se conduce mal pero no fatal) o si se va todo.
+Decidido ya: **la moto se queda, coche y furgoneta se van**, y **suben un tercio de los
+alijos** (seis de diecinueve) — los suficientes para que el impulsor tenga sentido y los
+bastante pocos para que quien no lo ha comprado no se quede sin explorar.
+
+Abierto:
+
 - **Si el `carro` se arrastra de verdad** o es sólo capacidad con penalización.
-- **Cuántos alijos suben** a los tejados, que es lo que decide si el sistema se usa.
+- **Cómo se retiran coche y furgoneta sin romper las partidas guardadas.** Quien ya los
+  tenga comprados los tiene en su garaje y en el DataStore; hace falta una migración, y
+  por eso esto no se hizo a la vez que la fase 3.
+- **Si el impulsor se queda compitiendo por la ranura del vehículo** o pasa a una ranura
+  propia (fase 2). Hoy compite, y eso ya es una decisión: cuatro huecos de carga contra
+  los nueve de la bici, que cuesta lo mismo.
 
 Y el criterio final es el de siempre: **esto se mide en D1 y en sesión media.** La fase 3
 es la que contesta si la idea vale; las demás son trabajo.

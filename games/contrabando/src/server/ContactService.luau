@@ -348,6 +348,13 @@ function ContactService.tick(ahora: number)
 			if dx * dx + dz * dz > Config.ALIJO_RADIO * Config.ALIJO_RADIO then
 				continue
 			end
+			-- Y LA ALTURA, que hasta el 22/08 no se miraba. Con seis alijos en los
+			-- tejados, un radio medido solo en planta los regalaba a quien pasara por la
+			-- calle de abajo: dieciseis studs de altura caben de sobra en dieciocho de
+			-- radio. Ver `Config.ALIJO_ALTURA`.
+			if math.abs(caja.Position.Y - root.Position.Y) > Config.ALIJO_ALTURA then
+				continue
+			end
 			alijoHasta[caja] = ahora + Config.ALIJO_RECARGA
 			encenderAlijo(caja, false)
 
