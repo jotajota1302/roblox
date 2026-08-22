@@ -303,6 +303,59 @@ local function pulsar()
 	end
 end
 
+-- SOLTAR EL MOVIMIENTO MIENTRAS HAY UN PANEL, y esto no es un extra: es la cura de
+-- *"funciona, pero se queda dando vueltas el personaje"* (JJ, 22/08).
+--
+-- LO QUE PASABA. Las flechas, en Roblox, no son sólo movimiento: la izquierda y la
+-- derecha ROTAN LA CÁMARA (`RbxCameraKeypress`). Al enlazarlas aquí con `Sink`, el
+-- control de Roblox dejaba de recibirlas -- pero si una ya estaba pulsada cuando se
+-- abrió el panel, el `Begin` sí le había llegado y el `End` ya no: el control se quedaba
+-- creyendo que la tecla seguía apretada, y el personaje giraba sin parar. **Un `Sink`
+-- que llega a mitad de una pulsación se come la mitad que apaga.**
+--
+-- LA CURA NO ES AFINAR EL SINK sino quitar de en medio a quien se queda a medias.
+-- `Controls:Disable()` apaga el control entero y al hacerlo LIMPIA su estado, que es
+-- justo lo que hacía falta. Y además es lo correcto de por sí: con un menú abierto el
+-- personaje no tiene por qué moverse, y hasta hoy se movía por debajo del velo.
+--
+-- Todo dentro de `pcall` y pidiendo el módulo cada vez: `PlayerModule` es de Roblox y
+-- puede no estar listo la primera vez que esto corre. Quedarse sin control por un error
+-- al abrir un menú sería mucho peor que el giro que viene a arreglar.
+local movimientoSoltado = false
+
+local function controles(): any
+	local jugador = game:GetService("Players").LocalPlayer
+	local scripts = jugador:FindFirstChild("PlayerScripts")
+	local modulo = if scripts then scripts:FindFirstChild("PlayerModule") else nil
+	if modulo == nil then
+		return nil
+	end
+	local ok, mando = pcall(function()
+		return (require :: any)(modulo):GetControls()
+	end)
+	return if ok then mando else nil
+end
+
+local function soltarMovimiento(soltar: boolean)
+	if soltar == movimientoSoltado then
+		return
+	end
+	local mando = controles()
+	if mando == nil then
+		return
+	end
+	local ok = pcall(function()
+		if soltar then
+			mando:Disable()
+		else
+			mando:Enable()
+		end
+	end)
+	if ok then
+		movimientoSoltado = soltar
+	end
+end
+
 -- LAS TECLAS SE ENLAZAN SÓLO CON UN PANEL ABIERTO, y se TRAGAN (`Sink`). Las dos
 -- cosas importan: sin panel, las flechas mueven al personaje y tienen que seguir
 -- haciéndolo; con panel, dejarlas pasar movería al jugador por debajo del menú.
@@ -312,9 +365,19 @@ function vigilarTeclado()
 	if #pila == 0 then
 		ContextActionService:UnbindAction(NAVEGAR)
 		tecladoActivo = false
+		-- Y EL MOVIMIENTO VUELVE. Va aquí --en el mismo sitio que decide si hay teclas
+		-- enlazadas-- y no en `Pad.cerrar`, porque los paneles se apilan: con el selector
+		-- encima del menú, cerrar el de arriba no puede devolverle el control al jugador.
+		soltarMovimiento(false)
 		return
 	end
-	ContextActionService:BindAction(
+	soltarMovimiento(true)
+	-- CON PRIORIDAD POR ENCIMA DE LA CÁMARA. `BindAction` a secas entra en la prioridad
+	-- media (2000), la misma en la que viven `RbxCameraKeypress` y los `move*Action` de
+	-- Roblox, y ahí quién gana depende del orden en que se enlazaron -- o sea, de la
+	-- suerte. Con 3000 se gana siempre, que es lo que hace falta cuando lo que está en
+	-- juego es si la flecha mueve el menú o gira la cámara.
+	ContextActionService:BindActionAtPriority(
 		NAVEGAR,
 		function(_, estado, input)
 			if estado ~= Enum.UserInputState.Begin then
@@ -352,6 +415,7 @@ function vigilarTeclado()
 			return Enum.ContextActionResult.Sink
 		end,
 		false,
+		3000,
 		Enum.KeyCode.Up,
 		Enum.KeyCode.Down,
 		Enum.KeyCode.Left,
@@ -371,6 +435,25 @@ UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement and tecladoActivo and not Pad.hayMando() then
 		tecladoActivo = false
 		GuiService.SelectedObject = nil
+	end
+end)
+
+-- LA RED: SIN PANEL, EL JUGADOR SE MUEVE. PASE LO QUE PASE.
+--
+-- Quitarle el control al jugador es de las pocas cosas de este cliente que pueden
+-- dejarlo sin juego, asi que no puede depender de que todos los caminos de cierre
+-- esten bien. Al reaparecer el personaje se comprueba el estado de verdad: si no hay
+-- nada abierto, se devuelve el control aunque la variable creyera que ya estaba
+-- devuelto.
+--
+-- El respawn es el caso concreto que lo pide: los ScreenGui llevan `ResetOnSpawn =
+-- false`, asi que un panel abierto SOBREVIVE a morirse -- y con el, la pila. Si algo
+-- se descuadrara ahi, el jugador reaparece y no anda, que es infinitamente peor que el
+-- giro que todo esto vino a arreglar.
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
+	if #pila == 0 then
+		movimientoSoltado = true
+		soltarMovimiento(false)
 	end
 end)
 

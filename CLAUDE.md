@@ -237,6 +237,23 @@ Avisos verificados:
   nombre que el índice de un bucle, que llevaba media hora manifestándose como "el
   selector de ruta ya no aparece" sin una sola pista. Cuando eso no baste,
   diagnosticar con `execute_luau` inspeccionando el estado.
+- **Un `Sink` que llega a mitad de una pulsacion se come la mitad que apaga.** Las
+  flechas se enlazaron con `ContextActionService` y `Sink` para navegar los menus, y JJ
+  lo probo en un minuto: *"funciona, pero se queda dando vueltas el personaje"*. En
+  Roblox las flechas izquierda y derecha **giran la camara** (`RbxCameraKeypress`), y si
+  una ya estaba pulsada cuando se abrio el panel, el `Begin` le habia llegado al control
+  de Roblox y el `End` ya no: se quedaba creyendo que la tecla seguia apretada. El
+  sintoma no se parece a la causa -- parece un fallo del giro, y es un fallo del enlace.
+  **La cura no es afinar el Sink sino quitar de en medio a quien se queda a medias**:
+  `PlayerModule:GetControls():Disable()` apaga el control y LIMPIA su estado, que es lo
+  que hacia falta. Y `BindActionAtPriority` con 3000 en vez de `BindAction`, porque la
+  prioridad media es donde viven la camara y el movimiento y ahi gana el ultimo que se
+  enlazo -- o sea, la suerte.
+  Corolario, y vale para cualquier cosa que le quite el control al jugador: **hace falta
+  una red que lo devuelva pase lo que pase**. Los `ScreenGui` llevan `ResetOnSpawn =
+  false`, asi que un panel abierto sobrevive a morirse; si algo se descuadra ahi, el
+  jugador reaparece y no anda. Va enganchada a `CharacterAdded`.
+
 - **`user_keyboard_input` NO entrega teclas con Studio en segundo plano.** No da error
   --contesta `Success`-- y simplemente no llega nada: medido el 22/08 con un espia de
   `ContextActionService` a prioridad 9000 y un `UserInputService.InputBegan` crudo, los
