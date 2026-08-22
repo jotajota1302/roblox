@@ -18,14 +18,39 @@ return function(kit)
 	kit.falsy("ni el amarillo de una losa del juego", Roads.esCalzada(Color3.fromRGB(214, 176, 70)))
 
 	-- QUIÉN NECESITA ASFALTO. Es la decisión de diseño entera en dos líneas: los
-	-- baratos van por todas partes, los de motor van deprisa pero atados a la
-	-- calle.
+	-- baratos van por todas partes, los de motor van deprisa pero atados a la calle.
+	--
+	-- Y EL CARRO ROMPE EL PATRON A PROPOSITO (22/08). Era el escalón del coche, que sí
+	-- exigía calzada, y ahora se TIRA yendo a pie: entras donde entra un peatón. Lo que
+	-- te quita es lo otro -- ocupa la ranura, así que con el carro puesto no llevas
+	-- impulsor y no subes a ningún tejado.
+	--
+	-- El remolque sí la conserva, y esa línea es la que salva la pieza que `Roads.luau`
+	-- llama "la mejor que se le ha añadido al juego": por la calle deprisa y visible, o
+	-- a pie por los atajos. Si TODO el catálogo fuera a pie, esa decisión se evaporaba.
 	kit.falsy("ir a pie no depende de la calzada", Roads.exigeCalzada("a_pie"))
 	kit.falsy("el monopatin va por donde sea", Roads.exigeCalzada("monopatin"))
 	kit.falsy("y el patinete", Roads.exigeCalzada("patinete"))
+	kit.falsy("el impulsor tampoco: se lleva puesto", Roads.exigeCalzada("impulsor"))
 	kit.truthy("la moto necesita calle", Roads.exigeCalzada("moto"))
-	kit.truthy("el coche tambien", Roads.exigeCalzada("coche"))
-	kit.truthy("y la furgoneta", Roads.exigeCalzada("furgoneta"))
+	kit.falsy("el carro NO, que se tira a pie", Roads.exigeCalzada("carro"))
+	kit.truthy("pero el remolque si", Roads.exigeCalzada("remolque"))
+
+	-- Y QUE SIGA HABIENDO DE LAS DOS CLASES, con el catálogo que sea. Es lo que de
+	-- verdad hay que proteger: el día que el último `soloCalzada` se fuera del
+	-- catálogo, la decisión "por la calle o por los atajos" desaparecería sin que nada
+	-- diera error -- y con ella el sistema entero de rutas y patrullas.
+	local Config = require(script.Parent.Parent.Config)
+	local atados, libres = 0, 0
+	for _, v in Config.VEHICULOS do
+		if Roads.exigeCalzada(v.id) then
+			atados += 1
+		else
+			libres += 1
+		end
+	end
+	kit.truthy(string.format("hay vehiculos atados a la calzada (%d)", atados), atados >= 1)
+	kit.truthy(string.format("y los hay que van por todas partes (%d)", libres), libres >= 1)
 	kit.falsy("un vehiculo inventado no exige nada", Roads.exigeCalzada("submarino"))
 	kit.falsy("y nil tampoco revienta", Roads.exigeCalzada(nil))
 

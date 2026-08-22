@@ -98,24 +98,34 @@ local FORMAS: { [string]: { Pieza } } = {
 		{ tamano = Vector3.new(0.9, 3, 3), offset = Vector3.new(0, -1.9, 2.4), color = GOMA, rueda = true },
 		{ tamano = Vector3.new(0.9, 3, 3), offset = Vector3.new(0, -1.9, -2.4), color = GOMA, rueda = true },
 	},
-	coche = {
-		{ tamano = Vector3.new(5, 1.6, 9), offset = Vector3.new(0, -2, 0), color = ACENTO },
-		{ tamano = Vector3.new(4.4, 1.8, 4.4), offset = Vector3.new(0, -0.4, -0.6), color = ACENTO },
-		{ tamano = Vector3.new(4.2, 1.2, 0.3), offset = Vector3.new(0, -0.4, 1.6), color = Color3.fromRGB(60, 74, 92) },
-		{ tamano = Vector3.new(1.2, 2.2, 2.2), offset = Vector3.new(-2.4, -2.6, 3), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(1.2, 2.2, 2.2), offset = Vector3.new(2.4, -2.6, 3), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(1.2, 2.2, 2.2), offset = Vector3.new(-2.4, -2.6, -3), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(1.2, 2.2, 2.2), offset = Vector3.new(2.4, -2.6, -3), color = GOMA, rueda = true },
+	-- EL CARRO: caja abierta detras, dos ruedas y las varas de tiro. Va en +Z porque
+	-- el frente de Roblox es -Z, o sea que esto queda a la espalda -- se tira, no se
+	-- conduce, y desde la calle se tiene que leer de un vistazo cual de las dos cosas
+	-- es. De ahi las varas: sin ellas es una caja flotando detras de alguien.
+	carro = {
+		{ tamano = Vector3.new(3.4, 0.35, 4.4), offset = Vector3.new(0, -2.5, 3.8), color = METAL },
+		{ tamano = Vector3.new(3.4, 1.8, 0.3), offset = Vector3.new(0, -1.6, 5.9), color = OSCURO },
+		{ tamano = Vector3.new(0.3, 1.8, 4.4), offset = Vector3.new(-1.7, -1.6, 3.8), color = OSCURO },
+		{ tamano = Vector3.new(0.3, 1.8, 4.4), offset = Vector3.new(1.7, -1.6, 3.8), color = OSCURO },
+		{ tamano = Vector3.new(0.35, 1.8, 1.8), offset = Vector3.new(-1.9, -2.5, 3.8), color = GOMA, rueda = true },
+		{ tamano = Vector3.new(0.35, 1.8, 1.8), offset = Vector3.new(1.9, -2.5, 3.8), color = GOMA, rueda = true },
+		{ tamano = Vector3.new(0.22, 0.22, 3.4), offset = Vector3.new(-0.9, -1.9, 1.7), color = METAL },
+		{ tamano = Vector3.new(0.22, 0.22, 3.4), offset = Vector3.new(0.9, -1.9, 1.7), color = METAL },
 	},
-	furgoneta = {
-		{ tamano = Vector3.new(5.6, 1.6, 11), offset = Vector3.new(0, -2, 0), color = METAL },
-		{ tamano = Vector3.new(5.6, 4.6, 7), offset = Vector3.new(0, 0.6, -2), color = METAL },
-		{ tamano = Vector3.new(5.2, 2.6, 3), offset = Vector3.new(0, -0.4, 2.6), color = Color3.fromRGB(96, 116, 156) },
-		{ tamano = Vector3.new(4.6, 1.6, 0.3), offset = Vector3.new(0, -0.2, 4.1), color = Color3.fromRGB(60, 74, 92) },
-		{ tamano = Vector3.new(1.3, 2.4, 2.4), offset = Vector3.new(-2.7, -2.6, 3.4), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(1.3, 2.4, 2.4), offset = Vector3.new(2.7, -2.6, 3.4), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(1.3, 2.4, 2.4), offset = Vector3.new(-2.7, -2.6, -3.4), color = GOMA, rueda = true },
-		{ tamano = Vector3.new(1.3, 2.4, 2.4), offset = Vector3.new(2.7, -2.6, -3.4), color = GOMA, rueda = true },
+	-- EL REMOLQUE: lo mismo pero largo y con cuatro ruedas, que es como se distingue
+	-- de lejos. Sube el suelo y baja los laterales -- una plataforma cargada se lee
+	-- mejor que una caja cerrada, y ademas es lo que justifica que vaya por la calzada.
+	remolque = {
+		{ tamano = Vector3.new(4.4, 0.4, 7.2), offset = Vector3.new(0, -2.4, 5.2), color = METAL },
+		{ tamano = Vector3.new(4.4, 1.2, 0.35), offset = Vector3.new(0, -1.7, 8.7), color = OSCURO },
+		{ tamano = Vector3.new(0.35, 1.2, 7.2), offset = Vector3.new(-2.2, -1.7, 5.2), color = OSCURO },
+		{ tamano = Vector3.new(0.35, 1.2, 7.2), offset = Vector3.new(2.2, -1.7, 5.2), color = OSCURO },
+		{ tamano = Vector3.new(0.4, 2, 2), offset = Vector3.new(-2.4, -2.4, 3.6), color = GOMA, rueda = true },
+		{ tamano = Vector3.new(0.4, 2, 2), offset = Vector3.new(2.4, -2.4, 3.6), color = GOMA, rueda = true },
+		{ tamano = Vector3.new(0.4, 2, 2), offset = Vector3.new(-2.4, -2.4, 6.8), color = GOMA, rueda = true },
+		{ tamano = Vector3.new(0.4, 2, 2), offset = Vector3.new(2.4, -2.4, 6.8), color = GOMA, rueda = true },
+		{ tamano = Vector3.new(0.26, 0.26, 3.6), offset = Vector3.new(-1, -1.9, 1.6), color = METAL },
+		{ tamano = Vector3.new(0.26, 0.26, 3.6), offset = Vector3.new(1, -1.9, 1.6), color = METAL },
 	},
 }
 
@@ -124,8 +134,8 @@ local FORMAS: { [string]: { Pieza } } = {
 local SENTADO: { [string]: boolean } = {
 	bicicleta = true,
 	moto = true,
-	coche = true,
-	furgoneta = true,
+	-- El carro y el remolque NO estan: se tiran a pie. Ir sentado encima de algo que
+	-- arrastras seria la contradiccion que se acaba de quitar de en medio.
 }
 
 -- La postura. Sin esto el personaje va MOVIENDO LAS PIERNAS encima de la moto,

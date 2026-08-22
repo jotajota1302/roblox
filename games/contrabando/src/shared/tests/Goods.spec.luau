@@ -16,7 +16,7 @@ return function(kit)
 	kit.eq("y se dice que el problema es el vehiculo", motivo, "vehiculo_insuficiente")
 
 	kit.truthy("pero un sobre si", (Cargo.cabe({}, sobre, 3, nil)))
-	kit.truthy("y el piano entra en furgoneta", (Cargo.cabe({}, piano, 100, "furgoneta")))
+	kit.truthy("y el piano entra en remolque", (Cargo.cabe({}, piano, 100, "remolque")))
 
 	-- Y quedarse sin hueco es OTRA cosa, con otro motivo: uno dice vacía el zurrón
 	-- y el otro dice ve a comprarte una moto. Desde dentro se ven igual --la pieza

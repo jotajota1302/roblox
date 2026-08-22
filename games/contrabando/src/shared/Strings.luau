@@ -150,8 +150,8 @@ local TEXTOS: { [string]: string } = {
 	RIDE_impulsor = "Jump Pack",
 	RIDE_bicicleta = "Bike",
 	RIDE_moto = "Motorbike",
-	RIDE_coche = "Car",
-	RIDE_furgoneta = "Van",
+	RIDE_carro = "Cart",
+	RIDE_remolque = "Trailer",
 
 	-- ---- Tamaños de bulto -------------------------------------------------
 	SIZE_pequeno = "small",

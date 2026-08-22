@@ -129,7 +129,7 @@ local function ficha(nombre: string, detalle: string, precio: string?, alPulsar:
 	UiKit.margen(comprar, 4)
 
 	if alPulsar then
-		comprar.Activated:Connect(alPulsar)
+		Pad.accion(comprar, alPulsar)
 	end
 end
 
@@ -344,21 +344,21 @@ function Menu.build()
 	lista.Padding = UDim.new(0, 6)
 	lista.Parent = columna
 
-	boton(columna, Strings.get("MENU_SKILLS"), 2, Color3.fromRGB(58, 62, 82)).Activated:Connect(function()
+	Pad.accion(boton(columna, Strings.get("MENU_SKILLS"), 2, Color3.fromRGB(58, 62, 82)), function()
 		if abierto == "skills" then
 			cerrar()
 		else
 			abrir("skills")
 		end
 	end)
-	boton(columna, Strings.get("MENU_WAREHOUSE"), 3, Color3.fromRGB(52, 66, 60)).Activated:Connect(function()
+	Pad.accion(boton(columna, Strings.get("MENU_WAREHOUSE"), 3, Color3.fromRGB(52, 66, 60)), function()
 		if abierto == "warehouse" then
 			cerrar()
 		else
 			abrir("warehouse")
 		end
 	end)
-	boton(columna, Strings.get("MENU_WORKSHOP"), 4, Color3.fromRGB(70, 58, 52)).Activated:Connect(function()
+	Pad.accion(boton(columna, Strings.get("MENU_WORKSHOP"), 4, Color3.fromRGB(70, 58, 52)), function()
 		if abierto == "workshop" then
 			cerrar()
 		else
@@ -371,7 +371,7 @@ function Menu.build()
 	-- un ladrón detrás sería perderla.
 	local cebo = boton(columna, Strings.get("MENU_DECOY"), 1, Color3.fromRGB(120, 54, 54))
 	cebo.Visible = false
-	cebo.Activated:Connect(function()
+	Pad.accion(cebo, function()
 		Remotes.event(Remotes.USAR_SENUELO):FireServer()
 		senueloListoEn = os.clock() + Config.SENUELO_RECARGA
 	end)
@@ -423,7 +423,7 @@ function Menu.build()
 	cerrarBoton.Parent = panel
 	UiKit.redondear(cerrarBoton, 6)
 	UiKit.margen(cerrarBoton, 6)
-	cerrarBoton.Activated:Connect(cerrar)
+	Pad.accion(cerrarBoton, cerrar)
 	botonCerrar = cerrarBoton
 
 	local scroll = Instance.new("ScrollingFrame")

@@ -128,7 +128,7 @@ return function(kit)
 	local Config = require(script.Parent.Parent.Config)
 	local Vehicles = require(script.Parent.Parent.Vehicles)
 	kit.eq("a pie con 10 cajas pierdes la mitad", Heat.cajasIncautadas(10, 1), 5)
-	kit.eq("en furgoneta pierdes bastante menos", Heat.cajasIncautadas(10, 0.3), 2)
+	kit.eq("en remolque pierdes bastante menos", Heat.cajasIncautadas(10, 0.3), 2)
 	kit.truthy("y siempre algo: un alcance no puede salir gratis", Heat.cajasIncautadas(1, 0.1) >= 1)
 	kit.eq("sin carga no hay nada que quitar", Heat.cajasIncautadas(0, 0.3), 0)
 	-- Por defecto se pierde LO DE SIEMPRE, nunca menos: una ventaja no puede
@@ -137,14 +137,14 @@ return function(kit)
 
 	-- EL SUELO, que es la regla de oro escrita en un número. Sobre `expone` se
 	-- multiplica ahora el factor del aguante (Skills.factorRobo), y dos
-	-- multiplicadores encadenados tienden a cero: sin suelo, la furgoneta con el
+	-- multiplicadores encadenados tienden a cero: sin suelo, el remolque con el
 	-- aguante al máximo saldría inmune al robo, que es exactamente lo que el
 	-- diseño prohíbe.
 	local Skills = require(script.Parent.Parent.Skills)
 	local todoElAguante = { aguante = 3 }
 	kit.truthy(
-		"con furgoneta y el aguante al máximo, todavía te quitan",
-		Heat.cajasIncautadas(20, Vehicles.expone("furgoneta") * Skills.factorRobo(todoElAguante)) > 0
+		"con remolque y el aguante al máximo, todavía te quitan",
+		Heat.cajasIncautadas(20, Vehicles.expone("remolque") * Skills.factorRobo(todoElAguante)) > 0
 	)
 	kit.truthy("ni un multiplicador absurdo deja el robo en cero", Heat.cajasIncautadas(20, 0.0001) > 0)
 	kit.eq(
@@ -168,6 +168,6 @@ return function(kit)
 		anteriorExpone, anteriorBulto = expone, bulto
 	end
 	kit.eq("ir a pie lo pierde todo", Vehicles.expone("a_pie"), 1)
-	kit.truthy("y la furgoneta bastante menos", Vehicles.expone("furgoneta") < 0.5)
-	kit.truthy("pero se ve venir de mas lejos", Vehicles.bulto("furgoneta") > Vehicles.bulto("a_pie"))
+	kit.truthy("y el remolque bastante menos", Vehicles.expone("remolque") < 0.5)
+	kit.truthy("pero se ve venir de mas lejos", Vehicles.bulto("remolque") > Vehicles.bulto("a_pie"))
 end

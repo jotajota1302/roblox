@@ -4,11 +4,11 @@ local Vehicles = require(script.Parent.Parent.Vehicles)
 
 return function(kit)
 	local aPie = Vehicles.get("a_pie")
-	local furgo = Vehicles.get("furgoneta")
+	local furgo = Vehicles.get("remolque")
 
 	kit.eq("a pie llevas tres", aPie.capacidad, Config.CAPACIDAD_A_PIE)
-	kit.truthy("la furgoneta es la que mas lleva", furgo.capacidad >= 26)
-	kit.truthy("la furgoneta cuesta dinero", furgo.coste > 0)
+	kit.truthy("el remolque es la que mas lleva", furgo.capacidad >= 26)
+	kit.truthy("el remolque cuesta dinero", furgo.coste > 0)
 	kit.eq("ir a pie no cuesta nada", aPie.coste, 0)
 
 	-- La regla del diseño era "ningún vehículo corre más que ir a pie", y la
@@ -37,17 +37,17 @@ return function(kit)
 	-- donde esa traduccion ocurre.
 	kit.eq("sin vehiculo vas a pie", Vehicles.deEstado(nil).id, "a_pie")
 	kit.eq("con basura tambien vas a pie", Vehicles.deEstado("cohete").id, "a_pie")
-	kit.eq("con furgoneta vas en furgoneta", Vehicles.deEstado("furgoneta").id, "furgoneta")
+	kit.eq("con remolque vas en remolque", Vehicles.deEstado("remolque").id, "remolque")
 
 	-- LA COMPRA, que ahora mira el GARAJE y no el vehículo puesto.
-	local puede, motivo = Vehicles.puedeComprar(nil, "furgoneta", furgo.coste)
+	local puede, motivo = Vehicles.puedeComprar(nil, "remolque", furgo.coste)
 	kit.truthy("con el dinero justo se compra", puede)
 	kit.eq("y el motivo lo dice", motivo, "ok")
 
-	local _, sinDinero = Vehicles.puedeComprar(nil, "furgoneta", furgo.coste - 1)
+	local _, sinDinero = Vehicles.puedeComprar(nil, "remolque", furgo.coste - 1)
 	kit.eq("una moneda de menos no basta", sinDinero, "sin_dinero")
 
-	local _, repetida = Vehicles.puedeComprar({ "furgoneta" }, "furgoneta", 999999)
+	local _, repetida = Vehicles.puedeComprar({ "remolque" }, "remolque", 999999)
 	kit.eq("no se compra dos veces", repetida, "ya_lo_tienes")
 
 	local _, aPieVenta = Vehicles.puedeComprar(nil, "a_pie", 999999)
@@ -57,29 +57,29 @@ return function(kit)
 	kit.eq("un id inventado se rechaza sin reventar", inventado, "vehiculo_desconocido")
 
 	-- COMPRAR HACIA ABAJO YA VALE, y es el cambio que hace que el garaje signifique
-	-- algo: teniendo furgoneta, un patinete no es un desperdicio sino la llave de
-	-- los atajos, porque la furgoneta no puede salirse del asfalto.
-	local baratoConFurgo = Vehicles.puedeComprar({ "furgoneta" }, "monopatin", 999999)
-	kit.truthy("con furgoneta se puede comprar un monopatin", baratoConFurgo)
+	-- algo: teniendo remolque, un patinete no es un desperdicio sino la llave de
+	-- los atajos, porque el remolque no puede salirse del asfalto.
+	local baratoConFurgo = Vehicles.puedeComprar({ "remolque" }, "monopatin", 999999)
+	kit.truthy("con remolque se puede comprar un monopatin", baratoConFurgo)
 
 	-- EL GARAJE.
 	kit.truthy("ir a pie lo tiene todo el mundo siempre", Vehicles.posee(nil, "a_pie"))
 	kit.truthy("lo comprado esta en el garaje", Vehicles.posee({ "moto", "monopatin" }, "moto"))
-	kit.falsy("lo no comprado no", Vehicles.posee({ "moto" }, "furgoneta"))
+	kit.falsy("lo no comprado no", Vehicles.posee({ "moto" }, "remolque"))
 	kit.falsy("y con el garaje vacio, nada", Vehicles.posee({}, "moto"))
 
 	-- Sacar del garaje.
 	kit.truthy("se saca lo que es tuyo", Vehicles.puedeSacar({ "moto" }, "moto"))
-	local _, ajeno = Vehicles.puedeSacar({ "moto" }, "furgoneta")
+	local _, ajeno = Vehicles.puedeSacar({ "moto" }, "remolque")
 	kit.eq("y no lo que no lo es", ajeno, "no_es_tuyo")
 	kit.truthy("volver a ir a pie siempre vale", Vehicles.puedeSacar({}, "a_pie"))
 	kit.truthy("y sin garaje tambien", Vehicles.puedeSacar(nil, nil))
 
 	-- LA MIGRACIÓN, que es lo que evita dejar a pie a quien ya jugaba: las partidas
 	-- guardadas antes del garaje sólo tienen un `vehiculo` suelto.
-	local migrado = Vehicles.garajeDe(nil, "furgoneta")
+	local migrado = Vehicles.garajeDe(nil, "remolque")
 	kit.eq("una partida vieja conserva su vehiculo", #migrado, 1)
-	kit.eq("y es el suyo", migrado[1], "furgoneta")
+	kit.eq("y es el suyo", migrado[1], "remolque")
 	kit.eq("ir a pie no ocupa plaza", #Vehicles.garajeDe(nil, "a_pie"), 0)
 	kit.eq("un id retirado del catalogo se cae solo", #Vehicles.garajeDe({ "trineo" }, nil), 0)
 	-- Y esto no es hipotético: los patines EXISTIERON y se retiraron. Quien los

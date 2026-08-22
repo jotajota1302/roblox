@@ -228,7 +228,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 		size.MaxSize = Vector2.new(260, 190)
 		size.Parent = boton
 
-		boton.Activated:Connect(function()
+		Pad.accion(boton, function()
 			alElegir(ruta.id)
 			RoutePicker.ocultar()
 		end)
@@ -266,7 +266,7 @@ function RoutePicker.build(alElegir: (string) -> (), alCerrar: () -> ())
 		RoutePicker.ocultar()
 		alCerrar()
 	end
-	cerrar.Activated:Connect(irse)
+	Pad.accion(cerrar, irse)
 	salir = irse
 
 	gui = pantalla

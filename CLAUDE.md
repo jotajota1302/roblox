@@ -237,6 +237,17 @@ Avisos verificados:
   nombre que el índice de un bucle, que llevaba media hora manifestándose como "el
   selector de ruta ya no aparece" sin una sola pista. Cuando eso no baste,
   diagnosticar con `execute_luau` inspeccionando el estado.
+- **`user_keyboard_input` NO entrega teclas con Studio en segundo plano.** No da error
+  --contesta `Success`-- y simplemente no llega nada: medido el 22/08 con un espia de
+  `ContextActionService` a prioridad 9000 y un `UserInputService.InputBegan` crudo, los
+  dos vacios despues de mandar flechas y Enter. La primera lectura enganó ademas, porque
+  `GuiService.SelectedObject` SI habia cambiado -- lo habia movido mi propio `Pad.abrir`
+  desde el sandbox, no la tecla.
+  Consecuencia practica: **el control por teclado no se puede verificar desde aqui**. La
+  cura es la de siempre -- sacar lo que se puede probar a un modulo puro. La eleccion de
+  "a que boton lleva esta flecha" vive en `shared/Nav.luau` y la cubre la bateria; lo que
+  queda en `Pad` es enlazar teclas, y eso se ve jugando en un segundo.
+
 - **`screen_capture` también se cuelga, pero sólo en Play.** En `Edit` responde; con una
   sesión de Play viva se queda colgado los 120 s y acaba en *Request timeout*. Así que
   durante una partida no hay ojos: todo lo visual hay que deducirlo midiendo cotas,

@@ -305,23 +305,62 @@ Config.VEHICULOS = {
 		expone = 0.55,
 		bulto = 1.3,
 	},
+	-- EL CARRO Y EL REMOLQUE, que el 22/08 ocupan el sitio del coche y la furgoneta.
+	--
+	-- POR QUE SE FUERON LOS DOS GRANDES. No hay fisica de vehiculo en este juego: un
+	-- vehiculo es `WalkSpeed` mas unas piezas soldadas, asi que gira sobre su propio
+	-- centro. Medido en partida: montado en el coche, el personaje da media vuelta en
+	-- 106 grados por decima de segundo, practicamente lo mismo que a pie (114). Para un
+	-- monopatin eso se lee --un patinador pivota-- y para un cuerpo de siete studs no
+	-- hay forma, por bien dibujado que este. *"La fisica de conducir es lamentable"*
+	-- (JJ, 21/08) y *"cambiemos los vehiculos por accesorios"* (22/08).
+	--
+	-- UN CARRO SE ARRASTRA, Y ESO SI SE PUEDE. Vas a pie --con la fisica que ya
+	-- funciona, la unica que este motor hace bien-- y lo llevas detras. Un objeto
+	-- arrastrado puede pivotar de forma rara sin que chirrie, que es justo lo que un
+	-- coche no puede permitirse.
+	--
+	-- MISMO ESCALON ECONOMICO, A PROPOSITO: mismos costes, niveles, capacidades y
+	-- tamano admitido que los dos que sustituyen. Cambia lo que SON, no la economia --
+	-- asi el sumidero de dinero (31.950 monedas el garaje entero) y la llave de la
+	-- mercancia enorme siguen exactamente donde estaban medidos, y no hay que volver a
+	-- equilibrar nada.
+	--
+	-- LO QUE SI CAMBIA ES LA VELOCIDAD, y es el precio de tirar de algo en vez de
+	-- conducirlo: 24 y 28 contra los 38 y 34 de antes. Quedan por encima de ir a pie
+	-- (20) porque ruedan, y por debajo de la bici (30) y la moto (36) -- o sea que el
+	-- peldaño mas caro deja de ser tambien el mas rapido, y llevar mucho pasa a costar
+	-- tiempo. Es la tension que el diseño pedia: capacidad contra exposicion.
+	--
+	-- Y EL REMOLQUE VA MAS QUE EL CARRO pese a ser el que mas lleva, porque va atado al
+	-- asfalto. Lo canto una prueba que ya existia --"el que exige calzada lo compensa
+	-- con velocidad"-- y tenia razon sobre el diseño, no solo sobre el numero: con 24,
+	-- el peldaño de quince mil monedas salia peor que el de ocho mil en velocidad Y en
+	-- libertad de movimiento, y solo ganaba en huecos. Pagar mas por ser peor en dos
+	-- ejes de tres no es una decision, es una trampa.
 	{
-		id = "coche",
+		id = "carro",
 		capacidad = 18,
-		velocidadBase = 38,
+		velocidadBase = 24,
 		penalizacionPorPeso = 0.4,
 		tamanoMaximo = 4,
-		soloCalzada = true,
+		-- SIN `soloCalzada`, a diferencia del coche: vas a pie, asi que entras donde
+		-- entra un peaton. Lo que te quita es lo otro -- ocupa la ranura, o sea que con
+		-- el carro puesto no llevas impulsor y no subes a ningun tejado.
 		coste = 8000,
 		nivel = 8,
 		expone = 0.4,
 		bulto = 1.45,
 	},
 	{
-		id = "furgoneta",
+		id = "remolque",
 		capacidad = 26,
-		velocidadBase = 34,
+		velocidadBase = 28,
 		penalizacionPorPeso = 0.28,
+		-- Y ESTE SI SE QUEDA ATADO AL ASFALTO, que es lo que salva la pieza que
+		-- `Roads.luau` llama "la mejor que se le ha anadido al juego": por la calle
+		-- deprisa y visible, o a pie por los atajos. Si TODO el catalogo fuera a pie,
+		-- esa decision se evaporaba. El peldaño mas alto la conserva entera.
 		tamanoMaximo = 4,
 		soloCalzada = true,
 		coste = 15000,
@@ -1106,8 +1145,12 @@ Config.SONIDOS_VEHICULO = {
 	patinete_electrico = { sonido = Config.SONIDO_MOTOR, tono = 1.2, volumen = 0.22, motor = true },
 	bicicleta = { sonido = Config.SONIDO_PEDALES, tono = 0.95, volumen = 0.18, motor = false },
 	moto = { sonido = Config.SONIDO_MOTOR, tono = 1.1, volumen = 0.4, motor = true },
-	coche = { sonido = Config.SONIDO_MOTOR, tono = 0.85, volumen = 0.38, motor = true },
-	furgoneta = { sonido = Config.SONIDO_MOTOR, tono = 0.72, volumen = 0.42, motor = true },
+	-- EL CARRO Y EL REMOLQUE NO LLEVAN MOTOR, y por eso no estan aqui: se tiran a pie.
+	-- Heredar el sonido del coche seria el mismo error que heredar sus ventanas -- un
+	-- ruido de motor saliendo de algo que empujas es de las cosas que se notan sin
+	-- saber por que. Lo que suena es la rueda, y de eso ya se encarga `SONIDO_RUEDAS`.
+	carro = { sonido = Config.SONIDO_RUEDAS, tono = 0.7, volumen = 0.3, motor = false },
+	remolque = { sonido = Config.SONIDO_RUEDAS, tono = 0.62, volumen = 0.34, motor = false },
 } :: { [string]: { sonido: string, tono: number, volumen: number, motor: boolean } }
 
 Config.SONIDOS = {

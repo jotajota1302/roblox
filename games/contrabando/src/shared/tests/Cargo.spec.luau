@@ -39,15 +39,15 @@ return function(kit)
 	-- Contra Config y no contra un 10 escrito a mano: la escalera de vehiculos se
 	-- va a seguir retocando, y una prueba que fija el numero obliga a tocarla en
 	-- cada ajuste de balance sin comprobar nada nuevo.
-	kit.eq("la capacidad sale del vehiculo", Cargo.capacidad("furgoneta"), Vehicles.get("furgoneta").capacidad)
+	kit.eq("la capacidad sale del vehiculo", Cargo.capacidad("remolque"), Vehicles.get("remolque").capacidad)
 	kit.eq("con basura se cae a la de a pie", Cargo.capacidad("cohete"), Config.CAPACIDAD_A_PIE)
 
 	local diez = {}
 	for _ = 1, 10 do
 		table.insert(diez, comun)
 	end
-	kit.truthy("diez comunes caben en la furgoneta", Cargo.cabe({}, comun, Cargo.capacidad("furgoneta")))
-	local tope = Cargo.capacidad("furgoneta")
+	kit.truthy("diez comunes caben en el remolque", Cargo.cabe({}, comun, Cargo.capacidad("remolque")))
+	local tope = Cargo.capacidad("remolque")
 	local aTope = {}
 	for _ = 1, tope do
 		table.insert(aTope, comun)
@@ -56,15 +56,15 @@ return function(kit)
 
 	-- El vehiculo cambia las DOS mitades del calculo: de donde parte la velocidad y
 	-- cuanto le quita cada unidad de peso.
-	kit.truthy("la furgoneta vacia va mas rapida que a pie", Cargo.velocidad({}, "furgoneta") > Cargo.velocidad({}))
-	kit.truthy("y cargada a tope sigue moviendose", Cargo.velocidad(aTope, "furgoneta") > 0)
+	kit.truthy("el remolque vacia va mas rapida que a pie", Cargo.velocidad({}, "remolque") > Cargo.velocidad({}))
+	kit.truthy("y cargada a tope sigue moviendose", Cargo.velocidad(aTope, "remolque") > 0)
 
 	-- LO QUE SIGUE SIENDO CIERTO, y es lo que la regla vieja protegia: llevar carga
 	-- SIEMPRE cuesta velocidad, en cualquier vehiculo. Si transportar no costara, no
 	-- habria decision: irias siempre a tope por la ruta que mas pague.
 	kit.truthy(
-		"cargar frena, tambien en furgoneta",
-		Cargo.velocidad(aTope, "furgoneta") < Cargo.velocidad({}, "furgoneta")
+		"cargar frena, tambien en remolque",
+		Cargo.velocidad(aTope, "remolque") < Cargo.velocidad({}, "remolque")
 	)
 	kit.truthy("y a pie", Cargo.velocidad({ comun, comun, comun }) < Cargo.velocidad({}))
 
@@ -75,13 +75,13 @@ return function(kit)
 
 	-- SACAR UN VEHÍCULO CON EL ZURRÓN LLENO. La regla vieja decía "descarga antes de
 	-- cambiar" con una sola caja encima, y eso bloqueaba justo lo que quiere hacer
-	-- quien acaba de comprarse la furgoneta. Lo que no puede es cambiar A MENOS.
+	-- quien acaba de comprarse el remolque. Lo que no puede es cambiar A MENOS.
 	local tresComunes = {
 		{ rareza = "comun" } :: any,
 		{ rareza = "comun" } :: any,
 		{ rareza = "comun" } :: any,
 	}
-	kit.truthy("con tres cajas se puede sacar la furgoneta", (Cargo.admiteLaCarga(tresComunes, "furgoneta")))
+	kit.truthy("con tres cajas se puede sacar el remolque", (Cargo.admiteLaCarga(tresComunes, "remolque")))
 	kit.truthy("y seguir a pie, que caben tres", (Cargo.admiteLaCarga(tresComunes, nil)))
 
 	local zurronDeFurgoneta = {}
@@ -95,7 +95,7 @@ return function(kit)
 	-- Y EL TAMAÑO, que es la otra mitad: un piano no baja a un monopatín por mucho
 	-- hueco que sobre.
 	local conPiano = { { rareza = "comun", objeto = "piano" } :: any }
-	kit.truthy("con el piano se puede sacar la furgoneta", (Cargo.admiteLaCarga(conPiano, "furgoneta")))
+	kit.truthy("con el piano se puede sacar el remolque", (Cargo.admiteLaCarga(conPiano, "remolque")))
 	kit.falsy("pero no el monopatin", (Cargo.admiteLaCarga(conPiano, "monopatin")))
 	local _, porQue = Cargo.admiteLaCarga(conPiano, "monopatin")
 	kit.eq("y ahi el motivo es el tamano", porQue, "carga_demasiado_grande")
