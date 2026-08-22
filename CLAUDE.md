@@ -682,6 +682,29 @@ Avisos verificados:
   fricción (100, a propósito, para que agarren) las frena en el acto y el coche recorre
   cinco studs de los cien que debería.
 
+- **Un freno no se hace con más par: se hace bajando la velocidad que se le PIDE al
+  motor.** Primer intento, el obvio: subir `MotorMaxTorque` y pedir cero vueltas. No
+  sirve de nada, porque **lo que limita una frenada aquí no es el par sino el agarre**
+  -- con fricción 100 (puesta a propósito para que las ruedas no patinen en curva)
+  cualquier par razonable bloquea la rueda, y una rueda bloqueada con ese agarre para
+  el coche en 11 studs y medio segundo, o sea seis ges. Bajar el par de 2,2 a 0,35
+  veces la fuerza no cambió **nada**: 11 studs las dos veces, que es la señal de que
+  estabas girando la perilla equivocada.
+  Y el daño no era la brusquedad: era que **el coche se clavaba antes de llegar a la
+  curva**. Las dos pruebas de la esquina salieron *"0 % fuera del asfalto"* habiendo
+  girado **cero grados** -- aprobar por no haberse movido, la misma familia que la
+  prueba de la rotonda que aprobaba por no llegar a entrar.
+  Lo que funciona es un estado `pedida` en studs/s que el gas sube y el freno baja, con
+  tres ritmos en studs/s² (acelerar 55, frenar 26, soltar 8). Medido: frenar desde 40
+  son 20 studs, soltar el gas 66, y media manzana son 60.
+
+- **Y un piloto automático de tres líneas no traza una curva.** Medir "¿se toma la
+  rotonda?" salió mal cuatro veces seguidas por motivos distintos --girar antes de
+  llegar, entrar a la velocidad equivocada, contar el rodeo desde fuera del anillo-- y
+  cada versión daba un veredicto seguro y falso. Lo que se puede medir con esto son
+  **números** (punta, frenada, cuánto del tiempo se pisa asfalto); lo que no se puede
+  es el tacto. Eso lo juzga quien conduce, y decirlo es parte del informe.
+
 ## Trabajo en paralelo: quién es dueño de qué
 
 **A veces hay más de una sesión trabajando en `contrabando/` a la vez.** El 17/08 hubo dos

@@ -75,13 +75,60 @@ local ANCHO_RUEDA = 1
 -- que el coche no pueda ir a 70 -- es que ESTE mapa no da para ello, y el dato importa
 -- mas que el numero: unas calles pensadas para andar no se convierten en circuito por
 -- meterles un motor.
-local VELOCIDAD = 58
+-- Y BAJADA OTRA VEZ, de 58 a 40, conduciendola por la ciudad terminada. El numero
+-- que lo decide no es el radio de giro sino LA DISTANCIA DE FRENADA: de 56 studs/s a
+-- parado eran 115 studs, y una manzana mide 120. O sea que a tope de gas el coche NO
+-- llegaba a tiempo de frenar para la esquina del final de la manzana -- y esa curva la
+-- pasaba el 67 % del tiempo subido a la acera.
+--
+-- Con 40, la frenada cabe en media manzana y acelerar Y frenar caben en un tramo, que
+-- es lo que hace conducible una ciudad. Se pierde punta y no se pierde sensacion: 40
+-- studs/s siguen siendo el doble que la moto, y la sensacion de velocidad la da el
+-- acelerar, no el numero.
+local VELOCIDAD = 40
 -- SUBIDA a 250.000 despues de medir. Veintidos mil sonaba a mucho y no movia el coche:
 -- un chasis de 6x1,6x12 mas cuatro ruedas pesa lo suyo, y el par tiene que vencer eso
 -- Y el rozamiento de las ruedas contra el suelo, que aqui esta a proposito muy alto
 -- para que agarren. Los coches de Roblox suelen ir con cifras de este orden.
 local FUERZA = 250000
 local GIRO = 30
+
+-- EL FRENO, y hasta hoy no habia ninguno.
+--
+-- Lo que habia era esto: soltar el gas dejaba el motor pidiendo cero vueltas, lo cual
+-- frena --34 studs desde velocidad de crucero-- pero por accidente, no por diseno. Y
+-- dar gas hacia atras era peor todavia: las ruedas giran al reves contra el asfalto,
+-- patinan, y tardaba 115 studs en parar, tres veces mas que no hacer nada. Un freno
+-- que frena menos que soltar el pie no es un freno.
+--
+-- Y LA PRIMERA VERSION DEL ARREGLO FUE PEOR, que es la parte que hay que contar. Se
+-- hizo subiendo el PAR de frenado (`MotorMaxTorque`) y pidiendo cero vueltas, y no
+-- sirve de nada: **lo que limita una frenada aqui no es el par sino el agarre**. Con
+-- friccion 100 --puesta a proposito para que las ruedas no patinen en las curvas--
+-- cualquier par razonable bloquea la rueda, y una rueda bloqueada con ese agarre para
+-- el coche en once studs y medio segundo, o sea seis ges. Bajar el par de 2,2 a 0,35
+-- veces la fuerza no cambio NADA: 11 studs las dos veces.
+--
+-- El efecto de verdad no era la brusquedad, era que el coche se clavaba antes de
+-- llegar a la curva: las dos primeras pruebas de la esquina salieron "0 % fuera del
+-- asfalto" habiendo girado CERO grados. Aprobar por no haberse movido.
+--
+-- LO QUE SI FUNCIONA es frenar por la VELOCIDAD PEDIDA en vez de por el par: el motor
+-- mantiene siempre su fuerza y lo que se mueve es a cuantas vueltas se le pide girar.
+-- Frenar es bajar esa cifra a un ritmo, acelerar es subirla a otro, y soltar el gas es
+-- dejarla caer despacio. Tres numeros en studs/s^2 --que es una unidad que se puede
+-- razonar contra el mapa-- en vez de un par que no dice nada.
+--
+-- Los tres salen de la ciudad, como todo lo demas de este fichero:
+--   · ACELERACION: de 0 al tope en poco menos de un segundo. Un coche de juego tiene
+--     que responder; el realismo aqui se paga en aburrimiento.
+--   · FRENADO: 40 studs/s a cero en unos 30 studs, o sea media manzana holgada. Es el
+--     numero que hace que la esquina del final de la manzana sea tomable.
+--   · RETENCION: soltar el gas frena, pero en unos cien studs. Tiene que notarse y
+--     tiene que dejar clarisimo que el freno hace otra cosa.
+local ACELERACION = 55
+local FRENADO = 26
+local RETENCION = 8
 
 -- El tono del motor parado y a tope. Graves los dos --un coche es lo mas grande que
 -- se conduce aqui-- y con poco recorrido entre ellos a proposito: un motor que salta
@@ -382,8 +429,18 @@ function CochePrueba.plantar(padre: Instance): Model?
 	-- "código de conducción" que hace falta, y cabe en diez líneas -- lo que cuesta un
 	-- coche no es esto, es todo lo demás (persecución, aparcar, replicación).
 
+	-- LA VELOCIDAD QUE SE LE PIDE AL MOTOR, en studs/s. Es el estado del que sale
+	-- todo: el gas la sube, el freno la baja deprisa y soltar la baja despacio.
+	local pedida = 0
+	local ultimo = os.clock()
+
 	task.spawn(function()
 		while coche.Parent ~= nil do
+			local ahora = os.clock()
+			-- Acotado: si Studio se congela un segundo, un `dt` gigante haria que el
+			-- coche pasara de parado a tope --o al reves-- en un solo fotograma.
+			local dt = math.clamp(ahora - ultimo, 0, 0.2)
+			ultimo = ahora
 			local gas = asiento.Throttle
 			local volante = asiento.Steer
 
@@ -409,12 +466,58 @@ function CochePrueba.plantar(padre: Instance): Model?
 				ruido.PlaybackSpeed = TONO_RALENTI + (TONO_PUNTA - TONO_RALENTI) * prop
 				ruido.Volume = VOLUMEN_RALENTI + (VOLUMEN_PUNTA - VOLUMEN_RALENTI) * prop
 			end
+			-- GAS, FRENO Y MARCHA ATRAS con un solo mando, que es como se conduce en
+			-- cualquier juego: la tecla de atras FRENA mientras el coche avanza, y solo
+			-- da marcha atras cuando ya esta casi parado. Nadie tiene que aprenderse una
+			-- tecla nueva, y sobre todo nadie descubre a base de chocar que el freno
+			-- estaba donde no lo buscaba.
+			--
+			-- `hacia` es lo que avanza el coche en la direccion en la que MIRA: es lo
+			-- que distingue "voy hacia delante" de "voy hacia atras", y sin eso el freno
+			-- se convertiria en acelerador en cuanto empezara a rodar hacia atras.
+			local hacia = chasis.CFrame.LookVector:Dot(chasis.AssemblyLinearVelocity)
+			local frenando = (gas > 0 and hacia < -4) or (gas < 0 and hacia > 4)
+			local suelto = gas == 0 and math.abs(pedida) > 0.5
+
+			if frenando then
+				-- SE FRENA DESDE LO QUE EL COCHE VA DE VERDAD, no desde lo que se le
+				-- estaba pidiendo. Si venia empujando contra una cuesta --pedida 40,
+				-- real 22-- arrancar la frenada en 40 regalaria casi un segundo de
+				-- freno que no frena nada, que es justo cuando el jugador lo pulsa.
+				pedida = math.min(pedida, math.abs(hacia))
+				pedida = math.max(pedida - FRENADO * dt, 0)
+			elseif suelto then
+				pedida = math.max(pedida - RETENCION * dt, 0)
+			elseif gas ~= 0 then
+				-- MARCHA ATRAS A LA MITAD: ningun coche va hacia atras tan rapido como
+				-- hacia delante, y aqui ademas evita que la tecla de frenar se convierta
+				-- en un segundo acelerador en cuanto el coche se para.
+				local tope = if gas < 0 then VELOCIDAD * 0.45 else VELOCIDAD
+				pedida = math.min(pedida + ACELERACION * dt, tope)
+			end
+
+			-- El sentido es del mando; la magnitud, de la cuenta de arriba. Separarlos
+			-- es lo que deja que frenar y dar marcha atras sean la misma tecla.
+			local sentido = if frenando
+				then (if hacia >= 0 then 1 else -1)
+				elseif gas ~= 0 then gas
+				else (if hacia >= 0 then 1 else -1)
 			for _, m in motores do
+				m.MotorMaxTorque = FUERZA
 				-- La velocidad angular sale de la lineal: una rueda de radio R que gira
 				-- a W rad/s avanza W*R studs/s. Sin esta cuenta el número no significa
 				-- nada y hay que buscarlo a ojo.
-				m.AngularVelocity = -gas * (VELOCIDAD / RADIO_RUEDA)
+				m.AngularVelocity = -sentido * (pedida / RADIO_RUEDA)
 			end
+			-- LO QUE PASA, PUBLICADO EN EL PROPIO COCHE. El velocimetro vive en el
+			-- cliente y necesita saber dos cosas: a cuanto va y si esta frenando. Van
+			-- como atributos del asiento --que es lo que el cliente ya tiene a mano al
+			-- sentarse-- en vez de por un remote: es estado continuo de UNA pieza, y
+			-- para eso los atributos replican solos.
+			asiento:SetAttribute("velocidad", chasis.AssemblyLinearVelocity.Magnitude)
+			asiento:SetAttribute("tope", VELOCIDAD)
+			asiento:SetAttribute("frenando", frenando or suelto)
+
 			-- Dirigir es reorientar el eje de las ruedas de delante en el plano del
 			-- suelo. `Axis` es local al chasis, así que basta con girar el (1,0,0).
 			local a = math.rad(volante * GIRO)

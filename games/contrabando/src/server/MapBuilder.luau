@@ -631,7 +631,13 @@ end
 -- entra con margen a un lado y a otro.
 local function plantarRotonda(padre: Instance, mobiliario: Instance)
 	local centro = Grid.cruceDeAvenidas()
-	local RADIO_ISLETA = 9
+	-- ISLETA DE 7 Y NO DE 9, medido conduciendo: con 9 el anillo dejaba 16 studs y un
+	-- coche de 7,6 de ancho lo recorria pegado a la isleta por dentro y al bordillo por
+	-- fuera. Con 7 son 18, que ya es un carril con margen a los dos lados.
+	--
+	-- No se puede crecer hacia fuera --la manzana empieza a 25 del eje, y ahi hay
+	-- edificios-- asi que el anillo solo se gana por dentro.
+	local RADIO_ISLETA = 7
 	local ALTO_ISLETA = 0.6
 
 	-- LA ISLETA, un cilindro. Se hunde en el asfalto para que su cara de abajo no

@@ -35,6 +35,7 @@ local RoutePicker = require(script.Parent:WaitForChild("RoutePicker"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Boost = require(script.Parent:WaitForChild("Boost"))
 local Stock = require(script.Parent:WaitForChild("Stock"))
+local Velocimetro = require(script.Parent:WaitForChild("Velocimetro"))
 
 -- La carpeta del mundo la crea el servidor al arrancar, así que puede no existir
 -- todavía cuando este script empieza. Se espera con un tope: sin ella el juego
@@ -103,6 +104,7 @@ construir("Compass", Compass.build)
 construir("Minimap", Minimap.build)
 construir("Menu", Menu.build)
 construir("Popups", Popups.build)
+construir("Velocimetro", Velocimetro.build)
 construir("Alerta", Alerta.build)
 construir("Patrullas", Patrullas.build)
 construir("Riders", Riders.build)

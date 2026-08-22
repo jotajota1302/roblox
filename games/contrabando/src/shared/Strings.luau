@@ -308,6 +308,14 @@ local TEXTOS: { [string]: string } = {
 	DECOY_COOLDOWN = "Decoy ready in {segundos}s",
 	DECOY_DROPPED = "Decoy dropped",
 
+	-- ---- Al volante --------------------------------------------------------
+	-- La unidad va pegada al numero en una sola clave: separarlos daria dos filas de
+	-- la tabla de traduccion que solo tienen sentido juntas, y hay idiomas donde la
+	-- unidad va delante.
+	DRIVE_SPEED = "{v} sp/s",
+	DRIVE_BRAKING = "BRAKING",
+	DRIVE_HINT = "S brakes  ·  hold it to reverse",
+
 	-- ---- Vehículos: comprar, sacar, aparcar --------------------------------
 	RIDE_PRESS_TO_MOUNT = "Press V to get on or off",
 	RIDE_TAKE_OUT = "You take out {vehiculo}",
