@@ -76,8 +76,8 @@ o malo, sino porque no llega a nadie a quien medir.
 1. Sigues en la misma experiencia. Menú izquierdo: **Configure → Places**.
 2. Pincha en el place (**Contrabando**).
 3. En el menú de la izquierda de esa pantalla: **Thumbnails**.
-4. Sube **`MINIATURA-1920.png`**.
-5. *(Opcional)* Sube también **`secundaria-CIUDAD-1920.png`** como segunda imagen. Es la
+4. Sube **`MINIATURA-1920.jpg`**.
+5. *(Opcional)* Sube también **`secundaria-CIUDAD-1920.jpg`** como segunda imagen. Es la
    vista aérea de la ciudad: no vale de portada porque el coche sale diminuto, pero en la
    página del juego —donde la gente ya está mirando con calma— enseña que hay un mapa.
 
