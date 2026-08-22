@@ -32,3 +32,7 @@ sourcemap.json
 .env
 .env.*
 !.env.example
+
+# Las imagenes ya recortadas para el portal: se regeneran con preparar-portada.ps1 y
+# pesan 8 MB entre las cuatro. Lo que se guarda es el generador y los originales.
+games/contrabando/assets/portada/listo/
