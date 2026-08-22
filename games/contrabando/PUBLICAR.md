@@ -23,10 +23,15 @@ Y las imágenes, ya recortadas a la medida que pide Roblox:
 ```
 games\contrabando\assets\portada\listo\
 ├── ICONO-512.png                   ← el icono (512x512)
-├── MINIATURA-1920.png              ← la miniatura (1920x1080)
+├── MINIATURA-1920.jpg              ← la miniatura (1920x1080)
 ├── alternativa-ICONO-512.png       ← para MÁS ADELANTE, no ahora
-└── secundaria-CIUDAD-1920.png      ← segunda miniatura, opcional
+└── secundaria-CIUDAD-1920.jpg      ← segunda miniatura, opcional
 ```
+
+> **La miniatura va en JPEG y no en PNG**, y no es capricho: en PNG pesaba 4 MB y el
+> formulario del portal **se quedaba sin reaccionar, sin decir por qué**. En JPEG de
+> calidad 92 son 301 KB y entra a la primera. El icono sí se queda en PNG: se ve a 150 px
+> y con mucho contraste, y ahí los artefactos del JPEG se notan en los bordes duros.
 
 Si hay que volver a generarlas: `node scripts\portada.js --force` y luego
 `powershell -ExecutionPolicy Bypass -File scripts\preparar-portada.ps1`.
@@ -43,6 +48,26 @@ Si hay que volver a generarlas: `node scripts\portada.js --force` y luego
 
 > Sólo hay **un** icono por juego, y es lo que se ve en la cuadrícula del Discover, a
 > menudo a menos de 150 px.
+
+---
+
+## ⚠️ Dos trampas que ya se pagaron
+
+**1. Las miniaturas tienen DOS sitios, y hay que subirlas en los dos.** Dentro de
+*Miniaturas* hay dos pestañas: **Página De Inicio** y **Página De Detalles De La
+Experiencia**. Subirla sólo en la primera deja la segunda vacía, y entonces la ficha
+pública del juego enseña **la imagen genérica de Roblox** (un prado con un puente).
+
+**2. El alcance no lo decide el juego, lo decide la CUENTA.** El cuestionario de contenido
+puede salir "Mínima" —apta para todas las edades— y aun así la experiencia queda limitada a
+*"mayores de 16 años y amigos de confianza"*, porque el nivel de publicación depende de la
+cuenta del creador. Se mira en **Configuración → Elegibilidad → Permisos de publicación**, y
+para llegar a todas las edades hacen falta tres cosas: verificación de identidad,
+verificación de edad y **verificación en dos pasos**. Las dos primeras son un trámite; la
+tercera se olvida, y sin ella el juego no lo ve casi nadie.
+
+Con el alcance limitado, **el CTR y la D1 no se pueden medir**: no porque el juego sea bueno
+o malo, sino porque no llega a nadie a quien medir.
 
 ---
 
