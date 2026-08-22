@@ -244,15 +244,25 @@ Avisos verificados:
   una ya estaba pulsada cuando se abrio el panel, el `Begin` le habia llegado al control
   de Roblox y el `End` ya no: se quedaba creyendo que la tecla seguia apretada. El
   sintoma no se parece a la causa -- parece un fallo del giro, y es un fallo del enlace.
-  **La cura no es afinar el Sink sino quitar de en medio a quien se queda a medias**:
-  `PlayerModule:GetControls():Disable()` apaga el control y LIMPIA su estado, que es lo
-  que hacia falta. Y `BindActionAtPriority` con 3000 en vez de `BindAction`, porque la
-  prioridad media es donde viven la camara y el movimiento y ahi gana el ultimo que se
-  enlazo -- o sea, la suerte.
-  Corolario, y vale para cualquier cosa que le quite el control al jugador: **hace falta
-  una red que lo devuelva pase lo que pase**. Los `ScreenGui` llevan `ResetOnSpawn =
-  false`, asi que un panel abierto sobrevive a morirse; si algo se descuadra ahi, el
-  jugador reaparece y no anda. Va enganchada a `CharacterAdded`.
+  **La cura es devolver `Pass` en todo lo que no sea `Begin`**: el `End` llega al control,
+  el que estuviera girando para, y el `Begin` sigue sin llegar -- o sea que la flecha
+  navega el menu y no toca la camara. Una linea. Tambien hace falta
+  `BindActionAtPriority` con 3000 en vez de `BindAction`, porque la prioridad media es
+  donde viven la camara y el movimiento y ahi gana el ultimo que se enlazo, o sea la
+  suerte.
+
+  **Y LA PRIMERA CURA FUE PEOR QUE LA ENFERMEDAD**, que es la mitad de la leccion. Se
+  apago el control entero con `PlayerModule:GetControls():Disable()` mientras hubiera un
+  panel abierto: curaba el giro y JJ contesto *"se queda enganchado despues de volver de
+  la primera entrega"* -- el bucle del cliente abre y cierra la capa del selector en CADA
+  VUELTA, unas treinta veces por segundo, asi que el par Disable/Enable se disparaba sin
+  parar y bastaba con que uno fallara para dejar al jugador sin poder andar.
+  **Si la cura puede dejar el juego inservible y el fallo solo molesta, la cura esta mal
+  elegida.** Quitarle el control al jugador es de las pocas cosas que este cliente puede
+  hacer para romper la partida entera: no es sitio para arreglar un enlace de teclas.
+  Lo que quedo en su lugar es una red proporcionada -- una capa cuya pantalla ya no esta
+  `Enabled` se cae sola de la pila-- y si esa se equivoca, lo peor que pasa es que una
+  flecha vuelva a girar la camara.
 
 - **`user_keyboard_input` NO entrega teclas con Studio en segundo plano.** No da error
   --contesta `Success`-- y simplemente no llega nada: medido el 22/08 con un espia de
