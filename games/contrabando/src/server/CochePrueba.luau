@@ -37,6 +37,7 @@
 
 local Config = require(game.ReplicatedStorage.Shared.Config)
 local Grid = require(game.ReplicatedStorage.Shared.Grid)
+local MeshCatalog = require(game.ReplicatedStorage.Shared.MeshCatalog)
 
 local CochePrueba = {}
 
@@ -44,7 +45,17 @@ local CochePrueba = {}
 -- ANCHO Y BAJO no vuelca, alto y estrecho sí. La primera regla de un coche de juguete
 -- es que se quede sobre sus ruedas.
 local LARGO = 12
-local ANCHO = 6
+-- ESTRECHADO de 6 a 5,2 al ponerle carroceria, y el motivo es que las ruedas van
+-- FUERA del chasis (se separaron para que no rozaran) -- o sea que el ancho del
+-- chasis decide la via, y la via decide si las ruedas caben dentro del coche o
+-- asoman como las de un monster truck. Con 6 la via acababa en 8,3 y ninguna
+-- carroceria de proporciones creibles la tapaba.
+--
+-- NO ES GRATIS Y HAY QUE MEDIRLO: una via mas estrecha vuelca antes, y el vuelco ya
+-- costo una ronda entera de ajuste. Lo que lo compensa es que el peso sigue abajo
+-- --chasis a densidad 3,2, carroceria a 0,05-- que es lo que de verdad sostiene un
+-- coche de juguete.
+local ANCHO = 5.2
 local ALTO_CHASIS = 1.6
 local RADIO_RUEDA = 1.7
 local ANCHO_RUEDA = 1
@@ -71,6 +82,15 @@ local VELOCIDAD = 58
 -- para que agarren. Los coches de Roblox suelen ir con cifras de este orden.
 local FUERZA = 250000
 local GIRO = 30
+
+-- El tono del motor parado y a tope. Graves los dos --un coche es lo mas grande que
+-- se conduce aqui-- y con poco recorrido entre ellos a proposito: un motor que salta
+-- de tono a lo bruto suena a juguete estropeado, que es la queja exacta que costo el
+-- sonido de los patines.
+local TONO_RALENTI = 0.62
+local TONO_PUNTA = 0.95
+local VOLUMEN_RALENTI = 0.12
+local VOLUMEN_PUNTA = 0.5
 
 local function pieza(nombre: string, tamano: Vector3, cf: CFrame, color: Color3, padre: Instance): BasePart
 	local p = Instance.new("Part")
@@ -214,17 +234,47 @@ function CochePrueba.plantar(padre: Instance): Model?
 	chasis.CustomPhysicalProperties = PhysicalProperties.new(3.2, 0.3, 0.5, 1, 1)
 	coche.PrimaryPart = chasis
 
-	-- La carrocería, sólo para que se lea como un coche desde fuera. Sin colisión: lo
-	-- que choca es el chasis, y una cabina con cuerpo propio engancha en cada bordillo.
-	local techo = pieza(
-		"Cabina",
-		Vector3.new(ANCHO - 0.8, 2.2, LARGO * 0.42),
-		base * CFrame.new(0, ALTO_CHASIS / 2 + 1.1, 0.6),
-		Color3.fromRGB(150, 52, 44),
-		coche
-	)
+	-- LA CARROCERÍA. *"Veo un modelo 3D muy feo"* (JJ, 22/08), y lo era: una caja roja
+	-- con otra caja encima. Ahora es una furgoneta de verdad, y lo que lo ha hecho
+	-- posible no es el modelo sino que **el place esté publicado** -- hasta el 22/08
+	-- `CreateMeshPartAsync` fallaba con cualquier id y todo el arte del juego era
+	-- teórico. Comprobado ese mismo día: las tres mallas del catálogo cargan.
+	--
+	-- SIN COLISIÓN Y SIN PESO, exactamente igual que la caja que sustituye: lo que
+	-- choca es el chasis y lo que vuelca es lo que pesa arriba. Vestir un coche no
+	-- puede cambiar cómo se conduce, o habría que recalibrar la física cada vez que se
+	-- cambia el color.
+	--
+	-- Y SI FALLA, LA CAJA. No es una red teórica: un id del catálogo ya se subió mal
+	-- una vez y devolvía "Failed to load mesh asset" mientras sus tres hermanos
+	-- cargaban. Un coche feo se conduce; un coche invisible, no.
+	local function vestir(): BasePart
+		local def = MeshCatalog.COCHE
+		local ok, malla = pcall(function()
+			return game:GetService("AssetService"):CreateMeshPartAsync(def.mesh)
+		end)
+		if ok and malla then
+			malla.Name = "Carroceria"
+			malla.Size = def.tamano
+			malla.TextureID = def.textura
+			-- LA BASE DE LA CARROCERÍA AL SUELO, que es donde acaban sus ruedas
+			-- pintadas: el generador las dibuja tocando el fondo de su caja. Así las de
+			-- física --que sí giran-- caen justo encima de las suyas y las tapan.
+			malla.CFrame = base * CFrame.new(0, -ALTO_CHASIS / 2 - 0.2 - RADIO_RUEDA + def.tamano.Y / 2, 0)
+			malla.Parent = coche
+			return malla
+		end
+		return pieza(
+			"Cabina",
+			Vector3.new(ANCHO - 0.8, 2.2, LARGO * 0.42),
+			base * CFrame.new(0, ALTO_CHASIS / 2 + 1.1, 0.6),
+			Color3.fromRGB(150, 52, 44),
+			coche
+		)
+	end
+
+	local techo = vestir()
 	techo.CanCollide = false
-	-- Casi sin peso: lo que va arriba es lo que vuelca.
 	techo.CustomPhysicalProperties = PhysicalProperties.new(0.05, 0.3, 0.5, 1, 1)
 	local soldadura = Instance.new("WeldConstraint")
 	soldadura.Part0 = chasis
@@ -234,7 +284,11 @@ function CochePrueba.plantar(padre: Instance): Model?
 	local asiento = Instance.new("VehicleSeat")
 	asiento.Name = "Asiento"
 	asiento.Size = Vector3.new(2.4, 0.4, 2.4)
-	asiento.CFrame = base * CFrame.new(0, ALTO_CHASIS / 2 + 0.2, 1.2)
+	-- A LA ALTURA DE LA CABINA, no pegado al chasis. Con la carroceria puesta el
+	-- asiento quedaba a la altura de los bajos, o sea el jugador conduciendo desde
+	-- debajo del motor -- que ademas era la otra mitad de por que habia que saltar para
+	-- entrar.
+	asiento.CFrame = base * CFrame.new(0, ALTO_CHASIS / 2 + 1.2, 1.2)
 	asiento.Color = Color3.fromRGB(40, 40, 46)
 	-- El `VehicleSeat` de Roblox trae su propio control de dirección para partes
 	-- soldadas, y aquí estorbaría: la dirección la llevan las manguetas. Lo que se le
@@ -247,6 +301,70 @@ function CochePrueba.plantar(padre: Instance): Model?
 	soldarAsiento.Part0 = chasis
 	soldarAsiento.Part1 = asiento
 	soldarAsiento.Parent = chasis
+
+	-- SE ENTRA PULSANDO, NO SALTANDO. *"Hay que saltar para meterse dentro en vez de
+	-- subirse"* (JJ, 22/08), y tenia razon: un `VehicleSeat` de Roblox se ocupa
+	-- TOCANDOLO con el personaje, asi que con el asiento hundido entre el chasis y el
+	-- techo la unica forma de rozarlo era caerle encima. Eso no es un detalle de
+	-- acabado -- es la primera cosa que hace el jugador con el coche, y si esa sale
+	-- torpe ya no importa como conduzca.
+	--
+	-- `ProximityPrompt` es la misma pieza con la que se entrega, se compra y se saca
+	-- del garaje: sale sola al acercarse, es tecla en el ordenador y boton en el movil,
+	-- y nadie tiene que aprender nada nuevo.
+	--
+	-- EN INGLES Y FIJO, y esto no se me olvida: lo que el SERVIDOR planta en el mundo
+	-- lo ven todos los jugadores a la vez, asi que no se puede traducir por persona.
+	-- Se deja en ingles en la instancia y lo traduce el motor al dibujarlo, que es la
+	-- excepcion que documenta `Strings.luau`.
+	local subir = Instance.new("ProximityPrompt")
+	subir.Name = "PromptConducir"
+	subir.ActionText = "Drive"
+	subir.ObjectText = "Car"
+	-- Desde la acera de al lado. La puerta de un coche esta en su costado, y pedir
+	-- que te pegues al asiento seria repetir el problema por otro camino.
+	subir.MaxActivationDistance = 12
+	subir.HoldDuration = 0
+	subir.RequiresLineOfSight = false -- el propio techo del coche lo apagaria
+	subir.Parent = asiento
+
+	subir.Triggered:Connect(function(jugador: Player)
+		local pj = jugador.Character
+		local humanoid = pj and pj:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			asiento:Sit(humanoid)
+		end
+	end)
+
+	-- Y ESTANDO DENTRO NO SE OFRECE ENTRAR. Un aviso que sigue diciendo "Drive"
+	-- mientras conduces es ruido, y ademas taparia el parabrisas.
+	asiento:GetPropertyChangedSignal("Occupant"):Connect(function()
+		subir.Enabled = asiento.Occupant == nil
+	end)
+
+	-- EL MOTOR SE OYE. *"Me falta audio para cuando vas en coche"* (JJ, 22/08).
+	--
+	-- REUTILIZA EL SAMPLE QUE YA HAY (`Config.SONIDO_MOTOR`, el mismo de la moto y el
+	-- patinete) A OTRO TONO. Es la regla que ya sigue el resto del juego y que aqui
+	-- vale doble: lo que distingue un coche de una moto es sobre todo lo GRAVE que
+	-- suena, asi que 0,62 contra el 1,1 de la moto son dos vehiculos distintos sin
+	-- descargar nada nuevo ni pasar otra moderacion.
+	--
+	-- EN EL CHASIS, o sea ESPACIAL: se oye venir el coche por la calle de al lado. En
+	-- un juego de robar eso no es adorno, es informacion -- exactamente el mismo
+	-- motivo por el que el ruido de los vehiculos vive en el servidor y no en quien lo
+	-- conduce.
+	local ruido = Instance.new("Sound")
+	ruido.Name = "RuidoMotor"
+	ruido.SoundId = Config.SONIDO_MOTOR
+	ruido.Looped = true
+	ruido.Volume = 0
+	ruido.PlaybackSpeed = TONO_RALENTI
+	-- Mas lejos que los demas (90) porque es mas grande y mas ruidoso, pero sin pasarse:
+	-- con 200 studs, diez coches en la ciudad serian diez motores sonando siempre.
+	ruido.RollOffMaxDistance = 140
+	ruido.RollOffMode = Enum.RollOffMode.InverseTapered
+	ruido.Parent = chasis
 
 	local motores: { HingeConstraint } = {}
 	local ejesDireccion: { Attachment } = {}
@@ -268,6 +386,29 @@ function CochePrueba.plantar(padre: Instance): Model?
 		while coche.Parent ~= nil do
 			local gas = asiento.Throttle
 			local volante = asiento.Steer
+
+			-- EL MOTOR, CON LA VELOCIDAD DE VERDAD Y NO CON LA PEDIDA. Es lo que separa
+			-- un ruido de fondo de una respuesta: cuesta arriba el gas esta a tope y el
+			-- coche no tira, y el motor tiene que decir eso. `AssemblyLinearVelocity` es
+			-- lo que se esta moviendo el ensamblaje entero, medido por la fisica.
+			--
+			-- Y CALLA CON EL COCHE VACIO. Un coche aparcado sonando a ralenti en mitad de
+			-- la calle es de las cosas que se notan sin saber por que -- y aqui se notaria
+			-- el doble, porque lo primero que ve el jugador al salir de casa es este coche
+			-- parado.
+			if asiento.Occupant == nil then
+				if ruido.IsPlaying then
+					ruido:Stop()
+				end
+			else
+				if not ruido.IsPlaying then
+					ruido:Play()
+				end
+				local real = chasis.AssemblyLinearVelocity.Magnitude
+				local prop = math.clamp(real / VELOCIDAD, 0, 1)
+				ruido.PlaybackSpeed = TONO_RALENTI + (TONO_PUNTA - TONO_RALENTI) * prop
+				ruido.Volume = VOLUMEN_RALENTI + (VOLUMEN_PUNTA - VOLUMEN_RALENTI) * prop
+			end
 			for _, m in motores do
 				-- La velocidad angular sale de la lineal: una rueda de radio R que gira
 				-- a W rad/s avanza W*R studs/s. Sin esta cuenta el número no significa

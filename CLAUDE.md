@@ -55,28 +55,29 @@ Se leen en este orden, cada uno responde a una pregunta:
 |---|---|---|
 | **Modelos 3D** (objetos, vehículos, decorado) | **Cube 3D de Studio** (`generate_mesh` vía MCP) | Devuelve MeshParts ya usables y texturizados, y pasa la moderación de Roblox automáticamente. Probado: un baúl con correas y herrajes en ~1 min con 3.000 triángulos. **Ojo al requisito de publicación, abajo** |
 
-**⚠️ Los meshes NO se ven hasta publicar el place.** Con `game.PlaceId == 0` (place sin
-publicar), `AssetService:CreateMeshPartAsync` falla con *"Failed to load mesh asset"* para
-**cualquier** id — los generados con Cube 3D y también los públicos de la biblioteca de
-Roblox. Los recién generados sólo se ven en la misma sesión de Studio en la que se crearon;
-al reabrir, desaparecen. Es la misma trampa que el DataStore.
+**✅ EL PLACE YA ESTÁ PUBLICADO (22/08), y con eso caen tres trampas de golpe.**
+`placeId 91033529404976`, `gameId 10732113535`. Comprobado ese día pidiendo tres mallas
+del catálogo desde `Edit`: las tres cargan (`MESH OK` para furgoneta, almacén y taller).
+Antes de eso, con `game.PlaceId == 0`, `AssetService:CreateMeshPartAsync` fallaba con
+*"Failed to load mesh asset"* para **cualquier** id — los de Cube 3D y los públicos de la
+biblioteca por igual—, los recién generados sólo se veían en la sesión de Studio que los
+creó, y el avatar R15 (que son ~15 `MeshPart`) dejaba al jugador **invisible**: existía,
+andaba y colisionaba, pero no tenía con qué dibujarse.
 
-Consecuencia práctica: **todo lo que dependa de un mesh necesita un respaldo construido con
-`Part`**, y el juego tiene que quedar reconocible sin ellos. El decorado de `contrabando`
-lo hace: intenta un mesh, y si falla monta el edificio con piezas.
+Lo que esto ABRE: se puede vestir el juego con modelos 3D de verdad. El primero es la
+carrocería del coche (`MeshCatalog.COCHE`).
 
-**Y el AVATAR también es un mesh.** Un personaje R15 moderno son ~15 `MeshPart` que Roblox
-baja de `assetdelivery.roblox.com`. Sin publicar, el jugador aparece **invisible**: existe,
-anda y colisiona, pero no tiene con qué dibujarse. El síntoma es desconcertante —
-`WorldToViewportPoint` lo sitúa en el centro de la pantalla, `Transparency` es 0 en todas
-sus partes y no hay nada por delante— y sólo se cierra el diagnóstico poniendo una marca de
-color en su posición exacta: la marca se ve, el personaje no. La salida es el rig **R6**
-(hecho de `Part`), vía `Players:CreateHumanoidModelFromDescription(desc, R6)`. Ver
-`games/contrabando/src/server/Avatar.luau`.
+**Lo que NO cambia: el respaldo de `Part` se queda.** No es paranoia — un id del catálogo
+ya se subió mal una vez y devolvía *"Failed to load mesh asset"* mientras sus tres hermanos
+cargaban. Que las mallas puedan cargar no garantiza que una concreta cargue, así que todo
+lo que dependa de un mesh sigue intentándolo y cayendo a piezas si falla. Un coche feo se
+conduce; un coche invisible, no.
 
-**Para ver la experiencia real hay que publicar el place** (puede ser en privado): es lo
-único que activa meshes, avatar y DataStore a la vez. Publicar crea contenido en la cuenta
-del usuario, así que **lo hace él**, no nosotros: *File → Publish to Roblox As…*
+**Pendiente de comprobar**: si el rig **R6** de `src/server/Avatar.luau` sigue haciendo
+falta. Se puso porque sin publicar el R15 era invisible; esa causa ya no existe, pero
+volver a R15 es un cambio con riesgo propio (animaciones, alturas, la cámara) y no se
+toca sin medirlo.
+
 | **Materiales / texturas de superficie** | `generate_material` (MCP) | Genera MaterialVariant nativos |
 | **Modelos paramétricos ajustables** | `generate_procedural_model` (MCP) | Primitivas con atributos editables sin regenerar |
 | **Miniatura e icono del juego** | **MiniMax** (`image-01`) | Es 2D y es **marketing**: decide el CTR en el Discover, que es el cuello de botella real del proyecto. Estilo saturado y llamativo, no arte de portada |
@@ -597,6 +598,29 @@ Avisos verificados:
   la buscaba con `FindFirstChild("Red")`: al partirla en baldosas medía media red y daba
   rojo teniendo el mundo tapado. Mide la union de todas. Es la misma familia que *"una
   sonda que mide algo PARECIDO a lo que se construyo es peor que no tener sonda"*.
+
+- **Una pista de pruebas mal orientada mide una caída libre, y el número absurdo es la
+  única pista.** Medir el coche en la ciudad no medía el coche: a 58 studs/s se recorren
+  92 studs en tres segundos y aquí no hay rectas de 92, así que acabó subido a la losa del
+  Taller con las ruedas de delante a 6 studs del suelo -- inclinación 0,71, que parecía un
+  vuelco y era una rampa. La cura es una plancha en el aire, sin nada con que chocar; y
+  ahí se falló **dos veces más por lo mismo**: un `CFrame` sin rotar mira a **-Z**, y las
+  dos veces solté el coche apuntando al borde más cercano. Salieron "puntas" de 536 y 236
+  studs/s -- que son velocidades de caída-- y verticalidades de -1,00.
+  **Un número imposible en una medición no es un hallazgo: es la señal de que estás
+  midiendo otra cosa.** 536 studs/s en un coche cuyo tope pedido son 58 no se discute, se
+  descarta. Lo que lo cierra es afirmar la precondición dentro de la propia prueba: la
+  tercera versión comprueba que el coche está **apoyado y quieto** antes de acelerar
+  (`UpVector.Y > 0.95` y velocidad < 2) y que **sigue sobre la pista** al terminar cada
+  tramo. Con eso salió a la primera: punta 58,9, radio 39, verticalidad 1,00.
+
+- **Y el ancho del chasis decide el radio de giro, aunque no se vea.** Las ruedas del
+  coche van FUERA del chasis (se separaron para que no rozaran), así que el ancho del
+  chasis ES la vía. Estrecharlo de 6 a 5,2 para que la carrocería tapara las ruedas
+  --un cambio hecho por motivos puramente visuales-- bajó el radio de giro de **88 studs
+  a 39** sobre calles de 26. O sea que la decisión de "cómo se ve" resultó ser la
+  decisión de "si cabe en esta ciudad", y se descubrió por accidente al volver a medir.
+  Corolario: **al vestir algo que se mueve, se vuelve a medir cómo se mueve.**
 
 ## Trabajo en paralelo: quién es dueño de qué
 
