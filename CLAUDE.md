@@ -264,16 +264,21 @@ Avisos verificados:
   `Enabled` se cae sola de la pila-- y si esa se equivoca, lo peor que pasa es que una
   flecha vuelva a girar la camara.
 
-- **`user_keyboard_input` NO entrega teclas con Studio en segundo plano.** No da error
-  --contesta `Success`-- y simplemente no llega nada: medido el 22/08 con un espia de
-  `ContextActionService` a prioridad 9000 y un `UserInputService.InputBegan` crudo, los
-  dos vacios despues de mandar flechas y Enter. La primera lectura enganó ademas, porque
-  `GuiService.SelectedObject` SI habia cambiado -- lo habia movido mi propio `Pad.abrir`
-  desde el sandbox, no la tecla.
-  Consecuencia practica: **el control por teclado no se puede verificar desde aqui**. La
-  cura es la de siempre -- sacar lo que se puede probar a un modulo puro. La eleccion de
-  "a que boton lleva esta flecha" vive en `shared/Nav.luau` y la cubre la bateria; lo que
-  queda en `Pad` es enlazar teclas, y eso se ve jugando en un segundo.
+- **`user_keyboard_input` solo entrega teclas si la VENTANA de Studio tiene el foco del
+  sistema.** No da error --contesta `Success`-- y simplemente no llega nada cuando esta
+  detras: medido el 22/08 con un espia de `ContextActionService` a prioridad 9000 y un
+  `UserInputService.InputBegan` crudo, los dos vacios. Y luego, con el usuario delante de
+  la ventana, el MISMO espia recogio `Left Left Left Left Up Right M` -- las suyas y las
+  mias. En cuanto volvio a segundo plano, vacio otra vez.
+  Consecuencia practica, y es dura: **mientras se trabaja por MCP, el teclado no se puede
+  verificar** -- justo cuando estas midiendo, la ventana esta detras. Hay dos salidas y
+  las dos hay que usarlas: pedirle al usuario que deje la ventana delante un minuto (pero
+  si esta delante, lo prueba el en cinco segundos), y sobre todo **sacar lo que se puede
+  probar a un modulo puro**: la eleccion de "a que boton lleva esta flecha" vive en
+  `shared/Nav.luau` con catorce pruebas, y lo que queda en `Pad` es enlazar teclas.
+  OJO CON EL FALSO POSITIVO que dio esto: `GuiService.SelectedObject` habia cambiado
+  despues de mandar una tecla, y parecia que habia llegado. Lo habia movido mi propio
+  `Pad.abrir` desde el sandbox. Si la tecla no aparece en un espia crudo, no llego.
 
 - **`screen_capture` también se cuelga, pero sólo en Play.** En `Edit` responde; con una
   sesión de Play viva se queda colgado los 120 s y acaba en *Request timeout*. Así que
