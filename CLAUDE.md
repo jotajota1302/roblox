@@ -622,6 +622,36 @@ Avisos verificados:
   decisión de "si cabe en esta ciudad", y se descubrió por accidente al volver a medir.
   Corolario: **al vestir algo que se mueve, se vuelve a medir cómo se mueve.**
 
+- **Un ancho global deja de significar nada el día que hay dos anchos, y las sondas se
+  enteran las últimas.** La ciudad pasó a tener avenidas (50 studs) además de calles
+  (26) el 22/08. El plano se adaptó solo --el eje de cada calle NO se mueve, el ancho
+  de más se come manzana, así que ningún destino, ruta ni cruce cambió de sitio-- y lo
+  que se quedó atrás fueron las tres cosas que MIDEN: `scripts/banco/mundo.luau` y dos
+  sondas de `SelfCheck` seguían calculando la banda del carril con `Grid.ANCHO_CALLE`.
+  El fallo no da error: mide once studs a cada lado del eje donde el asfalto llega a
+  veinticinco, o sea que **cualquier cosa plantada en la mitad exterior de una avenida
+  pasaba sin que nadie dijera nada**. Es la tercera vez que se paga la misma familia
+  (`RASTRO_PASO`, la red de seguridad, esto), y ahora el ancho se pide siempre con
+  `Grid.anchoDeCalleX(i)` / `anchoDeCalleZ(j)`.
+
+- **`Position ± Size/2` miente en cuanto la pieza gira, y una casa gira sin avisar.**
+  Al ensanchar la calle 1, el desempate de `Grid.portalDeCruce` cambió de eje --antes
+  los dos valían 13 y ganaba Z siempre-- y la casa de entrega verde giró noventa
+  grados. Nada se movió mal: lo que se rompió fue la sonda, que describía cada pieza
+  con `Position ± Size/2`. `Size` es SIEMPRE local, así que sobre una pieza rotada esa
+  caja es otra caja. `SelfCheck` cantó *"no hay nada del juego plantado en el carril --
+  Vivienda_verdeDer (11 studs²)"* sobre una pared que no tocaba el asfalto; medida con
+  la huella de verdad --proyectando los tres semiejes sobre X y sobre Z-- el solape era
+  **cero**. Lo mismo, por el otro lado, que la trampa del `require` cacheado: el
+  síntoma es idéntico al de un fallo real y sólo se separa midiendo bien.
+  Corolario: **la primera pregunta ante un fallo nuevo tras tocar el mundo es si la
+  regla con la que se mide sigue siendo cierta.**
+
+- **Y una sonda puede dar rojo por lo único que está bien resuelto.** La misma pasada
+  cantó *"cruces sin asfalto: (1,1)"* -- que es el cruce donde ahora hay una ROTONDA.
+  El rayo se paraba en la isleta medio stud por encima de la calzada. Se mide a un lado,
+  en el anillo por el que se rueda, que es donde de verdad tiene que haber asfalto.
+
 ## Trabajo en paralelo: quién es dueño de qué
 
 **A veces hay más de una sesión trabajando en `contrabando/` a la vez.** El 17/08 hubo dos

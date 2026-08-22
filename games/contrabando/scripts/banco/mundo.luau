@@ -78,9 +78,17 @@ end
 print(string.format("TOTAL %d piezas en %.2f s", total, tardo))
 
 -- ── SONDA 1: nada del mapa invade el carril ─────────────────────────────────────
-local medio = Grid.ANCHO_CALLE / 2
--- La banda util de la calzada, sin contar el bordillo pintado.
-local BANDA = medio - 2
+-- CON EL ANCHO DE CADA CALLE, no con uno global. Hasta el 22/08 la banda salia de
+-- `Grid.ANCHO_CALLE` a secas, y el dia que aparecieron las avenidas eso dejo de ser
+-- "el carril": medía once studs a cada lado del eje donde el asfalto llega a
+-- veinticinco, asi que cualquier cosa plantada en la mitad exterior de una avenida
+-- pasaba sin que la sonda dijera nada. Es la trampa que este proyecto ya tiene
+-- documentada --una sonda que mide algo PARECIDO a lo que se construyo es peor que
+-- no tener sonda-- y reaparecio sola en cuanto el mundo cambio debajo.
+local function banda(ancho: number): number
+	-- La banda util de la calzada, sin contar el bordillo pintado.
+	return ancho / 2 - 2
+end
 local enCarril = {}
 for _, p in TODAS do
 	if p.ClassName ~= "Part" or p._muerta then
@@ -90,19 +98,33 @@ for _, p in TODAS do
 	if p.Size.Y < 1.2 then
 		continue
 	end
+	-- LA MEDIANA VA SOBRE EL CARRIL A PROPOSITO, que para eso es una mediana. Se
+	-- excluye POR NOMBRE y no por alta o baja: colaba por medir 0,95 de alto, o sea
+	-- por debajo del filtro de arriba -- y una excepcion que funciona por accidente
+	-- deja de funcionar en cuanto alguien sube la mediana un stud.
+	--
+	-- Y LA ROTONDA IGUAL: una isleta en mitad del cruce es lo que la hace rotonda.
+	-- Cuando se planto, esta sonda canto sus seis piezas -- que es la prueba de que
+	-- mide la avenida entera, porque con la banda vieja (once studs) no habria visto
+	-- ni el obelisco. El fallo se inyecto solo.
+	if string.sub(p.Name, 1, 7) == "Mediana" or string.sub(p.Name, 1, 7) == "Rotonda" then
+		continue
+	end
 	local x0, x1 = p.Position.X - p.Size.X / 2, p.Position.X + p.Size.X / 2
 	local z0, z1 = p.Position.Z - p.Size.Z / 2, p.Position.Z + p.Size.Z / 2
 	local dentro = false
 	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local eje = Grid.xDeCalle(i)
-		if x1 > eje - BANDA and x0 < eje + BANDA then
+		local b = banda(Grid.anchoDeCalleX(i))
+		if x1 > eje - b and x0 < eje + b then
 			dentro = true
 		end
 	end
 	local dentroZ = false
 	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		local eje = Grid.zDeCalle(j)
-		if z1 > eje - BANDA and z0 < eje + BANDA then
+		local b = banda(Grid.anchoDeCalleZ(j))
+		if z1 > eje - b and z0 < eje + b then
 			dentroZ = true
 		end
 	end

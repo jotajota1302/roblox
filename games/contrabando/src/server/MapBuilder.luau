@@ -338,13 +338,20 @@ local function plantarCalzada(padre: Instance)
 				z += PASO
 				continue
 			end
-			pieza(
+			-- ASFALTO DE VERDAD, no plastico gris. `pieza` pone `SmoothPlastic` por
+			-- defecto --que es lo correcto para lo que se pinta-- y una calle entera de
+			-- plastico liso es lo que hacia que la ciudad se leyera como una maqueta:
+			-- sin grano, el suelo no da ninguna sensacion de velocidad al pasar por
+			-- encima. Es el cambio mas barato que tiene este mapa: una linea, cero
+			-- geometria nueva.
+			local trozo = pieza(
 				string.format("Calzada_%d", indice),
 				Vector3.new(ancho, ALTO_CALLE, largoReal),
 				Vector3.new(x + ancho / 2, Y_CALZADA - ALTO_CALLE / 2, z + largoReal / 2),
 				COLOR_CALLE,
 				padre
 			)
+			trozo.Material = Enum.Material.Asphalt
 			z += PASO
 		end
 		x += PASO
@@ -368,7 +375,6 @@ end
 -- en ninguna calle de verdad y en pantalla se lee como suciedad, no como señal. Y de
 -- paso deja los cruces despejados, que es donde el jugador tiene que decidir.
 local function plantarMarcasViales(padre: Instance)
-	local medio = ANCHO_CALLE / 2
 	local xMin, xMax, zMin, zMax = Grid.limites()
 	-- Trazo y hueco de una discontinua normal. Con el trazo más corto que el hueco se
 	-- lee como "puedes cruzar", que es lo que toca en una ciudad.
@@ -379,6 +385,11 @@ local function plantarMarcasViales(padre: Instance)
 	local SUBE = 0.08
 	local ALTO = 0.12
 	local ANCHO_RAYA = 0.9
+	-- LA MEDIANA DE LA AVENIDA: seis studs de hormigón por el eje. Es lo que hace que
+	-- una avenida se LEA como avenida y no como una calle gorda -- separa los dos
+	-- sentidos, se ve desde lejos y le dice al que conduce que ahí no se cruza.
+	local ANCHO_MEDIANA = 6
+	local ALTO_MEDIANA = 0.55
 	local indice = 0
 
 	local function raya(tamano: Vector3, centro: Vector3)
@@ -395,11 +406,68 @@ local function plantarMarcasViales(padre: Instance)
 
 	local y = Y_CALZADA + SUBE + ALTO / 2
 
+	-- LA MEDIANA SÍ TIENE CUERPO, al revés que la pintura: es un obstáculo de verdad
+	-- y tiene que parar a un coche que intente cruzar de un sentido al otro. Sin eso
+	-- sería un dibujo en el suelo y la avenida volvería a ser una explanada.
+	--
+	-- Se hunde un poco en el asfalto para que sus caras no queden coplanares con la
+	-- calzada, que es el parpadeo que este mapa lleva pagando desde que existe.
+	local plantados = 0
+	local function mediana(tamano: Vector3, centro: Vector3)
+		indice += 1
+		local m = pieza(
+			string.format("Mediana_%d", indice),
+			tamano + Vector3.new(0, 0.4, 0),
+			centro + Vector3.new(0, -0.2, 0),
+			COLOR_ACERA,
+			padre
+		)
+		m.Material = Enum.Material.Concrete
+
+		-- Y ARBOLADO, uno de cada cuatro tramos. Sin él la mediana es una losa gris
+		-- sobre asfalto gris: a la altura de los ojos --que es desde donde se juega--
+		-- apenas se distingue de una raya pintada, y lo que tiene que hacer es
+		-- separar los dos sentidos DE UN VISTAZO. Un árbol tiene altura, y la altura
+		-- es lo único que se ve desde dentro de un coche.
+		--
+		-- Uno de cada cuatro y no en todos: en fila cerrada tapan la avenida entera y
+		-- se pierde justo lo que la hace útil, que es ver el obelisco desde el fondo.
+		plantados += 1
+		if plantados % 4 ~= 0 then
+			return
+		end
+		local base = centro.Y + tamano.Y / 2
+		local tronco = adorno(
+			pieza(
+				string.format("MedianaTronco_%d", indice),
+				Vector3.new(1.1, 5, 1.1),
+				Vector3.new(centro.X, base + 2.5, centro.Z),
+				Color3.fromRGB(96, 74, 56),
+				padre
+			)
+		)
+		tronco.Material = Enum.Material.Wood
+		local copa = adorno(
+			pieza(
+				string.format("MedianaCopa_%d", indice),
+				Vector3.new(5.4, 4.6, 5.4),
+				Vector3.new(centro.X, base + 7, centro.Z),
+				Color3.fromRGB(74, 104, 66),
+				padre
+			)
+		)
+		copa.Shape = Enum.PartType.Ball
+		copa.Material = Enum.Material.Grass
+	end
+
 	-- ¿Cae este punto dentro de un cruce? Se pregunta por el eje contrario: para una
-	-- calle vertical, si su Z está dentro del ancho de alguna calle horizontal.
+	-- calle vertical, si su Z está dentro del ancho de alguna calle horizontal. CON EL
+	-- ANCHO DE ESA CALLE, que desde que hay avenidas ya no es siempre el mismo -- con
+	-- el ancho global, el eje discontinuo de una calle normal se seguía pintando doce
+	-- studs por dentro del asfalto de la avenida perpendicular.
 	local function enCruceZ(z: number): boolean
 		for j = Grid.FILA_MIN, Grid.FILA_MAX do
-			if math.abs(z - Grid.zDeCalle(j)) < medio + 2 then
+			if math.abs(z - Grid.zDeCalle(j)) < Grid.anchoDeCalleZ(j) / 2 + 2 then
 				return true
 			end
 		end
@@ -407,23 +475,61 @@ local function plantarMarcasViales(padre: Instance)
 	end
 	local function enCruceX(x: number): boolean
 		for i = Grid.COL_MIN, Grid.COL_MAX do
-			if math.abs(x - Grid.xDeCalle(i)) < medio + 2 then
+			if math.abs(x - Grid.xDeCalle(i)) < Grid.anchoDeCalleX(i) / 2 + 2 then
 				return true
 			end
 		end
 		return false
 	end
 
+	-- El cruce de las avenidas se salta entero: ahí va la rotonda, y pintarle rayas
+	-- por debajo se vería a través de ella.
+	local rotonda = Grid.cruceDeAvenidas()
+	local LIBRE = Grid.ANCHO_AVENIDA
+	local function lejosDeLaRotonda(px: number, pz: number): boolean
+		return math.abs(px - rotonda.X) > LIBRE or math.abs(pz - rotonda.Z) > LIBRE
+	end
+
 	-- CALLES VERTICALES (corren en Z)
 	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local x = Grid.xDeCalle(i)
+		local medio = Grid.anchoDeCalleX(i) / 2
+		local esAvenida = Grid.esAvenidaX(i)
+
+		-- El eje: discontinua en una calle normal, mediana de obra en una avenida.
 		local z = zMin
 		while z < zMax do
-			if not enCruceZ(z + TRAZO / 2) then
-				raya(Vector3.new(ANCHO_RAYA, ALTO, TRAZO), Vector3.new(x, y, z + TRAZO / 2))
+			local centro = z + TRAZO / 2
+			if not enCruceZ(centro) and lejosDeLaRotonda(x, centro) then
+				if esAvenida then
+					mediana(
+						Vector3.new(ANCHO_MEDIANA, ALTO_MEDIANA, TRAZO + HUECO),
+						Vector3.new(x, Y_CALZADA + ALTO_MEDIANA / 2, centro + (HUECO - TRAZO) / 2)
+					)
+				else
+					raya(Vector3.new(ANCHO_RAYA, ALTO, TRAZO), Vector3.new(x, y, centro))
+				end
 			end
 			z += TRAZO + HUECO
 		end
+
+		-- LOS CARRILES DE LA AVENIDA. Con 22 studs por sentido hay sitio para dos
+		-- carriles, y sin la raya que los separa la avenida se lee como un descampado
+		-- asfaltado. En una calle normal no van: 26 studs son un carril por sentido.
+		if esAvenida then
+			for _, lado in { -1, 1 } do
+				local cx = x + lado * (medio + ANCHO_MEDIANA / 2) / 2
+				local zz = zMin
+				while zz < zMax do
+					local centro = zz + TRAZO / 2
+					if not enCruceZ(centro) and lejosDeLaRotonda(x, centro) then
+						raya(Vector3.new(ANCHO_RAYA, ALTO, TRAZO), Vector3.new(cx, y, centro))
+					end
+					zz += TRAZO + HUECO
+				end
+			end
+		end
+
 		-- Y los dos bordes: las lineas que dicen donde acaba el asfalto.
 		--
 		-- POR TRAMOS ENTRE CRUCES, no de una pieza. De una pieza cruzaban por encima
@@ -436,11 +542,12 @@ local function plantarMarcasViales(padre: Instance)
 			local desde = zMin
 			for j = Grid.FILA_MIN, Grid.FILA_MAX do
 				local corte = Grid.zDeCalle(j)
-				local hasta = corte - medio
+				local suMedio = Grid.anchoDeCalleZ(j) / 2
+				local hasta = corte - suMedio
 				if hasta - desde > 1 then
 					raya(Vector3.new(ANCHO_RAYA, ALTO, hasta - desde), Vector3.new(bx, y, (desde + hasta) / 2))
 				end
-				desde = corte + medio
+				desde = corte + suMedio
 			end
 			if zMax - desde > 1 then
 				raya(Vector3.new(ANCHO_RAYA, ALTO, zMax - desde), Vector3.new(bx, y, (desde + zMax) / 2))
@@ -451,28 +558,154 @@ local function plantarMarcasViales(padre: Instance)
 	-- CALLES HORIZONTALES (corren en X)
 	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		local z = Grid.zDeCalle(j)
+		local medio = Grid.anchoDeCalleZ(j) / 2
+		local esAvenida = Grid.esAvenidaZ(j)
+
 		local x = xMin
 		while x < xMax do
-			if not enCruceX(x + TRAZO / 2) then
-				raya(Vector3.new(TRAZO, ALTO, ANCHO_RAYA), Vector3.new(x + TRAZO / 2, y, z))
+			local centro = x + TRAZO / 2
+			if not enCruceX(centro) and lejosDeLaRotonda(centro, z) then
+				if esAvenida then
+					mediana(
+						Vector3.new(TRAZO + HUECO, ALTO_MEDIANA, ANCHO_MEDIANA),
+						Vector3.new(centro + (HUECO - TRAZO) / 2, Y_CALZADA + ALTO_MEDIANA / 2, z)
+					)
+				else
+					raya(Vector3.new(TRAZO, ALTO, ANCHO_RAYA), Vector3.new(centro, y, z))
+				end
 			end
 			x += TRAZO + HUECO
 		end
+
+		if esAvenida then
+			for _, lado in { -1, 1 } do
+				local cz = z + lado * (medio + ANCHO_MEDIANA / 2) / 2
+				local xx = xMin
+				while xx < xMax do
+					local centro = xx + TRAZO / 2
+					if not enCruceX(centro) and lejosDeLaRotonda(centro, z) then
+						raya(Vector3.new(TRAZO, ALTO, ANCHO_RAYA), Vector3.new(centro, y, cz))
+					end
+					xx += TRAZO + HUECO
+				end
+			end
+		end
+
 		for _, lado in { -1, 1 } do
 			local bz = z + lado * (medio - 1.6)
 			local desde = xMin
 			for i = Grid.COL_MIN, Grid.COL_MAX do
 				local corte = Grid.xDeCalle(i)
-				local hasta = corte - medio
+				local suMedio = Grid.anchoDeCalleX(i) / 2
+				local hasta = corte - suMedio
 				if hasta - desde > 1 then
 					raya(Vector3.new(hasta - desde, ALTO, ANCHO_RAYA), Vector3.new((desde + hasta) / 2, y, bz))
 				end
-				desde = corte + medio
+				desde = corte + suMedio
 			end
 			if xMax - desde > 1 then
 				raya(Vector3.new(xMax - desde, ALTO, ANCHO_RAYA), Vector3.new((desde + xMax) / 2, y, bz))
 			end
 		end
+	end
+end
+
+-- LA ROTONDA, donde se cruzan las dos avenidas.
+--
+-- POR QUE UNA ROTONDA Y NO OTRO CRUCE. Dos motivos, y el segundo pesa mas que el
+-- primero:
+--
+--   · CONDUCIENDO, es la unica curva del mapa que no obliga a parar. Un cruce en
+--     angulo recto con un coche que gira con radio 39 se toma frenando del todo; una
+--     rotonda se toma rodando. Es lo que convierte "ir en coche" en algo distinto de
+--     "andar mas rapido".
+--   · ORIENTANDOSE, es un SITIO. La queja que hundio el mapa anterior fue *"no sabia
+--     hacia donde tirar"* y *"el sitio es feo y confuso"*, y de una retícula no te
+--     acuerdas porque todas las esquinas son la misma esquina. De una rotonda con un
+--     obelisco en medio, si -- se ve desde las dos avenidas enteras y sirve para
+--     decir donde estas sin mirar el mapa.
+--
+-- LAS MEDIDAS SALEN DE LO QUE HAY, no de lo que quedaria bonito: la manzana empieza a
+-- 25 studs del eje, asi que la rotonda no puede pasar de ahi sin comerse un edificio.
+-- Con isleta de radio 9 quedan 16 studs de anillo, y el coche mide 7,6 de ancho:
+-- entra con margen a un lado y a otro.
+local function plantarRotonda(padre: Instance, mobiliario: Instance)
+	local centro = Grid.cruceDeAvenidas()
+	local RADIO_ISLETA = 9
+	local ALTO_ISLETA = 0.6
+
+	-- LA ISLETA, un cilindro. Se hunde en el asfalto para que su cara de abajo no
+	-- quede coplanar con la calzada, que es el parpadeo de siempre; y COLISIONA, que
+	-- es lo que la hace una rotonda y no un dibujo -- si se pudiera atravesar, el
+	-- coche seguiria recto y esto no serviria para nada.
+	local isleta = pieza(
+		"RotondaIsleta",
+		Vector3.new(ALTO_ISLETA + 0.5, RADIO_ISLETA * 2, RADIO_ISLETA * 2),
+		Vector3.new(centro.X, Y_CALZADA + ALTO_ISLETA / 2 - 0.25, centro.Z),
+		COLOR_ACERA,
+		padre
+	)
+	-- Un cilindro de Roblox tiene su eje en la X LOCAL, asi que para dejarlo tumbado
+	-- --como una moneda sobre la mesa-- hay que girarlo 90 grados en Z. Es la misma
+	-- trampa que costo media tarde con las ruedas del coche, sólo que aqui el giro SI
+	-- hace falta: alli el eje ya apuntaba bien y girarlo lo tumbaba.
+	isleta.Shape = Enum.PartType.Cylinder
+	isleta.CFrame = CFrame.new(isleta.Position) * CFrame.Angles(0, 0, math.rad(90))
+	isleta.Material = Enum.Material.Concrete
+
+	-- El cesped de dentro, un poco mas alto para que se lea el bordillo.
+	local verde = adorno(
+		pieza(
+			"RotondaVerde",
+			Vector3.new(0.5, (RADIO_ISLETA - 1.2) * 2, (RADIO_ISLETA - 1.2) * 2),
+			Vector3.new(centro.X, Y_CALZADA + ALTO_ISLETA + 0.1, centro.Z),
+			Color3.fromRGB(92, 116, 78),
+			mobiliario
+		)
+	)
+	verde.Shape = Enum.PartType.Cylinder
+	verde.CFrame = CFrame.new(verde.Position) * CFrame.Angles(0, 0, math.rad(90))
+	verde.Material = Enum.Material.Grass
+
+	-- EL OBELISCO. Lo que se ve desde lejos, que es el 90 % de para lo que sirve esto.
+	-- Alto y estrecho a proposito: tiene que asomar por encima de los edificios bajos
+	-- de alrededor sin tapar la calle, y estrechandose hacia arriba se lee como un
+	-- monumento y no como una farola gorda.
+	local ALTO_HITO = 26
+	local tramos = 4
+	for k = 0, tramos - 1 do
+		local ancho = 5.2 - k * 1.1
+		local alto = ALTO_HITO / tramos
+		local pilar = pieza(
+			string.format("RotondaHito_%d", k),
+			Vector3.new(ancho, alto, ancho),
+			Vector3.new(centro.X, Y_CALZADA + ALTO_ISLETA + alto / 2 + k * alto, centro.Z),
+			if k == tramos - 1 then Color3.fromRGB(196, 158, 88) else COLOR_ACERA,
+			padre
+		)
+		pilar.Material = if k == tramos - 1 then Enum.Material.Metal else Enum.Material.Concrete
+	end
+
+	-- EL ANILLO PINTADO, que es lo que dice por donde se rodea. Doce tramos rectos
+	-- aproximando la circunferencia: un circulo de verdad necesitaria una malla, y
+	-- doce lados ya no se distinguen de uno desde la altura de los ojos.
+	local RADIO_LINEA = RADIO_ISLETA + 2.5
+	local LADOS = 12
+	local lado = 2 * RADIO_LINEA * math.tan(math.pi / LADOS)
+	for k = 0, LADOS - 1 do
+		local a = (k / LADOS) * math.pi * 2
+		local m = pieza(
+			string.format("RotondaLinea_%d", k),
+			Vector3.new(0.9, 0.12, lado + 0.4),
+			Vector3.new(centro.X + math.cos(a) * RADIO_LINEA, Y_CALZADA + 0.14, centro.Z + math.sin(a) * RADIO_LINEA),
+			COLOR_LINEA,
+			padre
+		)
+		m.CFrame = CFrame.new(m.Position) * CFrame.Angles(0, -a, 0)
+		m.CanCollide = false
+		m.CanQuery = false
+		m.CanTouch = false
+		m.CastShadow = false
 	end
 end
 
@@ -490,13 +723,17 @@ end
 local function plantarLosaManzana(col: number, fila: number, padre: Instance, pintura: Instance)
 	local x0, x1, z0, z1 = Grid.manzana(col, fila)
 	local alto = ACERA_ALTURA + 0.3
-	pieza(
+	local losa = pieza(
 		string.format("Manzana_%d_%d", col, fila),
 		Vector3.new(x1 - x0, alto, z1 - z0),
 		Vector3.new((x0 + x1) / 2, Y_CALZADA + ACERA_ALTURA - alto / 2, (z0 + z1) / 2),
 		COLOR_ACERA,
 		padre
 	)
+	-- HORMIGON. Junto con el asfalto de la calzada es lo que separa acera de calle
+	-- para el ojo: el color ya lo hacia a medias --0,2 studs de canto no se ven desde
+	-- la camara-- y el cambio de grano lo remata sin tocar ni un stud de geometria.
+	losa.Material = Enum.Material.Concrete
 
 	-- EL BORDILLO, y es pintura, no un escalón.
 	--
@@ -1823,6 +2060,12 @@ function MapBuilder.buildCiudad(padre: Instance): Model
 	-- rayas que caen bajo una manzana quedan enterradas y no se ven, que es
 	-- exactamente lo que tiene que pasar.
 	plantarMarcasViales(carpetaPintura)
+
+	-- 2c. Y la rotonda donde se cruzan las avenidas. Va aqui --con la pintura ya
+	-- puesta y antes de las manzanas-- porque su anillo se dibuja ENCIMA del asfalto y
+	-- las marcas de las avenidas se apartan de ella: si se plantara despues, las rayas
+	-- de la calzada se verian por debajo del cesped.
+	plantarRotonda(carpetaPintura, carpetaMobiliario)
 
 	-- 3. Para cada zona, plantar sus manzanas con sus edificios
 	local edificiosGenerados: { Part } = {}

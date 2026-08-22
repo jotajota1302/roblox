@@ -100,15 +100,25 @@ return function(kit)
 	kit.truthy("un cruce esta en calzada", Grid.enCalle(Grid.xDeCalle(1), Grid.zDeCalle(2)))
 	local centro = Grid.centroManzana(1, 2)
 	kit.falsy("el centro de una manzana no lo esta", Grid.enCalle(centro.X, centro.Z))
-	kit.eq("y ese centro es el que dice el plano", centro, Vector3.new(-547, Grid.Y, 681))
+	-- El centro se corre 6 studs al este porque la manzana (1,2) da a la avenida por
+	-- su lado oeste: la calle 1 se ensancho de 26 a 50 y la manzana perdio 12 por ahi.
+	kit.eq("y ese centro es el que dice el plano", centro, Vector3.new(-541, Grid.Y, 681))
 
-	-- Cada manzana mide lo que dice medir. Si esto falla, las calles se solapan con
-	-- los edificios y el pathfinding empieza a dar rodeos que nadie entiende.
+	-- CADA MANZANA MIDE LO NOMINAL MENOS LO QUE LE COMAN SUS AVENIDAS, y esta es la
+	-- regla de verdad desde que hay dos anchos de calle. Antes se comprobaba contra
+	-- `LADO_MANZANA` a secas, lo cual era la misma regla escrita para un mapa en el
+	-- que todas las calles median igual.
+	--
+	-- Se deriva de `anchoDeCalleX/Z` en vez de escribir 108 y 96 a mano: asi la
+	-- prueba sigue siendo cierta el dia que se mueva una avenida o cambie su ancho,
+	-- que es lo unico que distingue una prueba de una foto del estado actual.
 	for col = Grid.COL_MIN, Grid.COL_MAX - 1 do
 		for fila = Grid.FILA_MIN, Grid.FILA_MAX - 1 do
 			local x0, x1, z0, z1 = Grid.manzana(col, fila)
-			kit.eq(string.format("ancho de la manzana %d,%d", col, fila), x1 - x0, Grid.LADO_MANZANA)
-			kit.eq(string.format("largo de la manzana %d,%d", col, fila), z1 - z0, Grid.LADO_MANZANA)
+			local comeX = (Grid.anchoDeCalleX(col) + Grid.anchoDeCalleX(col + 1)) / 2 - Grid.ANCHO_CALLE
+			local comeZ = (Grid.anchoDeCalleZ(fila) + Grid.anchoDeCalleZ(fila + 1)) / 2 - Grid.ANCHO_CALLE
+			kit.eq(string.format("ancho de la manzana %d,%d", col, fila), x1 - x0, Grid.LADO_MANZANA - comeX)
+			kit.eq(string.format("largo de la manzana %d,%d", col, fila), z1 - z0, Grid.LADO_MANZANA - comeZ)
 		end
 	end
 
@@ -221,4 +231,56 @@ return function(kit)
 	local sitioC, _ = Grid.aceraDe(centro)
 	kit.falsy("la acera del centro de una manzana tampoco cae en calzada", Grid.enCalle(sitioC.X, sitioC.Z))
 	kit.near("y conserva la altura que se le pasa", sitioC.Y, centro.Y)
+
+	-- ── LAS AVENIDAS ──────────────────────────────────────────────────────────
+	--
+	-- LO QUE MAS IMPORTA DE TODO ESTO: que ensanchar una calle NO haya movido nada.
+	-- Es la promesa entera del diseno --por eso el ancho de mas se come manzana en
+	-- vez de correr el eje-- y es tambien la trampa que ya se pago una vez, cuando
+	-- ampliar la reticula por el lado equivocado habria movido los tres destinos y la
+	-- salida de casa sin dar un solo error.
+	kit.eq("la calle de casa sigue en su X de siempre", Grid.xDeCalle(1), -620)
+	kit.eq("y la calle norte, la de la boca del recinto, tambien", Grid.cruce(1, 3), Vector3.new(-620, Grid.Y, 754))
+	kit.eq("el paso entre ejes no lo toca una avenida", Grid.PASO, Grid.LADO_MANZANA + Grid.ANCHO_CALLE)
+
+	kit.truthy("una avenida es mas ancha que una calle", Grid.ANCHO_AVENIDA > Grid.ANCHO_CALLE)
+	kit.truthy("la calle 1 es avenida", Grid.esAvenidaX(1))
+	kit.falsy("la 0 no", Grid.esAvenidaX(0))
+	kit.eq("y su ancho lo dice", Grid.anchoDeCalleX(1), Grid.ANCHO_AVENIDA)
+	kit.eq("el de una normal tambien", Grid.anchoDeCalleX(0), Grid.ANCHO_CALLE)
+	kit.eq("la rotonda va donde se cruzan las dos", Grid.cruceDeAvenidas(), Grid.cruce(1, 1))
+
+	-- El ancho de mas es asfalto de verdad: un punto que en una calle normal estaria
+	-- sobre la acera, en la avenida esta en calzada.
+	local aLado = Grid.ANCHO_CALLE / 2 + 4
+	kit.truthy("a 17 del eje de la avenida todavia se pisa asfalto", Grid.enCalle(Grid.xDeCalle(1) + aLado, 500))
+	kit.falsy("y a esa misma distancia de una calle normal, no", Grid.enCalle(Grid.xDeCalle(0) + aLado, 500))
+
+	-- NINGUNA MANZANA SE QUEDA SIN SITIO. Es el limite de cuanto se puede ensanchar:
+	-- una manzana con avenida en sus cuatro lados perderia 48 studs, y ahi ya no cabe
+	-- lo que se planta dentro. Se comprueba contra la mas pequena que exista, que es
+	-- la unica forma de que este numero siga significando algo si manana hay tres
+	-- avenidas.
+	local MINIMO_UTIL = 90
+	for col = Grid.COL_MIN, Grid.COL_MAX - 1 do
+		for fila = Grid.FILA_MIN, Grid.FILA_MAX - 1 do
+			local ancho, largo = Grid.tamanoManzana(col, fila)
+			kit.truthy(
+				string.format("la manzana %d,%d conserva sitio utilizable (%dx%d)", col, fila, ancho, largo),
+				ancho >= MINIMO_UTIL and largo >= MINIMO_UTIL
+			)
+		end
+	end
+
+	-- Y LA ACERA DE LA AVENIDA ESTA FUERA DE SU ASFALTO, que es donde `aceraDe` se
+	-- habria equivocado callando: con el ancho global el poste caia doce studs dentro
+	-- de la calzada -- plantado, sin error, y en medio del carril.
+	for _, j in { Grid.FILA_MIN, 0, 1, 2 } do
+		local sobreLaAvenida = Vector3.new(Grid.xDeCalle(1) + 6, Grid.Y, Grid.zDeCalle(j) + 40)
+		local acera = Grid.aceraDe(sobreLaAvenida)
+		kit.falsy(
+			string.format("la acera junto a la avenida (fila %d) no cae en su calzada", j),
+			Grid.enCalle(acera.X, acera.Z)
+		)
+	end
 end

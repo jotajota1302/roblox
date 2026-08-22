@@ -49,6 +49,83 @@ Grid.LADO_MANZANA = 120
 Grid.ANCHO_CALLE = 26
 Grid.PASO = Grid.LADO_MANZANA + Grid.ANCHO_CALLE
 
+-- LAS AVENIDAS: dos calles que miden el doble, y no es adorno.
+--
+-- POR QUE. *"Si vamos a poner coches necesitariamos que la ciudad tuviera otra
+-- distribucion o carreteras mas complejas que cuadriculas"* (JJ, 22/08). El
+-- diagnostico es exacto y el numero lo respalda: el coche gira con un radio de 39
+-- studs y todas las calles miden 26, asi que conducir aqui es acelerar cien studs,
+-- frenar del todo, girar noventa grados y repetir. Una retícula donde todas las
+-- calles son iguales no da NINGUNA decision de ruta -- daba igual por donde fueras.
+--
+-- Y LA JERARQUIA VIARIA ES, ADEMAS, EL JUEGO. Una avenida es rapida y esta a la
+-- vista; una calle estrecha es lenta y discreta. Eso convierte el mapa en una
+-- eleccion --rapido y expuesto contra lento y seguro-- que es exactamente la
+-- pregunta que un juego de contrabando quiere que el jugador se haga cada viaje.
+-- Con todas las calles iguales esa pregunta no existia.
+--
+-- COMO SE ENSANCHA SIN MOVER NADA, que es lo que hace este cambio barato: `PASO`
+-- NO cambia. El eje de cada calle sigue exactamente donde estaba --y con el los
+-- cruces, los destinos, las rutas y todo lo que se escribio contra `Grid.cruce`--
+-- y lo que se come el ancho de mas es MANZANA. Una manzana pegada a una avenida
+-- mide 108 en vez de 120, y con avenida a los dos lados, 96. Eso tambien es lo que
+-- pasa en una ciudad de verdad, asi que se lee bien.
+--
+-- Es la trampa de "ampliar una reticula moviendo sus indices" esquivada por el
+-- mismo procedimiento que la vez anterior: no se toca el significado de ningun
+-- numero que ya estuviera escrito.
+Grid.ANCHO_AVENIDA = 50
+
+-- CUALES. La vertical es la calle 1, que es la que pasa por la boca del recinto: se
+-- sale de casa y ya estas en la via rapida, sin aprenderse nada. La horizontal es la
+-- fila 1, que parte el mapa por el medio y ademas es la banda ambar -- o sea que la
+-- avenida cruza la ciudad justo por donde las tres rutas tienen que pasar.
+--
+-- DOS Y NO MAS. Tres avenidas paralelas no son una jerarquia, son otra reticula con
+-- las calles mas anchas; lo que da caracter a un plano es que haya POCAS vias
+-- principales y se noten. Y su cruce --(-620, 462)-- es el sitio natural para la
+-- rotonda, que es el punto de referencia que a este mapa le faltaba.
+local AVENIDA_X: { [number]: boolean } = { [1] = true }
+local AVENIDA_Z: { [number]: boolean } = { [1] = true }
+
+function Grid.esAvenidaX(i: number): boolean
+	return AVENIDA_X[i] == true
+end
+
+function Grid.esAvenidaZ(j: number): boolean
+	return AVENIDA_Z[j] == true
+end
+
+-- EL ANCHO DE UNA CALLE CONCRETA. Todo lo que dibuje, mida o compruebe una calle
+-- tiene que pedirlo aqui: `Grid.ANCHO_CALLE` a secas dejo de ser "el ancho de las
+-- calles" el dia que hubo dos anchos, y quedarse con el es como se cuela un bordillo
+-- a doce studs de donde acaba el asfalto.
+function Grid.anchoDeCalleX(i: number): number
+	return if AVENIDA_X[i] then Grid.ANCHO_AVENIDA else Grid.ANCHO_CALLE
+end
+
+function Grid.anchoDeCalleZ(j: number): number
+	return if AVENIDA_Z[j] then Grid.ANCHO_AVENIDA else Grid.ANCHO_CALLE
+end
+
+-- EL CRUCE DE LAS DOS AVENIDAS, que es donde va la rotonda. Se pregunta aqui para
+-- que MapBuilder no vuelva a escribir "1" y "1" a mano: el dia que la avenida se
+-- mueva, la rotonda se mueve con ella.
+function Grid.cruceDeAvenidas(): Vector3
+	local ci, cj = 1, 1
+	for i = Grid.COL_MIN, Grid.COL_MAX do
+		if AVENIDA_X[i] then
+			ci = i
+		end
+	end
+	for j = Grid.FILA_MIN, Grid.FILA_MAX do
+		if AVENIDA_Z[j] then
+			cj = j
+		end
+	end
+	return Grid.cruce(ci, cj)
+end
+
 -- HASTA DONDE LLEGA LA RETICULA, en indices de calle. No es "cuantas manzanas hay":
 -- son las calles que existen, y las manzanas viven entre dos consecutivas.
 --
@@ -114,11 +191,13 @@ end
 -- El rectángulo que ocupa el mapa, calles de los bordes incluidas. Lo usan el suelo
 -- base y las comprobaciones que barren el mundo.
 function Grid.limites(): (number, number, number, number)
-	local medio = Grid.ANCHO_CALLE / 2
-	return Grid.xDeCalle(Grid.COL_MIN) - medio,
-		Grid.xDeCalle(Grid.COL_MAX) + medio,
-		Grid.zDeCalle(Grid.FILA_MIN) - medio,
-		Grid.zDeCalle(Grid.FILA_MAX) + medio
+	-- CADA BORDE CON EL ANCHO DE SU PROPIA CALLE. Con el ancho global daba igual;
+	-- desde que hay avenidas, poner una en el borde correria el limite del mapa doce
+	-- studs y el suelo base se quedaria corto justo ahi.
+	return Grid.xDeCalle(Grid.COL_MIN) - Grid.anchoDeCalleX(Grid.COL_MIN) / 2,
+		Grid.xDeCalle(Grid.COL_MAX) + Grid.anchoDeCalleX(Grid.COL_MAX) / 2,
+		Grid.zDeCalle(Grid.FILA_MIN) - Grid.anchoDeCalleZ(Grid.FILA_MIN) / 2,
+		Grid.zDeCalle(Grid.FILA_MAX) + Grid.anchoDeCalleZ(Grid.FILA_MAX) / 2
 end
 
 -- LA ACERA MAS CERCANA A UN PUNTO, y hacia donde mira quien se planta en ella.
@@ -141,24 +220,27 @@ end
 -- es el que mantiene al poste donde lo puso quien lo sembro, en vez de mandarlo al
 -- otro extremo de la manzana.
 function Grid.aceraDe(punto: Vector3): (Vector3, number)
-	local medio = Grid.ANCHO_CALLE / 2
 	-- A que distancia queda el poste del bordillo, ya dentro de la manzana. Tres
 	-- studs: fuera de la calzada --si no, un coche lo atraviesa y encima tapa la
 	-- linea de borde-- y lo bastante cerca para que su cono barra la calle entera.
 	local RETRANQUEO = 3
 
-	local mejorX, distX = 0, math.huge
+	-- CON EL ANCHO DE CADA CALLE, no con uno global. En una avenida el bordillo esta
+	-- a 25 del eje y no a 13: plantar el poste con la medida de la calle estrecha lo
+	-- dejaria doce studs DENTRO del asfalto de la avenida, que es justo lo que esta
+	-- funcion existe para evitar.
+	local mejorX, distX, medioX = 0, math.huge, Grid.ANCHO_CALLE / 2
 	for i = Grid.COL_MIN, Grid.COL_MAX do
 		local d = math.abs(punto.X - Grid.xDeCalle(i))
 		if d < distX then
-			distX, mejorX = d, Grid.xDeCalle(i)
+			distX, mejorX, medioX = d, Grid.xDeCalle(i), Grid.anchoDeCalleX(i) / 2
 		end
 	end
-	local mejorZ, distZ = 0, math.huge
+	local mejorZ, distZ, medioZ = 0, math.huge, Grid.ANCHO_CALLE / 2
 	for j = Grid.FILA_MIN, Grid.FILA_MAX do
 		local d = math.abs(punto.Z - Grid.zDeCalle(j))
 		if d < distZ then
-			distZ, mejorZ = d, Grid.zDeCalle(j)
+			distZ, mejorZ, medioZ = d, Grid.zDeCalle(j), Grid.anchoDeCalleZ(j) / 2
 		end
 	end
 
@@ -180,23 +262,24 @@ function Grid.aceraDe(punto: Vector3): (Vector3, number)
 	if distX <= distZ then
 		-- Calle VERTICAL: la acera esta a un lado u otro en X, y se mira hacia el eje.
 		local lado = if punto.X >= mejorX then 1 else -1
-		x = mejorX + lado * (medio + RETRANQUEO)
+		x = mejorX + lado * (medioX + RETRANQUEO)
 		-- Al este de la calle se mira hacia -X (rumbo 90); al oeste, hacia +X (270).
 		rumbo = if lado > 0 then 90 else 270
-		-- Y fuera del cruce, si lo hubiera.
-		if math.abs(z - mejorZ) < medio + RETRANQUEO then
+		-- Y fuera del cruce, si lo hubiera. Con el ancho de la calle PERPENDICULAR,
+		-- que es la que forma ese cruce.
+		if math.abs(z - mejorZ) < medioZ + RETRANQUEO then
 			local haciaZ = if z >= mejorZ then 1 else -1
-			z = mejorZ + haciaZ * (medio + RETRANQUEO)
+			z = mejorZ + haciaZ * (medioZ + RETRANQUEO)
 		end
 	else
 		-- Calle HORIZONTAL: lo mismo por el otro eje.
 		local lado = if punto.Z >= mejorZ then 1 else -1
-		z = mejorZ + lado * (medio + RETRANQUEO)
+		z = mejorZ + lado * (medioZ + RETRANQUEO)
 		-- Al sur de la calle se mira hacia -Z (rumbo 0); al norte, hacia +Z (180).
 		rumbo = if lado > 0 then 0 else 180
-		if math.abs(x - mejorX) < medio + RETRANQUEO then
+		if math.abs(x - mejorX) < medioX + RETRANQUEO then
 			local haciaX = if x >= mejorX then 1 else -1
-			x = mejorX + haciaX * (medio + RETRANQUEO)
+			x = mejorX + haciaX * (medioX + RETRANQUEO)
 		end
 	end
 
@@ -232,11 +315,22 @@ end
 -- Los cuatro bordes de una manzana: x0, x1, z0, z1. La manzana (col, fila) vive
 -- ENTRE las calles col y col+1, y entre las filas fila y fila+1.
 function Grid.manzana(col: number, fila: number): (number, number, number, number)
-	local medio = Grid.ANCHO_CALLE / 2
-	return Grid.xDeCalle(col) + medio,
-		Grid.xDeCalle(col + 1) - medio,
-		Grid.zDeCalle(fila) + medio,
-		Grid.zDeCalle(fila + 1) - medio
+	-- CUATRO LADOS, CUATRO ANCHOS. Aqui es donde una avenida se cobra su espacio: la
+	-- manzana no se mueve, se ENCOGE por el lado que da a la via ancha. Es la razon
+	-- de que ensanchar una calle no descoloque nada de lo que ya estaba escrito.
+	return Grid.xDeCalle(col) + Grid.anchoDeCalleX(col) / 2,
+		Grid.xDeCalle(col + 1) - Grid.anchoDeCalleX(col + 1) / 2,
+		Grid.zDeCalle(fila) + Grid.anchoDeCalleZ(fila) / 2,
+		Grid.zDeCalle(fila + 1) - Grid.anchoDeCalleZ(fila + 1) / 2
+end
+
+-- LO QUE MIDE DE VERDAD UNA MANZANA. `LADO_MANZANA` es el valor NOMINAL --lo que hay
+-- entre dos ejes de calle menos una calle normal-- y desde que existen las avenidas
+-- ya no es el tamano de todas: la que da a una avenida mide 108 y la que da a dos,
+-- 96. Quien plante algo dentro tiene que preguntar por la de verdad.
+function Grid.tamanoManzana(col: number, fila: number): (number, number)
+	local x0, x1, z0, z1 = Grid.manzana(col, fila)
+	return x1 - x0, z1 - z0
 end
 
 -- Centro de una manzana. Lo piden los edificios y los hitos.
@@ -325,14 +419,13 @@ end
 -- línea de calle: las calles son continuas de borde a borde, así que estar alineado
 -- con una ya es estar en ella.
 function Grid.enCalle(x: number, z: number): boolean
-	local medio = Grid.ANCHO_CALLE / 2
 	for i = Grid.COL_MIN, Grid.COL_MAX do
-		if math.abs(x - Grid.xDeCalle(i)) <= medio then
+		if math.abs(x - Grid.xDeCalle(i)) <= Grid.anchoDeCalleX(i) / 2 then
 			return true
 		end
 	end
 	for j = Grid.FILA_MIN, Grid.FILA_MAX do
-		if math.abs(z - Grid.zDeCalle(j)) <= medio then
+		if math.abs(z - Grid.zDeCalle(j)) <= Grid.anchoDeCalleZ(j) / 2 then
 			return true
 		end
 	end

@@ -1569,27 +1569,54 @@ local function contactos()
 	--
 	-- Y SE SALTA EL RECINTO: alli la reticula dice que hay calle, pero no se planta
 	-- asfalto -- es nuestra parcela. Medir alli marcaba medio taller como intruso.
+	--
+	-- DOS COSAS DE ESTA SONDA CAMBIARON EL 22/08, y las dos las destapo la avenida:
+	--
+	--   · EL ANCHO ES POR CALLE. `Grid.ANCHO_CALLE` dejo de ser "el ancho de las
+	--     calles" el dia que hubo dos anchos, y con el global la sonda medía once
+	--     studs a cada lado del eje donde la avenida llega a veinticinco.
+	--   · LA CAJA VA ORIENTADA. `Position +- Size/2` solo describe una pieza que NO
+	--     este girada, y la casa de entrega mira al cruce -- o sea que gira. Al
+	--     ensancharse la calle 1, el desempate de `portalDeCruce` cambio de eje, la
+	--     casa verde giro noventa grados y la sonda empezo a cantar *"Vivienda_verdeDer
+	--     (11 studs2)"* sobre una pared que no tocaba el asfalto. Medida con la caja
+	--     de verdad: cero.
+	--
+	-- Es la trampa de siempre por el otro lado -- aqui no fallaba el mundo, fallaba
+	-- la regla con la que se medía-- y el sintoma es identico. Lo que la separa de un
+	-- fallo real es medir bien y comparar, no discutir.
 	do
-		local medio = Grid.ANCHO_CALLE / 2
 		local px0 = Config.POLIGONO_CENTRO.X - Config.POLIGONO_TAMANO.X / 2
 		local px1 = Config.POLIGONO_CENTRO.X + Config.POLIGONO_TAMANO.X / 2
 		local pz0 = Config.POLIGONO_CENTRO.Z - Config.POLIGONO_TAMANO.Y / 2
 		local pz1 = Config.POLIGONO_CENTRO.Z + Config.POLIGONO_TAMANO.Y / 2
 
+		-- La huella real de una pieza en el suelo, gire lo que gire: se proyecta cada
+		-- semieje sobre X y sobre Z y se suman los tres.
+		local function huellaEnElSuelo(d: BasePart): (number, number, number, number)
+			local cf, t = d.CFrame, d.Size
+			local ex = math.abs(cf.RightVector.X) * t.X / 2
+				+ math.abs(cf.UpVector.X) * t.Y / 2
+				+ math.abs(cf.LookVector.X) * t.Z / 2
+			local ez = math.abs(cf.RightVector.Z) * t.X / 2
+				+ math.abs(cf.UpVector.Z) * t.Y / 2
+				+ math.abs(cf.LookVector.Z) * t.Z / 2
+			return cf.Position.X - ex, cf.Position.X + ex, cf.Position.Z - ez, cf.Position.Z + ez
+		end
+
 		-- Cuanto de un rectangulo cae dentro del carril mas cercano.
 		local function sobreElCarril(d: BasePart): number
-			local ax0, ax1 = d.Position.X - d.Size.X / 2, d.Position.X + d.Size.X / 2
-			local az0, az1 = d.Position.Z - d.Size.Z / 2, d.Position.Z + d.Size.Z / 2
+			local ax0, ax1, az0, az1 = huellaEnElSuelo(d)
 			local peor = 0
 			for i = Grid.COL_MIN, Grid.COL_MAX do
-				local eje = Grid.xDeCalle(i)
+				local eje, medio = Grid.xDeCalle(i), Grid.anchoDeCalleX(i) / 2
 				local sx = math.min(ax1, eje + medio) - math.max(ax0, eje - medio)
 				if sx > 0 then
 					peor = math.max(peor, sx * (az1 - az0))
 				end
 			end
 			for j = Grid.FILA_MIN, Grid.FILA_MAX do
-				local eje = Grid.zDeCalle(j)
+				local eje, medio = Grid.zDeCalle(j), Grid.anchoDeCalleZ(j) / 2
 				local sz = math.min(az1, eje + medio) - math.max(az0, eje - medio)
 				if sz > 0 then
 					peor = math.max(peor, sz * (ax1 - ax0))
@@ -1621,11 +1648,12 @@ local function contactos()
 		if poli and poli:IsA("BasePart") then
 			comprobar(
 				"el recinto no invade la calle que pasa por delante",
-				poli.Position.Z - poli.Size.Z / 2 >= Grid.zDeCalle(Grid.FILA_MAX) + medio - 0.5,
+				poli.Position.Z - poli.Size.Z / 2
+					>= Grid.zDeCalle(Grid.FILA_MAX) + Grid.anchoDeCalleZ(Grid.FILA_MAX) / 2 - 0.5,
 				string.format(
 					"su borde esta en z=%.0f y el carril acaba en z=%.0f",
 					poli.Position.Z - poli.Size.Z / 2,
-					Grid.zDeCalle(Grid.FILA_MAX) + medio
+					Grid.zDeCalle(Grid.FILA_MAX) + Grid.anchoDeCalleZ(Grid.FILA_MAX) / 2
 				)
 			)
 		end
@@ -2193,9 +2221,18 @@ local function reticula()
 	-- tiras a una alfombra segmentada. Contar piezas mide la implementación; esto mide
 	-- lo que pisa el jugador, que es lo que la sonda tiene que mirar.
 	local sinAsfalto = {}
+	-- EL CRUCE DE LA ROTONDA NO SE MIDE EN SU CENTRO, porque en su centro hay una
+	-- isleta: el rayo se para en el hormigon medio stud mas arriba y la sonda cantaba
+	-- *"cruces sin asfalto: (1,1)"* sobre el unico cruce del mapa que esta MEJOR
+	-- resuelto que los demas. Se mide a un lado, en el anillo por el que se rueda,
+	-- que es donde de verdad tiene que haber calzada.
+	local rotonda = Grid.cruceDeAvenidas()
 	for i = Grid.COL_MIN, Grid.COL_MAX do
 		for j = Grid.FILA_MIN, Grid.FILA_MAX do
 			local cruce = Grid.cruce(i, j)
+			if cruce.X == rotonda.X and cruce.Z == rotonda.Z then
+				cruce += Vector3.new(Grid.ANCHO_AVENIDA / 2 - 3, 0, 0)
+			end
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Include
 			params.FilterDescendantsInstances = { ciudad }
