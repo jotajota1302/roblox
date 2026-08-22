@@ -3442,11 +3442,21 @@ function CityBuilder.build(): Mundo
 	-- que el halo del suelo se recorto a 9 studs: una marca tiene que decir "ahi hay un
 	-- bulto", no pintar una zona. Vertical ademas dice lo unico que hace falta saber
 	-- desde abajo -- que la cosa esta ARRIBA.
+	--
+	-- DIEZ STUDS, NO VEINTISEIS. La primera version median veintiseis -- casi el doble
+	-- que el edificio que las sostiene, que mide catorce-- y JJ la vio antes que nada
+	-- al entrar: *"?que hace ese paquete con un rectangulo amarillo hacia arriba en el
+	-- techo?"*. Con razon: una marca mas alta que el edificio no dice "aqui hay algo",
+	-- dice "aqui hay un poste", y encima tapa la fachada desde media calle.
+	--
+	-- Lo que hace falta es que ASOME por encima del tejado, no que domine el barrio.
+	-- Diez studs sobresalen lo justo para verse desde la calle --que es toda la
+	-- funcion- y dejan el edificio siendo el edificio.
 	local function baliza(caja: BasePart)
 		local haz = Instance.new("Part")
 		haz.Name = "Baliza"
-		haz.Size = Vector3.new(0.7, 26, 0.7)
-		haz.CFrame = caja.CFrame * CFrame.new(0, 13, 0)
+		haz.Size = Vector3.new(0.5, 10, 0.5)
+		haz.CFrame = caja.CFrame * CFrame.new(0, 5, 0)
 		haz.Anchored = true
 		haz.CanCollide = false
 		haz.CanQuery = false
@@ -3454,7 +3464,7 @@ function CityBuilder.build(): Mundo
 		haz.CastShadow = false
 		haz.Color = Color3.fromRGB(238, 202, 122)
 		haz.Material = Enum.Material.Neon
-		haz.Transparency = 0.72
+		haz.Transparency = 0.82
 		haz.Parent = caja
 	end
 
