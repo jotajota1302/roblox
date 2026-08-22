@@ -44,7 +44,24 @@ actualización**, no en el lanzamiento: en un juego que nadie conoce todavía no
 Play with friends: on the red route anyone can rob anyone.
 ```
 
-**Icono y miniatura:** generados y en `assets/portada/` (`node scripts/portada.js`).
+**Icono y miniatura:** seis piezas generadas con MiniMax `image-01` en `assets/portada/`
+(`node scripts/portada.js`). **Tres enfoques de cada una a proposito**: el CTR es lo primero
+que vamos a medir y con una sola imagen no hay nada que comparar -- si sale bajo, no se sabe
+si el problema es el juego o el cartel. Con tres se cambia la portada sin tocar el juego y se
+mira si el numero se mueve.
+
+| Pieza | Que ensena | Veredicto |
+|---|---|---|
+| `icono-a` | La furgoneta huyendo con la carga encendida y un ladron detras | ✅ **el que va**: se lee a 150 px y dice de que va el juego |
+| `icono-b` | La caja dorada con manos peleandose por ella | ❌ llamativa, pero la caja sale deformada y no dice que es un juego de conducir |
+| `icono-c` | La cara del conductor y el faro del perseguidor en el retrovisor | 🟡 **el primero que hay que probar despues**: mucha emocion, pero oscuro |
+| `miniatura-a` | La persecucion vista de lado | 🟡 correcta |
+| `miniatura-b` | El robo EN EL ACTO: le arrancan la carga y las cajas caen | ✅ **la que va**: mas accion, mas contraste y cuenta lo que se pierde |
+| `miniatura-c` | La ciudad entera desde arriba, con la rotonda | ❌ como miniatura, el coche es diminuto. 🟢 **sirve para las imagenes secundarias** de la pagina, donde si se mira con calma |
+
+**Van `icono-a` + `miniatura-b`.** Y cuando haya CTR, la forma barata de subirlo es cambiar
+UNA de las dos y volver a medir: `icono-c` primero, porque las caras expresivas rinden en la
+cuadricula y es el enfoque mas distinto de los tres.
 
 - La **miniatura** cuenta el juego de un vistazo: la furgoneta cargada con la caja dorada y
   dos ladrones en moto encima de ella.

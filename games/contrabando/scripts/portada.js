@@ -50,27 +50,28 @@ const ESTILO =
   "dramatic lighting. Clean and readable at small size. No text, no letters, no logos, " +
   "no watermarks, no UI.";
 
+// TRES ENFOQUES DE CADA COSA, NO UNO.
+//
+// El CTR es el cuello de botella del proyecto y es lo primero que vamos a medir, y con
+// una sola imagen no hay nada que comparar: si sale bajo, no se sabe si el problema es
+// el juego o el cartel. Con tres se puede cambiar la portada sin tocar el juego y ver si
+// el numero se mueve, que es la unica forma barata de saberlo.
+//
+// Los tres cuentan la MISMA historia desde distinto sitio -- el vehiculo, el botin y la
+// cara-- porque en Roblox no se sabe de antemano cual gana: las caras expresivas suelen
+// funcionar muy bien, y a la vez un objeto dorado enorme es lo que mas se lee a 150 px.
 const PIEZAS = [
   {
-    id: "icono",
+    id: "icono-a",
     ratio: "1:1",
-    // UNA SOLA IDEA Y GRANDE. A 150 px no cabe una escena: cabe una cosa. La furgoneta
-    // huyendo con algo valioso, y el peligro insinuado por quien viene detras.
+    seed: 23,
+    // EL VEHICULO. Una sola idea grande, que a 150 px no cabe una escena.
     //
-    // Y EL TECHO SE LLENA CON ALGO, que es la unica forma de vaciarlo.
-    //
-    // La primera version pedia "un haz de foco policial detras" y el modelo lo entendio
-    // como una BARRA DE LUCES azul y roja encima de la furgoneta: una ambulancia con
-    // cajas, o sea lo contrario de lo que el juego dice -- que la policia es de lo que
-    // HUYES, no lo que eres.
-    //
-    // La segunda version lo PROHIBIA explicito ("no light bar, no emergency lights, not
-    // a police vehicle") y salio otra vez con las luces puestas. En estos modelos un
-    // negativo a menudo refuerza lo que niega: nombrar la barra de luces la invoca,
-    // diga lo que diga la frase alrededor.
-    //
-    // Lo que funciona es no mencionarla y DARLE AL TECHO OTRA COSA que ocupe su sitio:
-    // una lona atada. Se describe lo que se quiere ver, no lo que no.
+    // Y EL TECHO SE LLENA CON ALGO, que es la unica forma de vaciarlo: las dos primeras
+    // versiones salieron con barra de luces azul y roja --una ambulancia con cajas, o
+    // sea lo contrario de lo que el juego dice-- y PROHIBIRLA no funciono. En estos
+    // modelos un negativo a menudo refuerza lo que niega. Lo que funciono fue darle al
+    // techo una lona atada: se describe lo que se quiere ver, no lo que no.
     prompt:
       "Square game icon. A battered red civilian cargo van at a low three-quarter front " +
       "angle, speeding toward the viewer down a night street, body tilted with motion. " +
@@ -80,16 +81,72 @@ const PIEZAS = [
       "a motorbike gives chase, headlight glaring. The van fills most of the frame.",
   },
   {
-    id: "miniatura",
+    id: "icono-b",
+    ratio: "1:1",
+    seed: 51,
+    // EL BOTIN. Lo que mas se lee a tamano pequeno es un objeto grande y brillante, y
+    // ademas dice de que va el juego sin explicar nada: esto vale mucho y alguien lo
+    // quiere. Las manos cuentan el conflicto entero sin necesidad de una escena.
+    prompt:
+      "Square game icon, extreme close-up. A big glowing golden wooden crate held tight " +
+      "by a pair of blocky cartoon hands, filling most of the frame. From the edges of " +
+      "the frame, two other pairs of gloved hands in black grab at the crate, trying to " +
+      "pull it away. Golden light bursts from the crate seams. Dark blurred night street " +
+      "far behind, out of focus.",
+  },
+  {
+    id: "icono-c",
+    ratio: "1:1",
+    seed: 88,
+    // LA CARA. En Roblox las caras expresivas rinden muy bien en la cuadricula: una
+    // expresion se lee a cualquier tamano y cuenta la emocion del juego --el susto de
+    // que te alcancen-- que es justo lo que ni el vehiculo ni el botin dicen.
+    prompt:
+      "Square game icon. Close-up of a blocky Roblox-style character driving a van at " +
+      "night, gripping the wheel, eyes wide with alarm, glancing at the rear-view mirror. " +
+      "Reflected in the mirror: the glaring headlight of a masked thief on a motorbike " +
+      "right behind. Warm golden light from cargo glows behind the driver's shoulder. " +
+      "Face fills the upper half of the frame.",
+  },
+  {
+    id: "miniatura-a",
     ratio: "16:9",
-    // AQUI SI CABE UNA ESCENA, y tiene que contar el juego entero de un vistazo: llevas
-    // algo valioso, te persiguen, y la ciudad es el tablero.
+    seed: 7,
+    // LA PERSECUCION, de lado: cuenta el juego entero de un vistazo -- llevas algo
+    // valioso, te persiguen, y la ciudad es el tablero.
     prompt:
       "Wide cinematic game thumbnail. A red delivery van loaded with cardboard boxes and a " +
       "glowing golden crate races down a wide city avenue at night. Two masked thieves on " +
       "motorbikes chase close behind it, reaching for the cargo. Searchlight beams sweep " +
       "the street from the rooftops. Blocky stylized city buildings on both sides, wet " +
       "asphalt reflecting the lights. Sense of speed and chase, motion blur on the road.",
+  },
+  {
+    id: "miniatura-b",
+    ratio: "16:9",
+    seed: 34,
+    // EL MOMENTO DEL ROBO. La anterior ensena la persecucion; esta ensena lo que se
+    // juega en ella. Un instante concreto se recuerda mejor que una situacion.
+    prompt:
+      "Wide cinematic game thumbnail. Action moment: a masked thief on a motorbike pulls " +
+      "alongside a speeding red cargo van and rips a glowing golden crate out of its open " +
+      "back, both hands on it, cardboard boxes tumbling onto the road. The van driver " +
+      "leans out of the window shouting. Night city avenue, streaks of light, sparks on " +
+      "the asphalt, strong motion blur.",
+  },
+  {
+    id: "miniatura-c",
+    ratio: "16:9",
+    seed: 60,
+    // LA CIUDAD COMO TABLERO. Las dos anteriores son primeros planos; esta ensena que
+    // hay un MAPA que recorrer y decisiones que tomar, que es la otra mitad del juego y
+    // lo que hace que alguien piense que hay algo que aprender aqui.
+    prompt:
+      "Wide cinematic game thumbnail, high angle looking down over a stylized blocky night " +
+      "city with a grid of lit streets and a big roundabout. A tiny red van glows as it " +
+      "races along one avenue leaving a bright light trail behind it; three motorbike " +
+      "headlights converge on it from different streets. Warehouse district on one side, " +
+      "tall buildings on the other, everything lit in deep blue with warm orange streets.",
   },
 ];
 
@@ -107,8 +164,8 @@ async function generar(pieza) {
       prompt: pieza.prompt + ESTILO,
       aspect_ratio: pieza.ratio,
       response_format: "url",
-      // Semilla fija: si hay que regenerar una, la otra no cambia debajo.
-      seed: 23,
+      // Semilla por pieza: regenerar una no mueve a las demas.
+      seed: pieza.seed,
     }),
   });
   const data = await res.json();
