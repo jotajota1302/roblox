@@ -58,16 +58,39 @@ Si hay que volver a generarlas: `node scripts\portada.js --force` y luego
 Experiencia**. Subirla sólo en la primera deja la segunda vacía, y entonces la ficha
 pública del juego enseña **la imagen genérica de Roblox** (un prado con un puente).
 
-**2. El alcance no lo decide el juego, lo decide la CUENTA.** El cuestionario de contenido
-puede salir "Mínima" —apta para todas las edades— y aun así la experiencia queda limitada a
-*"mayores de 16 años y amigos de confianza"*, porque el nivel de publicación depende de la
-cuenta del creador. Se mira en **Configuración → Elegibilidad → Permisos de publicación**, y
-para llegar a todas las edades hacen falta tres cosas: verificación de identidad,
-verificación de edad y **verificación en dos pasos**. Las dos primeras son un trámite; la
-tercera se olvida, y sin ella el juego no lo ve casi nadie.
+**2. El alcance de "todas las edades" no se pide: se PAGA, o se gana con el tiempo.** Es lo
+que más despista de todo el portal, porque enseña tres cosas que parecen contradecirse:
+
+| Lo que dice el panel | Qué significa de verdad |
+|---|---|
+| *Alcance de la cuenta: **Todas las edades*** | Tu CUENTA cumple los requisitos (ID + edad + 2FA) |
+| *Clasificación del contenido: **Mínima*** | El JUEGO es apto para todos los públicos |
+| *Alcance actual: **Mayores de 16 y amigos*** | Y aun así el juego sólo lo ve esa gente |
+
+No es un fallo, ni un retraso de propagación, ni caché: **falta un requisito más**, y la
+documentación de Roblox lo dice sin rodeos. Para llegar a todas las edades —que incluye las
+cuentas *Kids* y *Select*, o sea la masa de la plataforma— hay que cumplir todo lo anterior
+**y además UNA de estas dos**:
+
+- Mantener **Roblox Premium activo dos meses consecutivos**, o
+- Pagar la **tarifa de publicación: 1.000 Robux (~10 €), reembolsables**.
+
+La tarifa vuelve entera si el juego mantiene **25 jugadores altamente comprometidos durante
+60 días** sin que lo moderen. El contador se ve en la misma página, y empieza en `0 / 250`.
+
+> Y ahí está la pescadilla: **sin alcance no llegan jugadores, y sin jugadores no se gana el
+> alcance.** La tarifa existe justamente para romper ese círculo el primer día. Que sea
+> reembolsable no es casualidad: Roblox no cobra por el permiso, cobra por que a un
+> spammer le salga caro repetirlo mil veces.
 
 Con el alcance limitado, **el CTR y la D1 no se pueden medir**: no porque el juego sea bueno
-o malo, sino porque no llega a nadie a quien medir.
+o malo, sino porque no llega a nadie a quien medir. Es el único gasto del proyecto que
+compra información en vez de contenido.
+
+> **Aviso que aparece y asusta**: *"Nivel de publicación en riesgo. En la próxima publicación,
+> tu juego perderá el acceso a este alcance de público."* No es una amenaza por algo que
+> hayas hecho mal: es esto mismo dicho de otra manera — la cuenta tiene el nivel concedido
+> pero sin respaldar por ninguna de las dos vías.
 
 ---
 
@@ -129,7 +152,14 @@ En la misma pantalla, **Genre**: elige **Adventure**.
 2. En **Audience**, elige **Public**.
 3. **Save Changes**.
 
-Ya está fuera.
+Ya está fuera... pero sólo para mayores de 16 y amigos de confianza, hasta que se pague la
+tarifa de publicación (ver la trampa 2, arriba). Se hace en **Audiencia → Alcance**, sección
+*Tarifa de publicación reembolsable* → **Pagar**. Hacen falta 1.000 Robux en la cuenta.
+
+**No pagues la de al lado.** En la misma tarjeta hay una segunda oferta, *revisión
+acelerada*, que son **100.000 Robux**: cien veces más, y lo único que compra es que la
+revisión vaya más rápida. Eso es para un lanzamiento con campaña detrás, no para saber si
+un juego engancha.
 
 ---
 
